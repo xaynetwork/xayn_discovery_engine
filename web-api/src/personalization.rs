@@ -52,76 +52,46 @@ type AppState = server::AppState<
 >;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Config {
-    #[as_ref]
-    #[serde(default)]
     pub(crate) logging: logging::Config,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) net: NetConfig,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) storage: storage::Config,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) coi: CoiConfig,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) personalization: PersonalizationConfig,
 }
 
 server::impl_config! { Config }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub(crate) struct PersonalizationConfig {
     /// Max number of documents to return.
-    #[serde(default = "default_max_number_documents")]
     pub(crate) max_number_documents: usize,
+
     /// Default number of documents to return.
-    #[serde(default = "default_default_number_documents")]
     pub(crate) default_number_documents: usize,
+
     /// Max number of positive cois to use in knn search.
-    #[serde(default = "default_max_cois_for_knn")]
     pub(crate) max_cois_for_knn: usize,
+
     /// Weighting of user interests vs document tags. Must be in the interval `[0, 1]`.
-    #[serde(default = "default_interest_tag_bias")]
     pub(crate) interest_tag_bias: f32,
-}
-
-const fn default_max_number_documents() -> usize {
-    100
-}
-
-const fn default_default_number_documents() -> usize {
-    10
-}
-
-const fn default_max_cois_for_knn() -> usize {
-    //FIXME what is a default value we know works well with how we do knn?
-    10
-}
-
-const fn default_interest_tag_bias() -> f32 {
-    0.8
 }
 
 impl Default for PersonalizationConfig {
     fn default() -> Self {
         Self {
-            max_number_documents: default_max_number_documents(),
-            default_number_documents: default_default_number_documents(),
-            max_cois_for_knn: default_max_cois_for_knn(),
-            interest_tag_bias: default_interest_tag_bias(),
+            max_number_documents: 100,
+            default_number_documents: 10,
+            // FIXME: what is a default value we know works well with how we do knn?
+            max_cois_for_knn: 10,
+            interest_tag_bias: 0.8,
         }
     }
 }
 
 #[derive(AsRef)]
 pub struct AppStateExtension {
-    #[as_ref]
     pub(crate) coi: CoiSystem,
 }

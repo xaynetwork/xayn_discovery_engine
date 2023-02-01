@@ -159,10 +159,9 @@ pub(crate) trait Tag {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Config {
-    #[serde(default)]
     elastic: elastic::Config,
-    #[serde(default)]
     postgres: postgres::Config,
 }
 

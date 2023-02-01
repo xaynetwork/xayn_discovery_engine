@@ -26,14 +26,6 @@ use tracing_subscriber::{
 
 use crate::utils::RelativePathBuf;
 
-const fn default_file() -> Option<RelativePathBuf> {
-    None
-}
-
-const fn default_level() -> LevelFilter {
-    LevelFilter::INFO
-}
-
 mod serde_level_filter {
     use serde::{
         de::{Deserialize, Deserializer, Error},
@@ -62,19 +54,18 @@ mod serde_level_filter {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Config {
-    #[serde(default = "default_file")]
     pub(crate) file: Option<RelativePathBuf>,
     #[serde(with = "serde_level_filter")]
-    #[serde(default = "default_level")]
     pub(crate) level: LevelFilter,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            file: default_file(),
-            level: default_level(),
+            file: None,
+            level: LevelFilter::INFO,
         }
     }
 }
