@@ -284,8 +284,7 @@ impl storage::Document for Storage {
     }
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        let documents = self.documents.read().await;
-        Ok(documents.1.borrow_map().get(id).cloned())
+        Ok(self.documents.read().await.1.borrow_map().get(id).cloned())
     }
 
     async fn get_by_embedding<'a>(

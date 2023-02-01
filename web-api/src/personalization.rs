@@ -60,9 +60,6 @@ pub struct Config {
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
     pub(crate) personalization: PersonalizationConfig,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) semantic_search: SemanticSearchConfig,
 }
 

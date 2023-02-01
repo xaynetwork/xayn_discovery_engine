@@ -152,7 +152,7 @@ impl Client {
 
         let body = serialize_to_ndjson(requests)?;
 
-        self.query_with_bytes::<_, BulkResponse>(url, Some((body, headers)))
+        self.query_with_bytes::<_, BulkResponse>(url, Some((headers, body)))
             .await?
             .ok_or_else(|| InternalError::from_message("_bulk endpoint not found").into())
     }
@@ -160,13 +160,13 @@ impl Client {
     async fn query_with_bytes<B, T>(
         &self,
         url: Url,
-        post_data: Option<(B, HeaderMap<HeaderValue>)>,
+        post_data: Option<(HeaderMap<HeaderValue>, B)>,
     ) -> Result<Option<T>, Error>
     where
         B: Into<Body>,
         T: DeserializeOwned,
     {
-        let request_builder = if let Some((body, headers)) = post_data {
+        let request_builder = if let Some((headers, body)) = post_data {
             self.client.post(url).headers(headers).body(body)
         } else {
             self.client.get(url)
@@ -196,10 +196,10 @@ impl Client {
     {
         let post_data = body
             .map(|json| -> Result<_, Error> {
-                let body = serde_json::to_vec(&json)?;
                 let mut headers = HeaderMap::new();
                 headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-                Ok((body, headers))
+                let body = serde_json::to_vec(&json)?;
+                Ok((headers, body))
             })
             .transpose()?;
 

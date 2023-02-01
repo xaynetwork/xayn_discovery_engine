@@ -189,7 +189,7 @@ async fn personalized_documents(
     .map(|documents| {
         if let Some(documents) = documents {
             Either::Left(Json(PersonalizedDocumentsResponse {
-                documents: documents.into_iter().map(Into::into).collect(),
+                documents: documents.into_iter().map_into().collect(),
             }))
         } else {
             Either::Right((
@@ -209,11 +209,11 @@ struct PersonalizedDocumentData {
 }
 
 impl From<PersonalizedDocument> for PersonalizedDocumentData {
-    fn from(value: PersonalizedDocument) -> Self {
+    fn from(document: PersonalizedDocument) -> Self {
         Self {
-            id: value.id,
-            score: value.score,
-            properties: value.properties,
+            id: document.id,
+            score: document.score,
+            properties: document.properties,
         }
     }
 }
@@ -493,7 +493,7 @@ async fn semantic_search(
     .await?;
 
     Ok(Json(SemanticSearchResponse {
-        documents: documents.into_iter().map(Into::into).collect(),
+        documents: documents.into_iter().map_into().collect(),
     }))
 }
 
