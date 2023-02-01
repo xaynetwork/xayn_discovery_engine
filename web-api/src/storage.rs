@@ -148,6 +148,7 @@ pub(crate) trait Interaction {
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
         update_logic: F,
+        store_user_history: bool,
     ) -> Result<(), Error>
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync;

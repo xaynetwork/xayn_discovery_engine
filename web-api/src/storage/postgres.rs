@@ -463,43 +463,36 @@ impl storage::Interaction for Storage {
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines)]
     async fn update_interactions<F>(
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
         mut update_logic: F,
+        store_user_history: bool,
     ) -> Result<(), Error>
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
     {
         let mut tx = self.postgres.pool.begin().await?;
-
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
         let documents = self
             .get_interacted_with_transaction(updated_document_ids, Some(&mut tx))
             .await?;
-
-        let now = Utc::now();
-
-        let mut document_map = documents
+        let document_map = documents
             .iter()
-            .map(|d| (&d.id, (d, UserInteractionType::Positive)))
+            .map(|document| (&document.id, (document, UserInteractionType::Positive)))
             .collect::<HashMap<_, _>>();
-
-        let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
-
         let mut tag_weight_diff = documents
             .iter()
             .flat_map(|document| &document.tags)
             .map(|tag| (tag, 0))
             .collect::<HashMap<_, _>>();
 
+        let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
         let mut updates = HashMap::new();
-
         for id in updated_document_ids {
-            if let Some((document, _)) = document_map.get_mut(id) {
+            if let Some((document, _)) = document_map.get(id) {
                 let updated_coi = update_logic(InteractionUpdateContext {
                     document,
                     tag_weight_diff: &mut tag_weight_diff,
@@ -513,10 +506,11 @@ impl storage::Interaction for Storage {
             }
         }
 
+        let now = Utc::now();
         Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
-
-        Database::upsert_interactions(&mut tx, user_id, now, &document_map).await?;
-
+        if store_user_history {
+            Database::upsert_interactions(&mut tx, user_id, now, &document_map).await?;
+        }
         Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
 
         tx.commit().await?;
