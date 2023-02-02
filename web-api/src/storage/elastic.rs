@@ -453,7 +453,7 @@ impl storage::Document for Storage {
             "size": params.k_neighbors,
             "knn": {
                 "field": "embedding",
-                "query_vector": params.embedding.normalize()?,
+                "query_vector": params.embedding,
                 "k": params.k_neighbors,
                 "num_candidates": params.num_candidates,
                 "filter": filter
