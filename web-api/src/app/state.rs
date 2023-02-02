@@ -14,10 +14,7 @@
 
 use derive_more::{AsRef, Deref};
 
-use crate::{
-    app::{Application, SetupError},
-    net,
-};
+use crate::app::{Application, SetupError};
 
 #[derive(AsRef, Deref)]
 pub(crate) struct AppState<A>
