@@ -1554,6 +1554,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "integration-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "once_cell",
+ "regex",
+ "reqwest",
+ "scopeguard",
+ "serde",
+ "serde_json",
+ "toml 0.7.1",
+ "xayn-ai-test-utils",
+ "xayn-web-api",
+]
+
+[[package]]
 name = "io-lifetimes"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4157,22 +4174,6 @@ dependencies = [
  "once_cell",
  "regex",
  "uuid",
-]
-
-[[package]]
-name = "xayn-integration-test-utils"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "once_cell",
- "regex",
- "reqwest",
- "scopeguard",
- "serde",
- "serde_json",
- "toml 0.7.1",
- "xayn-ai-test-utils",
- "xayn-web-api",
 ]
 
 [[package]]

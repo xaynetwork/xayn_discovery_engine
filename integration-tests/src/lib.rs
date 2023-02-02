@@ -29,6 +29,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::bail;
 use once_cell::sync::Lazy;
 use reqwest::{Client, Request, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
@@ -49,7 +50,7 @@ pub static PROJECT_ROOT: Lazy<PathBuf> =
 /// This will capture stdout, but not stderr so warnings, errors, traces
 /// and similar will be printed like normal. In case it fails it will also
 /// print the previously captured stdout.
-pub fn just(args: &[&str]) -> Result<String, Panic> {
+pub fn just(args: &[&str]) -> Result<String, anyhow::Error> {
     let Output { status, stdout, .. } = Command::new("just")
         .args(args)
         .stdout(Stdio::piped())
@@ -60,10 +61,7 @@ pub fn just(args: &[&str]) -> Result<String, Panic> {
     if status.success() {
         Ok(output)
     } else {
-        panic!(
-            "Just failed! Output:\n{}Just Exit Status: {}",
-            output, status
-        );
+        bail!("Cmd `just` failed! Output:\n{output}Just Exit Status: {status}");
     }
 }
 
@@ -95,15 +93,14 @@ where
 pub async fn test_app<F, A>(
     configure: impl FnOnce(&mut Table),
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
-) -> Result<(), Panic>
-where
-    F: Future<Output = ()>,
-    A: Application,
+) where
+    F: Future<Output = Result<(), Panic>>,
+    A: Application + 'static,
 {
     clear_env();
-    start_test_service_containers();
+    start_test_service_containers().unwrap();
 
-    let services = create_web_dev_services().await?;
+    let services = create_web_dev_services().await.unwrap();
 
     let mut config = toml! {
         [storage.postgres]
@@ -116,11 +113,11 @@ where
     storage["postgres"]
         .as_table_mut()
         .unwrap()
-        .insert("base_url".into(), services.postgres.into());
+        .insert("base_url".into(), services.postgres.clone().into());
     storage["elastic"]
         .as_table_mut()
         .unwrap()
-        .insert("url".into(), services.elastic_search.into());
+        .insert("url".into(), services.elastic_search.clone().into());
 
     configure(&mut config);
 
@@ -132,24 +129,24 @@ where
         &format!("inline:{config}"),
     ];
 
-    let config = config::load_with_args(&[], args);
+    let config = config::load_with_args([0u8; 0], args);
 
-    let handle = start::<A>(config).await?;
+    let handle = start::<A>(config).await.unwrap();
     let addr = handle.addresses().first().unwrap();
     let uri = Url::parse(&format!("http://{addr}/")).unwrap();
     let client = Client::new();
 
-    test(Arc::new(client), Arc::new(uri), services.clone()).await;
+    test(Arc::new(client), Arc::new(uri), services.clone())
+        .await
+        .unwrap();
 
-    handle.stop_and_wait(Duration::from_secs(1)).await?;
-
-    Ok(())
+    handle.stop_and_wait(Duration::from_secs(1)).await.unwrap();
 }
 
 /// Generates an ID for the test.
 ///
 /// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
-fn generate_test_id() -> Result<String, Panic> {
+fn generate_test_id() -> Result<String, anyhow::Error> {
     just(&["_test-generate-id"])
 }
 
@@ -167,7 +164,7 @@ pub struct Services {
 ///
 /// A uris usable for accessing the dbs are returned.
 async fn create_web_dev_services(
-) -> Result<ScopeGuard<Services, impl FnOnce(Services), OnSuccess>, Panic> {
+) -> Result<ScopeGuard<Services, impl FnOnce(Services), OnSuccess>, anyhow::Error> {
     let id = generate_test_id()?;
 
     just(&["_test-create-dbs", &id])?;
@@ -189,7 +186,7 @@ async fn create_web_dev_services(
 /// Start service containers.
 ///
 /// Does nothing on CI where they have to be started from the outside.
-fn start_test_service_containers() -> Result<(), Panic> {
+fn start_test_service_containers() -> Result<(), anyhow::Error> {
     static ONCE: Once = Once::new();
     let mut res = Ok(());
     ONCE.call_once(|| {
@@ -213,7 +210,7 @@ mod tests {
     fn test_random_id_generation_has_expected_format() -> Result<(), Panic> {
         let regex = Regex::new("^t[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
         for _ in 0..100 {
-            let id = generate_test_id()?;
+            let id = generate_test_id().unwrap();
             assert!(
                 regex.is_match(&id),
                 "id does not have expected format: {:?}",

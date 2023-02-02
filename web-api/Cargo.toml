@@ -9,7 +9,7 @@ license = "AGPL-3.0-only"
 [dependencies]
 actix-cors = "0.6.4"
 actix-web = { version = "4.3.0", default-features = false, features = ["compress-gzip", "compress-zstd"] }
-anyhow = "1.0.69"
+anyhow = { workspace = true }
 async-trait = "0.1.64"
 chrono = { workspace = true, features = ["serde"] }
 clap = { version = "4.1.4", features = ["derive"] }

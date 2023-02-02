@@ -13,6 +13,7 @@ edition = "2021"
 rust-version = "1.67.0"
 
 [workspace.dependencies]
+anyhow = "1.0.69"
 criterion = "0.4.0"
 csv = "1.1.6"
 chrono = { version = "0.4.23", default-features = false, features = ["std", "clock"] }
