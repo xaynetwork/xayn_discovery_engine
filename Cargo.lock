@@ -1565,6 +1565,7 @@ dependencies = [
  "scopeguard",
  "serde",
  "serde_json",
+ "tokio",
  "toml 0.7.1",
  "xayn-ai-test-utils",
  "xayn-web-api",

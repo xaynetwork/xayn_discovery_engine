@@ -65,7 +65,19 @@ pub fn just(args: &[&str]) -> Result<String, anyhow::Error> {
     }
 }
 
-pub async fn send_assert_200_json<O>(client: &Client, req: Request) -> O
+pub async fn send_assert_success(client: &Client, req: Request) {
+    let method = req.method().clone();
+    let target = req.url().clone();
+    let response = client.execute(req).await.unwrap();
+    let status = response.status();
+    if !status.is_success() {
+        let bytes = response.bytes().await.unwrap();
+        let text = String::from_utf8_lossy(&bytes);
+        panic!("Failed to {method} {target}, status {status}, body: {text}");
+    }
+}
+
+pub async fn send_assert_success_json<O>(client: &Client, req: Request) -> O
 where
     O: DeserializeOwned,
 {
@@ -90,7 +102,7 @@ where
     }
 }
 
-pub async fn test_app<F, A>(
+pub async fn test_app<A, F>(
     configure: impl FnOnce(&mut Table),
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
 ) where
@@ -114,10 +126,10 @@ pub async fn test_app<F, A>(
         .as_table_mut()
         .unwrap()
         .insert("base_url".into(), services.postgres.clone().into());
-    storage["elastic"]
-        .as_table_mut()
-        .unwrap()
-        .insert("url".into(), services.elastic_search.clone().into());
+    let elastic = storage["elastic"].as_table_mut().unwrap();
+    let (url, index) = services.elastic_search.rsplit_once('/').unwrap();
+    elastic.insert("url".into(), url.into());
+    elastic.insert("index".into(), index.into());
 
     configure(&mut config);
 
@@ -169,8 +181,8 @@ async fn create_web_dev_services(
 
     just(&["_test-create-dbs", &id])?;
 
-    let postgres = format!("postgresql://user:pw@localhost/{id}");
-    let elastic_search = format!("http://localhost:9200/{id}");
+    let postgres = format!("postgresql://user:pw@localhost:3054/{id}");
+    let elastic_search = format!("http://localhost:3092/{id}");
 
     let uris = Services {
         id,

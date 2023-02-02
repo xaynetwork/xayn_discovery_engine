@@ -220,13 +220,13 @@ _test-generate-id:
 
 _test-create-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
-    psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
-    ./web-api/elastic-search/create_es_index.sh "http://localhost:9200/${TEST_ID}"
+    psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost:3054/xayn 1>&2
+    ./web-api/elastic-search/create_es_index.sh "http://localhost:3092/${TEST_ID}"
 
 _test-drop-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
-    psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
-    curl -f -X DELETE "http://localhost:9200/${TEST_ID}"
+    psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost:3054/xayn 1>&2
+    curl -f -X DELETE "http://localhost:3092/${TEST_ID}"
 
 alias r := rust-test
 alias t := test
