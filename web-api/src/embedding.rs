@@ -22,7 +22,7 @@ use xayn_ai_bert::{
     NormalizedEmbedding,
 };
 
-use crate::{error::common::InternalError, server::SetupError, utils::RelativePathBuf};
+use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]

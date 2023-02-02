@@ -12,29 +12,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod app_state;
-mod cli;
-mod config;
+mod state;
 
-use actix_cors::Cors;
-use actix_web::{
-    middleware,
-    web::{self, JsonConfig, ServiceConfig},
-    App,
-    HttpResponse,
-    HttpServer,
-};
+use std::{env::current_dir, path::PathBuf};
+
+use actix_web::web::ServiceConfig;
 use async_trait::async_trait;
-use clap::Parser;
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::error;
+use tracing::info;
 
-pub(crate) use self::{app_state::AppState, config::Config};
+pub(crate) use self::state::AppState;
 use crate::{
-    load_config::load_config,
     logging,
     logging::init_tracing,
-    middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request},
+    net::{self, AppHandle},
     storage,
 };
 
@@ -43,7 +34,7 @@ pub trait Application {
     const NAME: &'static str;
 
     type Config: AsRef<logging::Config>
-        + AsRef<Config>
+        + AsRef<net::Config>
         + AsRef<storage::Config>
         + DeserializeOwned
         + Serialize
@@ -73,58 +64,36 @@ pub type SetupError = anyhow::Error;
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
-pub async fn run<A>() -> Result<(), SetupError>
+pub async fn start<A>(config: A::Config) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,
 {
-    async {
-        let mut cli_args = cli::Args::parse();
-        let config_file = cli_args.config.take();
-        let config = load_config::<A::Config, _>(
-            A::NAME,
-            "XAYN_WEB_API",
-            config_file.as_deref(),
-            cli_args.to_config_overrides(),
-        )?;
+    init_tracing(config.as_ref());
 
-        if cli_args.print_config {
-            println!("{}", serde_json::to_string_pretty(&config)?);
-            return Ok(());
-        }
+    let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
+    info!(pwd=?pwd);
 
-        let &Config {
-            bind_to,
-            max_body_size,
-            keep_alive,
-            client_request_timeout,
-        } = config.as_ref();
-        init_tracing(config.as_ref());
+    let app_state = AppState::<A>::create(config).await?;
 
-        let json_config = JsonConfig::default().limit(max_body_size);
-        let app_state = web::Data::new(AppState::<A>::create(config).await?);
+    net::start_actix_server(app_state, A::configure_service)
+}
 
-        HttpServer::new(move || {
-            App::new()
-                .app_data(app_state.clone())
-                .app_data(json_config.clone())
-                .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
-                .configure(A::configure_service)
-                .wrap_fn(wrap_non_json_errors)
-                .wrap_fn(tracing_log_request)
-                .wrap(middleware::Compress::default())
-                .wrap(Cors::permissive())
-        })
-        .keep_alive(keep_alive)
-        .client_request_timeout(client_request_timeout)
-        .bind(bind_to)?
-        .run()
-        .await?;
-
-        Ok(())
-    }
-    .await
-    .map_err(|err| {
-        error!(%err, "running service failed");
-        err
-    })
+/// Generate application names/env prefixes for the given application.
+///
+/// This is a macro as it uses `env!("CARGO_BIN_NAME")` which needs to be called
+/// in the binary build unit and won't work if used in a library. This means
+/// for crates with a `lib.rs` and `main.rs` it needs to be in `main.rs` or
+/// (sub-)modules of `main.rs` and can't be in `lib.rs` or (sub-)modules of
+/// `lib.rs`.
+#[macro_export]
+macro_rules! application_names {
+    () => {{
+        let name = env!("CARGO_BIN_NAME").replace("-", "_").to_uppercase();
+        let name = if name.starts_with("XAYN_") {
+            name
+        } else {
+            format!("XAYN_{name}")
+        };
+        [name, "XAYN_WEB_API".to_string()]
+    }};
 }

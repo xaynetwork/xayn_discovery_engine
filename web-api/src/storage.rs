@@ -29,6 +29,7 @@ use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
 
 use crate::{
+    app::SetupError,
     error::common::DocumentIdAsObject,
     models::{
         self,
@@ -40,7 +41,6 @@ use crate::{
         PersonalizedDocument,
         UserId,
     },
-    server::SetupError,
     Error,
 };
 

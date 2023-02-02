@@ -20,8 +20,9 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
+    app::{self, Application, SetupError},
     logging,
-    server::{self, Application, SetupError},
+    net,
     storage::{self, Storage},
 };
 
@@ -50,13 +51,13 @@ impl Application for Personalization {
     }
 }
 
-type AppState = server::AppState<Personalization>;
+type AppState = app::AppState<Personalization>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     pub(crate) logging: logging::Config,
-    pub(crate) net: server::Config,
+    pub(crate) net: net::Config,
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
     pub(crate) personalization: PersonalizationConfig,

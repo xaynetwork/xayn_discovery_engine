@@ -34,8 +34,11 @@ pub(super) struct Args {
     pub(super) log_file: Option<PathBuf>,
 
     /// Use given configuration file.
+    ///
+    /// Instead of a path "inline" toml configuration file can also be
+    /// passed in by prefixing it with `inline:`.
     #[arg(short, long)]
-    pub(super) config: Option<PathBuf>,
+    pub(super) config: Option<String>,
 
     /// Print the config and exist instead of running the server
     #[arg(long)]

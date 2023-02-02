@@ -20,9 +20,10 @@ use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    app::{self, Application, SetupError},
     embedding::{self, Embedder},
     logging,
-    server::{self, Application, SetupError},
+    net,
     storage::{self, Storage},
 };
 
@@ -51,13 +52,13 @@ impl Application for Ingestion {
     }
 }
 
-type AppState = server::AppState<Ingestion>;
+type AppState = app::AppState<Ingestion>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     pub(crate) logging: logging::Config,
-    pub(crate) net: server::Config,
+    pub(crate) net: net::Config,
     pub(crate) storage: storage::Config,
     pub(crate) ingestion: IngestionConfig,
     pub(crate) embedding: embedding::Config,

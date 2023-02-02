@@ -30,6 +30,7 @@ use tracing::error;
 use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
+    app::SetupError,
     error::common::InternalError,
     models::{
         self,
@@ -39,7 +40,6 @@ use crate::{
         DocumentPropertyId,
         DocumentTag,
     },
-    server::SetupError,
     storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
