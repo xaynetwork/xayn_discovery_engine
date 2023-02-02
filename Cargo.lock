@@ -1121,7 +1121,7 @@ dependencies = [
  "atomic",
  "pear",
  "serde",
- "toml",
+ "toml 0.5.10",
  "uncased",
  "version_check",
 ]
@@ -3441,6 +3441,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "772c1426ab886e7362aedf4abc9c0d1348a979517efedfc25862944d10137af0"
+dependencies = [
+ "serde",
+ "serde_spanned",
+ "toml_datetime 0.6.1",
+ "toml_edit 0.19.1",
+]
+
+[[package]]
+name = "toml_datetime"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3ab8ed2edee10b50132aed5f331333428b011c99402b5a534154ed15746f9622"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "toml_datetime"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3689,7 +3710,7 @@ dependencies = [
  "serde",
  "shlex",
  "snapbox",
- "toml_edit",
+ "toml_edit 0.17.1",
 ]
 
 [[package]]
@@ -4133,7 +4154,25 @@ version = "0.1.0"
 dependencies = [
  "float-cmp",
  "ndarray",
+ "once_cell",
+ "regex",
  "uuid",
+]
+
+[[package]]
+name = "xayn-integration-test-utils"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "once_cell",
+ "regex",
+ "reqwest",
+ "scopeguard",
+ "serde",
+ "serde_json",
+ "toml 0.7.1",
+ "xayn-ai-test-utils",
+ "xayn-web-api",
 ]
 
 [[package]]

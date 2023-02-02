@@ -9,4 +9,6 @@ publish = false
 [dependencies]
 float-cmp = "0.9.0"
 ndarray = { workspace = true }
+once_cell = { workspace = true }
+regex = { workspace = true }
 uuid = { workspace = true }

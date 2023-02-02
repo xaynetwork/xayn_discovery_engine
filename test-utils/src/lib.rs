@@ -32,6 +32,7 @@
 
 mod approx_eq;
 pub mod asset;
+pub mod env;
 pub mod error;
 pub mod uuid;
 
