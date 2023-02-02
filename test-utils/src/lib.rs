@@ -32,6 +32,7 @@
 
 mod approx_eq;
 pub mod asset;
+pub mod error;
 pub mod uuid;
 
 #[doc(hidden)] // required for standalone export of assert_approx_eq!
