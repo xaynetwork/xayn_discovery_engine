@@ -51,6 +51,7 @@ pub(crate) struct KnnSearchParams<'a> {
     // must be >= k_neighbors
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
+    pub(crate) min_similarity: Option<f32>,
 }
 
 #[derive(Debug, Error, From)]

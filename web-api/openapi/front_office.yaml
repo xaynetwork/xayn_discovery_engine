@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.0.0-rc8
+  version: 1.0.0-rc9
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -129,6 +129,16 @@ paths:
             minimum: 1
             maximum: 100
             default: 10
+        - name: min_similarity
+          in: query
+          description: Minimum similarity a document has to have to be included.
+          required: false
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+            default: 0
       responses:
         '200':
           description: successful operation

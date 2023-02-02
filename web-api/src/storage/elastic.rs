@@ -449,15 +449,23 @@ impl storage::Document for Storage {
             })
         };
 
+        let mut knn = json!({
+            "field": "embedding",
+            "query_vector": params.embedding,
+            "k": params.k_neighbors,
+            "num_candidates": params.num_candidates,
+            "filter": filter
+        });
+
+        if let Some(min_similarity) = params.min_similarity {
+            knn.as_object_mut()
+                .unwrap(/* we just created it as object */)
+                .insert("min_score".into(), min_similarity.into());
+        }
+
         let body = Some(json!({
             "size": params.k_neighbors,
-            "knn": {
-                "field": "embedding",
-                "query_vector": params.embedding,
-                "k": params.k_neighbors,
-                "num_candidates": params.num_candidates,
-                "filter": filter
-            },
+            "knn": knn,
             "_source": ["properties", "embedding", "tags"]
         }));
 

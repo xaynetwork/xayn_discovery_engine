@@ -307,6 +307,7 @@ async fn search_knn_documents(
                     k_neighbors,
                     num_candidates: count,
                     published_after,
+                    min_similarity: None,
                 },
             )
             .await
@@ -447,6 +448,7 @@ pub(crate) async fn personalize_documents_by(
 #[derive(Deserialize)]
 struct SemanticSearchQuery {
     count: Option<usize>,
+    min_similarity: Option<f32>,
 }
 
 impl SemanticSearchQuery {
@@ -460,6 +462,10 @@ impl SemanticSearchQuery {
         } else {
             Err(BadRequest::from("count has to be at least 1").into())
         }
+    }
+
+    fn min_similarity(&self) -> Option<f32> {
+        self.min_similarity.map(|value| value.clamp(0., 1.))
     }
 }
 
@@ -475,6 +481,7 @@ async fn semantic_search(
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
     let count = query.document_count(state.config.as_ref())?;
+    let min_similarity = query.min_similarity();
 
     let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?
@@ -488,6 +495,7 @@ async fn semantic_search(
             k_neighbors: count,
             num_candidates: count,
             published_after: None,
+            min_similarity,
         },
     )
     .await?;
