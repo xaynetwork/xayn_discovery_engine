@@ -153,6 +153,20 @@ macro_rules! set_config_option {
     )*};
 }
 
+/// Wrapper around integration test code which makes sure they run in a semi-isolated context.
+///
+/// Before anything this function assures two things:
+/// - the environment is cleared
+/// - if not on CI the necessary services are started (Elastic Search, Postgres)
+///
+/// Then for each test:
+///
+/// - a elastic search index is created
+/// - a postgres db is created
+/// - a service based on `A: Application` is started on it's own port
+/// - the config is pre-populated with the elastic search, embedding and postgres info
+///   - you can update it using the `configure` callback
+/// - the service info including an url to the application is passed to the test
 pub async fn test_app<A, F>(
     configure: impl FnOnce(&mut Table),
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
