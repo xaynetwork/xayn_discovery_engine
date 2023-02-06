@@ -88,7 +88,7 @@ where
             } else {
                 return Err(figment::Error::from(format!(
                     "Config file missing or not a file: {}",
-                    path.display()
+                    path.display(),
                 )));
             }
         }
