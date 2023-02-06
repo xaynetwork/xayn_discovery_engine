@@ -428,7 +428,7 @@ pub(crate) async fn personalize_documents_by(
             let weighted_b = documents_by_interests[&b.id] as f32 * weight
                 + documents_by_tags[&b.id] as f32 * (1. - weight);
             match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
-                Ordering::Equal if weight > 0.5 => {
+                Ordering::Equal if weight >= 0.5 => {
                     documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
                 }
                 Ordering::Equal if weight < 0.5 => {
