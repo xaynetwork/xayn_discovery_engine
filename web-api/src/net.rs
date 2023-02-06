@@ -30,6 +30,7 @@ use actix_web::{
     HttpServer,
 };
 use futures_util::{future::BoxFuture, FutureExt};
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::{task::JoinHandle, time::timeout};
 use tracing::info;
@@ -154,6 +155,15 @@ pub struct AppHandle {
 }
 
 impl AppHandle {
+    /// Returns an [`Url`] under which this app should be reachable.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn url(&self) -> Url {
+        // There is always at least 1 address and formatting it as
+        // below is always a syntactically valid Url.
+        let addr = self.addresses().first().unwrap();
+        Url::parse(&format!("http://{addr}/")).unwrap()
+    }
+
     /// Returns the addresses the server is listening on.
     ///
     /// This is useful if the `net.bind_to` config was set

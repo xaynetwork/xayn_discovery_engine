@@ -153,6 +153,8 @@ macro_rules! set_config_option {
     )*};
 }
 
+const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
+
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
 ///
 /// Before anything this function assures two things:
@@ -174,21 +176,45 @@ pub async fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    clear_env();
-    start_test_service_containers().unwrap();
-
-    let services = create_web_dev_services().await.unwrap();
+    let services = setup_web_dev_test_context().await.unwrap();
 
     let handle = start_test_application::<A>(&services, configure).await;
-    let addr = handle.addresses().first().unwrap();
-    let uri = Url::parse(&format!("http://{addr}/")).unwrap();
     let client = Client::new();
 
-    test(Arc::new(client), Arc::new(uri), services.clone())
+    test(Arc::new(client), Arc::new(handle.url()), services.clone())
         .await
         .unwrap();
 
-    handle.stop_and_wait(Duration::from_secs(1)).await.unwrap();
+    handle.stop_and_wait(APP_STOP_TIMEOUT).await.unwrap();
+}
+
+/// Like `test_app` but runs two applications in the same test context.
+pub async fn test_two_app<A1, A2, F>(
+    configure_first: impl FnOnce(&mut Table),
+    configure_second: impl FnOnce(&mut Table),
+    test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
+) where
+    F: Future<Output = Result<(), Panic>>,
+    A1: Application + 'static,
+    A2: Application + 'static,
+{
+    let services = setup_web_dev_test_context().await.unwrap();
+    let first_handle = start_test_application::<A1>(&services, configure_first).await;
+    let second_handle = start_test_application::<A2>(&services, configure_second).await;
+    test(
+        Arc::new(Client::new()),
+        Arc::new(first_handle.url()),
+        Arc::new(second_handle.url()),
+        services.clone(),
+    )
+    .await
+    .unwrap();
+    let (res1, res2) = tokio::join!(
+        first_handle.stop_and_wait(APP_STOP_TIMEOUT),
+        second_handle.stop_and_wait(APP_STOP_TIMEOUT),
+    );
+    res1.expect("first application to not fail during shutdown");
+    res2.expect("second application to not fail during shutdown");
 }
 
 pub async fn start_test_application<A>(
@@ -250,8 +276,11 @@ pub struct Services {
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
 /// A uris usable for accessing the dbs are returned.
-async fn create_web_dev_services(
+async fn setup_web_dev_test_context(
 ) -> Result<ScopeGuard<Services, impl FnOnce(Services), OnSuccess>, anyhow::Error> {
+    clear_env();
+    start_test_service_containers().unwrap();
+
     let id = generate_test_id()?;
 
     just(&["_test-create-dbs", &id])?;
