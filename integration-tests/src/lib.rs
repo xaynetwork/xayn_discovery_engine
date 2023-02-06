@@ -36,7 +36,7 @@ use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
 use toml::Table;
 use xayn_ai_test_utils::{env::clear_env, error::Panic};
-use xayn_web_api::{config, start, Application};
+use xayn_web_api::{config, start, AppHandle, Application};
 
 /// Absolute path to the root of the project as determined by `just`.
 pub static PROJECT_ROOT: Lazy<PathBuf> =
@@ -178,6 +178,26 @@ pub async fn test_app<A, F>(
     start_test_service_containers().unwrap();
 
     let services = create_web_dev_services().await.unwrap();
+
+    let handle = start_test_application::<A>(&services, configure).await;
+    let addr = handle.addresses().first().unwrap();
+    let uri = Url::parse(&format!("http://{addr}/")).unwrap();
+    let client = Client::new();
+
+    test(Arc::new(client), Arc::new(uri), services.clone())
+        .await
+        .unwrap();
+
+    handle.stop_and_wait(Duration::from_secs(1)).await.unwrap();
+}
+
+pub async fn start_test_application<A>(
+    services: &Services,
+    configure: impl FnOnce(&mut Table),
+) -> AppHandle
+where
+    A: Application + 'static,
+{
     let (es_url, es_index) = services.elastic_search.rsplit_once('/').unwrap();
 
     let mut config = Table::default();
@@ -207,15 +227,7 @@ pub async fn test_app<A, F>(
     let config = config::load_with_args([0u8; 0], args);
 
     let handle = start::<A>(config).await.unwrap();
-    let addr = handle.addresses().first().unwrap();
-    let uri = Url::parse(&format!("http://{addr}/")).unwrap();
-    let client = Client::new();
-
-    test(Arc::new(client), Arc::new(uri), services.clone())
-        .await
-        .unwrap();
-
-    handle.stop_and_wait(Duration::from_secs(1)).await.unwrap();
+    handle
 }
 
 /// Generates an ID for the test.
