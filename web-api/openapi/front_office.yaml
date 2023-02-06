@@ -39,7 +39,8 @@ paths:
         Returns a list of documents personalized for the given `user_id`.
         Each document contains the id, the score and the properties that are attached to the document.
         The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
-        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made at least one interaction via our system.
+        Documents that have been interacted with by the user are filtered out from the result.        
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
       operationId: getPersonalizedDocuments
       parameters:
         - $ref: './parameters/path/user_id.yml'
