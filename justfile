@@ -77,8 +77,8 @@ build: rust-build
 rust-test: download-assets
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cargo test --lib --bins --tests --quiet --locked
-    cargo test --doc --quiet --locked
+    cargo test --lib --bins --tests --locked
+    cargo test --doc --locked
 
 # Tests all code
 test: rust-test
@@ -226,7 +226,7 @@ _test-create-dbs $TEST_ID:
 _test-drop-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
     psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost:3054/xayn 1>&2
-    curl -f -X DELETE "http://localhost:3092/${TEST_ID}"
+    curl -sf -X DELETE "http://localhost:3092/${TEST_ID}"
 
 alias r := rust-test
 alias t := test

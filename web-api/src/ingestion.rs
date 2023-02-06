@@ -50,6 +50,10 @@ impl Application for Ingestion {
     async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError> {
         config.setup().await
     }
+
+    async fn close_storage(storage: &Self::Storage) {
+        storage.close().await;
+    }
 }
 
 type AppState = app::AppState<Ingestion>;

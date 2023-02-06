@@ -136,6 +136,10 @@ impl Database {
     // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
     const BIND_LIMIT: usize = 65_535;
 
+    pub(crate) async fn close(&self) {
+        self.pool.close().await;
+    }
+
     pub(crate) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 

@@ -182,3 +182,9 @@ pub struct Storage {
     elastic: elastic::Client,
     postgres: postgres::Database,
 }
+
+impl Storage {
+    pub async fn close(&self) {
+        self.postgres.close().await;
+    }
+}

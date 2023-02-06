@@ -14,7 +14,7 @@
 
 mod state;
 
-use std::{env::current_dir, path::PathBuf};
+use std::{env::current_dir, path::PathBuf, sync::Arc};
 
 use actix_web::web::ServiceConfig;
 use async_trait::async_trait;
@@ -57,6 +57,8 @@ pub trait Application {
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError>;
 
     async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError>;
+
+    async fn close_storage(state: &Self::Storage);
 }
 
 pub type SetupError = anyhow::Error;
@@ -73,9 +75,9 @@ where
     let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
     info!(pwd=?pwd);
 
-    let app_state = AppState::<A>::create(config).await?;
+    let app_state = Arc::new(AppState::<A>::create(config).await?);
 
-    net::start_actix_server(app_state, A::configure_service)
+    net::start_actix_server(app_state, AppState::<A>::close, A::configure_service)
 }
 
 /// Generate application names/env prefixes for the given application.
