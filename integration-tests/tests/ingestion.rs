@@ -12,7 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use integration_tests::{send_assert_success, test_app};
+use integration_tests::{send_assert, test_app};
+use reqwest::StatusCode;
 use serde_json::json;
 use xayn_web_api::Ingestion;
 
@@ -21,7 +22,7 @@ async fn test_test_app() {
     test_app::<Ingestion, _>(
         |_config| {},
         |client, url, _service| async move {
-            send_assert_success(
+            send_assert(
                 &client,
                 client
                     .post(url.join("/documents")?)
@@ -32,6 +33,7 @@ async fn test_test_app() {
                         ]
                     }))
                     .build()?,
+                StatusCode::CREATED,
             )
             .await;
             Ok(())

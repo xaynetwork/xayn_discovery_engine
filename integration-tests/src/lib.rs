@@ -31,7 +31,7 @@ use std::{
 
 use anyhow::bail;
 use once_cell::sync::Lazy;
-use reqwest::{Client, Request, Url};
+use reqwest::{Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
 use toml::{toml, Table};
@@ -65,34 +65,27 @@ pub fn just(args: &[&str]) -> Result<String, anyhow::Error> {
     }
 }
 
-pub async fn send_assert_success(client: &Client, req: Request) {
+pub async fn send_assert(client: &Client, req: Request, expected: StatusCode) -> Response {
     let method = req.method().clone();
     let target = req.url().clone();
     let response = client.execute(req).await.unwrap();
     let status = response.status();
-    if !status.is_success() {
+    if status != expected {
         let bytes = response.bytes().await.unwrap();
         let text = String::from_utf8_lossy(&bytes);
-        panic!("Failed to {method} {target}, status {status}, body: {text}");
+        panic!("Failed to {method} {target}, status {status} instead of {expected}. Body:\n{text}");
     }
+    response
 }
 
-pub async fn send_assert_success_json<O>(client: &Client, req: Request) -> O
+pub async fn send_assert_json<O>(client: &Client, req: Request, expected: StatusCode) -> O
 where
     O: DeserializeOwned,
 {
     let method = req.method().clone();
     let target = req.url().clone();
-    let response = client.execute(req).await.unwrap();
-    let status = response.status();
-    if !status.is_success() {
-        let bytes = response.bytes().await.unwrap();
-        let text = String::from_utf8_lossy(&bytes);
-        panic!("Failed to {method} {target}, status {status}, body: {text}");
-    }
-
+    let response = send_assert(client, req, expected).await;
     let bytes = response.bytes().await.unwrap();
-
     match serde_json::from_slice::<O>(&bytes) {
         Ok(out) => out,
         Err(err) => {
