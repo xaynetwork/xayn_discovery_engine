@@ -40,7 +40,7 @@ stdout = """
   },
   "embedding": {
     "directory": "assets",
-    "token_size": 250 
+    "token_size": 250
   },
   "personalization": {
     "max_number_documents": 100,
