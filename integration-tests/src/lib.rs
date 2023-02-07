@@ -189,7 +189,7 @@ pub async fn test_app<A, F>(
 }
 
 /// Like `test_app` but runs two applications in the same test context.
-pub async fn test_two_app<A1, A2, F>(
+pub async fn test_two_apps<A1, A2, F>(
     configure_first: impl FnOnce(&mut Table),
     configure_second: impl FnOnce(&mut Table),
     test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
@@ -216,6 +216,8 @@ pub async fn test_two_app<A1, A2, F>(
     res1.expect("first application to not fail during shutdown");
     res2.expect("second application to not fail during shutdown");
 }
+
+pub fn unchanged_config(_: &mut Table) {}
 
 pub async fn start_test_application<A>(
     services: &Services,
