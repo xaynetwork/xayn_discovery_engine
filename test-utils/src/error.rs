@@ -12,14 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{convert::Infallible, fmt::Write};
+use std::fmt::Write;
 
 /// Error which panics when creating.
 ///
 /// Useful for using `?` in tests which will panic on error anyway.
 #[derive(Debug)]
 pub struct Panic {
-    _priv: Infallible,
+    _priv: (),
 }
 
 impl<E> From<E> for Panic

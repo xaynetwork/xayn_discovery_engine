@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2023 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -15,8 +15,8 @@
 //! Provide various utilities for writing integration tests (mainly for web-api).
 //!
 //! As this is for testing many of the functions here will panic on failure instead
-//! propagating an error and then panicing. We still use the `Panic` error type out
-//! of making it easier to change error handling in the future.
+//! propagating an error and then panicking. We still use the `Panic` error type to
+//! make it easier to change error handling in the future.
 //!
 //! Code in this module hard codes the dummy username and password used by local only
 //! integration testing.
@@ -136,10 +136,10 @@ where
 #[macro_export]
 macro_rules! set_config_option {
     (for $config:ident => $(
-        [$key:ident $(. $key_tail:ident)*]
+        [$($key:ident).+]
         $($key_last:ident = $value:expr;)*
     )* $(;)?) => {$(
-        let path = [stringify!($key) $(, stringify!($key_tail))* ];
+        let path = [$(stringify!($key)),+];
         let mut current_base: &mut Table = &mut $config;
         for sub_table_key in path {
             current_base = current_base.entry(sub_table_key.to_owned())
@@ -254,8 +254,7 @@ where
 
     let config = config::load_with_args([0u8; 0], args);
 
-    let handle = start::<A>(config).await.unwrap();
-    handle
+    start::<A>(config).await.unwrap()
 }
 
 /// Generates an ID for the test.
