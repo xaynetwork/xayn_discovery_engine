@@ -27,7 +27,7 @@ use std::{
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use chrono::{Local, NaiveDateTime};
+use chrono::{DateTime, Utc};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
@@ -219,8 +219,9 @@ impl<'de> Deserialize<'de> for Embeddings {
 pub(crate) struct Storage {
     documents: RwLock<(HashMap<DocumentId, Document>, Embeddings)>,
     interests: RwLock<HashMap<UserId, UserInterests>>,
-    interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
-    users: RwLock<HashMap<UserId, NaiveDateTime>>,
+    #[allow(clippy::type_complexity)]
+    interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, DateTime<Utc>)>>>,
+    users: RwLock<HashMap<UserId, DateTime<Utc>>>,
     tags: RwLock<HashMap<UserId, HashMap<DocumentTag, usize>>>,
 }
 
@@ -516,10 +517,7 @@ impl storage::Interaction for Storage {
     }
 
     async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
-        self.users
-            .write()
-            .await
-            .insert(id.clone(), Local::now().naive_local());
+        self.users.write().await.insert(id.clone(), Utc::now());
 
         Ok(())
     }
@@ -557,7 +555,7 @@ impl storage::Interaction for Storage {
                 positive_cois,
             });
             if store_user_history {
-                interactions.insert((document.id.clone(), updated.stats.last_view.naive_utc()));
+                interactions.insert((document.id.clone(), updated.stats.last_view));
             }
         }
 
