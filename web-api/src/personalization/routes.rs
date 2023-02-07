@@ -491,7 +491,7 @@ impl SemanticSearchQuery {
     }
 }
 
-/// Represents body of a POST semantic_search request.
+/// Represents body of a POST `semantic_search_from_text` request.
 #[derive(Debug, Clone, Deserialize)]
 struct SemanticSearchText {
     text: String,
