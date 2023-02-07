@@ -30,6 +30,49 @@ security:
   - ApiKeyAuth: []
 
 paths:
+  /personalized_documents:
+    post:
+      tags:
+        - front office
+      summary: Get personalized documents based on a given history.
+      description: |-
+        Returns a list of personalized documents based on interests derived
+        from a history. In difference to `getPersonalizedDocuments` any user
+        specific parts are based on the inputs only. Documents still need to
+        be ingested beforehand.
+      operationId: getStatelessPersonalizedDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [history]
+              properties:
+                history:
+                  $ref: './schemas/document.yml#/UserHistory'
+                count:
+                  type: integer
+                  format: int32
+                  minimum: 0
+                  maximum: 100
+                  default: 10
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+        '400':
+           $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: impossible to create a personalized list for given context
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
+
   /users/{user_id}/personalized_documents:
     get:
       tags:
@@ -39,7 +82,7 @@ paths:
         Returns a list of documents personalized for the given `user_id`.
         Each document contains the id, the score and the properties that are attached to the document.
         The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
-        Documents that have been interacted with by the user are filtered out from the result.        
+        Documents that have been interacted with by the user are filtered out from the result.
         Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
       operationId: getPersonalizedDocuments
       parameters:
