@@ -284,6 +284,21 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
+    async fn get_embeddings(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<HashMap<DocumentId, NormalizedEmbedding>, Error> {
+        let guard = self.documents.read().await;
+        let map = guard.1.borrow_map();
+        Ok(ids
+            .iter()
+            .filter_map(|&id| {
+                let embedding = map.get(id)?;
+                Some((id.clone(), embedding.clone()))
+            })
+            .collect())
+    }
+
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
         Ok(self.documents.read().await.1.borrow_map().get(id).cloned())
     }

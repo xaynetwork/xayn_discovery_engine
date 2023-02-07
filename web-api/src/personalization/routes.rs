@@ -37,6 +37,7 @@ use crate::{
     error::{
         application::WithRequestIdExt,
         common::{BadRequest, DocumentNotFound},
+        warning::Warning,
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
@@ -44,6 +45,9 @@ use crate::{
 };
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
+    let stateless = web::resource("personalized_documents")
+        .route(web::post().to(stateless_personalize_documents.error_with_request_id()));
+
     let users = web::scope("/users/{user_id}")
         .service(
             web::resource("interactions")
@@ -57,7 +61,10 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
     let semantic_search = web::resource("/semantic_search/{document_id}")
         .route(web::get().to(semantic_search.error_with_request_id()));
 
-    config.service(users).service(semantic_search);
+    config
+        .service(users)
+        .service(semantic_search)
+        .service(stateless);
 }
 
 /// Represents user interaction request body.
@@ -151,6 +158,104 @@ pub(crate) async fn update_interactions(
     Ok(())
 }
 
+#[derive(Deserialize)]
+struct StatelessPersonalizationRequest {
+    count: Option<usize>,
+    history: Vec<UncheckedHistoryEntry>,
+}
+
+impl StatelessPersonalizationRequest {
+    fn resolved_history(self, warnings: &mut Vec<Warning>) -> Result<Vec<HistoryEntry>, Error> {
+        let max_history_len = 100 /*TODO config*/;
+        if self.history.len() > max_history_len {
+            warnings.push(format!("history truncated, max length is {max_history_len}").into());
+        }
+        let mut most_recend_time = Utc::now();
+        //input is from oldest to newest
+        let mut history = self
+            .history
+            .into_iter()
+            .rev()
+            .take(max_history_len)
+            .map(|unchecked| -> Result<_, Error> {
+                let id = unchecked.id.try_into()?;
+                let timestamp = unchecked.timestamp.unwrap_or(most_recend_time);
+                if timestamp > most_recend_time {
+                    warnings
+                        .push(format!("inconsistent history ordering around document {id}").into());
+                }
+                most_recend_time = timestamp;
+                Ok(HistoryEntry { id, timestamp })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        history.reverse();
+        Ok(history)
+    }
+
+    fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
+        let count = self.count.map_or(config.default_number_documents, |count| {
+            count.min(config.max_number_documents)
+        });
+
+        if count > 0 {
+            Ok(count)
+        } else {
+            Err(BadRequest::from("count has to be at least 1").into())
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct UncheckedHistoryEntry {
+    id: String,
+    timestamp: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize)]
+struct HistoryEntry {
+    id: DocumentId,
+    timestamp: DateTime<Utc>,
+}
+
+#[instrument(skip_all)]
+async fn stateless_personalize_documents(
+    state: Data<AppState>,
+    Json(request): Json<StatelessPersonalizationRequest>,
+) -> Result<impl Responder, Error> {
+    let mut warnings = vec![];
+    let count = request.document_count(state.config.as_ref())?;
+    let history = request.resolved_history(&mut warnings)?;
+    let ids = history.iter().map(|document| &document.id).collect_vec();
+    let embeddings = storage::Document::get_embeddings(&state.storage, &ids).await?;
+
+    if embeddings.len() < history.len() {
+        for document in &history {
+            let id = &document.id;
+            if !embeddings.contains_key(id) {
+                let msg = format!("document {id} does not exist");
+                warn!("{}", msg);
+                warnings.push(msg.into());
+            }
+        }
+    }
+
+    todo!(/*
+        1. look up all documents
+            - if some don't exist add warnings
+        2. loop a stateless version of the user interest calculation
+    */);
+
+    Ok(Json(StatelessPersonalizationResponse {
+        documents: todo!(),
+        warnings: todo!(),
+    }))
+}
+
+#[derive(Serialize)]
+struct StatelessPersonalizationResponse {
+    documents: Vec<PersonalizedDocumentData>,
+    warnings: Vec<Warning>,
+}
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
@@ -183,7 +288,7 @@ async fn personalized_documents(
         &user_id.into_inner().try_into()?,
         &state.config.personalization,
         PersonalizeBy::KnnSearch {
-            count: options.document_count(&state.config.personalization)?,
+            count: options.document_count(state.config.as_ref())?,
             published_after: options.published_after,
         },
         Utc::now(),

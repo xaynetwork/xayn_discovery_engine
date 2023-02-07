@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::BuildHasher,
+};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -257,6 +260,25 @@ impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument
 }
 
 #[derive(Debug, Deserialize)]
+struct SearchEmbedding {
+    embedding: NormalizedEmbedding,
+}
+
+impl<S> From<SearchResponse<SearchEmbedding>> for HashMap<DocumentId, NormalizedEmbedding, S>
+where
+    S: BuildHasher + Default,
+{
+    fn from(response: SearchResponse<SearchEmbedding>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| (hit.id, hit.source.embedding))
+            .collect()
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct PersonalizedDocument {
     #[serde(default)]
     properties: DocumentProperties,
@@ -388,6 +410,35 @@ impl storage::Document for Storage {
         ids: &[&DocumentId],
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         self.get_personalized_with_transaction(ids, None).await
+    }
+
+    async fn get_embeddings(
+        &self,
+        ids: &[&DocumentId],
+    ) -> Result<HashMap<DocumentId, NormalizedEmbedding>, Error> {
+        if ids.is_empty() {
+            return Ok(HashMap::default());
+        }
+
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
+        let body = Some(json!({
+            "query": {
+                "ids" : {
+                    "values": ids
+                }
+            },
+            "_source": [ "embedding" ]
+        }));
+
+        Ok(self
+            .elastic
+            .query_with_json::<_, SearchResponse<SearchEmbedding>>(
+                self.elastic.create_resource_path(["_search"], None),
+                body,
+            )
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
     }
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
