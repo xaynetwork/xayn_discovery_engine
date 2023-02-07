@@ -59,12 +59,15 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
         );
     let semantic_search = web::resource("/semantic_search/{document_id}")
         .route(web::get().to(semantic_search.error_with_request_id()));
+    let semantic_free_text_search = web::resource("/semantic_search")
+        .route(web::post().to(semantic_search_from_text.error_with_request_id()));
     let stateless = web::resource("personalized_documents")
         .route(web::post().to(stateless_personalized_documents.error_with_request_id()));
 
     config
         .service(users)
         .service(semantic_search)
+        .service(semantic_free_text_search)
         .service(stateless);
 }
 
@@ -488,12 +491,45 @@ impl SemanticSearchQuery {
     }
 }
 
+/// Represents body of a POST semantic_search request.
+#[derive(Debug, Clone, Deserialize)]
+struct SemanticSearchText {
+    text: String,
+}
+
 #[derive(Serialize)]
 struct SemanticSearchResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
-async fn semantic_search(
+async fn semantic_search_from_text(
+    state: Data<AppState>,
+    Json(body): Json<SemanticSearchText>,
+    query: Query<SemanticSearchQuery>,
+) -> Result<impl Responder, Error> {
+    let count = query.document_count(state.config.as_ref())?;
+    let min_similarity = query.min_similarity();
+    let embedding = state.embedder.run(&body.text)?;
+    let documents = storage::Document::get_by_embedding(
+        &state.storage,
+        KnnSearchParams {
+            excluded: &[],
+            embedding: &embedding,
+            k_neighbors: count,
+            num_candidates: count,
+            published_after: None,
+            min_similarity,
+            time: Utc::now(),
+        },
+    )
+    .await?;
+
+    Ok(Json(SemanticSearchResponse {
+        documents: documents.into_iter().map_into().collect(),
+    }))
+}
+
+async fn semantic_search_from_id(
     state: Data<AppState>,
     document_id: Path<String>,
     query: Query<SemanticSearchQuery>,
@@ -506,7 +542,6 @@ async fn semantic_search(
         .transpose()?;
     let count = query.document_count(state.config.as_ref())?;
     let min_similarity = query.min_similarity();
-
     let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?
         .ok_or(DocumentNotFound)?;
