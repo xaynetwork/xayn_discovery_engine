@@ -62,9 +62,9 @@ fn bench_compute_coi_relevance(c: &mut Criterion) {
     count.iter().for_each(|&n| {
         let positive_cois = &positive_cois[..n];
 
-        let base_name = &format!("n{}_s{}", n, embedding_size);
+        let base_name = &format!("n{n}_s{embedding_size}");
 
-        c.bench_function(&format!("compute_coi_relevance_{}", base_name), |b| {
+        c.bench_function(&format!("compute_coi_relevance_{base_name}"), |b| {
             b.iter_batched(
                 || black_box(positive_cois),
                 |cois| compute_coi_relevances(cois, horizon, now),
