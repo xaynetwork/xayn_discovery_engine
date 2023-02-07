@@ -63,11 +63,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+                $ref: '#/components/schemas/StatelessPersonalizedDocumentsResponse'
         '400':
            $ref: './responses/generic.yml#/BadRequest'
         '409':
-          description: impossible to create a personalized list for given context
+          description: -|
+            impossible to create a personalized list for given context
+
+            This mainly can happen if all documents in the user history
+            do no longer exist (or where never ingested).
           content:
             application/json:
               schema:
@@ -208,6 +212,28 @@ components:
           type: number
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
+    StatelessPersonalizedDocumentsResponse:
+      type: object
+      required: [documents]
+      properties:
+        warnings:
+          type: array
+          items:
+            type: string
+        documents:
+          type: array
+          minItems: 0
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/PersonalizedDocumentData'
+      example:
+        warnings:
+          - "historic document with id \"document-id-1\" does not exist"
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
     PersonalizedDocumentsResponse:
       type: object
       required: [documents]
