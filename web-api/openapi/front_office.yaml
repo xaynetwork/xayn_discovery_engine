@@ -221,10 +221,10 @@ components:
       properties:
         warnings:
           type: array
+          minItems: 0
+          maxItems: 100
           items:
             type: string
-            minItems: 0
-            maxItems: 100
         documents:
           type: array
           minItems: 0
