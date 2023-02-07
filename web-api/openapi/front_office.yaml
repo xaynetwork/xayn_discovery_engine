@@ -54,6 +54,7 @@ paths:
                 count:
                   type: integer
                   format: int32
+                  description: The number of documents which will be returned at most.
                   minimum: 0
                   maximum: 100
                   default: 10
