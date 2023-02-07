@@ -2,6 +2,7 @@
 members = [
     "bert",
     "coi",
+    "test-utils",
     "web-api",
 ]
 
