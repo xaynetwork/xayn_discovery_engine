@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, time::SystemTime};
+use std::cmp::Ordering;
 
 /// Pretend that f32 has a total ordering.
 ///
@@ -66,12 +66,6 @@ pub(crate) const SECONDS_PER_DAY_F32: f32 = 86400.;
 
 /// The number of seconds per day (without leap seconds).
 pub(crate) const SECONDS_PER_DAY_U64: u64 = 86400;
-
-/// Gets the current system time depending on the target architecture.
-#[inline]
-pub fn system_time_now() -> SystemTime {
-    SystemTime::now()
-}
 
 pub(crate) mod serde_duration_as_days {
     use std::time::Duration;

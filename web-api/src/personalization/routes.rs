@@ -26,13 +26,7 @@ use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
-use xayn_ai_coi::{
-    compute_coi_relevances,
-    nan_safe_f32_cmp,
-    system_time_now,
-    CoiSystem,
-    PositiveCoi,
-};
+use xayn_ai_coi::{compute_coi_relevances, nan_safe_f32_cmp, CoiSystem, PositiveCoi};
 
 use super::{AppState, PersonalizationConfig, SemanticSearchConfig};
 use crate::{
@@ -233,7 +227,7 @@ pub(crate) enum PersonalizedDocumentsError {
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each center's embedding.
 fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
-    let relevances = compute_coi_relevances(cois, horizon, system_time_now())
+    let relevances = compute_coi_relevances(cois, horizon, Utc::now())
         .into_iter()
         .map(|rel| 1.0 - (-3.0 * rel).exp())
         .collect_vec();

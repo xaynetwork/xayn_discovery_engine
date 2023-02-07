@@ -12,11 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    collections::HashMap,
-    time::{Duration, SystemTime},
-};
+use std::{collections::HashMap, time::Duration};
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 
@@ -25,14 +23,13 @@ use crate::{
     document::Document,
     point::{find_closest_coi, find_closest_coi_index, NegativeCoi, PositiveCoi},
     stats::{compute_coi_decay_factor, compute_coi_relevances},
-    utils::system_time_now,
 };
 
 fn compute_score_for_closest_positive_coi(
     embedding: &NormalizedEmbedding,
     cois: &[PositiveCoi],
     horizon: Duration,
-    now: SystemTime,
+    now: DateTime<Utc>,
 ) -> Option<f32> {
     find_closest_coi_index(cois, embedding).map(|(index, similarity)| {
         let decay = compute_coi_decay_factor(horizon, now, cois[index].stats.last_view);
@@ -45,7 +42,7 @@ fn compute_score_for_closest_negative_coi(
     embedding: &NormalizedEmbedding,
     cois: &[NegativeCoi],
     horizon: Duration,
-    now: SystemTime,
+    now: DateTime<Utc>,
 ) -> Option<f32> {
     find_closest_coi(cois, embedding).map(|(coi, similarity)| {
         let decay = compute_coi_decay_factor(horizon, now, coi.last_view);
@@ -70,7 +67,7 @@ impl UserInterests {
         &self,
         embedding: &NormalizedEmbedding,
         horizon: Duration,
-        now: SystemTime,
+        now: DateTime<Utc>,
     ) -> Option<f32> {
         match (
             compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, now),
@@ -98,7 +95,7 @@ impl UserInterests {
     where
         D: Document,
     {
-        let now = system_time_now();
+        let now = Utc::now();
         documents
             .iter()
             .map(|document| {
@@ -138,29 +135,33 @@ mod tests {
 
     #[test]
     fn test_compute_score_for_embedding() {
-        let epoch = SystemTime::UNIX_EPOCH;
-        let now = epoch + Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
+        let now = Utc::now();
         let mut positive = create_pos_cois([[62., 55., 11.], [76., 30., 80.]]);
-        positive[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32);
-        positive[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32);
-
+        positive[0].stats.last_view = now
+            - chrono::Duration::from_std(Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32))
+                .unwrap();
+        positive[1].stats.last_view = now
+            - chrono::Duration::from_std(Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32))
+                .unwrap();
         let mut negative = create_neg_cois([[6., 61., 6.]]);
-        negative[0].last_view = epoch;
+        negative[0].last_view =
+            now - chrono::Duration::from_std(Duration::from_secs_f32(SECONDS_PER_DAY_F32)).unwrap();
         let cois = UserInterests { positive, negative };
 
+        let embedding = [1., 4., 4.].try_into().unwrap();
         let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
-
         let score = cois
-            .compute_score_for_embedding(&[1., 4., 4.].try_into().unwrap(), horizon, now)
+            .compute_score_for_embedding(&embedding, horizon, now)
             .unwrap();
-
-        let pos_similarity = 0.785_516_44;
-        let pos_decay = 0.999_999_34;
-        let neg_similarity = 0.774_465_6;
-        let neg_decay = 0.;
-        let relevance = 0.499_999_67;
-        let expected = pos_similarity * pos_decay + relevance - neg_similarity * neg_decay;
-        assert_approx_eq!(f32, score, expected, epsilon = 1e-6);
+        assert_approx_eq!(
+            f32,
+            score,
+            // positive[1]: similarity * decay + relevance
+            0.785_516_44 * 0.231_573_88 + 0.115_786_94
+            // negative[0]: similarity * decay
+            - 0.774_465_7 * 0.475_020_83,
+            epsilon = 1e-6,
+        );
     }
 
     #[test]
@@ -169,7 +170,7 @@ mod tests {
         let score = UserInterests::default().compute_score_for_embedding(
             &[0., 0., 0.].try_into().unwrap(),
             horizon,
-            system_time_now(),
+            Utc::now(),
         );
         assert!(score.is_none());
     }

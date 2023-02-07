@@ -12,17 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::SystemTime;
-
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::{InvalidEmbedding, NormalizedEmbedding};
 
-use crate::{
-    id::CoiId,
-    stats::CoiStats,
-    utils::{nan_safe_f32_cmp_desc, system_time_now},
-};
+use crate::{id::CoiId, stats::CoiStats, utils::nan_safe_f32_cmp_desc};
 
 /// A positive `CoI`.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -37,7 +32,7 @@ pub struct PositiveCoi {
 pub struct NegativeCoi {
     pub id: CoiId,
     pub point: NormalizedEmbedding,
-    pub last_view: SystemTime,
+    pub last_view: DateTime<Utc>,
 }
 
 /// Common `CoI` properties and functionality.
@@ -96,7 +91,7 @@ macro_rules! impl_coi_point {
 
 impl_coi_point! {
     PositiveCoi { stats: CoiStats::new() },
-    NegativeCoi { last_view: system_time_now() },
+    NegativeCoi { last_view: Utc::now() },
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.

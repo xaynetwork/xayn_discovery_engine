@@ -265,7 +265,7 @@ impl Database {
                 stats: CoiStats {
                     view_count: coi.view_count as usize,
                     view_time: Duration::from_millis(coi.view_time_ms as u64),
-                    last_view: coi.last_view.into(),
+                    last_view: coi.last_view,
                 },
             })
             .collect_vec();
@@ -275,7 +275,7 @@ impl Database {
             .map(|coi| NegativeCoi {
                 id: coi.coi_id,
                 point: coi.embedding,
-                last_view: coi.last_view.into(),
+                last_view: coi.last_view,
             })
             .collect_vec();
 

@@ -27,7 +27,7 @@ use std::{
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use chrono::{DateTime, Local, NaiveDateTime, Utc};
+use chrono::{Local, NaiveDateTime};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
@@ -557,10 +557,7 @@ impl storage::Interaction for Storage {
                 positive_cois,
             });
             if store_user_history {
-                interactions.insert((
-                    document.id.clone(),
-                    DateTime::<Utc>::from(updated.stats.last_view).naive_utc(),
-                ));
+                interactions.insert((document.id.clone(), updated.stats.last_view.naive_utc()));
             }
         }
 
