@@ -46,18 +46,7 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [history]
-              properties:
-                history:
-                  $ref: './schemas/document.yml#/History'
-                count:
-                  type: integer
-                  format: int32
-                  description: The number of documents which will be returned at most.
-                  minimum: 0
-                  maximum: 100
-                  default: 10
+              $ref: StatelessPersonalizedDocumentsRequest
       responses:
         '200':
           description: successful operation
@@ -213,6 +202,19 @@ components:
           type: number
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
+    StatelessPersonalizedDocumentsRequest:
+      type: object
+      required: [history]
+      properties:
+        history:
+          $ref: './schemas/document.yml#/History'
+        count:
+          type: integer
+          format: int32
+          description: The number of documents which will be returned at most.
+          minimum: 0
+          maximum: 100
+          default: 10
     StatelessPersonalizedDocumentsResponse:
       type: object
       required: [documents]
@@ -221,6 +223,8 @@ components:
           type: array
           items:
             type: string
+            minItems: 0
+            maxItems: null
         documents:
           type: array
           minItems: 0
