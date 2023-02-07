@@ -226,7 +226,7 @@ pub async fn start_test_application<A>(
 where
     A: Application + 'static,
 {
-    let (es_url, es_index) = services.elastic_search.rsplit_once('/').unwrap();
+    let (es_url, es_index) = services.elastic_search.as_str().rsplit_once('/').unwrap();
 
     let mut config = Table::default();
 
@@ -269,9 +269,9 @@ pub struct Services {
     /// Id of the test.
     pub id: String,
     /// Uri to a postgres db for this test.
-    pub postgres: String,
+    pub postgres: Url,
     /// Uri to a elastic search db for this test.
-    pub elastic_search: String,
+    pub elastic_search: Url,
 }
 
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
@@ -286,8 +286,10 @@ async fn setup_web_dev_test_context(
 
     just(&["_test-create-dbs", &id])?;
 
-    let postgres = format!("postgresql://user:pw@localhost:3054/{id}");
-    let elastic_search = format!("http://localhost:3092/{id}");
+    let postgres = format!("postgresql://user:pw@localhost:3054/{id}")
+        .parse()
+        .unwrap();
+    let elastic_search = format!("http://localhost:3092/{id}").parse().unwrap();
 
     let uris = Services {
         id,
