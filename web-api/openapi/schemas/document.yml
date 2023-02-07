@@ -36,6 +36,16 @@ History:
   type: [array]
   minItems: 1
   maxItems: 100
+  description: |-
+    The history is an sequence of entries representing
+    documents visited by the user.
+
+    It is ordered from the  "oldest" interaction at index 0 to the "newest" interaction
+    at the highest index.
+
+    History entries do not need to have a timestamp, if no timestamp is given it is
+    approximated in some way based on timestamps of neighboring documents and if non
+    have a timestamp they are all assumed to have happened "just now" for simplicity.
   items:
     $ref: '#/HistoryEntry'
 

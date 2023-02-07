@@ -50,7 +50,7 @@ paths:
               required: [history]
               properties:
                 history:
-                  $ref: './schemas/document.yml#/UserHistory'
+                  $ref: './schemas/document.yml#/History'
                 count:
                   type: integer
                   format: int32
