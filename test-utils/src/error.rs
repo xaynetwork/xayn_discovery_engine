@@ -18,9 +18,7 @@ use std::fmt::Write;
 ///
 /// Useful for using `?` in tests which will panic on error anyway.
 #[derive(Debug)]
-pub struct Panic {
-    _priv: (),
-}
+pub enum Panic {}
 
 impl<E> From<E> for Panic
 where
