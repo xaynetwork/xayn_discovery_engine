@@ -221,7 +221,7 @@ _test-generate-id:
 _test-create-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
-        psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@postgresql:5432/xayn 1>&2
+        psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@postgres:5432/xayn 1>&2
         ./web-api/elastic-search/create_es_index.sh "http://elasticsearch:9200/${TEST_ID}"
     else
         psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost:3054/xayn 1>&2
@@ -231,7 +231,7 @@ _test-create-dbs $TEST_ID:
 _test-drop-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
-        psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@postgresql:5432/xayn 1>&2
+        psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@postgres:5432/xayn 1>&2
         curl -sf -X DELETE "http://elasticsearch:9200/${TEST_ID}"
     else
         psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost:3054/xayn 1>&2
