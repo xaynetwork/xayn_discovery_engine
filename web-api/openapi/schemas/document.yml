@@ -33,7 +33,7 @@ DocumentTag:
   example: "tag"
 
 History:
-  type: [array]
+  type: array
   minItems: 1
   maxItems: 100
   description: |-
