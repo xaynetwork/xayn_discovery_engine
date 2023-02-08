@@ -29,7 +29,7 @@ pub trait Document {
 pub(crate) mod tests {
     use derive_more::Display;
     use uuid::Uuid;
-    use xayn_ai_test_utils::uuid::mock_uuid;
+    use xayn_test_utils::uuid::mock_uuid;
 
     use super::*;
 

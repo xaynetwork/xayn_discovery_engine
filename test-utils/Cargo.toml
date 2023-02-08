@@ -1,5 +1,5 @@
 [package]
-name = "xayn-ai-test-utils"
+name = "xayn-test-utils"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }

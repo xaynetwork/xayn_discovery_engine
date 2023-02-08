@@ -16,7 +16,7 @@ use std::{hint::black_box, path::Path};
 
 use criterion::{criterion_group, criterion_main, Criterion};
 use xayn_ai_bert::{tokenizer::bert::Tokenizer, Config, NonePooler};
-use xayn_ai_test_utils::asset::smbert;
+use xayn_test_utils::asset::smbert;
 
 const TOKEN_SIZE: usize = 64;
 const SEQUENCE: &str = "This is a sequence.";

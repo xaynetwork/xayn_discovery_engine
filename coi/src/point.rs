@@ -136,7 +136,7 @@ where
 
 #[cfg(test)]
 pub(crate) mod tests {
-    use xayn_ai_test_utils::assert_approx_eq;
+    use xayn_test_utils::assert_approx_eq;
 
     use super::*;
 

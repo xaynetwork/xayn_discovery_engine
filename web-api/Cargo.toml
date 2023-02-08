@@ -48,4 +48,4 @@ npyz = "0.7.4"
 ouroboros = "0.15.5"
 tokio = { workspace = true, features = ["sync"] }
 trycmd = "0.14.11"
-xayn-ai-test-utils = { path = "../test-utils" }
+xayn-test-utils = { path = "../test-utils" }

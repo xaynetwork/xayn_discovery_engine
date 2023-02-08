@@ -1,5 +1,5 @@
 [package]
-name = "integration-tests"
+name = "xayn-integration-tests"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
@@ -17,5 +17,5 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 toml = "0.7.2"
-xayn-ai-test-utils = { path = "../test-utils" }
+xayn-test-utils = { path = "../test-utils" }
 xayn-web-api = { path = "../web-api" }

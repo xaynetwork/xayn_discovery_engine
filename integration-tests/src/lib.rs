@@ -35,7 +35,7 @@ use reqwest::{Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
 use toml::Table;
-use xayn_ai_test_utils::{env::clear_env, error::Panic};
+use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
 
 /// Absolute path to the root of the project as determined by `just`.
@@ -105,7 +105,7 @@ where
 /// Works with both `Table` and `&mut Table`.
 ///
 /// ```
-/// # use integration_tests::set_config_option;
+/// # use xayn_integration_tests::set_config_option;
 /// # use toml::{toml, Table};
 ///
 /// let mut config = Table::default();
