@@ -45,7 +45,7 @@ pub(super) fn rerank_by_interest(
 ) -> HashMap<DocumentId, Rank> {
     let scores = coi_system.score(documents, interest);
     pairs_to_rank_map(
-        izip!(documents.iter().map(|doc| doc.id.clone()), scores,),
+        izip!(documents.iter().map(|doc| doc.id.clone()), scores),
         nan_safe_f32_cmp_desc,
     )
 }
@@ -93,7 +93,6 @@ pub(super) fn rerank_by_interest_and_tag_weight(
             secondary_sorting_factor
                 .get(&a.id)
                 .cmp(&secondary_sorting_factor.get(&b.id))
-                .reverse()
         })
     });
 }
