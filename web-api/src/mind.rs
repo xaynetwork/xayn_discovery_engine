@@ -19,7 +19,7 @@
 use std::{collections::HashMap, fs::File, io, path::Path};
 
 use anyhow::Error;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, Array3, ArrayView};
@@ -54,6 +54,7 @@ struct State {
     embedder: Embedder,
     coi: CoiSystem,
     personalization: PersonalizationConfig,
+    time: DateTime<Utc>,
 }
 
 impl State {
@@ -65,12 +66,14 @@ impl State {
 
         let coi = config.coi.build();
         let personalization = config.personalization;
+        let time = config.time;
 
         Ok(Self {
             storage,
             embedder,
             coi,
             personalization,
+            time,
         })
     }
 
@@ -98,24 +101,21 @@ impl State {
     async fn interact(
         &self,
         user: &UserId,
-        documents: &[DocumentId],
-        time: DateTime<Utc>,
+        documents: &[(DocumentId, DateTime<Utc>)],
     ) -> Result<(), Error> {
-        let interactions = documents
-            .iter()
-            .map(|id| (id.clone(), UserInteractionType::Positive))
-            .collect_vec();
+        for (id, time) in documents {
+            update_interactions(
+                &self.storage,
+                &self.coi,
+                user,
+                &[(id.clone(), UserInteractionType::Positive)],
+                self.personalization.store_user_history,
+                *time,
+            )
+            .await?;
+        }
 
-        update_interactions(
-            &self.storage,
-            &self.coi,
-            user,
-            &interactions,
-            self.personalization.store_user_history,
-            time,
-        )
-        .await
-        .map_err(Into::into)
+        Ok(())
     }
 
     async fn personalize(
@@ -210,10 +210,21 @@ impl Default for PersonaBasedConfig {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct StateConfig {
     coi: CoiConfig,
     personalization: PersonalizationConfig,
+    time: DateTime<Utc>,
+}
+
+impl Default for StateConfig {
+    fn default() -> Self {
+        Self {
+            coi: CoiConfig::default(),
+            personalization: PersonalizationConfig::default(),
+            time: Utc::now(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -384,16 +395,21 @@ async fn run_persona_benchmark() -> Result<(), Error> {
     ]);
 
     let mut rng = thread_rng();
-
     for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
         let interesting_documents = document_provider.get_all_interest(interests);
         let ids_of_documents_to_prepare = interesting_documents
             .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
-            .map(|doc| doc.id.clone())
+            .map(|doc| {
+                (
+                    doc.id.clone(),
+                    // TODO: set some meaningful value for the interaction time
+                    state.time - Duration::days(0),
+                )
+            })
             .collect_vec();
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(user_id, &ids_of_documents_to_prepare, Utc::now())
+            .interact(user_id, &ids_of_documents_to_prepare)
             .await
             .unwrap();
 
@@ -405,7 +421,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                         count: benchmark_config.n_documents,
                         published_after: None,
                     },
-                    Utc::now(),
+                    state.time,
                 )
                 .await
                 .unwrap()
@@ -433,9 +449,14 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                             (score - 2.0).abs() < 0.001
                                 && rng.gen_bool(benchmark_config.click_probability)
                         })
-                        .map(|(id, _)| id.clone())
+                        .map(|(id, _)| {
+                            (
+                                id.clone(),
+                                // TODO: set some meaningful value for the interaction time
+                                state.time - Duration::days(0),
+                            )
+                        })
                         .collect_vec(),
-                    Utc::now(),
                 )
                 .await
                 .unwrap();
@@ -464,15 +485,23 @@ async fn run_user_benchmark() -> Result<(), Error> {
 
     // Loop over all impressions, prepare reranker with news in click history
     // and rerank the news in an impression
-    for impression in read("behaviors.tsv")? {
-        let impression: Impression = impression?;
-
-        let labels = if let Some(clicks) = &impression.clicks {
+    for impression in read::<Impression>("behaviors.tsv")? {
+        let impression = impression?;
+        let labels = if let Some(clicks) = impression.clicks {
             let user = UserId::new(&impression.user_id).unwrap();
-
+            let clicks = clicks
+                .into_iter()
+                .map(|document| {
+                    (
+                        document,
+                        // TODO: set some meaningful value for the interaction time
+                        state.time - Duration::days(0),
+                    )
+                })
+                .collect_vec();
             if !users.contains(&impression.user_id) {
                 users.push(impression.user_id);
-                state.interact(&user, clicks, Utc::now()).await.unwrap();
+                state.interact(&user, &clicks).await.unwrap();
             }
 
             let document_ids = impression
@@ -485,7 +514,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
                 .personalize(
                     &user,
                     PersonalizeBy::Documents(document_ids.as_slice()),
-                    Utc::now(),
+                    state.time,
                 )
                 .await
                 .unwrap()
