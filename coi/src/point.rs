@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::convert::identity;
+
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -55,11 +57,17 @@ pub trait CoiPoint {
 }
 
 macro_rules! impl_coi_point {
-    ($(for $(#[$attr:meta])* $coi:ty { $fn_new:item })*) => {
+    ($($(#[$attr:meta])* $coi:ty { $field:ident: $($function:ident)::+($time:ident) }),* $(,)?) => {
         $(
             $(#[$attr])*
             impl CoiPoint for $coi {
-                $fn_new
+                fn new(id: CoiId, point: NormalizedEmbedding, $time: DateTime<Utc>) -> Self {
+                    Self {
+                        id,
+                        point,
+                        $field: $($function)::+($time),
+                    }
+                }
 
                 fn id(&self) -> CoiId {
                     self.id
@@ -84,25 +92,8 @@ macro_rules! impl_coi_point {
 }
 
 impl_coi_point! {
-    for PositiveCoi {
-        fn new(id: CoiId, point: NormalizedEmbedding, time: DateTime<Utc>) -> Self {
-            Self {
-                id,
-                point,
-                stats: CoiStats::new(time),
-            }
-        }
-    }
-
-    for NegativeCoi {
-        fn new(id: CoiId, point: NormalizedEmbedding, time: DateTime<Utc>) -> Self {
-            Self {
-                id,
-                point,
-                last_view: time,
-            }
-        }
-    }
+    PositiveCoi { stats: CoiStats::new(time) },
+    NegativeCoi { last_view: identity(time) },
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
