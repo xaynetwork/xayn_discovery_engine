@@ -169,7 +169,10 @@ pub(crate) async fn update_interactions(
 
 #[derive(Deserialize)]
 struct StatelessPersonalizationRequest {
+    #[serde(default)]
     count: Option<usize>,
+    #[serde(default)]
+    published_after: Option<DateTime<Utc>>,
     history: Vec<UncheckedHistoryEntry>,
 }
 
@@ -232,6 +235,7 @@ async fn stateless_personalize_documents(
     Json(request): Json<StatelessPersonalizationRequest>,
 ) -> Result<impl Responder, Error> {
     let mut warnings = vec![];
+    let published_after = request.published_after;
     let count = request.document_count(state.config.as_ref())?;
     let history = request.resolved_history(&mut warnings)?;
     let ids = history.iter().map(|document| &document.id).collect_vec();
@@ -254,7 +258,7 @@ async fn stateless_personalize_documents(
         horizon: state.coi.config().horizon(),
         max_cois: state.config.personalization.max_cois_for_knn,
         count,
-        published_after: None,
+        published_after,
     }
     .run_on(&state.storage)
     .await?;
