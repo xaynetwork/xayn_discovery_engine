@@ -67,6 +67,37 @@ pub(super) fn rerank_by_tag_weights(
     pairs_to_rank_map(weighted_documents, |w1, w2| w1.cmp(w2).reverse())
 }
 
+pub(super) fn rerank_by_interest_and_tag_weight(
+    coi_system: &CoiSystem,
+    documents: &mut [PersonalizedDocument],
+    interests: &UserInterests,
+    tag_weights: &HashMap<DocumentTag, usize>,
+    interest_tag_bias: f32,
+) {
+    let interest_ranks = rerank_by_interest(coi_system, documents, interests);
+    let tag_weight_ranks = rerank_by_tag_weights(documents, tag_weights);
+
+    for document in documents.iter_mut() {
+        document.score = interest_ranks[&document.id]
+            .merge_as_score(tag_weight_ranks[&document.id], interest_tag_bias);
+    }
+
+    let secondary_sorting_factor = if interest_tag_bias >= 0.5 {
+        interest_ranks
+    } else {
+        tag_weight_ranks
+    };
+
+    documents.sort_unstable_by(|a, b| {
+        nan_safe_f32_cmp_desc(&a.score, &b.score).then_with(|| {
+            secondary_sorting_factor
+                .get(&a.id)
+                .cmp(&secondary_sorting_factor.get(&b.id))
+                .reverse()
+        })
+    });
+}
+
 fn pairs_to_rank_map<K, S>(
     keys_with_score: impl IntoIterator<Item = (K, S)>,
     mut sort_by: impl FnMut(&S, &S) -> Ordering,

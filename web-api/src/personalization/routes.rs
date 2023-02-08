@@ -24,12 +24,11 @@ use actix_web::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracing::error;
-use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiSystem};
+use xayn_ai_coi::CoiSystem;
 
 use super::{
     personalized_knn,
-    rerank::{rerank_by_interest, rerank_by_tag_weights},
+    rerank::rerank_by_interest_and_tag_weight,
     AppState,
     PersonalizationConfig,
     SemanticSearchConfig,
@@ -289,29 +288,13 @@ pub(crate) async fn personalize_documents_by(
 
     let tag_weights = storage::Tag::get(storage, user_id).await?;
 
-    let interest_ranks = rerank_by_interest(coi_system, &documents, &interests);
-    let tag_weight_ranks = rerank_by_tag_weights(&documents, &tag_weights);
-
-    let interest_tag_bias = personalization.interest_tag_bias;
-    for document in &mut documents {
-        document.score = interest_ranks[&document.id]
-            .merge_as_score(tag_weight_ranks[&document.id], interest_tag_bias);
-    }
-
-    let secondary_sorting_factor = if interest_tag_bias >= 0.5 {
-        interest_ranks
-    } else {
-        tag_weight_ranks
-    };
-
-    documents.sort_unstable_by(|a, b| {
-        nan_safe_f32_cmp_desc(&a.score, &b.score).then_with(|| {
-            secondary_sorting_factor
-                .get(&a.id)
-                .cmp(&secondary_sorting_factor.get(&b.id))
-                .reverse()
-        })
-    });
+    rerank_by_interest_and_tag_weight(
+        coi_system,
+        &mut documents,
+        &interests,
+        &tag_weights,
+        personalization.interest_tag_bias,
+    );
 
     if let PersonalizeBy::KnnSearch { count, .. } = by {
         // due to ceil-ing the number of documents we fetch per COI
