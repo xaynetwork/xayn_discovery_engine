@@ -2,7 +2,7 @@
 members = [
     "bert",
     "coi",
-    "integration-test-utils",
+    "integration-tests",
     "test-utils",
     "web-api",
 ]

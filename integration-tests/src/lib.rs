@@ -333,8 +333,7 @@ mod tests {
             let id = generate_test_id().unwrap();
             assert!(
                 regex.is_match(&id),
-                "id does not have expected format: {:?}",
-                id
+                "id does not have expected format: {id:?}",
             );
         }
         Ok(())
