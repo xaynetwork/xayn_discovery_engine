@@ -319,7 +319,7 @@ impl Database {
                         .push_bind(update.point.to_vec())
                         .push_bind(update.stats.view_count as i32)
                         .push_bind(update.stats.view_time.as_millis() as i64)
-                        .push_bind(time);
+                        .push_bind(time.to_rfc3339());
                 })
                 .push(
                     " ON CONFLICT (coi_id) DO UPDATE SET
@@ -357,7 +357,7 @@ impl Database {
                     builder
                         .push_bind(document_id)
                         .push_bind(user_id)
-                        .push_bind(time)
+                        .push_bind(time.to_rfc3339())
                         .push_bind(*interaction as i16);
                 })
                 .push(
@@ -461,7 +461,7 @@ impl storage::Interaction for Storage {
             DO UPDATE SET last_seen = EXCLUDED.last_seen;",
         )
         .bind(id)
-        .bind(time)
+        .bind(time.to_rfc3339())
         .execute(&self.postgres.pool)
         .await?;
 
