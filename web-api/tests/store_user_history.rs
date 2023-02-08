@@ -44,14 +44,16 @@ async fn store_user_history(enabled: bool) {
             send_assert(
                 &client,
                 client
-                    .post(ingestion.join("/documents").unwrap())
-                    .json(&json!({ "documents": [
-                { "id": "1", "snippet": "a" },
-                { "id": "2", "snippet": "b" },
-                { "id": "3", "snippet": "c" },
-                { "id": "4", "snippet": "d" },
-                { "id": "5", "snippet": "e" }
-            ] }))
+                    .post(ingestion.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "1", "snippet": "a" },
+                            { "id": "2", "snippet": "b" },
+                            { "id": "3", "snippet": "c" },
+                            { "id": "4", "snippet": "d" },
+                            { "id": "5", "snippet": "e" }
+                        ]
+                    }))
                     .build()?,
                 StatusCode::CREATED,
             )
@@ -60,11 +62,13 @@ async fn store_user_history(enabled: bool) {
             send_assert(
                 &client,
                 client
-                    .patch(personalization.join("/users/u0/interactions").unwrap())
-                    .json(&json!({ "documents": [
-                        { "id": "2", "type": "Positive" },
-                        { "id": "5", "type": "Positive" },
-                    ] }))
+                    .patch(personalization.join("/users/u0/interactions")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "2", "type": "Positive" },
+                            { "id": "5", "type": "Positive" }
+                        ]
+                    }))
                     .build()?,
                 StatusCode::NO_CONTENT,
             )
@@ -73,11 +77,7 @@ async fn store_user_history(enabled: bool) {
             let documents = send_assert_json::<PersonalizedDocumentsResponse>(
                 &client,
                 client
-                    .get(
-                        personalization
-                            .join("/users/u0/personalized_documents")
-                            .unwrap(),
-                    )
+                    .get(personalization.join("/users/u0/personalized_documents")?)
                     .build()?,
                 StatusCode::OK,
             )
