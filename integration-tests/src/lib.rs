@@ -34,7 +34,8 @@ use once_cell::sync::Lazy;
 use reqwest::{Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
-use toml::Table;
+#[doc(hidden)] // required for standalone export of set_config_option!
+pub use toml::Table;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
 
@@ -107,48 +108,50 @@ where
 /// ```
 /// # use xayn_integration_tests::set_config_option;
 /// # use toml::{toml, Table};
-///
+/// #
 /// let mut config = Table::default();
-/// set_config_option!( for config =>
+/// set_config_option!( for &mut config =>
 ///     [storage.postgres]
 ///     base_url = 0;
 ///
 ///     [storage.elastic]
 ///     url = "hy";
-///     index = vec![1,2,3];
+///     index = vec![1, 2, 3];
 ///
 ///     [embedding]
 ///     directory = "../assets/smbert_v0003";
 /// );
 ///
-/// assert_eq!(config, toml! {
-///     [storage.postgres]
-///     base_url = 0
+/// assert_eq!(
+///     config,
+///     toml! {
+///         [storage.postgres]
+///         base_url = 0
 ///
-///     [storage.elastic]
-///     url = "hy"
-///     index = [1,2,3]
+///         [storage.elastic]
+///         url = "hy"
+///         index = [1, 2, 3]
 ///
-///     [embedding]
-///     directory = "../assets/smbert_v0003"
-/// })
+///         [embedding]
+///         directory = "../assets/smbert_v0003"
+///     },
+/// );
 /// ```
 #[macro_export]
 macro_rules! set_config_option {
-    (for $config:ident => $(
+    (for $config:expr => $(
         [$($key:ident).+]
         $($key_last:ident = $value:expr;)*
-    )* $(;)?) => {$(
-        let path = [$(stringify!($key)),+];
-        let mut current_base: &mut Table = &mut $config;
-        for sub_table_key in path {
+    )*) => {$(
+        let mut current_base: &mut $crate::Table = $config;
+        for sub_table_key in [$(::std::stringify!($key)),+] {
             current_base = current_base.entry(sub_table_key.to_owned())
-                .or_insert_with(|| Table::default().into())
+                .or_insert_with(|| $crate::Table::default().into())
                 .as_table_mut()
                 .unwrap();
         }
         $(
-            current_base.insert(stringify!($key_last).to_owned(), $value.into());
+            current_base.insert(::std::stringify!($key_last).to_owned(), $value.into());
         )*
     )*};
 }
@@ -230,7 +233,7 @@ where
 
     let mut config = Table::default();
 
-    set_config_option!( for config =>
+    set_config_option!( for &mut config =>
         [storage.postgres]
         base_url = services.postgres.as_str();
 
@@ -346,13 +349,13 @@ mod tests {
     #[test]
     fn test_set_config_option_works() {
         let mut config = Table::default();
-        set_config_option!( for config =>
+        set_config_option!( for &mut config =>
             [storage.postgres]
             base_url = 0;
 
             [storage.elastic]
             url = "hy";
-            index = vec![1,2,3];
+            index = vec![1, 2, 3];
 
             [embedding]
             directory = "../assets/smbert_v0003";
@@ -366,17 +369,17 @@ mod tests {
 
                 [storage.elastic]
                 url = "hy"
-                index = [1,2,3]
+                index = [1, 2, 3]
 
                 [embedding]
                 directory = "../assets/smbert_v0003"
-            }
+            },
         )
     }
 
     #[test]
     fn test_set_config_option_works_with_mut_ref() {
-        let mut config = &mut Table::default();
+        let config = &mut Table::default();
         set_config_option!( for config =>
             [t]
 
@@ -387,7 +390,7 @@ mod tests {
             url = "hy";
 
             [storage.elastic]
-            index = vec![1,2,3];
+            index = vec![1, 2, 3];
 
             [embedding]
             directory = "../assets/smbert_v0003";
@@ -402,11 +405,11 @@ mod tests {
 
                 [storage.elastic]
                 url = "hy"
-                index = [1,2,3]
+                index = [1, 2, 3]
 
                 [embedding]
                 directory = "../assets/smbert_v0003"
-            }
+            },
         )
     }
 }
