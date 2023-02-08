@@ -284,17 +284,21 @@ async fn setup_web_dev_test_context(
 
     let id = generate_test_id()?;
 
-    just(&["_test-create-dbs", &id])?;
-
-    let postgres = format!("postgresql://user:pw@localhost:3054/{id}")
-        .parse()
-        .unwrap();
-    let elastic_search = format!("http://localhost:3092/{id}").parse().unwrap();
+    let out = just(&["_test-create-dbs", &id])?;
+    let mut postgres = None;
+    let mut elastic_search = None;
+    for line in out.lines() {
+        if let Some(url) = line.trim().strip_prefix("PG_URL=") {
+            postgres = Some(url.parse().unwrap());
+        } else if let Some(url) = line.trim().strip_prefix("ES_URL=") {
+            elastic_search = Some(url.parse().unwrap());
+        }
+    }
 
     let uris = Services {
         id,
-        postgres,
-        elastic_search,
+        postgres: postgres.unwrap(),
+        elastic_search: elastic_search.unwrap(),
     };
 
     Ok(guard_on_success(uris, move |uris| {

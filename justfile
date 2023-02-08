@@ -221,22 +221,33 @@ _test-generate-id:
 _test-create-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
-        psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@postgres:3054/xayn 1>&2
-        ./web-api/elastic-search/create_es_index.sh "http://elasticsearch:3092/${TEST_ID}"
+        PG_HOST="postgres:5432"
+        ES_HOST="elasticsearch:9200"
     else
-        psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost:3054/xayn 1>&2
-        ./web-api/elastic-search/create_es_index.sh "http://localhost:3092/${TEST_ID}"
+        PG_HOST="localhost:3054"
+        ES_HOST="localhost:3092"
     fi
+    PG_BASE="postgresql://user:pw@${PG_HOST}"
+    ES_URL="http://${ES_HOST}/${TEST_ID}"
+
+    psql -c "CREATE DATABASE ${TEST_ID};" "${PG_BASE}/xayn" 1>&2
+    ./web-api/elastic-search/create_es_index.sh "${ES_URL}"
+
+    echo "PG_URL=${PG_BASE}/${TEST_ID}"
+    echo "ES_URL=${ES_URL}"
 
 _test-drop-dbs $TEST_ID:
     #!/usr/bin/env -S bash -eux -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
-        psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@postgres:3054/xayn 1>&2
-        curl -sf -X DELETE "http://elasticsearch:3092/${TEST_ID}"
+        PG_HOST="postgres:5432"
+        ES_HOST="elasticsearch:9200"
     else
-        psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost:3054/xayn 1>&2
-        curl -sf -X DELETE "http://localhost:3092/${TEST_ID}"
+        PG_HOST="localhost:3054"
+        ES_HOST="localhost:3092"
     fi
+
+    psql -c "DROP DATABASE ${TEST_ID};" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
+    curl -sf -X DELETE "http://${ES_HOST}/${TEST_ID}"
 
 alias r := rust-test
 alias t := test
