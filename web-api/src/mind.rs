@@ -12,9 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Executes the user-based MIND benchmark.
-
-#![allow(dead_code)]
+//! Executes the MIND benchmarks.
 
 use std::{collections::HashMap, fs::File, io, path::Path};
 
@@ -188,7 +186,7 @@ where
         .transpose()
 }
 
-// struct that represents config of hyperparameters for the persona based benchmark
+/// The config of hyperparameters for the persona based benchmark.
 #[derive(Debug, Deserialize)]
 struct PersonaBasedConfig {
     click_probability: f64,
@@ -229,8 +227,10 @@ impl Default for StateConfig {
 
 #[derive(Debug, Deserialize)]
 struct Impression {
+    #[allow(dead_code)]
     id: String,
     user_id: String,
+    #[allow(dead_code)]
     time: String,
     #[serde(deserialize_with = "deserialize_clicked_documents")]
     clicks: Option<Vec<DocumentId>>,
@@ -243,13 +243,15 @@ struct Document {
     id: DocumentId,
     category: DocumentTag,
     subcategory: DocumentTag,
+    #[allow(dead_code)]
     title: String,
     snippet: String,
+    #[allow(dead_code)]
     url: String,
 }
 
 impl Document {
-    // check if the document is interesting to the user
+    /// Checks if the document is of interest to the user.
     fn is_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
@@ -271,6 +273,7 @@ impl DocumentProvider {
         Ok(Self { documents })
     }
 
+    #[allow(dead_code)]
     fn sample(&self, n: usize) -> Vec<&Document> {
         self.documents
             .values()
@@ -285,7 +288,7 @@ impl DocumentProvider {
         self.documents.values().cloned().collect()
     }
 
-    // get all documents that matches user's interest
+    /// Gets all documents that matches user's interest.
     fn get_all_interest(&self, interests: &[String]) -> Vec<&Document> {
         self.documents
             .values()
@@ -298,7 +301,7 @@ impl DocumentProvider {
 struct Users(HashMap<UserId, Vec<String>>);
 
 impl Users {
-    // function that reads the users interests from a json file
+    /// Reads the users interests from a json file.
     fn new(path: &str) -> Result<Self, Error> {
         let file = File::open(path)?;
         let json = serde_json::from_reader::<_, serde_json::Value>(file)?;
@@ -339,8 +342,9 @@ where
         .map_err(Into::into)
 }
 
-// function that assigns a score to a vector of documents based on the user's interests
-// score is equal to 2 if the document is interesting to the user, 0 otherwise
+/// Assigns a score to a vector of documents based on the user's interests.
+///
+/// The score is equal to 2 if the document is of interest to the user, 0 otherwise.
 fn score_documents(documents: &[&Document], user_interests: &[String]) -> Vec<f32> {
     documents
         .iter()
@@ -371,11 +375,10 @@ where
     writer.extend(c_order_items)?;
     writer.finish()
 }
-/// # Panics
-///
-/// The function panics if the provided filenames are not correct.
+
+/// Runs the persona-based mind benchmark.
 #[tokio::test]
-#[ignore]
+#[ignore = "run on demand via `just mind-benchmark persona`"]
 async fn run_persona_benchmark() -> Result<(), Error> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
@@ -467,9 +470,9 @@ async fn run_persona_benchmark() -> Result<(), Error> {
     Ok(())
 }
 
-/// Runs the user-based mind benchmark
+/// Runs the user-based mind benchmark.
 #[tokio::test]
-#[ignore]
+#[ignore = "run on demand via `just mind-benchmark user`"]
 async fn run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
