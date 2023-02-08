@@ -98,7 +98,7 @@ impl<T, P> Pipeline<T, P> {
 
 #[cfg(test)]
 mod tests {
-    use xayn_ai_test_utils::asset::smbert_mocked;
+    use xayn_test_utils::asset::smbert_mocked;
 
     use super::*;
     use crate::{

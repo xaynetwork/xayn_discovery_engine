@@ -31,7 +31,7 @@ use sqlx::{
 };
 use thiserror::Error;
 use tract_onnx::prelude::TractError;
-use xayn_ai_test_utils::ApproxEqIter;
+use xayn_test_utils::ApproxEqIter;
 
 use crate::{model::Prediction, tokenizer::AttentionMask};
 
@@ -277,7 +277,7 @@ mod tests {
 
     use ndarray::{arr2, arr3};
     use tract_onnx::prelude::IntoArcTensor;
-    use xayn_ai_test_utils::assert_approx_eq;
+    use xayn_test_utils::assert_approx_eq;
 
     use super::*;
 

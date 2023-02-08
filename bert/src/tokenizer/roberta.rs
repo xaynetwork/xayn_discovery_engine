@@ -126,7 +126,7 @@ impl Tokenize for Tokenizer {
 
 #[cfg(test)]
 mod tests {
-    use xayn_ai_test_utils::asset::smroberta;
+    use xayn_test_utils::asset::smroberta;
 
     use super::*;
 

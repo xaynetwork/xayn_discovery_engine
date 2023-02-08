@@ -109,7 +109,7 @@ impl UserInterests {
 #[cfg(test)]
 mod tests {
     use chrono::Duration;
-    use xayn_ai_test_utils::assert_approx_eq;
+    use xayn_test_utils::assert_approx_eq;
 
     use super::*;
     use crate::point::tests::{create_neg_cois, create_pos_cois};
