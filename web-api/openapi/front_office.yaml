@@ -327,10 +327,9 @@ components:
           maximum: 1
           default: 0
       example:
-        properties:
-          - text: 'lorem ipsum dolor si amet'
-            document_count: 20
-            min_similarity: 0.5
+        - text: 'lorem ipsum dolor si amet'
+          document_count: 20
+          min_similarity: 0.5
     PersonalizedDocumentsError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
