@@ -525,7 +525,7 @@ async fn semantic_search_from_text(
         .into());
     }
 
-    let embedding = state.embedder.run(&text)?;
+    let embedding = state.embedder.run(text)?;
     let documents = storage::Document::get_by_embedding(
         &state.storage,
         KnnSearchParams {
