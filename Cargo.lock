@@ -4203,6 +4203,7 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokio",
+ "toml 0.7.2",
  "tracing",
  "tracing-subscriber",
  "trycmd",
