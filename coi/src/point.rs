@@ -38,7 +38,7 @@ pub struct NegativeCoi {
 /// Common `CoI` properties and functionality.
 pub trait CoiPoint {
     /// Creates a coi.
-    fn new(id: CoiId, point: NormalizedEmbedding) -> Self;
+    fn new(id: CoiId, point: NormalizedEmbedding, time: DateTime<Utc>) -> Self;
 
     /// Gets the coi id.
     fn id(&self) -> CoiId;
@@ -55,17 +55,11 @@ pub trait CoiPoint {
 }
 
 macro_rules! impl_coi_point {
-    ($($(#[$attr:meta])* $coi:ty $({ $($field:ident: $value:expr),* $(,)? })?),* $(,)?) => {
+    ($(for $(#[$attr:meta])* $coi:ty { $fn_new:item })*) => {
         $(
             $(#[$attr])*
             impl CoiPoint for $coi {
-                fn new(id: CoiId, point: NormalizedEmbedding) -> Self {
-                    Self {
-                        id,
-                        point,
-                        $($($field: $value),*)?,
-                    }
-                }
+                $fn_new
 
                 fn id(&self) -> CoiId {
                     self.id
@@ -90,8 +84,25 @@ macro_rules! impl_coi_point {
 }
 
 impl_coi_point! {
-    PositiveCoi { stats: CoiStats::new() },
-    NegativeCoi { last_view: Utc::now() },
+    for PositiveCoi {
+        fn new(id: CoiId, point: NormalizedEmbedding, time: DateTime<Utc>) -> Self {
+            Self {
+                id,
+                point,
+                stats: CoiStats::new(time),
+            }
+        }
+    }
+
+    for NegativeCoi {
+        fn new(id: CoiId, point: NormalizedEmbedding, time: DateTime<Utc>) -> Self {
+            Self {
+                id,
+                point,
+                last_view: time,
+            }
+        }
+    }
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
@@ -142,10 +153,11 @@ pub(crate) mod tests {
     where
         CP: CoiPoint,
     {
+        let now = Utc::now();
         points
             .into_iter()
             .enumerate()
-            .map(|(id, point)| CP::new(CoiId::mocked(id), point.try_into().unwrap()))
+            .map(|(id, point)| CP::new(CoiId::mocked(id), point.try_into().unwrap(), now))
             .collect()
     }
 

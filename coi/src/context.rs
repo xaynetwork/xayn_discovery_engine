@@ -29,11 +29,11 @@ fn compute_score_for_closest_positive_coi(
     embedding: &NormalizedEmbedding,
     cois: &[PositiveCoi],
     horizon: Duration,
-    now: DateTime<Utc>,
+    time: DateTime<Utc>,
 ) -> Option<f32> {
     find_closest_coi_index(cois, embedding).map(|(index, similarity)| {
-        let decay = compute_coi_decay_factor(horizon, now, cois[index].stats.last_view);
-        let relevance = compute_coi_relevances(cois, horizon, now)[index];
+        let decay = compute_coi_decay_factor(horizon, time, cois[index].stats.last_view);
+        let relevance = compute_coi_relevances(cois, horizon, time)[index];
         similarity * decay + relevance
     })
 }
@@ -42,10 +42,10 @@ fn compute_score_for_closest_negative_coi(
     embedding: &NormalizedEmbedding,
     cois: &[NegativeCoi],
     horizon: Duration,
-    now: DateTime<Utc>,
+    time: DateTime<Utc>,
 ) -> Option<f32> {
     find_closest_coi(cois, embedding).map(|(coi, similarity)| {
-        let decay = compute_coi_decay_factor(horizon, now, coi.last_view);
+        let decay = compute_coi_decay_factor(horizon, time, coi.last_view);
         similarity * decay
     })
 }
@@ -67,11 +67,11 @@ impl UserInterests {
         &self,
         embedding: &NormalizedEmbedding,
         horizon: Duration,
-        now: DateTime<Utc>,
+        time: DateTime<Utc>,
     ) -> Option<f32> {
         match (
-            compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, now),
-            compute_score_for_closest_negative_coi(embedding, &self.negative, horizon, now),
+            compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, time),
+            compute_score_for_closest_negative_coi(embedding, &self.negative, horizon, time),
         ) {
             (Some(positive), Some(negative)) => Some(positive - negative),
             (Some(positive), None) => Some(positive),
@@ -91,15 +91,15 @@ impl UserInterests {
         &self,
         documents: &[D],
         config: &Config,
+        time: DateTime<Utc>,
     ) -> Option<HashMap<D::Id, f32>>
     where
         D: Document,
     {
-        let now = Utc::now();
         documents
             .iter()
             .map(|document| {
-                self.compute_score_for_embedding(document.bert_embedding(), config.horizon(), now)
+                self.compute_score_for_embedding(document.bert_embedding(), config.horizon(), time)
                     .map(|score| (document.id().clone(), score))
             })
             .collect()

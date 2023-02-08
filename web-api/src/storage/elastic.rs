@@ -411,16 +411,17 @@ impl storage::Document for Storage {
         let excluded_ids = json!({
             "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
         });
+        let time = params.time.to_rfc3339();
 
         let filter = if let Some(published_after) = params.published_after {
-            // published_after != null && published_after <= publication_date <= now
+            // published_after != null && published_after <= publication_date <= time
             json!({
                 "bool": {
                     "filter": {
                         "range": {
                             "properties.publication_date": {
                                 "gte": published_after.to_rfc3339(),
-                                "lte": "now"
+                                "lte": time
                             }
                         }
                     },
@@ -430,7 +431,7 @@ impl storage::Document for Storage {
                 }
             })
         } else {
-            // published_after == null || published_after <= now
+            // published_after == null || published_after <= time
             json!({
                 "bool": {
                     "must_not": [
@@ -440,7 +441,7 @@ impl storage::Document for Storage {
                         {
                             "range": {
                                 "properties.publication_date": {
-                                    "gt": "now"
+                                    "gt": time
                                 }
                             }
                         }

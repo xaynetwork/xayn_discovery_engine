@@ -23,6 +23,7 @@ use xayn_ai_coi::{compute_coi_decay_factor, compute_coi_relevances, CoiId, CoiPo
 
 fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
     let range = Uniform::new(-1., 1.);
+    let now = Utc::now();
 
     (0..n)
         .map(|_| {
@@ -32,7 +33,7 @@ fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
                 .collect_vec()
                 .try_into()
                 .unwrap();
-            PositiveCoi::new(CoiId::new(), point)
+            PositiveCoi::new(CoiId::new(), point, now)
         })
         .collect()
 }

@@ -30,22 +30,21 @@ pub struct CoiStats {
 }
 
 impl CoiStats {
-    pub(super) fn new() -> Self {
+    pub(super) fn new(time: DateTime<Utc>) -> Self {
         Self {
             view_count: 1,
             view_time: Duration::ZERO,
-            last_view: Utc::now(),
+            last_view: time,
         }
     }
 
     pub(super) fn log_time(&mut self, viewed: Duration) {
-        self.view_count += 1;
         self.view_time += viewed;
     }
 
-    pub(super) fn log_reaction(&mut self) {
+    pub(super) fn log_reaction(&mut self, time: DateTime<Utc>) {
         self.view_count += 1;
-        self.last_view = Utc::now();
+        self.last_view = time;
     }
 }
 
@@ -55,15 +54,15 @@ impl PositiveCoi {
         self
     }
 
-    pub(super) fn log_reaction(&mut self) -> &mut Self {
-        self.stats.log_reaction();
+    pub(super) fn log_reaction(&mut self, time: DateTime<Utc>) -> &mut Self {
+        self.stats.log_reaction(time);
         self
     }
 }
 
 impl NegativeCoi {
-    pub(super) fn log_reaction(&mut self) -> &mut Self {
-        self.last_view = Utc::now();
+    pub(super) fn log_reaction(&mut self, time: DateTime<Utc>) -> &mut Self {
+        self.last_view = time;
         self
     }
 }
@@ -75,11 +74,12 @@ impl NegativeCoi {
 pub fn compute_coi_relevances(
     cois: &[PositiveCoi],
     horizon: Duration,
-    now: DateTime<Utc>,
+    time: DateTime<Utc>,
 ) -> Vec<f32> {
     #[allow(clippy::cast_precision_loss)] // small values
-    let counts = cois.iter().map(|coi| coi.stats.view_count).sum::<usize>() as f32 + f32::EPSILON;
-    let times = cois
+    let view_counts =
+        cois.iter().map(|coi| coi.stats.view_count).sum::<usize>() as f32 + f32::EPSILON;
+    let view_times = cois
         .iter()
         .map(|coi| coi.stats.view_time)
         .sum::<Duration>()
@@ -89,25 +89,26 @@ pub fn compute_coi_relevances(
     cois.iter()
         .map(|coi| {
             #[allow(clippy::cast_precision_loss)] // small values
-            let count = coi.stats.view_count as f32 / counts;
-            let time = coi.stats.view_time.as_secs_f32() / times;
-            let last = compute_coi_decay_factor(horizon, now, coi.stats.last_view);
+            let view_count = coi.stats.view_count as f32 / view_counts;
+            let view_time = coi.stats.view_time.as_secs_f32() / view_times;
+            let decay = compute_coi_decay_factor(horizon, time, coi.stats.last_view);
 
             #[allow(clippy::manual_clamp)] // prevent NaN propagation
-            ((count + time) * last).max(0.).min(f32::MAX)
+            ((view_count + view_time) * decay).max(0.).min(f32::MAX)
         })
         .collect()
 }
 
-/// Computes the time decay factor for a coi based on its `last_view` stat.
+/// Computes the time decay factor for a coi based on its `last_view` stat relative to the current
+/// `time`.
 pub fn compute_coi_decay_factor(
     horizon: Duration,
-    now: DateTime<Utc>,
+    time: DateTime<Utc>,
     last_view: DateTime<Utc>,
 ) -> f32 {
     const DAYS_SCALE: f32 = -0.1;
     let horizon = (horizon.as_secs_f32() * DAYS_SCALE / SECONDS_PER_DAY_F32).exp();
-    let days = (now
+    let days = (time
         .signed_duration_since(last_view)
         .to_std()
         .unwrap_or_default()
