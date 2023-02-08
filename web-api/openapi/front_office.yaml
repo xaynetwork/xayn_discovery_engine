@@ -150,7 +150,7 @@ paths:
         Returns a list of documents that are semantically similar to the text in the request body.
         Each document contains the id, the score and the properties.
         The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
-      operationId: getSimilarDocumentsFromText
+      operationId: createSimilarDocumentsListing
       requestBody:
         required: true
         content:
@@ -313,6 +313,8 @@ components:
       properties:
         text:
           type: string
+          minLength: 1
+          maxLength: 250
         document_count:
           type: number
           minimum: 1
@@ -324,7 +326,8 @@ components:
           maximum: 1
           default: 0
       example:
-        - text: 'lorem ipsum dolor si amet'
+        properties:
+          text: 'lorem ipsum dolor si amet'
           document_count: 20
           min_similarity: 0.5
     PersonalizedDocumentsError:
