@@ -116,7 +116,7 @@ build-web-service:
     cargo build --release --bin personalization
 
 build-ingestion-service:
-    #!/usr/bin/env bash
+    #!/usr/bin/env -S bash -eux -o pipefail
     set -eux -o pipefail
     cargo build --release --bin ingestion
 
@@ -213,13 +213,15 @@ mind-benchmark kind:
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
 _test-project-root:
+    #!/usr/bin/env -S bash -eu -o pipefail
     echo -n {{justfile_directory()}}
 
 _test-generate-id:
+    #!/usr/bin/env -S bash -eu -o pipefail
     echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
 
 _test-create-dbs $TEST_ID:
-    #!/usr/bin/env -S bash -eux -o pipefail
+    #!/usr/bin/env -S bash -eu -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
         PG_HOST="postgres:5432"
         ES_HOST="elasticsearch:9200"
@@ -237,7 +239,7 @@ _test-create-dbs $TEST_ID:
     echo "ES_URL=${ES_URL}"
 
 _test-drop-dbs $TEST_ID:
-    #!/usr/bin/env -S bash -eux -o pipefail
+    #!/usr/bin/env -S bash -eu -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
         PG_HOST="postgres:5432"
         ES_HOST="elasticsearch:9200"
