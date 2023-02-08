@@ -24,7 +24,6 @@ use crate::{
     document::Document,
     id::CoiId,
     point::{find_closest_coi_index, find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
-    utils::nan_safe_f32_cmp_desc,
 };
 
 /// The center of interest (coi) system.
@@ -91,19 +90,20 @@ impl System {
         cois.push(NegativeCoi::new(CoiId::new(), embedding.clone(), time));
     }
 
-    /// Ranks the documents wrt the user interests.
-    ///
-    /// The documents are sorted decreasingly by a score computed from the cois. If the cois are
-    /// empty, then the original order of the documents is kept.
-    #[instrument(skip_all)]
-    pub fn rank<D>(&self, documents: &mut [D], cois: &UserInterests, time: DateTime<Utc>)
+    /// Calculates scores for the documents wrt the user interests.
+    pub fn score<D>(&self, documents: &[D], cois: &UserInterests, time: DateTime<Utc>) -> Vec<f32>
     where
         D: Document,
     {
-        if let Some(scores) = cois.compute_scores_for_docs(documents, &self.config, time) {
-            documents
-                .sort_unstable_by(|a, b| nan_safe_f32_cmp_desc(&scores[a.id()], &scores[b.id()]));
-        }
+        #[allow(clippy::cast_precision_loss)]
+        cois.compute_scores_for_docs(documents, &self.config, time)
+            .unwrap_or_else(|| {
+                documents
+                    .iter()
+                    .enumerate()
+                    .map(|(idx, _)| 1. / (1. + idx as f32))
+                    .collect()
+            })
     }
 }
 
@@ -113,7 +113,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        document::tests::{DocumentId, TestDocument},
+        document::tests::TestDocument,
         point::tests::{create_neg_cois, create_pos_cois},
     };
 
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_rank() {
-        let mut documents = vec![
+        let documents = vec![
             TestDocument::new(0, [3., 7., 0.].try_into().unwrap()),
             TestDocument::new(1, [1., 0., 0.].try_into().unwrap()),
             TestDocument::new(2, [1., 2., 0.].try_into().unwrap()),
@@ -196,28 +196,34 @@ mod tests {
             positive: create_pos_cois([[1., 0., 0.], [4., 12., 2.]]),
             negative: create_neg_cois([[-100., -10., 0.]]),
         };
-        Config::default()
+
+        let scores = Config::default()
             .build()
-            .rank(&mut documents, &cois, Utc::now());
-        assert_eq!(documents[0].id, DocumentId::mocked(1));
-        assert_eq!(documents[1].id, DocumentId::mocked(3));
-        assert_eq!(documents[2].id, DocumentId::mocked(2));
-        assert_eq!(documents[3].id, DocumentId::mocked(0));
+            .score(&documents, &cois, Utc::now());
+        // order 4th 1st 3rd 2nd
+        assert!(scores[0] < scores[1]);
+        assert!(scores[0] < scores[2]);
+        assert!(scores[0] < scores[3]);
+
+        assert!(scores[1] > scores[2]);
+        assert!(scores[1] > scores[3]);
+
+        assert!(scores[2] < scores[3]);
     }
 
     #[test]
     fn test_rank_no_cois() {
-        let mut documents = vec![
+        let documents = vec![
             TestDocument::new(0, [0., 0., 0.].try_into().unwrap()),
             TestDocument::new(1, [0., 0., 0.].try_into().unwrap()),
             TestDocument::new(2, [0., 0., 0.].try_into().unwrap()),
         ];
         let cois = UserInterests::default();
-        Config::default()
+        let scores = Config::default()
             .build()
-            .rank(&mut documents, &cois, Utc::now());
-        assert_eq!(documents[0].id, DocumentId::mocked(0));
-        assert_eq!(documents[1].id, DocumentId::mocked(1));
-        assert_eq!(documents[2].id, DocumentId::mocked(2));
+            .score(&documents, &cois, Utc::now());
+        assert!(scores[0] > scores[1]);
+        assert!(scores[0] > scores[2]);
+        assert!(scores[1] > scores[2]);
     }
 }

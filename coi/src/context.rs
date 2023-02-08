@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, time::Duration};
+use std::time::{Duration, SystemTime};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -92,7 +92,7 @@ impl UserInterests {
         documents: &[D],
         config: &Config,
         time: DateTime<Utc>,
-    ) -> Option<HashMap<D::Id, f32>>
+    ) -> Option<Vec<f32>>
     where
         D: Document,
     {
@@ -100,7 +100,6 @@ impl UserInterests {
             .iter()
             .map(|document| {
                 self.compute_score_for_embedding(document.bert_embedding(), config.horizon(), time)
-                    .map(|score| (document.id().clone(), score))
             })
             .collect()
     }

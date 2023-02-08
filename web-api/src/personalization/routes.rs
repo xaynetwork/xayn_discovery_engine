@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, collections::HashMap};
+use std::collections::HashMap;
 
 use actix_web::{
     http::StatusCode,
@@ -25,9 +25,15 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
-use xayn_ai_coi::{nan_safe_f32_cmp, CoiSystem};
+use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiSystem};
 
-use super::{personalized_knn, AppState, PersonalizationConfig, SemanticSearchConfig};
+use super::{
+    personalized_knn,
+    rerank::{rerank_by_interest, rerank_by_tag_weights},
+    AppState,
+    PersonalizationConfig,
+    SemanticSearchConfig,
+};
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -240,7 +246,7 @@ pub(crate) enum PersonalizeBy<'a> {
 
 pub(crate) async fn personalize_documents_by(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
-    coi: &CoiSystem,
+    coi_system: &CoiSystem,
     user_id: &UserId,
     personalization: &PersonalizationConfig,
     by: PersonalizeBy<'_>,
@@ -248,8 +254,9 @@ pub(crate) async fn personalize_documents_by(
 ) -> Result<Option<Vec<PersonalizedDocument>>, Error> {
     storage::Interaction::user_seen(storage, user_id, time).await?;
 
-    let cois = storage::Interest::get(storage, user_id).await?;
-    if !cois.has_enough(coi.config()) {
+    let interests = storage::Interest::get(storage, user_id).await?;
+
+    if !interests.has_enough(coi_system.config()) {
         return Ok(None);
     }
 
@@ -259,15 +266,15 @@ pub(crate) async fn personalize_documents_by(
         Vec::new()
     };
 
-    let mut all_documents = match by {
+    let mut documents = match by {
         PersonalizeBy::KnnSearch {
             count,
             published_after,
         } => {
             personalized_knn::Search {
-                interests: &cois.positive,
+                interests: &interests.positive,
                 excluded: &excluded,
-                horizon: coi.config().horizon(),
+                horizon: coi_system.config().horizon(),
                 max_cois: personalization.max_cois_for_knn,
                 count,
                 published_after,
@@ -280,57 +287,39 @@ pub(crate) async fn personalize_documents_by(
         }
     };
 
-    coi.rank(&mut all_documents, &cois, time);
-    let documents_by_interests = all_documents
-        .iter()
-        .enumerate()
-        .map(|(rank, document)| (document.id.clone(), rank))
-        .collect::<HashMap<_, _>>();
+    let tag_weights = storage::Tag::get(storage, user_id).await?;
 
-    let tags = storage::Tag::get(storage, user_id).await?;
-    let mut documents_by_tags = all_documents
-        .iter()
-        .map(|document| {
-            let weight = document
-                .tags
-                .iter()
-                .map(|tag| tags.get(tag))
-                .sum::<Option<usize>>()
-                .unwrap_or_default();
-            (document.id.clone(), weight)
-        })
-        .collect_vec();
-    documents_by_tags.sort_unstable_by(|(_, a), (_, b)| a.cmp(b).reverse());
-    let documents_by_tags = documents_by_tags
-        .into_iter()
-        .enumerate()
-        .map(|(rank, (document_id, _))| (document_id, rank))
-        .collect::<HashMap<_, _>>();
+    let interest_ranks = rerank_by_interest(coi_system, &documents, &interests);
+    let tag_weight_ranks = rerank_by_tag_weights(&documents, &tag_weights);
 
-    let weight = personalization.interest_tag_bias;
-    all_documents.sort_unstable_by(
-        #[allow(clippy::cast_precision_loss)] // number of docs is small enough
-        |a, b| {
-            let weighted_a = documents_by_interests[&a.id] as f32 * weight
-                + documents_by_tags[&a.id] as f32 * (1. - weight);
-            let weighted_b = documents_by_interests[&b.id] as f32 * weight
-                + documents_by_tags[&b.id] as f32 * (1. - weight);
-            match nan_safe_f32_cmp(&weighted_a, &weighted_b) {
-                Ordering::Equal if weight >= 0.5 => {
-                    documents_by_interests[&a.id].cmp(&documents_by_interests[&b.id])
-                }
-                Ordering::Equal if weight < 0.5 => {
-                    documents_by_tags[&a.id].cmp(&documents_by_tags[&b.id])
-                }
-                ordering => ordering,
-            }
-        },
-    );
-    if let PersonalizeBy::KnnSearch { count, .. } = by {
-        all_documents.truncate(count);
+    let interest_tag_bias = personalization.interest_tag_bias;
+    for document in &mut documents {
+        document.score = interest_ranks[&document.id]
+            .merge_as_score(tag_weight_ranks[&document.id], interest_tag_bias);
     }
 
-    Ok(Some(all_documents))
+    let secondary_sorting_factor = if interest_tag_bias >= 0.5 {
+        interest_ranks
+    } else {
+        tag_weight_ranks
+    };
+
+    documents.sort_unstable_by(|a, b| {
+        nan_safe_f32_cmp_desc(&a.score, &b.score).then_with(|| {
+            secondary_sorting_factor
+                .get(&a.id)
+                .cmp(&secondary_sorting_factor.get(&b.id))
+                .reverse()
+        })
+    });
+
+    if let PersonalizeBy::KnnSearch { count, .. } = by {
+        // due to ceil-ing the number of documents we fetch per COI
+        // we might end up with more documents then we want
+        documents.truncate(count);
+    }
+
+    Ok(Some(documents))
 }
 
 #[derive(Deserialize)]
