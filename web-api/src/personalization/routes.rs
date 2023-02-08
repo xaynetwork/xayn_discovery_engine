@@ -495,6 +495,8 @@ impl SemanticSearchQuery {
 #[derive(Debug, Clone, Deserialize)]
 struct SemanticSearchText {
     text: String,
+    document_count: Option<usize>,
+    min_similarity: Option<f32>,
 }
 
 #[derive(Serialize)]
@@ -505,11 +507,25 @@ struct SemanticSearchResponse {
 async fn semantic_search_from_text(
     state: Data<AppState>,
     Json(body): Json<SemanticSearchText>,
-    query: Query<SemanticSearchQuery>,
 ) -> Result<impl Responder, Error> {
-    let count = query.document_count(state.config.as_ref())?;
-    let min_similarity = query.min_similarity();
-    let embedding = state.embedder.run(&body.text)?;
+    let text = body.text.trim();
+    let count = match body.document_count {
+        Some(count) => count,
+        _ => state.config.semantic_search.default_number_documents,
+    };
+
+    if text.is_empty() {
+        return Err(BadRequest::from("text cannot be empty").into());
+    }
+
+    if count == 0 {
+        return Err(BadRequest::from(
+            "document count needs to be a positive number, greater than zero",
+        )
+        .into());
+    }
+
+    let embedding = state.embedder.run(&text)?;
     let documents = storage::Document::get_by_embedding(
         &state.storage,
         KnnSearchParams {
@@ -518,7 +534,7 @@ async fn semantic_search_from_text(
             k_neighbors: count,
             num_candidates: count,
             published_after: None,
-            min_similarity,
+            min_similarity: body.min_similarity,
             time: Utc::now(),
         },
     )

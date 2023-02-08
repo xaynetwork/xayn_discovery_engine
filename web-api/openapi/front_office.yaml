@@ -145,6 +145,32 @@ paths:
     post:
       tags:
         - front office
+      summary: Returns documents similar to the given text.
+      description: |-
+        Returns a list of documents that are semantically similar to the text in the request body.
+        Each document contains the id, the score and the properties.
+        The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
+      operationId: getSimilarDocumentsFromText
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SemanticSearchText'      
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResponse'
+        '400':
+            $ref: './responses/generic.yml#/BadRequest'              
+
+  /semantic_search/{document_id}:
+    get:
+      tags:
+        - front office
       summary: Returns documents similar to the given document.
       description: |-
         Returns a list of documents that are semantically similar to the one given as input.
@@ -281,6 +307,26 @@ components:
             score: 0.87
             properties:
               title: "News title"
+    SemanticSearchText:
+      type: object
+      required: [text]
+      properties:
+        text:
+          type: string
+        document_count:
+          type: number
+          minimum: 1
+          default: 10
+        min_similarity:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0
+      example:
+        - text: 'lorem ipsum dolor si amet'
+          document_count: 20
+          min_similarity: 0.5
     PersonalizedDocumentsError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
