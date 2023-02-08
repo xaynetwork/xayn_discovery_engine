@@ -18,13 +18,7 @@ use chrono::{DateTime, Utc};
 use futures_util::{stream::FuturesUnordered, Stream, StreamExt};
 use itertools::Itertools;
 use tracing::error;
-use xayn_ai_coi::{
-    compute_coi_relevances,
-    compute_coi_weights,
-    nan_safe_f32_cmp,
-    system_time_now,
-    PositiveCoi,
-};
+use xayn_ai_coi::{compute_coi_weights, nan_safe_f32_cmp, PositiveCoi};
 
 use crate::{
     error::common::InternalError,
