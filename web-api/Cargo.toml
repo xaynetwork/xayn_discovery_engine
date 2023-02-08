@@ -49,5 +49,5 @@ ouroboros = "0.15.5"
 tokio = { workspace = true, features = ["sync"] }
 toml = { workspace = true }
 trycmd = "0.14.11"
-xayn-test-utils = { path = "../test-utils" }
 xayn-integration-tests = { path = "../integration-tests" }
+xayn-test-utils = { path = "../test-utils" }
