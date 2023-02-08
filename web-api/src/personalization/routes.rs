@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use actix_web::{
     http::StatusCode,
@@ -40,7 +40,15 @@ use crate::{
         common::{BadRequest, DocumentNotFound},
         warning::Warning,
     },
-    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentTag,
+        InteractedDocument,
+        PersonalizedDocument,
+        UserId,
+        UserInteractionType,
+    },
     storage::{self, KnnSearchParams},
     Error,
 };
@@ -227,25 +235,17 @@ async fn stateless_personalize_documents(
     let count = request.document_count(state.config.as_ref())?;
     let history = request.resolved_history(&mut warnings)?;
     let ids = history.iter().map(|document| &document.id).collect_vec();
-    let embeddings = storage::Document::get_embeddings(&state.storage, &ids).await?;
 
-    if embeddings.len() < history.len() {
-        for document in &history {
-            let id = &document.id;
-            if !embeddings.contains_key(id) {
-                let msg = format!("document {id} does not exist");
-                warn!("{}", msg);
-                warnings.push(msg.into());
-            }
-        }
-    }
+    let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
+
+    check_for_missing_documents(&history, &documents_from_history, &mut warnings);
 
     let mut interests = UserInterests::default();
-    for embedding in embeddings.values() {
+    for document in &documents_from_history {
         /* TODO put in timestamp */
         state
             .coi
-            .log_positive_user_reaction(&mut interests.positive, embedding);
+            .log_positive_user_reaction(&mut interests.positive, &document.embedding);
     }
 
     let mut documents = personalized_knn::Search {
@@ -259,11 +259,13 @@ async fn stateless_personalize_documents(
     .run_on(&state.storage)
     .await?;
 
+    let tag_weights = tag_weights_from_history(&documents_from_history);
+
     rerank_by_interest_and_tag_weight(
         &state.coi,
         &mut documents,
         &interests,
-        &HashMap::default(),
+        &tag_weights,
         state.config.personalization.interest_tag_bias,
     );
 
@@ -271,6 +273,40 @@ async fn stateless_personalize_documents(
         documents: documents.into_iter().map(Into::into).collect(),
         warnings,
     }))
+}
+
+fn check_for_missing_documents(
+    history: &[HistoryEntry],
+    documents_from_history: &[InteractedDocument],
+    warnings: &mut Vec<Warning>,
+) {
+    if documents_from_history.len() < history.len() {
+        let found_documents = documents_from_history
+            .iter()
+            .map(|doc| &doc.id)
+            .collect::<HashSet<_>>();
+
+        for document in history {
+            let id = &document.id;
+            if !found_documents.contains(id) {
+                let msg = format!("document {id} does not exist");
+                warn!("{}", msg);
+                warnings.push(msg.into());
+            }
+        }
+    }
+}
+
+fn tag_weights_from_history(
+    documents_in_history: &[InteractedDocument],
+) -> HashMap<DocumentTag, usize> {
+    let mut weights = HashMap::default();
+    for document in documents_in_history {
+        for tag in &document.tags {
+            *weights.entry(tag.clone()).or_default() += 1;
+        }
+    }
+    weights
 }
 
 #[derive(Serialize)]
