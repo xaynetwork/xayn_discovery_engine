@@ -9,8 +9,8 @@ services:
     ports:
       - "${HOST_PORT_SCOPE:-30}31:3031"
     depends_on:
-      - elasticsearch
-      - postgres
+      db_ready:
+        condition: service_completed_successfully
     networks:
       - internal
       - public
