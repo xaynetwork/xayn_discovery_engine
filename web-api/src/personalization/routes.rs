@@ -239,15 +239,30 @@ async fn stateless_personalize_documents(
         }
     }
 
-    todo!(/*
-        1. look up all documents
-            - if some don't exist add warnings
-        2. loop a stateless version of the user interest calculation
-    */);
+    let mut interests = Vec::new();
+    for embedding in embeddings.values() {
+        /* TODO put in timestamp */
+        state
+            .coi
+            .log_positive_user_reaction(&mut interests, embedding);
+    }
+
+    let documents = personalized_knn::Search {
+        interests: &interests,
+        excluded: &[],
+        horizon: state.coi.config().horizon(),
+        max_cois: state.config.personalization.max_cois_for_knn,
+        count,
+        published_after: None,
+    }
+    .run_on(&state.storage)
+    .await?;
+
+    /* TODO personalize by tag and weight */
 
     Ok(Json(StatelessPersonalizationResponse {
-        documents: todo!(),
-        warnings: todo!(),
+        documents: documents.into_iter().map(Into::into).collect(),
+        warnings,
     }))
 }
 
