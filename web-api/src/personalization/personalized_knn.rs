@@ -18,7 +18,13 @@ use chrono::{DateTime, Utc};
 use futures_util::{stream::FuturesUnordered, Stream, StreamExt};
 use itertools::Itertools;
 use tracing::error;
-use xayn_ai_coi::{compute_coi_relevances, nan_safe_f32_cmp, system_time_now, PositiveCoi};
+use xayn_ai_coi::{
+    compute_coi_relevances,
+    compute_coi_weights,
+    nan_safe_f32_cmp,
+    system_time_now,
+    PositiveCoi,
+};
 
 use crate::{
     error::common::InternalError,
@@ -99,32 +105,6 @@ impl Search<'_> {
             Ok(all_documents.into_values().collect_vec())
         }
     }
-}
-
-//TODO[pmk] move into `xayn_ai_coi`
-/// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each center's embedding.
-fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
-    let relevances = compute_coi_relevances(cois, horizon, system_time_now())
-        .into_iter()
-        .map(|rel| 1.0 - (-3.0 * rel).exp())
-        .collect_vec();
-
-    let relevance_sum = relevances.iter().sum::<f32>();
-    relevances
-        .iter()
-        .map(|relevance| {
-            let weight = relevance / relevance_sum;
-            if weight.is_finite() {
-                weight
-            } else {
-                // should be ok for our use-case
-                #[allow(clippy::cast_precision_loss)]
-                let len = cois.len() as f32;
-                // len can't be zero, because this iterator isn't entered for empty cois
-                1. / len
-            }
-        })
-        .collect()
 }
 
 async fn merge_knn_searchs(

@@ -15,6 +15,7 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -118,6 +119,31 @@ pub fn compute_coi_decay_factor(
         .exp();
 
     ((horizon - days) / (horizon - 1. - f32::EPSILON)).max(0.)
+}
+
+/// Computes a weight distributions across cois based on their relevance.
+pub fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
+    let relevances = compute_coi_relevances(cois, horizon, system_time_now())
+        .into_iter()
+        .map(|rel| 1.0 - (-3.0 * rel).exp())
+        .collect_vec();
+
+    let relevance_sum = relevances.iter().sum::<f32>();
+    relevances
+        .iter()
+        .map(|relevance| {
+            let weight = relevance / relevance_sum;
+            if weight.is_finite() {
+                weight
+            } else {
+                // should be ok for our use-case
+                #[allow(clippy::cast_precision_loss)]
+                let len = cois.len() as f32;
+                // len can't be zero, because this iterator isn't entered for empty cois
+                1. / len
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]

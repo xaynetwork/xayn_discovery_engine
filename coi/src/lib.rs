@@ -46,7 +46,7 @@ pub use crate::{
     document::Document,
     id::CoiId,
     point::{CoiPoint, NegativeCoi, PositiveCoi},
-    stats::{compute_coi_decay_factor, compute_coi_relevances, CoiStats},
+    stats::{compute_coi_decay_factor, compute_coi_relevances, compute_coi_weights, CoiStats},
     system::System as CoiSystem,
     utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
 };
