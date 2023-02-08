@@ -59,7 +59,7 @@ pub struct ConfigExtension {
     pub(crate) personalization: PersonalizationConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub(crate) struct PersonalizationConfig {
     /// Max number of documents to return.
     #[serde(default = "default_max_number_documents")]
