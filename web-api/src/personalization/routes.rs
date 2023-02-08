@@ -24,7 +24,8 @@ use actix_web::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use xayn_ai_coi::CoiSystem;
+use tracing::{instrument, warn};
+use xayn_ai_coi::{CoiSystem, UserInterests};
 
 use super::{
     knn,
@@ -239,16 +240,16 @@ async fn stateless_personalize_documents(
         }
     }
 
-    let mut interests = Vec::new();
+    let mut interests = UserInterests::default();
     for embedding in embeddings.values() {
         /* TODO put in timestamp */
         state
             .coi
-            .log_positive_user_reaction(&mut interests, embedding);
+            .log_positive_user_reaction(&mut interests.positive, embedding);
     }
 
-    let documents = personalized_knn::Search {
-        interests: &interests,
+    let mut documents = personalized_knn::Search {
+        interests: &interests.positive,
         excluded: &[],
         horizon: state.coi.config().horizon(),
         max_cois: state.config.personalization.max_cois_for_knn,
@@ -258,7 +259,13 @@ async fn stateless_personalize_documents(
     .run_on(&state.storage)
     .await?;
 
-    /* TODO personalize by tag and weight */
+    rerank_by_interest_and_tag_weight(
+        &state.coi,
+        &mut documents,
+        &interests,
+        &HashMap::default(),
+        state.config.personalization.interest_tag_bias,
+    );
 
     Ok(Json(StatelessPersonalizationResponse {
         documents: documents.into_iter().map(Into::into).collect(),
