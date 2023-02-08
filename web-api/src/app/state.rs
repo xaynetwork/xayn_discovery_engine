@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use derive_more::{AsRef, Deref};
 
 use crate::app::{Application, SetupError};
@@ -41,5 +43,9 @@ where
             extension,
             storage,
         })
+    }
+
+    pub(super) async fn close(self: Arc<Self>) {
+        A::close_storage(&self.storage).await;
     }
 }

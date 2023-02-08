@@ -50,5 +50,6 @@ pub use crate::{
     app::{start, Application, SetupError},
     error::application::{ApplicationError, Error},
     ingestion::Ingestion,
+    net::AppHandle,
     personalization::Personalization,
 };

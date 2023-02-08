@@ -13,8 +13,10 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
+    future::Future,
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
+    sync::Arc,
     time::Duration,
 };
 
@@ -27,6 +29,8 @@ use actix_web::{
     HttpResponse,
     HttpServer,
 };
+use futures_util::{future::BoxFuture, FutureExt};
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::{task::JoinHandle, time::timeout};
 use tracing::info;
@@ -83,26 +87,28 @@ impl Default for Config {
     }
 }
 
-pub(crate) fn start_actix_server<A>(
-    app_state: A,
+pub(crate) fn start_actix_server<A, F>(
+    app_state: Arc<A>,
+    on_shutdown: impl Fn(Arc<A>) -> F + Send + 'static,
     configure_services: impl Fn(&mut ServiceConfig) + Clone + Send + 'static,
 ) -> Result<AppHandle, anyhow::Error>
 where
     A: AsRef<Config> + Send + Sync + 'static,
+    F: Future<Output = ()> + Send + 'static,
 {
     let &Config {
         bind_to,
         max_body_size,
         keep_alive,
         client_request_timeout,
-    } = app_state.as_ref();
+    } = (*app_state).as_ref();
 
     let json_config = JsonConfig::default().limit(max_body_size);
-    let app_state = web::Data::new(app_state);
+    let web_app_state = web::Data::from(app_state.clone());
 
     let server = HttpServer::new(move || {
         App::new()
-            .app_data(app_state.clone())
+            .app_data(web_app_state.clone())
             .app_data(json_config.clone())
             .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
             .configure(&configure_services)
@@ -128,6 +134,7 @@ where
     // stop and get it's return value (we don't have to await `term_handle`).
     let term_handle = tokio::spawn(server);
     Ok(AppHandle {
+        on_shutdown: Box::new(move || on_shutdown(app_state).boxed()),
         server_handle,
         addresses,
         term_handle,
@@ -139,14 +146,24 @@ where
 /// It is recommended to call [`AppHandle.wait_for_termination()`] instead
 /// of dropping this type to make sure you do not discard the result of the
 /// application execution.
-#[must_use = "Discarding this type is equivalent to discarding the result of the app execution, use [`AppHandle.wait_for_termination()`]"]
+#[must_use = "If one of the `Self` consuming methods like [`AppHandle.wait_for_termination()`] isn't called  the `on_shutdown` callback is not run"]
 pub struct AppHandle {
+    on_shutdown: Box<dyn FnOnce() -> BoxFuture<'static, ()>>,
     server_handle: ServerHandle,
     addresses: Vec<SocketAddr>,
     term_handle: JoinHandle<Result<(), io::Error>>,
 }
 
 impl AppHandle {
+    /// Returns an [`Url`] under which this app should be reachable.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn url(&self) -> Url {
+        // There is always at least 1 address and formatting it as
+        // below is always a syntactically valid Url.
+        let addr = self.addresses().first().unwrap();
+        Url::parse(&format!("http://{addr}/")).unwrap()
+    }
+
     /// Returns the addresses the server is listening on.
     ///
     /// This is useful if the `net.bind_to` config was set
@@ -178,6 +195,8 @@ impl AppHandle {
     ///
     /// It is recommended but not required to call this.
     pub async fn wait_for_termination(self) -> Result<(), anyhow::Error> {
-        Ok(self.term_handle.await??)
+        self.term_handle.await??;
+        (self.on_shutdown)().await;
+        Ok(())
     }
 }

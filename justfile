@@ -77,8 +77,8 @@ build: rust-build
 rust-test: download-assets
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cargo test --lib --bins --tests --quiet --locked
-    cargo test --doc --quiet --locked
+    cargo test --lib --bins --tests --locked
+    cargo test --doc --locked
 
 # Tests all code
 test: rust-test
@@ -116,7 +116,7 @@ build-web-service:
     cargo build --release --bin personalization
 
 build-ingestion-service:
-    #!/usr/bin/env bash
+    #!/usr/bin/env -S bash -eux -o pipefail
     set -eux -o pipefail
     cargo build --release --bin ingestion
 
@@ -213,20 +213,43 @@ mind-benchmark kind:
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
 _test-project-root:
+    #!/usr/bin/env -S bash -eu -o pipefail
     echo -n {{justfile_directory()}}
 
 _test-generate-id:
+    #!/usr/bin/env -S bash -eu -o pipefail
     echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
 
 _test-create-dbs $TEST_ID:
-    #!/usr/bin/env -S bash -eux -o pipefail
-    psql -c "CREATE DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
-    ./web-api/elastic-search/create_es_index.sh "http://localhost:9200/${TEST_ID}"
+    #!/usr/bin/env -S bash -eu -o pipefail
+    if [[ "${CI:-false}" == "true" ]]; then
+        PG_HOST="postgres:5432"
+        ES_HOST="elasticsearch:9200"
+    else
+        PG_HOST="localhost:3054"
+        ES_HOST="localhost:3092"
+    fi
+    PG_BASE="postgresql://user:pw@${PG_HOST}"
+    ES_URL="http://${ES_HOST}/${TEST_ID}"
+
+    psql -c "CREATE DATABASE ${TEST_ID};" "${PG_BASE}/xayn" 1>&2
+    ./web-api/elastic-search/create_es_index.sh "${ES_URL}"
+
+    echo "PG_URL=${PG_BASE}/${TEST_ID}"
+    echo "ES_URL=${ES_URL}"
 
 _test-drop-dbs $TEST_ID:
-    #!/usr/bin/env -S bash -eux -o pipefail
-    psql -c "DROP DATABASE ${TEST_ID};" postgresql://user:pw@localhost/xayn 1>&2
-    curl -f -X DELETE "http://localhost:9200/${TEST_ID}"
+    #!/usr/bin/env -S bash -eu -o pipefail
+    if [[ "${CI:-false}" == "true" ]]; then
+        PG_HOST="postgres:5432"
+        ES_HOST="elasticsearch:9200"
+    else
+        PG_HOST="localhost:3054"
+        ES_HOST="localhost:3092"
+    fi
+
+    psql -c "DROP DATABASE ${TEST_ID};" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
+    curl -sf -X DELETE "http://${ES_HOST}/${TEST_ID}"
 
 alias r := rust-test
 alias t := test
