@@ -4211,6 +4211,7 @@ dependencies = [
  "uuid",
  "xayn-ai-bert",
  "xayn-ai-coi",
+ "xayn-integration-tests",
  "xayn-test-utils",
 ]
 
