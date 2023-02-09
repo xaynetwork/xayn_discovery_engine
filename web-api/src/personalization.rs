@@ -94,7 +94,7 @@ impl Default for PersonalizationConfig {
             default_number_documents: 10,
             // FIXME: what is a default value we know works well with how we do knn?
             max_cois_for_knn: 10,
-            interest_tag_bias: 0.8,
+            interest_tag_bias: 0.5,
             store_user_history: true,
         }
     }
