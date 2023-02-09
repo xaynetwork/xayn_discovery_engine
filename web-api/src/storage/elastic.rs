@@ -412,35 +412,6 @@ impl storage::Document for Storage {
         self.get_personalized_with_transaction(ids, None).await
     }
 
-    async fn get_embeddings(
-        &self,
-        ids: &[&DocumentId],
-    ) -> Result<HashMap<DocumentId, NormalizedEmbedding>, Error> {
-        if ids.is_empty() {
-            return Ok(HashMap::default());
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
-        let body = Some(json!({
-            "query": {
-                "ids" : {
-                    "values": ids
-                }
-            },
-            "_source": [ "embedding" ]
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, SearchResponse<SearchEmbedding>>(
-                self.elastic.create_resource_path(["_search"], None),
-                body,
-            )
-            .await?
-            .map(Into::into)
-            .unwrap_or_default())
-    }
-
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
         #[derive(Deserialize)]
         struct Response {

@@ -80,11 +80,6 @@ pub(crate) trait Document {
         ids: &[&DocumentId],
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
-    async fn get_embeddings(
-        &self,
-        ids: &[&DocumentId],
-    ) -> Result<HashMap<DocumentId, NormalizedEmbedding>, Error>;
-
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
 
     async fn get_by_embedding<'a>(
