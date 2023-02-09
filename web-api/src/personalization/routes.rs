@@ -257,9 +257,8 @@ async fn stateless_personalize_documents(
             state.coi.log_positive_user_reaction(
                 &mut interests.positive,
                 &document.embedding,
-                /* TODO after rebase: entry.timestamp, */
+                entry.timestamp,
             );
-            let _ = entry.timestamp;
         } else {
             let msg = format!("document {id} does not exist");
             warn!("{}", msg);
