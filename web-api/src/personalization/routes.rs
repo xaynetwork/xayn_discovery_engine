@@ -243,6 +243,9 @@ async fn stateless_personalize_documents(
     let count = request.document_count(state.config.as_ref())?;
     let history = request.resolved_history(state.config.as_ref(), &mut warnings)?;
     let ids = history.iter().map(|document| &document.id).collect_vec();
+    let time = history
+        .last()
+        .map_or_else(Utc::now, |entry| entry.timestamp);
 
     let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
     let documents_from_history = documents_from_history
@@ -273,6 +276,7 @@ async fn stateless_personalize_documents(
         max_cois: state.config.personalization.max_cois_for_knn,
         count,
         published_after,
+        time,
     }
     .run_on(&state.storage)
     .await?;
@@ -285,6 +289,7 @@ async fn stateless_personalize_documents(
         &interests,
         &tag_weights,
         state.config.personalization.interest_tag_bias,
+        time,
     );
 
     Ok(Json(StatelessPersonalizationResponse {
