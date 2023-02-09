@@ -37,7 +37,7 @@ use super::{
 use crate::{
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, DocumentNotFound},
+        common::{BadRequest, DocumentNotFound, HistoryTooSmall},
         warning::Warning,
     },
     models::{
@@ -55,7 +55,7 @@ use crate::{
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     let stateless = web::resource("personalized_documents")
-        .route(web::post().to(stateless_personalize_documents.error_with_request_id()));
+        .route(web::post().to(stateless_personalized_documents.error_with_request_id()));
 
     let users = web::scope("/users/{user_id}")
         .service(
@@ -177,16 +177,20 @@ struct StatelessPersonalizationRequest {
 }
 
 impl StatelessPersonalizationRequest {
-    fn resolved_history(
+    fn history(
         self,
         config: &PersonalizationConfig,
         warnings: &mut Vec<Warning>,
     ) -> Result<Vec<HistoryEntry>, Error> {
+        if self.history.is_empty() {
+            return Err(HistoryTooSmall.into());
+        }
+
         let max_history_len = config.max_stateless_history_size;
         if self.history.len() > max_history_len {
             warnings.push(format!("history truncated, max length is {max_history_len}").into());
         }
-        let mut most_recend_time = Utc::now();
+        let mut most_recent_time = Utc::now();
         //input is from oldest to newest
         let mut history = self
             .history
@@ -195,15 +199,15 @@ impl StatelessPersonalizationRequest {
             .take(max_history_len)
             .map(|unchecked| -> Result<_, Error> {
                 let id = unchecked.id.try_into()?;
-                let timestamp = unchecked.timestamp.unwrap_or(most_recend_time);
-                if timestamp > most_recend_time {
+                let timestamp = unchecked.timestamp.unwrap_or(most_recent_time);
+                if timestamp > most_recent_time {
                     warnings
                         .push(format!("inconsistent history ordering around document {id}").into());
                 }
-                most_recend_time = timestamp;
+                most_recent_time = timestamp;
                 Ok(HistoryEntry { id, timestamp })
             })
-            .collect::<Result<Vec<_>, _>>()?;
+            .try_collect::<_, Vec<_>, _>()?;
         history.reverse();
         Ok(history)
     }
@@ -234,18 +238,18 @@ struct HistoryEntry {
 }
 
 #[instrument(skip_all)]
-async fn stateless_personalize_documents(
+async fn stateless_personalized_documents(
     state: Data<AppState>,
     Json(request): Json<StatelessPersonalizationRequest>,
 ) -> Result<impl Responder, Error> {
     let mut warnings = vec![];
     let published_after = request.published_after;
     let count = request.document_count(state.config.as_ref())?;
-    let history = request.resolved_history(state.config.as_ref(), &mut warnings)?;
+    let history = request.history(state.config.as_ref(), &mut warnings)?;
     let ids = history.iter().map(|document| &document.id).collect_vec();
     let time = history
         .last()
-        .map_or_else(Utc::now, |entry| entry.timestamp);
+        .unwrap(/* history has been checked */);
 
     let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
     let documents_from_history = documents_from_history
