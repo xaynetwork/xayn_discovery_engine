@@ -200,6 +200,12 @@ components:
           type: number
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
+    PersonalizedDocuments:
+      type: array
+      minItems: 0
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/PersonalizedDocumentData'
     StatelessPersonalizedDocumentsRequest:
       type: object
       required: [history]
@@ -217,15 +223,11 @@ components:
         warnings:
           type: array
           minItems: 0
-          maxItems: 100
+          maxItems: 200
           items:
             type: string
         documents:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/PersonalizedDocumentData'
+          $ref: '#/components/schemas/PersonalizedDocuments'
       example:
         warnings:
           - "historic document with id \"document_id1\" does not exist"
@@ -239,11 +241,7 @@ components:
       required: [documents]
       properties:
         documents:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/PersonalizedDocumentData'
+          $ref: '#/components/schemas/PersonalizedDocuments'
       example:
         documents:
           - id: 'document_id0'
@@ -255,11 +253,7 @@ components:
       required: [documents]
       properties:
         documents:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/PersonalizedDocumentData'
+          $ref: '#/components/schemas/PersonalizedDocuments'
       example:
         documents:
           - id: 'document_id0'
