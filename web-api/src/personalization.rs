@@ -11,6 +11,8 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
+mod knn;
+mod rerank;
 pub(crate) mod routes;
 
 use actix_web::web::ServiceConfig;
