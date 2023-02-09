@@ -177,8 +177,12 @@ struct StatelessPersonalizationRequest {
 }
 
 impl StatelessPersonalizationRequest {
-    fn resolved_history(self, warnings: &mut Vec<Warning>) -> Result<Vec<HistoryEntry>, Error> {
-        let max_history_len = 100 /*TODO config*/;
+    fn resolved_history(
+        self,
+        config: &PersonalizationConfig,
+        warnings: &mut Vec<Warning>,
+    ) -> Result<Vec<HistoryEntry>, Error> {
+        let max_history_len = config.max_stateless_history_size;
         if self.history.len() > max_history_len {
             warnings.push(format!("history truncated, max length is {max_history_len}").into());
         }
@@ -237,7 +241,7 @@ async fn stateless_personalize_documents(
     let mut warnings = vec![];
     let published_after = request.published_after;
     let count = request.document_count(state.config.as_ref())?;
-    let history = request.resolved_history(&mut warnings)?;
+    let history = request.resolved_history(state.config.as_ref(), &mut warnings)?;
     let ids = history.iter().map(|document| &document.id).collect_vec();
 
     let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
