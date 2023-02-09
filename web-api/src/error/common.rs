@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::borrow::Cow;
+use std::{
+    borrow::Cow,
+    fmt::{Debug, Display},
+};
 
 use actix_web::http::StatusCode;
 use derive_more::From;
@@ -127,7 +130,7 @@ pub(crate) struct DocumentIdAsObject {
 pub(crate) struct InternalError(anyhow::Error);
 
 impl InternalError {
-    pub(crate) fn from_message(msg: &'static str) -> Self {
+    pub(crate) fn from_message(msg: impl Display + Debug + Send + Sync + 'static) -> Self {
         Self::from_anyhow(anyhow::Error::msg(msg))
     }
 

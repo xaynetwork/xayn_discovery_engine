@@ -180,12 +180,19 @@ impl Client {
             .send()
             .await?;
 
-        if response.status() == StatusCode::NOT_FOUND {
+        let status = response.status();
+        if status == StatusCode::NOT_FOUND {
             Ok(None)
+        } else if !status.is_success() {
+            let url = response.url().clone();
+            let body = response.bytes().await?;
+            let err_msg = String::from_utf8_lossy(&body);
+            Err(InternalError::from_message(format!(
+                "Elastic Search failed, status={status}, url={url}, \nbody={err_msg}"
+            ))
+            .into())
         } else {
-            let value = response.error_for_status()?.json().await?;
-
-            Ok(Some(value))
+            Ok(Some(response.json().await?))
         }
     }
 
