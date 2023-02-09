@@ -236,7 +236,7 @@ where
 
         [storage.elastic]
         url = es_url;
-        index = es_index;
+        index_name = es_index;
 
         [embedding]
         directory = "../assets/smbert_v0003";
