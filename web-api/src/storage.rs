@@ -52,6 +52,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(crate) min_similarity: Option<f32>,
+    pub(crate) time: DateTime<Utc>,
 }
 
 #[derive(Debug, Error, From)]
@@ -138,19 +139,21 @@ pub(crate) struct InteractionUpdateContext<'s, 'l> {
     pub(crate) document: &'s InteractedDocument,
     pub(crate) tag_weight_diff: &'s mut HashMap<&'l DocumentTag, i32>,
     pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
+    pub(crate) time: DateTime<Utc>,
 }
 
 #[async_trait]
 pub(crate) trait Interaction {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error>;
 
-    async fn user_seen(&self, id: &UserId) -> Result<(), Error>;
+    async fn user_seen(&self, id: &UserId, time: DateTime<Utc>) -> Result<(), Error>;
 
     async fn update_interactions<F>(
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
         store_user_history: bool,
+        time: DateTime<Utc>,
         update_logic: F,
     ) -> Result<(), Error>
     where

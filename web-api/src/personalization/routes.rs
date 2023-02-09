@@ -26,13 +26,7 @@ use futures_util::{stream::FuturesUnordered, StreamExt};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::error;
-use xayn_ai_coi::{
-    compute_coi_relevances,
-    nan_safe_f32_cmp,
-    system_time_now,
-    CoiSystem,
-    PositiveCoi,
-};
+use xayn_ai_coi::{compute_coi_relevances, nan_safe_f32_cmp, CoiSystem, PositiveCoi};
 
 use super::{AppState, PersonalizationConfig, SemanticSearchConfig};
 use crate::{
@@ -97,6 +91,7 @@ async fn interactions(
         &user_id,
         &interactions,
         state.config.personalization.store_user_history,
+        Utc::now(),
     )
     .await?;
 
@@ -109,8 +104,9 @@ pub(crate) async fn update_interactions(
     user_id: &UserId,
     interactions: &[(DocumentId, UserInteractionType)],
     store_user_history: bool,
+    time: DateTime<Utc>,
 ) -> Result<(), Error> {
-    storage::Interaction::user_seen(storage, user_id).await?;
+    storage::Interaction::user_seen(storage, user_id, time).await?;
 
     #[allow(clippy::zero_sized_map_values)]
     let document_id_to_interaction_type = interactions
@@ -127,6 +123,7 @@ pub(crate) async fn update_interactions(
         user_id,
         &document_ids,
         store_user_history,
+        time,
         |context| {
             match document_id_to_interaction_type[&context.document.id] {
                 UserInteractionType::Positive => {
@@ -138,6 +135,7 @@ pub(crate) async fn update_interactions(
                     coi.log_positive_user_reaction(
                         context.positive_cois,
                         &context.document.embedding,
+                        context.time,
                     )
                     .clone()
                 }
@@ -184,6 +182,7 @@ async fn personalized_documents(
             count: options.document_count(&state.config.personalization)?,
             published_after: options.published_after,
         },
+        Utc::now(),
     )
     .await
     .map(|documents| {
@@ -232,8 +231,8 @@ pub(crate) enum PersonalizedDocumentsError {
 }
 
 /// Computes [`PositiveCoi`]s weights used to determine how many documents to fetch using each center's embedding.
-fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
-    let relevances = compute_coi_relevances(cois, horizon, system_time_now())
+fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration, time: DateTime<Utc>) -> Vec<f32> {
+    let relevances = compute_coi_relevances(cois, horizon, time)
         .into_iter()
         .map(|rel| 1.0 - (-3.0 * rel).exp())
         .collect_vec();
@@ -263,12 +262,13 @@ async fn search_knn_documents(
     user_id: &UserId,
     cois: &[PositiveCoi],
     horizon: Duration,
+    time: DateTime<Utc>,
     max_cois: usize,
     store_user_history: bool,
     count: usize,
     published_after: Option<DateTime<Utc>>,
 ) -> Result<Vec<PersonalizedDocument>, Error> {
-    let coi_weights = compute_coi_weights(cois, horizon);
+    let coi_weights = compute_coi_weights(cois, horizon, time);
     let cois = cois
         .iter()
         .zip(coi_weights)
@@ -308,6 +308,7 @@ async fn search_knn_documents(
                     num_candidates: count,
                     published_after,
                     min_similarity: None,
+                    time,
                 },
             )
             .await
@@ -362,8 +363,9 @@ pub(crate) async fn personalize_documents_by(
     user_id: &UserId,
     personalization: &PersonalizationConfig,
     by: PersonalizeBy<'_>,
+    time: DateTime<Utc>,
 ) -> Result<Option<Vec<PersonalizedDocument>>, Error> {
-    storage::Interaction::user_seen(storage, user_id).await?;
+    storage::Interaction::user_seen(storage, user_id, time).await?;
 
     let cois = storage::Interest::get(storage, user_id).await?;
     if !cois.has_enough(coi.config()) {
@@ -380,6 +382,7 @@ pub(crate) async fn personalize_documents_by(
                 user_id,
                 &cois.positive,
                 coi.config().horizon(),
+                time,
                 personalization.max_cois_for_knn,
                 personalization.store_user_history,
                 count,
@@ -392,7 +395,7 @@ pub(crate) async fn personalize_documents_by(
         }
     };
 
-    coi.rank(&mut all_documents, &cois);
+    coi.rank(&mut all_documents, &cois, time);
     let documents_by_interests = all_documents
         .iter()
         .enumerate()
@@ -496,6 +499,7 @@ async fn semantic_search(
             num_candidates: count,
             published_after: None,
             min_similarity,
+            time: Utc::now(),
         },
     )
     .await?;
@@ -523,6 +527,7 @@ mod tests {
             &user,
             &[],
             CoiConfig::default().horizon(),
+            Utc::now(),
             PersonalizationConfig::default().max_cois_for_knn,
             PersonalizationConfig::default().store_user_history,
             10,

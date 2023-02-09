@@ -265,7 +265,7 @@ impl Database {
                 stats: CoiStats {
                     view_count: coi.view_count as usize,
                     view_time: Duration::from_millis(coi.view_time_ms as u64),
-                    last_view: coi.last_view.into(),
+                    last_view: coi.last_view,
                 },
             })
             .collect_vec();
@@ -275,7 +275,7 @@ impl Database {
             .map(|coi| NegativeCoi {
                 id: coi.coi_id,
                 point: coi.embedding,
-                last_view: coi.last_view.into(),
+                last_view: coi.last_view,
             })
             .collect_vec();
 
@@ -292,7 +292,7 @@ impl Database {
     async fn upsert_cois(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        now: DateTime<Utc>,
+        time: DateTime<Utc>,
         cois: &HashMap<CoiId, PositiveCoi>,
     ) -> Result<(), Error> {
         let mut builder = QueryBuilder::new(
@@ -319,7 +319,7 @@ impl Database {
                         .push_bind(update.point.to_vec())
                         .push_bind(update.stats.view_count as i32)
                         .push_bind(update.stats.view_time.as_millis() as i64)
-                        .push_bind(now);
+                        .push_bind(time);
                 })
                 .push(
                     " ON CONFLICT (coi_id) DO UPDATE SET
@@ -339,7 +339,7 @@ impl Database {
     async fn upsert_interactions(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        now: DateTime<Utc>,
+        time: DateTime<Utc>,
         interactions: &HashMap<&DocumentId, (&InteractedDocument, UserInteractionType)>,
     ) -> Result<(), Error> {
         //FIXME micro benchmark and chunking+persist abstraction
@@ -357,7 +357,7 @@ impl Database {
                     builder
                         .push_bind(document_id)
                         .push_bind(user_id)
-                        .push_bind(now)
+                        .push_bind(time)
                         .push_bind(*interaction as i16);
                 })
                 .push(
@@ -453,14 +453,15 @@ impl storage::Interaction for Storage {
         Ok(documents.into_iter().map_into().collect())
     }
 
-    async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
+    async fn user_seen(&self, id: &UserId, time: DateTime<Utc>) -> Result<(), Error> {
         sqlx::query(
             "INSERT INTO users (user_id, last_seen)
-            VALUES ($1, Now())
+            VALUES ($1, $2)
             ON CONFLICT (user_id)
             DO UPDATE SET last_seen = EXCLUDED.last_seen;",
         )
         .bind(id)
+        .bind(time)
         .execute(&self.postgres.pool)
         .await?;
 
@@ -472,6 +473,7 @@ impl storage::Interaction for Storage {
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
         store_user_history: bool,
+        time: DateTime<Utc>,
         mut update_logic: F,
     ) -> Result<(), Error>
     where
@@ -501,6 +503,7 @@ impl storage::Interaction for Storage {
                     document,
                     tag_weight_diff: &mut tag_weight_diff,
                     positive_cois: &mut interests.positive,
+                    time,
                 });
                 // We might update the same coi min `interests` multiple times,
                 // if we do we only want to keep the latest update.
@@ -510,10 +513,9 @@ impl storage::Interaction for Storage {
             }
         }
 
-        let now = Utc::now();
-        Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
+        Database::upsert_cois(&mut tx, user_id, time, &updates).await?;
         if store_user_history {
-            Database::upsert_interactions(&mut tx, user_id, now, &document_map).await?;
+            Database::upsert_interactions(&mut tx, user_id, time, &document_map).await?;
         }
         Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
 

@@ -48,5 +48,5 @@ pub use crate::{
     point::{CoiPoint, NegativeCoi, PositiveCoi},
     stats::{compute_coi_decay_factor, compute_coi_relevances, CoiStats},
     system::System as CoiSystem,
-    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, system_time_now},
+    utils::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc},
 };
