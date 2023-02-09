@@ -34,6 +34,7 @@ pub(super) struct Search<'a> {
     pub(super) max_cois: usize,
     pub(super) count: usize,
     pub(super) published_after: Option<DateTime<Utc>>,
+    pub(super) time: DateTime<Utc>,
 }
 
 impl Search<'_> {
@@ -49,9 +50,10 @@ impl Search<'_> {
             published_after,
             interests,
             excluded,
+            time,
         } = self;
 
-        let coi_weights = compute_coi_weights(interests, horizon);
+        let coi_weights = compute_coi_weights(interests, horizon, time);
         let cois = interests
             .iter()
             .zip(coi_weights)
@@ -85,6 +87,7 @@ impl Search<'_> {
                         num_candidates: count,
                         published_after,
                         min_similarity: None,
+                        time,
                     },
                 )
                 .await
@@ -148,6 +151,7 @@ mod tests {
             max_cois: PersonalizationConfig::default().max_cois_for_knn,
             count: 10,
             published_after: None,
+            time: Utc::now(),
         }
         .run_on(&storage)
         .await

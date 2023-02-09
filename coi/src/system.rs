@@ -15,7 +15,6 @@
 use std::time::Duration;
 
 use chrono::{DateTime, Utc};
-use tracing::instrument;
 use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{

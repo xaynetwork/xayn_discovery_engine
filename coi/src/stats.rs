@@ -122,8 +122,12 @@ pub fn compute_coi_decay_factor(
 }
 
 /// Computes a weight distributions across cois based on their relevance.
-pub fn compute_coi_weights(cois: &[PositiveCoi], horizon: Duration) -> Vec<f32> {
-    let relevances = compute_coi_relevances(cois, horizon, system_time_now())
+pub fn compute_coi_weights(
+    cois: &[PositiveCoi],
+    horizon: Duration,
+    time: DateTime<Utc>,
+) -> Vec<f32> {
+    let relevances = compute_coi_relevances(cois, horizon, time)
         .into_iter()
         .map(|rel| 1.0 - (-3.0 * rel).exp())
         .collect_vec();

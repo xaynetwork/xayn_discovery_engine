@@ -14,6 +14,7 @@
 
 use std::{cmp::Ordering, collections::HashMap, hash::Hash};
 
+use chrono::{DateTime, Utc};
 use itertools::{izip, Itertools};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiSystem, UserInterests};
 
@@ -42,8 +43,9 @@ pub(super) fn rerank_by_interest(
     coi_system: &CoiSystem,
     documents: &[PersonalizedDocument],
     interest: &UserInterests,
+    time: DateTime<Utc>,
 ) -> HashMap<DocumentId, Rank> {
-    let scores = coi_system.score(documents, interest);
+    let scores = coi_system.score(documents, interest, time);
     pairs_to_rank_map(
         izip!(documents.iter().map(|doc| doc.id.clone()), scores),
         nan_safe_f32_cmp_desc,
@@ -73,8 +75,9 @@ pub(super) fn rerank_by_interest_and_tag_weight(
     interests: &UserInterests,
     tag_weights: &HashMap<DocumentTag, usize>,
     interest_tag_bias: f32,
+    time: DateTime<Utc>,
 ) {
-    let interest_ranks = rerank_by_interest(coi_system, documents, interests);
+    let interest_ranks = rerank_by_interest(coi_system, documents, interests, time);
     let tag_weight_ranks = rerank_by_tag_weights(documents, tag_weights);
 
     for document in documents.iter_mut() {

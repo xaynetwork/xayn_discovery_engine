@@ -277,6 +277,7 @@ pub(crate) async fn personalize_documents_by(
                 max_cois: personalization.max_cois_for_knn,
                 count,
                 published_after,
+                time,
             }
             .run_on(storage)
             .await?
@@ -294,6 +295,7 @@ pub(crate) async fn personalize_documents_by(
         &interests,
         &tag_weights,
         personalization.interest_tag_bias,
+        time,
     );
 
     if let PersonalizeBy::KnnSearch { count, .. } = by {
