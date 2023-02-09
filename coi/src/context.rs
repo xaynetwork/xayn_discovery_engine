@@ -108,13 +108,11 @@ impl UserInterests {
 
 #[cfg(test)]
 mod tests {
+    use chrono::Duration;
     use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::{
-        point::tests::{create_neg_cois, create_pos_cois},
-        utils::SECONDS_PER_DAY_F32,
-    };
+    use crate::point::tests::{create_neg_cois, create_pos_cois};
 
     #[test]
     fn test_has_enough() {
@@ -137,19 +135,14 @@ mod tests {
     fn test_compute_score_for_embedding() {
         let now = Utc::now();
         let mut positive = create_pos_cois([[62., 55., 11.], [76., 30., 80.]]);
-        positive[0].stats.last_view = now
-            - chrono::Duration::from_std(Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32))
-                .unwrap();
-        positive[1].stats.last_view = now
-            - chrono::Duration::from_std(Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32))
-                .unwrap();
+        positive[0].stats.last_view = now - Duration::hours(12);
+        positive[1].stats.last_view = now - Duration::hours(36);
         let mut negative = create_neg_cois([[6., 61., 6.]]);
-        negative[0].last_view =
-            now - chrono::Duration::from_std(Duration::from_secs_f32(SECONDS_PER_DAY_F32)).unwrap();
+        negative[0].last_view = now - Duration::days(1);
         let cois = UserInterests { positive, negative };
 
         let embedding = [1., 4., 4.].try_into().unwrap();
-        let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
+        let horizon = Duration::days(2).to_std().unwrap();
         let score = cois
             .compute_score_for_embedding(&embedding, horizon, now)
             .unwrap();
@@ -166,7 +159,7 @@ mod tests {
 
     #[test]
     fn test_compute_score_for_embedding_no_cois() {
-        let horizon = Duration::from_secs_f32(SECONDS_PER_DAY_F32);
+        let horizon = Duration::days(1).to_std().unwrap();
         let score = UserInterests::default().compute_score_for_embedding(
             &[0., 0., 0.].try_into().unwrap(),
             horizon,

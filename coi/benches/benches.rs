@@ -12,10 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{hint::black_box, time::Duration};
 
 use chrono::Utc;
-use criterion::{black_box, criterion_group, BatchSize, Criterion};
+use criterion::{criterion_group, BatchSize, Criterion};
 use itertools::Itertools;
 use rand::Rng;
 use rand_distr::Uniform;
@@ -44,7 +44,13 @@ fn bench_compute_coi_decay_factor(c: &mut Criterion) {
     let last_view = now - chrono::Duration::seconds(60 * 60);
 
     c.bench_function("compute_coi_decay_factor", |b| {
-        b.iter(|| black_box(compute_coi_decay_factor(horizon, now, last_view)))
+        b.iter(|| {
+            black_box(compute_coi_decay_factor(
+                black_box(horizon),
+                black_box(now),
+                black_box(last_view),
+            ))
+        })
     });
 }
 
@@ -65,7 +71,13 @@ fn bench_compute_coi_relevance(c: &mut Criterion) {
         c.bench_function(&format!("compute_coi_relevance_{base_name}"), |b| {
             b.iter_batched(
                 || black_box(positive_cois),
-                |cois| black_box(compute_coi_relevances(cois, horizon, now)),
+                |cois| {
+                    black_box(compute_coi_relevances(
+                        black_box(cois),
+                        black_box(horizon),
+                        black_box(now),
+                    ))
+                },
                 BatchSize::SmallInput,
             );
         });

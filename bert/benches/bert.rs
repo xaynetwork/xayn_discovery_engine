@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::Path;
+use std::{hint::black_box, path::Path};
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use xayn_ai_bert::{tokenizer::bert::Tokenizer, Config, NonePooler};
 use xayn_ai_test_utils::asset::smbert;
 
@@ -31,7 +31,7 @@ fn bench_tract_bert(manager: &mut Criterion, name: &str, dir: &Path) {
         .build()
         .unwrap();
     manager.bench_function(name, |bencher| {
-        bencher.iter(|| pipeline.run(black_box(SEQUENCE)).unwrap())
+        bencher.iter(|| black_box(pipeline.run(black_box(SEQUENCE)).unwrap()))
     });
 }
 

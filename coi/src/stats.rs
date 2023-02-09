@@ -180,12 +180,9 @@ mod tests {
     #[test]
     fn test_compute_relevances_last() {
         let mut cois = create_pos_cois([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]]);
-        cois[0].stats.last_view -=
-            chrono::Duration::from_std(Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32)).unwrap();
-        cois[1].stats.last_view -=
-            chrono::Duration::from_std(Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32)).unwrap();
-        cois[2].stats.last_view -=
-            chrono::Duration::from_std(Duration::from_secs_f32(2.5 * SECONDS_PER_DAY_F32)).unwrap();
+        cois[0].stats.last_view -= chrono::Duration::hours(12);
+        cois[1].stats.last_view -= chrono::Duration::hours(36);
+        cois[2].stats.last_view -= chrono::Duration::hours(60);
         let config =
             Config::default().with_horizon(Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32));
 
@@ -206,9 +203,7 @@ mod tests {
         let factor = compute_coi_decay_factor(horizon, now, now);
         assert_approx_eq!(f32, factor, 1.);
 
-        let last = now
-            - chrono::Duration::from_std(Duration::from_secs_f32(5. * SECONDS_PER_DAY_F32))
-                .unwrap();
+        let last = now - chrono::Duration::days(5);
         let factor = compute_coi_decay_factor(horizon, now, last);
         assert_approx_eq!(f32, factor, 0.585_914_55, epsilon = 1e-6);
 
