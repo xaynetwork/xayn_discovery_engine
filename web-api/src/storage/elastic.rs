@@ -368,8 +368,8 @@ impl storage::Document for Storage {
                     "filter": {
                         "key": "properties.publication_date",
                         "range": {
-                            "gte": published_after.timestamp_subsec_micros(),
-                            "lte": Utc::now().timestamp_subsec_micros()
+                            "gte": published_after.timestamp_micros(),
+                            "lte": Utc::now().timestamp_micros()
                         }
                     },
                     "must_not": {
@@ -387,7 +387,7 @@ impl storage::Document for Storage {
                     {
                         "key": "properties.publication_date",
                         "range": {
-                            "gt": Utc::now().timestamp_subsec_micros()
+                            "gt": Utc::now().timestamp_micros()
                         }
                     }
                 ]
@@ -397,7 +397,7 @@ impl storage::Document for Storage {
         let mut body = json!({
             "vector": params.embedding,
             "filter": filter,
-            "limit": params.num_candidates, // params.k_neighbors
+            "limit": params.k_neighbors,
             "params": {
                 "hnsw_ef": params.num_candidates,
                 "exact": false
@@ -446,7 +446,7 @@ impl storage::Document for Storage {
         let batch = documents
             .into_iter()
             .map(|(mut document, embedding)| {
-                let key = DocumentPropertyId::new("published_date").unwrap();
+                let key = DocumentPropertyId::new("publication_date").unwrap();
                 document
                     .properties
                     .remove(&key)
@@ -455,7 +455,7 @@ impl storage::Document for Storage {
                             serde_json::from_value::<String>(date.0).unwrap().as_ref(),
                         )
                         .unwrap()
-                        .timestamp_subsec_micros()
+                        .timestamp_micros()
                     })
                     .and_then(|time| {
                         document
