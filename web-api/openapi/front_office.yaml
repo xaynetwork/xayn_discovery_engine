@@ -61,7 +61,7 @@ paths:
             impossible to create a personalized list for given context
 
             This mainly can happen if all documents in the user history
-            do no longer exist (or where never ingested).
+            do no longer exist (or were never ingested).
           content:
             application/json:
               schema:
@@ -228,7 +228,7 @@ components:
             $ref: '#/components/schemas/PersonalizedDocumentData'
       example:
         warnings:
-          - "historic document with id \"document-id-1\" does not exist"
+          - "historic document with id \"document_id1\" does not exist"
         documents:
           - id: 'document_id0'
             score: 0.87

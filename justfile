@@ -205,7 +205,7 @@ install-openapi-validator:
 validate-openapi:
     #!/usr/bin/env -S bash -eux -o pipefail
     # We need to call it once per file, if we pass in multiple files it will
-    # has some bug where it does not report error correctly.
+    # have some bug where it does not report error correctly.
     for file in ls web-api/openapi/*.yaml; do
         spectral lint --verbose -F warn "$file"
     done
