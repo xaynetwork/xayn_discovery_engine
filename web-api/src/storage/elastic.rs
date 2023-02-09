@@ -188,7 +188,7 @@ impl Client {
             let body = response.bytes().await?;
             let err_msg = String::from_utf8_lossy(&body);
             Err(InternalError::from_message(format!(
-                "Elastic Search failed, status={status}, url={url}, body=\n{err_msg}"
+                "Elastic Search failed, status={status}, url={url}, \nbody={err_msg}"
             ))
             .into())
         } else {
