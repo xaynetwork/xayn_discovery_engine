@@ -100,7 +100,7 @@ id_wrapper! {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-pub(crate) struct DocumentProperty(serde_json::Value);
+pub(crate) struct DocumentProperty(pub(crate) serde_json::Value);
 
 /// Arbitrary properties that can be attached to a document.
 pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;

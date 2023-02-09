@@ -158,25 +158,6 @@ impl Database {
         Ok(())
     }
 
-    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
-        let mut tx = self.pool.begin().await?;
-
-        let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
-        for ids in ids.chunks(Self::BIND_LIMIT) {
-            builder
-                .reset()
-                .push_tuple(ids)
-                .build()
-                .persistent(false)
-                .execute(&mut tx)
-                .await?;
-        }
-
-        tx.commit().await?;
-
-        Ok(())
-    }
-
     pub(crate) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
         sqlx::query("SELECT document_id FROM document WHERE document_id = $1;")
             .bind(id)

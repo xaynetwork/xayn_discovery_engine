@@ -12,10 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 use async_trait::async_trait;
-use itertools::Itertools;
+use chrono::{DateTime, Utc};
+use itertools::{multiunzip, Itertools};
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
     Body,
@@ -41,7 +42,7 @@ use crate::{
         DocumentTag,
     },
     storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
-    utils::{serialize_redacted, serialize_to_ndjson},
+    utils::serialize_redacted,
     Error,
 };
 
@@ -72,6 +73,7 @@ impl Config {
         url_to_index
             .path_segments_mut()
             .map_err(|()| anyhow::anyhow!("non segmentable url in config"))?
+            .push("collections")
             .push(&self.index_name);
 
         Ok(Client {
@@ -88,32 +90,10 @@ pub(crate) struct Client {
     client: reqwest::Client,
 }
 
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "lowercase")]
-enum BulkInstruction<'a> {
-    Index {
-        #[serde(rename = "_id")]
-        id: &'a DocumentId,
-    },
-    Delete {
-        #[serde(rename = "_id")]
-        id: &'a DocumentId,
-    },
-}
-
-#[derive(Debug, Deserialize)]
-struct BulkItemResponse {
-    #[serde(rename = "_id")]
-    id: DocumentId,
-    status: u16,
-    #[serde(default)]
-    error: Value,
-}
-
 #[derive(Debug, Deserialize)]
 struct BulkResponse {
-    errors: bool,
-    items: Vec<HashMap<String, BulkItemResponse>>,
+    #[serde(default)]
+    status: Value,
 }
 
 impl Client {
@@ -138,21 +118,15 @@ impl Client {
         url
     }
 
-    async fn bulk_request(
-        &self,
-        requests: impl IntoIterator<Item = Result<impl Serialize, Error>>,
-    ) -> Result<BulkResponse, Error> {
-        let url = self.create_resource_path(["_bulk"], [("refresh", None)]);
+    async fn bulk_request(&self, request: impl Serialize) -> Result<BulkResponse, Error> {
+        let url = self.create_resource_path(["points"], []);
 
         let mut headers = HeaderMap::new();
-        headers.insert(
-            CONTENT_TYPE,
-            HeaderValue::from_static("application/x-ndjson"),
-        );
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-        let body = serialize_to_ndjson(requests)?;
+        let body = serde_json::to_vec(&request)?;
 
-        self.query_with_bytes::<_, BulkResponse>(url, Some((headers, body)))
+        self.query_with_bytes::<_, BulkResponse>(url, Some((headers, body)), true)
             .await?
             .ok_or_else(|| InternalError::from_message("_bulk endpoint not found").into())
     }
@@ -161,22 +135,24 @@ impl Client {
         &self,
         url: Url,
         post_data: Option<(HeaderMap<HeaderValue>, B)>,
+        put: bool,
     ) -> Result<Option<T>, Error>
     where
         B: Into<Body>,
         T: DeserializeOwned,
     {
         let request_builder = if let Some((headers, body)) = post_data {
-            self.client.post(url).headers(headers).body(body)
+            if put {
+                self.client.put(url).headers(headers).body(body)
+            } else {
+                self.client.post(url).headers(headers).body(body)
+            }
         } else {
             self.client.get(url)
         };
 
         let response = request_builder
-            .basic_auth(
-                &self.config.user,
-                Some(self.config.password.expose_secret()),
-            )
+            .header("api-key", self.config.password.expose_secret())
             .send()
             .await?;
 
@@ -203,73 +179,55 @@ impl Client {
             })
             .transpose()?;
 
-        self.query_with_bytes(url, post_data).await
+        self.query_with_bytes(url, post_data, false).await
     }
 }
 
 #[derive(Debug, Deserialize)]
-struct Hit<T> {
-    #[serde(rename = "_id")]
+struct Response<T> {
+    result: Vec<T>,
+}
+
+#[derive(Debug, Deserialize)]
+struct PointsResult {
     id: DocumentId,
-    #[serde(rename = "_source")]
-    source: T,
-    #[serde(rename = "_score")]
-    score: f32,
+    payload: Payload,
+    vector: NormalizedEmbedding,
 }
 
-#[derive(Debug, Deserialize)]
-struct Hits<T> {
-    hits: Vec<Hit<T>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SearchResponse<T> {
-    hits: Hits<T>,
-}
-
-#[derive(Debug, Deserialize)]
-struct InteractedDocument {
-    embedding: NormalizedEmbedding,
-    #[serde(default)]
-    tags: Vec<DocumentTag>,
-}
-
-impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
-    fn from(response: SearchResponse<InteractedDocument>) -> Self {
+impl From<Response<PointsResult>> for Vec<models::InteractedDocument> {
+    fn from(response: Response<PointsResult>) -> Self {
         response
-            .hits
-            .hits
+            .result
             .into_iter()
             .map(|hit| models::InteractedDocument {
                 id: hit.id,
-                embedding: hit.source.embedding,
-                tags: hit.source.tags,
+                embedding: hit.vector,
+                tags: hit.payload.tags,
             })
             .collect()
     }
 }
 
 #[derive(Debug, Deserialize)]
-struct PersonalizedDocument {
-    #[serde(default)]
-    properties: DocumentProperties,
-    embedding: NormalizedEmbedding,
-    #[serde(default)]
-    tags: Vec<DocumentTag>,
+struct SearchResult {
+    id: DocumentId,
+    score: f32,
+    payload: Payload,
+    vector: NormalizedEmbedding,
 }
 
-impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocument> {
-    fn from(response: SearchResponse<PersonalizedDocument>) -> Self {
+impl From<Response<SearchResult>> for Vec<models::PersonalizedDocument> {
+    fn from(response: Response<SearchResult>) -> Self {
         response
-            .hits
-            .hits
+            .result
             .into_iter()
             .map(|hit| models::PersonalizedDocument {
                 id: hit.id,
                 score: hit.score,
-                embedding: hit.source.embedding,
-                properties: hit.source.properties,
-                tags: hit.source.tags,
+                embedding: hit.vector,
+                properties: hit.payload.properties,
+                tags: hit.payload.tags,
             })
             .collect()
     }
@@ -281,12 +239,6 @@ struct IngestedDocument<'a> {
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
     tags: &'a [DocumentTag],
-}
-
-fn is_success_status(status: u16, allow_not_found: bool) -> bool {
-    StatusCode::from_u16(status)
-        .map(|status| (status == StatusCode::NOT_FOUND && allow_not_found) || status.is_success())
-        .unwrap_or(false)
 }
 
 impl Storage {
@@ -309,18 +261,15 @@ impl Storage {
 
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
         let body = Some(json!({
-            "query": {
-                "ids" : {
-                    "values": values
-                }
-            },
-            "_source": ["embedding", "tags"]
+            "ids": values,
+            "with_payload": true,
+            "with_vector": true,
         }));
 
         Ok(self
             .elastic
-            .query_with_json::<_, SearchResponse<_>>(
-                self.elastic.create_resource_path(["_search"], None),
+            .query_with_json::<_, Response<_>>(
+                self.elastic.create_resource_path(["points"], None),
                 body,
             )
             .await?
@@ -347,24 +296,42 @@ impl Storage {
 
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
         let body = Some(json!({
-            "query": {
-                "ids" : {
-                    "values": values
-                }
-            },
-            "_source": ["properties", "embedding", "tags"]
+            "ids": values,
+            "with_payload": true,
+            "with_vector": true,
         }));
 
         Ok(self
             .elastic
-            .query_with_json::<_, SearchResponse<_>>(
-                self.elastic.create_resource_path(["_search"], None),
+            .query_with_json::<_, Response<_>>(
+                self.elastic.create_resource_path(["points"], None),
                 body,
             )
             .await?
             .map(Into::into)
             .unwrap_or_default())
     }
+}
+
+#[derive(Debug, Serialize)]
+struct BatchRequest {
+    batch: Batch,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Payload {
+    snippet: String,
+    #[serde(default)]
+    properties: DocumentProperties,
+    #[serde(default)]
+    tags: Vec<DocumentTag>,
+}
+
+#[derive(Debug, Serialize)]
+struct Batch {
+    ids: Vec<DocumentId>,
+    vectors: Vec<NormalizedEmbedding>,
+    payloads: Vec<Payload>,
 }
 
 #[async_trait]
@@ -383,24 +350,8 @@ impl storage::Document for Storage {
         self.get_personalized_with_transaction(ids, None).await
     }
 
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        #[derive(Deserialize)]
-        struct Response {
-            _source: Fields,
-        }
-        #[derive(Deserialize)]
-        struct Fields {
-            embedding: NormalizedEmbedding,
-        }
-
-        self.elastic
-            .query_with_bytes::<Vec<u8>, Response>(
-                self.elastic
-                    .create_resource_path(["_doc", id.as_ref()], [("_source", Some("embedding"))]),
-                None,
-            )
-            .await
-            .map(|opt| opt.map(|resp| resp._source.embedding))
+    async fn get_embedding(&self, _id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
+        unimplemented!()
     }
 
     async fn get_by_embedding<'a>(
@@ -408,74 +359,67 @@ impl storage::Document for Storage {
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
-        let excluded_ids = json!({
-            "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
-        });
+        let excluded_ids = params.excluded.iter().map(AsRef::as_ref).collect_vec();
 
         let filter = if let Some(published_after) = params.published_after {
             // published_after != null && published_after <= publication_date <= now
             json!({
                 "bool": {
                     "filter": {
+                        "key": "properties.publication_date",
                         "range": {
-                            "properties.publication_date": {
-                                "gte": published_after.to_rfc3339(),
-                                "lte": "now"
-                            }
+                            "gte": published_after.timestamp_subsec_micros(),
+                            "lte": Utc::now().timestamp_subsec_micros()
                         }
                     },
                     "must_not": {
-                        "ids": excluded_ids
+                        "has_id": excluded_ids
                     }
                 }
             })
         } else {
             // published_after == null || published_after <= now
             json!({
-                "bool": {
-                    "must_not": [
-                        {
-                            "ids": excluded_ids
-                        },
-                        {
-                            "range": {
-                                "properties.publication_date": {
-                                    "gt": "now"
-                                }
-                            }
+                "must_not": [
+                    {
+                        "has_id": excluded_ids
+                    },
+                    {
+                        "key": "properties.publication_date",
+                        "range": {
+                            "gt": Utc::now().timestamp_subsec_micros()
                         }
-                    ]
-                }
+                    }
+                ]
             })
         };
 
-        let mut knn = json!({
-            "field": "embedding",
-            "query_vector": params.embedding,
-            "k": params.k_neighbors,
-            "num_candidates": params.num_candidates,
-            "filter": filter
+        let mut body = json!({
+            "vector": params.embedding,
+            "filter": filter,
+            "limit": params.num_candidates, // params.k_neighbors
+            "params": {
+                "hnsw_ef": params.num_candidates,
+                "exact": false
+            },
+            "with_payload": true,
+            "with_vector": true,
         });
 
         if let Some(min_similarity) = params.min_similarity {
-            knn.as_object_mut()
+            body.as_object_mut()
                 .unwrap(/* we just created it as object */)
-                .insert("min_score".into(), min_similarity.into());
+                .insert("score_threshold".into(), min_similarity.into());
         }
-
-        let body = Some(json!({
-            "size": params.k_neighbors,
-            "knn": knn,
-            "_source": ["properties", "embedding", "tags"]
-        }));
 
         // the existing documents are not filtered in the elastic query to avoid too much work for a
         // cold path, filtering them afterwards can occasionally lead to less than k results though
         let mut documents = self
             .elastic
-            .query_with_json::<_, SearchResponse<_>>(
-                self.elastic.create_resource_path(["_search"], None),
-                body,
+            .query_with_json::<_, Response<_>>(
+                self.elastic
+                    .create_resource_path(["points", "search"], None),
+                Some(body),
             )
             .await?
             .map(<Vec<models::PersonalizedDocument>>::from)
@@ -499,110 +443,67 @@ impl storage::Document for Storage {
             return Ok(());
         }
 
-        let mut ids = documents
-            .iter()
-            .map(|(document, _)| document.id.clone())
-            .collect::<HashSet<_>>();
-
-        let response = self
-            .elastic
-            .bulk_request(documents.into_iter().flat_map(|(document, embedding)| {
-                [
-                    serde_json::to_value(BulkInstruction::Index { id: &document.id })
-                        .map_err(Into::into),
-                    serde_json::to_value(IngestedDocument {
-                        snippet: &document.snippet,
-                        properties: &document.properties,
-                        embedding: &embedding,
-                        tags: &document.tags,
+        let batch = documents
+            .into_iter()
+            .map(|(mut document, embedding)| {
+                let key = DocumentPropertyId::new("published_date").unwrap();
+                document
+                    .properties
+                    .remove(&key)
+                    .map(|date| {
+                        DateTime::parse_from_rfc3339(
+                            serde_json::from_value::<String>(date.0).unwrap().as_ref(),
+                        )
+                        .unwrap()
+                        .timestamp_subsec_micros()
                     })
-                    .map_err(Into::into),
-                ]
-            }))
-            .await?;
-        let failed_documents = response.errors.then(|| {
-            response
-                .items
-                .into_iter()
-                .filter_map(|mut response| {
-                    if let Some(response) = response.remove("index") {
-                        if !is_success_status(response.status, false) {
-                            error!(
-                                document_id=%response.id,
-                                error=%response.error,
-                                "Elastic failed to ingest document.",
-                            );
-                            ids.remove(&response.id);
-                            return Some(response.id.into());
-                        }
-                    } else {
-                        error!("Bulk index request contains non index responses: {response:?}");
-                    }
-                    None
-                })
-                .collect_vec()
-        });
+                    .and_then(|time| {
+                        document
+                            .properties
+                            .insert(key, DocumentProperty(serde_json::to_value(time).unwrap()))
+                    });
 
-        self.postgres
-            .insert_documents(&ids.into_iter().collect_vec(/* Itertools::chunks() is !Send */))
-            .await?;
+                (
+                    document.id,
+                    embedding,
+                    Payload {
+                        snippet: document.snippet,
+                        properties: document.properties,
+                        tags: document.tags,
+                    },
+                )
+            })
+            .collect_vec();
 
-        if let Some(failed_documents) = failed_documents {
-            Err(failed_documents.into())
-        } else {
-            Ok(())
+        let (ids, vectors, payloads): (Vec<_>, Vec<_>, Vec<_>) = multiunzip(batch);
+        let request = BatchRequest {
+            batch: Batch {
+                ids: ids.clone(),
+                vectors,
+                payloads,
+            },
+        };
+        let request = serde_json::to_value(request).unwrap();
+        let response = self.elastic.bulk_request(request).await?;
+
+        self.postgres.insert_documents(&ids).await?;
+
+        if let Value::Object(_) = response.status {
+            error!("{:?}", response.status);
         }
+
+        Ok(())
     }
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError> {
-        if documents.is_empty() {
-            return Ok(());
-        }
-
-        self.postgres.delete_documents(documents).await?;
-
-        let response = self
-            .elastic
-            .bulk_request(
-                documents
-                    .iter()
-                    .map(|document_id| Ok(BulkInstruction::Delete { id: document_id })),
-            )
-            .await?;
-        let failed_documents = response.errors.then(|| {
-            response
-                .items
-                .into_iter()
-                .filter_map(|mut response| {
-                    if let Some(response) = response.remove("delete") {
-                        if !is_success_status(response.status, true) {
-                            error!(
-                                document_id=%response.id,
-                                error=%response.error,
-                                "Elastic failed to delete document.",
-                            );
-                            return Some(response.id.into());
-                        }
-                    } else {
-                        error!("Bulk delete request contains non delete responses: {response:?}",);
-                    }
-                    None
-                })
-                .collect_vec()
-        });
-
-        if let Some(failed_documents) = failed_documents {
-            Err(failed_documents.into())
-        } else {
-            Ok(())
-        }
+    async fn delete(&self, _documents: &[DocumentId]) -> Result<(), DeletionError> {
+        unimplemented!()
     }
 }
 
 #[derive(Clone, Debug, Deserialize)]
 struct DocumentPropertiesResponse {
     #[serde(default)]
-    properties: DocumentProperties,
+    _properties: DocumentProperties,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -615,78 +516,20 @@ struct IgnoredResponse {}
 
 #[async_trait]
 impl storage::DocumentProperties for Storage {
-    async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
-        if !self.postgres.document_exists(id).await? {
-            return Ok(None);
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
-        let url = self
-            .elastic
-            .create_resource_path(["_source", id.as_ref()], [("_source", Some("properties"))]);
-
-        Ok(self
-            .elastic
-            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
-            .await?
-            .map(|resp| resp.properties))
+    async fn get(&self, _id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
+        unimplemented!()
     }
 
     async fn put(
         &self,
-        id: &DocumentId,
-        properties: &DocumentProperties,
+        _id: &DocumentId,
+        _properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(id).await? {
-            return Ok(None);
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self
-            .elastic
-            .create_resource_path(["_update", id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties = params.properties",
-                "params": {
-                    "properties": properties
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
+        unimplemented!()
     }
 
-    async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(id).await? {
-            return Ok(None);
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        // don't delete the field, but put an empty map instead, similar to the ingestion service
-        let url = self
-            .elastic
-            .create_resource_path(["_update", id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties = params.properties",
-                "params": {
-                    "properties": DocumentProperties::new()
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
+    async fn delete(&self, _id: &DocumentId) -> Result<Option<()>, Error> {
+        unimplemented!()
     }
 }
 
@@ -694,85 +537,26 @@ impl storage::DocumentProperties for Storage {
 impl storage::DocumentProperty for Storage {
     async fn get(
         &self,
-        document_id: &DocumentId,
-        property_id: &DocumentPropertyId,
+        _document_id: &DocumentId,
+        _property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
-        if !self.postgres.document_exists(document_id).await? {
-            return Ok(None);
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
-        let url = self.elastic.create_resource_path(
-            ["_source", document_id.as_ref()],
-            [("_source", Some(&*format!("properties.{property_id}")))],
-        );
-
-        Ok(self
-            .elastic
-            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
-            .await?
-            .map(|mut response| response.properties.remove(property_id)))
+        unimplemented!()
     }
 
     async fn put(
         &self,
-        document_id: &DocumentId,
-        property_id: &DocumentPropertyId,
-        property: &DocumentProperty,
+        _document_id: &DocumentId,
+        _property_id: &DocumentPropertyId,
+        _property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(document_id).await? {
-            return Ok(None);
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self
-            .elastic
-            .create_resource_path(["_update", document_id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties.put(params.prop_id, params.property)",
-                "params": {
-                    "prop_id": property_id,
-                    "property": property
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
+        unimplemented!()
     }
 
     async fn delete(
         &self,
-        document_id: &DocumentId,
-        property_id: &DocumentPropertyId,
+        _document_id: &DocumentId,
+        _property_id: &DocumentPropertyId,
     ) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(document_id).await? {
-            return Ok(None);
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self
-            .elastic
-            .create_resource_path(["_update", document_id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties.remove(params.prop_id)",
-                "params": {
-                    "prop_id": property_id
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
+        unimplemented!()
     }
 }
