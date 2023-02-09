@@ -43,22 +43,13 @@ impl Search<'_> {
         self,
         storage: &impl storage::Document,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let Search {
-            horizon,
-            max_cois,
-            count,
-            published_after,
-            interests,
-            excluded,
-            time,
-        } = self;
-
-        let coi_weights = compute_coi_weights(interests, horizon, time);
-        let cois = interests
+        let coi_weights = compute_coi_weights(self.interests, self.horizon, self.time);
+        let cois = self
+            .interests
             .iter()
             .zip(coi_weights)
             .sorted_by(|(_, a_weight), (_, b_weight)| nan_safe_f32_cmp(b_weight, a_weight))
-            .take(max_cois)
+            .take(self.max_cois)
             .collect_vec();
 
         let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
@@ -76,18 +67,18 @@ impl Search<'_> {
                 // fine as number of neighbors is small enough
                 clippy::cast_possible_truncation
             )]
-                let k_neighbors = (weight * count as f32).ceil() as usize;
+                let k_neighbors = (weight * self.count as f32).ceil() as usize;
 
                 storage::Document::get_by_embedding(
                     storage,
                     KnnSearchParams {
-                        excluded,
+                        excluded: self.excluded,
                         embedding: &coi.point,
                         k_neighbors,
-                        num_candidates: count,
-                        published_after,
+                        num_candidates: self.count,
+                        published_after: self.published_after,
                         min_similarity: None,
-                        time,
+                        time: self.time,
                     },
                 )
                 .await

@@ -97,10 +97,8 @@ impl System {
         #[allow(clippy::cast_precision_loss)]
         cois.compute_scores_for_docs(documents, &self.config, time)
             .unwrap_or_else(|| {
-                documents
-                    .iter()
-                    .enumerate()
-                    .map(|(idx, _)| 1. / (1. + idx as f32))
+                (0..documents.len())
+                    .map(|idx| 1. / (1. + idx as f32))
                     .collect()
             })
     }
@@ -199,15 +197,10 @@ mod tests {
         let scores = Config::default()
             .build()
             .score(&documents, &cois, Utc::now());
-        // order 4th 1st 3rd 2nd
-        assert!(scores[0] < scores[1]);
+
         assert!(scores[0] < scores[2]);
-        assert!(scores[0] < scores[3]);
-
-        assert!(scores[1] > scores[2]);
-        assert!(scores[1] > scores[3]);
-
         assert!(scores[2] < scores[3]);
+        assert!(scores[3] < scores[1]);
     }
 
     #[test]
@@ -222,7 +215,6 @@ mod tests {
             .build()
             .score(&documents, &cois, Utc::now());
         assert!(scores[0] > scores[1]);
-        assert!(scores[0] > scores[2]);
         assert!(scores[1] > scores[2]);
     }
 }

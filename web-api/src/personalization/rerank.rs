@@ -46,7 +46,7 @@ pub(super) fn rerank_by_interest(
     time: DateTime<Utc>,
 ) -> HashMap<DocumentId, Rank> {
     let scores = coi_system.score(documents, interest, time);
-    pairs_to_rank_map(
+    rank_keys_by_score(
         izip!(documents.iter().map(|doc| doc.id.clone()), scores),
         nan_safe_f32_cmp_desc,
     )
@@ -66,7 +66,7 @@ pub(super) fn rerank_by_tag_weights(
         (doc.id.clone(), weight)
     });
 
-    pairs_to_rank_map(weighted_documents, |w1, w2| w1.cmp(w2).reverse())
+    rank_keys_by_score(weighted_documents, |w1, w2| w1.cmp(w2).reverse())
 }
 
 pub(super) fn rerank_by_interest_and_tag_weight(
@@ -100,7 +100,7 @@ pub(super) fn rerank_by_interest_and_tag_weight(
     });
 }
 
-fn pairs_to_rank_map<K, S>(
+fn rank_keys_by_score<K, S>(
     keys_with_score: impl IntoIterator<Item = (K, S)>,
     mut sort_by: impl FnMut(&S, &S) -> Ordering,
 ) -> HashMap<K, Rank>

@@ -27,7 +27,7 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_coi::CoiSystem;
 
 use super::{
-    personalized_knn,
+    knn,
     rerank::rerank_by_interest_and_tag_weight,
     AppState,
     PersonalizationConfig,
@@ -270,7 +270,7 @@ pub(crate) async fn personalize_documents_by(
             count,
             published_after,
         } => {
-            personalized_knn::Search {
+            knn::Search {
                 interests: &interests.positive,
                 excluded: &excluded,
                 horizon: coi_system.config().horizon(),
