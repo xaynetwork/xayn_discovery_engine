@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use actix_web::{
     http::StatusCode,
@@ -241,15 +241,26 @@ async fn stateless_personalize_documents(
     let ids = history.iter().map(|document| &document.id).collect_vec();
 
     let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
-
-    check_for_missing_documents(&history, &documents_from_history, &mut warnings);
+    let documents_from_history = documents_from_history
+        .iter()
+        .map(|document| (&document.id, document))
+        .collect::<HashMap<_, _>>();
 
     let mut interests = UserInterests::default();
-    for document in &documents_from_history {
-        /* TODO put in timestamp */
-        state
-            .coi
-            .log_positive_user_reaction(&mut interests.positive, &document.embedding);
+    for entry in &history {
+        let id = &entry.id;
+        if let Some(document) = documents_from_history.get(id) {
+            state.coi.log_positive_user_reaction(
+                &mut interests.positive,
+                &document.embedding,
+                /* TODO after rebase: entry.timestamp, */
+            );
+            let _ = entry.timestamp;
+        } else {
+            let msg = format!("document {id} does not exist");
+            warn!("{}", msg);
+            warnings.push(msg.into());
+        }
     }
 
     let mut documents = personalized_knn::Search {
@@ -263,7 +274,7 @@ async fn stateless_personalize_documents(
     .run_on(&state.storage)
     .await?;
 
-    let tag_weights = tag_weights_from_history(&documents_from_history);
+    let tag_weights = tag_weights_from_history(documents_from_history.values().copied());
 
     rerank_by_interest_and_tag_weight(
         &state.coi,
@@ -279,30 +290,8 @@ async fn stateless_personalize_documents(
     }))
 }
 
-fn check_for_missing_documents(
-    history: &[HistoryEntry],
-    documents_from_history: &[InteractedDocument],
-    warnings: &mut Vec<Warning>,
-) {
-    if documents_from_history.len() < history.len() {
-        let found_documents = documents_from_history
-            .iter()
-            .map(|doc| &doc.id)
-            .collect::<HashSet<_>>();
-
-        for document in history {
-            let id = &document.id;
-            if !found_documents.contains(id) {
-                let msg = format!("document {id} does not exist");
-                warn!("{}", msg);
-                warnings.push(msg.into());
-            }
-        }
-    }
-}
-
-fn tag_weights_from_history(
-    documents_in_history: &[InteractedDocument],
+fn tag_weights_from_history<'a>(
+    documents_in_history: impl IntoIterator<Item = &'a InteractedDocument>,
 ) -> HashMap<DocumentTag, usize> {
     let mut weights = HashMap::default();
     for document in documents_in_history {
