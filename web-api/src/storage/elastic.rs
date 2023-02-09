@@ -383,13 +383,14 @@ impl storage::Document for Storage {
                 "must_not": [
                     {
                         "has_id": excluded_ids
-                    },
-                    {
-                        "key": "properties.publication_date",
-                        "range": {
-                            "gt": Utc::now().timestamp_micros()
-                        }
                     }
+                    //,
+                    // {
+                    //     "key": "properties.publication_date",
+                    //     "range": {
+                    //         "gt": Utc::now().timestamp_micros()
+                    //     }
+                    // }
                 ]
             })
         };
