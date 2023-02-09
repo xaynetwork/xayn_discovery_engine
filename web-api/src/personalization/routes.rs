@@ -249,7 +249,8 @@ async fn stateless_personalized_documents(
     let ids = history.iter().map(|document| &document.id).collect_vec();
     let time = history
         .last()
-        .unwrap(/* history has been checked */);
+        .unwrap(/* history has been checked */)
+        .timestamp;
 
     let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
     let documents_from_history = documents_from_history
