@@ -9,7 +9,7 @@ Python 3.8 or higher required
 1. `cd tests`
 2. Execution examples:
  - `pytest --maxfail=3` - execute all tests (stop execution after 3 errors or failures)
- - `pytest test_interactions.py` - execute tests within **test_interactions_endpoint.py**
+ - `pytest front_office/test_interactions.py` - execute tests within **test_interactions.py**
  - `pytest --allure-severities normal,critical` - execute test with only **normal** and **critical** severity
  - `pytest -k TestInteractionsEndpoint` - execute all tests in **TestInteractionsEndpoint** class
  - `allure serve $(pwd)/reports` - generate Allure report
