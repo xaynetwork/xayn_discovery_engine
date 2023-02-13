@@ -69,9 +69,23 @@ pub(super) fn rerank_by_tag_weights(
     rank_keys_by_score(weighted_documents, |w1, w2| w1.cmp(w2).reverse())
 }
 
-pub(super) fn rerank_by_interest_and_tag_weight(
+pub(super) const IGNORE_CURRENT_SCORE: f32 = 1.0;
+
+/// Reranks documents based on a combination of their current score, interest and tag weights.
+///
+/// The `interest_tag_bias` determines the ratio of interest scoring to tag weight scoring.
+///
+/// The `personalization_ratio` determines the ratio of the current score to the combined score of
+/// interest and tag weight.
+///
+/// So the final score/ranking per document is calculated as:
+///
+/// 1. `personalization_score = interest_tag_bias * interest_score + (1-interest_tag_bias) * tag_score`
+/// 2. `personalization_ratio * personalization_score + (1-personalization_ratio) *  current_score`
+pub(super) fn rerank_by_score_interest_and_tag_weight(
     coi_system: &CoiSystem,
     documents: &mut [PersonalizedDocument],
+    personalization_ratio: f32,
     interests: &UserInterests,
     tag_weights: &HashMap<DocumentTag, usize>,
     interest_tag_bias: f32,
@@ -81,8 +95,11 @@ pub(super) fn rerank_by_interest_and_tag_weight(
     let tag_weight_ranks = rerank_by_tag_weights(documents, tag_weights);
 
     for document in documents.iter_mut() {
-        document.score = interest_ranks[&document.id]
+        let personalization_score = interest_ranks[&document.id]
             .merge_as_score(tag_weight_ranks[&document.id], interest_tag_bias);
+
+        document.score = personalization_ratio * personalization_score
+            + (1. - personalization_ratio) * document.score;
     }
 
     let secondary_sorting_factor = if interest_tag_bias >= 0.5 {
