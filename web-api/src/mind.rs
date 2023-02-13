@@ -12,14 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Executes the user-based MIND benchmark.
-
-#![allow(dead_code)]
+//! Executes the MIND benchmarks.
 
 use std::{collections::HashMap, fs::File, io, path::Path};
 
 use anyhow::Error;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, Array3, ArrayView};
@@ -54,6 +52,7 @@ struct State {
     embedder: Embedder,
     coi: CoiSystem,
     personalization: PersonalizationConfig,
+    time: DateTime<Utc>,
 }
 
 impl State {
@@ -65,12 +64,14 @@ impl State {
 
         let coi = config.coi.build();
         let personalization = config.personalization;
+        let time = config.time;
 
         Ok(Self {
             storage,
             embedder,
             coi,
             personalization,
+            time,
         })
     }
 
@@ -98,24 +99,21 @@ impl State {
     async fn interact(
         &self,
         user: &UserId,
-        documents: &[DocumentId],
-        time: DateTime<Utc>,
+        documents: &[(DocumentId, DateTime<Utc>)],
     ) -> Result<(), Error> {
-        let interactions = documents
-            .iter()
-            .map(|id| (id.clone(), UserInteractionType::Positive))
-            .collect_vec();
+        for (id, time) in documents {
+            update_interactions(
+                &self.storage,
+                &self.coi,
+                user,
+                &[(id.clone(), UserInteractionType::Positive)],
+                self.personalization.store_user_history,
+                *time,
+            )
+            .await?;
+        }
 
-        update_interactions(
-            &self.storage,
-            &self.coi,
-            user,
-            &interactions,
-            self.personalization.store_user_history,
-            time,
-        )
-        .await
-        .map_err(Into::into)
+        Ok(())
     }
 
     async fn personalize(
@@ -188,7 +186,7 @@ where
         .transpose()
 }
 
-// struct that represents config of hyperparameters for the persona based benchmark
+/// The config of hyperparameters for the persona based benchmark.
 #[derive(Debug, Deserialize)]
 struct PersonaBasedConfig {
     click_probability: f64,
@@ -210,16 +208,29 @@ impl Default for PersonaBasedConfig {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 struct StateConfig {
     coi: CoiConfig,
     personalization: PersonalizationConfig,
+    time: DateTime<Utc>,
+}
+
+impl Default for StateConfig {
+    fn default() -> Self {
+        Self {
+            coi: CoiConfig::default(),
+            personalization: PersonalizationConfig::default(),
+            time: Utc::now(),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
 struct Impression {
+    #[allow(dead_code)]
     id: String,
     user_id: String,
+    #[allow(dead_code)]
     time: String,
     #[serde(deserialize_with = "deserialize_clicked_documents")]
     clicks: Option<Vec<DocumentId>>,
@@ -232,13 +243,15 @@ struct Document {
     id: DocumentId,
     category: DocumentTag,
     subcategory: DocumentTag,
+    #[allow(dead_code)]
     title: String,
     snippet: String,
+    #[allow(dead_code)]
     url: String,
 }
 
 impl Document {
-    // check if the document is interesting to the user
+    /// Checks if the document is of interest to the user.
     fn is_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
@@ -260,6 +273,7 @@ impl DocumentProvider {
         Ok(Self { documents })
     }
 
+    #[allow(dead_code)]
     fn sample(&self, n: usize) -> Vec<&Document> {
         self.documents
             .values()
@@ -274,7 +288,7 @@ impl DocumentProvider {
         self.documents.values().cloned().collect()
     }
 
-    // get all documents that matches user's interest
+    /// Gets all documents that matches user's interest.
     fn get_all_interest(&self, interests: &[String]) -> Vec<&Document> {
         self.documents
             .values()
@@ -287,7 +301,7 @@ impl DocumentProvider {
 struct Users(HashMap<UserId, Vec<String>>);
 
 impl Users {
-    // function that reads the users interests from a json file
+    /// Reads the users interests from a json file.
     fn new(path: &str) -> Result<Self, Error> {
         let file = File::open(path)?;
         let json = serde_json::from_reader::<_, serde_json::Value>(file)?;
@@ -328,8 +342,9 @@ where
         .map_err(Into::into)
 }
 
-// function that assigns a score to a vector of documents based on the user's interests
-// score is equal to 2 if the document is interesting to the user, 0 otherwise
+/// Assigns a score to a vector of documents based on the user's interests.
+///
+/// The score is equal to 2 if the document is of interest to the user, 0 otherwise.
 fn score_documents(documents: &[&Document], user_interests: &[String]) -> Vec<f32> {
     documents
         .iter()
@@ -360,11 +375,10 @@ where
     writer.extend(c_order_items)?;
     writer.finish()
 }
-/// # Panics
-///
-/// The function panics if the provided filenames are not correct.
+
+/// Runs the persona-based mind benchmark.
 #[tokio::test]
-#[ignore]
+#[ignore = "run on demand via `just mind-benchmark persona`"]
 async fn run_persona_benchmark() -> Result<(), Error> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
@@ -384,16 +398,21 @@ async fn run_persona_benchmark() -> Result<(), Error> {
     ]);
 
     let mut rng = thread_rng();
-
     for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
         let interesting_documents = document_provider.get_all_interest(interests);
         let ids_of_documents_to_prepare = interesting_documents
             .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
-            .map(|doc| doc.id.clone())
+            .map(|doc| {
+                (
+                    doc.id.clone(),
+                    // TODO: set some meaningful value for the interaction time
+                    state.time - Duration::days(0),
+                )
+            })
             .collect_vec();
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(user_id, &ids_of_documents_to_prepare, Utc::now())
+            .interact(user_id, &ids_of_documents_to_prepare)
             .await
             .unwrap();
 
@@ -405,7 +424,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                         count: benchmark_config.n_documents,
                         published_after: None,
                     },
-                    Utc::now(),
+                    state.time,
                 )
                 .await
                 .unwrap()
@@ -433,9 +452,14 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                             (score - 2.0).abs() < 0.001
                                 && rng.gen_bool(benchmark_config.click_probability)
                         })
-                        .map(|(id, _)| id.clone())
+                        .map(|(id, _)| {
+                            (
+                                id.clone(),
+                                // TODO: set some meaningful value for the interaction time
+                                state.time - Duration::days(0),
+                            )
+                        })
                         .collect_vec(),
-                    Utc::now(),
                 )
                 .await
                 .unwrap();
@@ -446,9 +470,9 @@ async fn run_persona_benchmark() -> Result<(), Error> {
     Ok(())
 }
 
-/// Runs the user-based mind benchmark
+/// Runs the user-based mind benchmark.
 #[tokio::test]
-#[ignore]
+#[ignore = "run on demand via `just mind-benchmark user`"]
 async fn run_user_benchmark() -> Result<(), Error> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
@@ -464,15 +488,23 @@ async fn run_user_benchmark() -> Result<(), Error> {
 
     // Loop over all impressions, prepare reranker with news in click history
     // and rerank the news in an impression
-    for impression in read("behaviors.tsv")? {
-        let impression: Impression = impression?;
-
-        let labels = if let Some(clicks) = &impression.clicks {
+    for impression in read::<Impression>("behaviors.tsv")? {
+        let impression = impression?;
+        let labels = if let Some(clicks) = impression.clicks {
             let user = UserId::new(&impression.user_id).unwrap();
-
+            let clicks = clicks
+                .into_iter()
+                .map(|document| {
+                    (
+                        document,
+                        // TODO: set some meaningful value for the interaction time
+                        state.time - Duration::days(0),
+                    )
+                })
+                .collect_vec();
             if !users.contains(&impression.user_id) {
                 users.push(impression.user_id);
-                state.interact(&user, clicks, Utc::now()).await.unwrap();
+                state.interact(&user, &clicks).await.unwrap();
             }
 
             let document_ids = impression
@@ -485,7 +517,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
                 .personalize(
                     &user,
                     PersonalizeBy::Documents(document_ids.as_slice()),
-                    Utc::now(),
+                    state.time,
                 )
                 .await
                 .unwrap()
