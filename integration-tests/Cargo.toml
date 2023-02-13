@@ -8,7 +8,6 @@ publish = false
 
 [dependencies]
 anyhow = { workspace = true }
-chrono = { workspace = true }
 once_cell = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }

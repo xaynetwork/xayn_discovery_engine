@@ -18,7 +18,7 @@ use xayn_integration_tests::{send_assert, test_app};
 use xayn_web_api::Ingestion;
 
 #[tokio::test]
-async fn test_test_app() {
+async fn test_ingestion() {
     test_app::<Ingestion, _>(
         |_config| {},
         |client, url, _service| async move {
