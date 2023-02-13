@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2023 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -19,10 +19,18 @@ use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, uncha
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
+#[derive(Serialize)]
+struct IngestedDocument {
+    id: String,
+    snippet: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    properties: Option<serde_json::Value>,
+}
+
 async fn ingest(
     client: &Client,
     base_url: &Url,
-    documents: &[IngestionDocument],
+    documents: &[IngestedDocument],
 ) -> Result<(), Panic> {
     send_assert(
         client,
@@ -36,6 +44,19 @@ async fn ingest(
     Ok(())
 }
 
+#[derive(Debug, Deserialize)]
+struct PersonalizedDocumentData {
+    id: String,
+    score: f32,
+    #[serde(default)]
+    properties: serde_json::Value,
+}
+
+#[derive(Deserialize)]
+struct SemanticSearchResponse {
+    documents: Vec<PersonalizedDocumentData>,
+}
+
 #[tokio::test]
 async fn test_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
@@ -46,17 +67,17 @@ async fn test_semantic_search() {
                 &client,
                 &ingestion_url,
                 &[
-                    IngestionDocument {
+                    IngestedDocument {
                         id: "d1".into(),
                         snippet: "this is one sentence which we have".into(),
                         properties: None,
                     },
-                    IngestionDocument {
+                    IngestedDocument {
                         id: "d2".into(),
                         snippet: "duck duck quack".into(),
                         properties: Some(json!({ "dodo": 4 })),
                     },
-                    IngestionDocument {
+                    IngestedDocument {
                         id: "d3".into(),
                         snippet: "this is another sentence which we have".into(),
                         properties: None,
@@ -65,7 +86,7 @@ async fn test_semantic_search() {
             )
             .await?;
 
-            let SearchResults { documents } = send_assert_json(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .get(personalization_url.join("/semantic_search/d1")?)
@@ -100,17 +121,17 @@ async fn test_semantic_search_min_similarity() {
                 &client,
                 &ingestion_url,
                 &[
-                    IngestionDocument {
+                    IngestedDocument {
                         id: "d1".into(),
                         snippet: "Computers are made of technology.".into(),
                         properties: None,
                     },
-                    IngestionDocument {
+                    IngestedDocument {
                         id: "d2".into(),
-                        snippet: "Mountains smaller then a river.".into(),
+                        snippet: "Mountains smaller than a river.".into(),
                         properties: None,
                     },
-                    IngestionDocument {
+                    IngestedDocument {
                         id: "d3".into(),
                         snippet: "Computer technology is made".into(),
                         properties: None,
@@ -119,7 +140,7 @@ async fn test_semantic_search_min_similarity() {
             )
             .await?;
 
-            let SearchResults { documents } = send_assert_json(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .get(personalization_url.join("/semantic_search/d1")?)
@@ -140,25 +161,4 @@ async fn test_semantic_search_min_similarity() {
         },
     )
     .await;
-}
-
-#[derive(Deserialize)]
-struct SearchResults {
-    documents: Vec<PersonalizationDocument>,
-}
-
-#[derive(Debug, Deserialize)]
-struct PersonalizationDocument {
-    id: String,
-    score: f32,
-    #[serde(default)]
-    properties: serde_json::Value,
-}
-
-#[derive(Serialize)]
-struct IngestionDocument {
-    id: String,
-    snippet: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    properties: Option<serde_json::Value>,
 }
