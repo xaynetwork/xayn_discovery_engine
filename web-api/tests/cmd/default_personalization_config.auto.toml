@@ -43,7 +43,8 @@ stdout = """
     "default_number_documents": 10,
     "max_cois_for_knn": 10,
     "interest_tag_bias": 0.5,
-    "store_user_history": true
+    "store_user_history": true,
+    "max_stateless_history_size": 20
   },
   "semantic_search": {
     "max_number_documents": 100,

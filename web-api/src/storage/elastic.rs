@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::BuildHasher,
+};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -252,6 +255,25 @@ impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument
                 embedding: hit.source.embedding,
                 tags: hit.source.tags,
             })
+            .collect()
+    }
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchEmbedding {
+    embedding: NormalizedEmbedding,
+}
+
+impl<S> From<SearchResponse<SearchEmbedding>> for HashMap<DocumentId, NormalizedEmbedding, S>
+where
+    S: BuildHasher + Default,
+{
+    fn from(response: SearchResponse<SearchEmbedding>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| (hit.id, hit.source.embedding))
             .collect()
     }
 }

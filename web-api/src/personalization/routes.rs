@@ -24,7 +24,8 @@ use actix_web::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use xayn_ai_coi::CoiSystem;
+use tracing::{instrument, warn};
+use xayn_ai_coi::{CoiSystem, UserInterests};
 
 use super::{
     knn,
@@ -36,9 +37,18 @@ use super::{
 use crate::{
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, DocumentNotFound},
+        common::{BadRequest, DocumentNotFound, HistoryTooSmall},
+        warning::Warning,
     },
-    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentTag,
+        InteractedDocument,
+        PersonalizedDocument,
+        UserId,
+        UserInteractionType,
+    },
     storage::{self, KnnSearchParams},
     Error,
 };
@@ -53,11 +63,15 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
             web::resource("personalized_documents")
                 .route(web::get().to(personalized_documents.error_with_request_id())),
         );
-
     let semantic_search = web::resource("/semantic_search/{document_id}")
         .route(web::get().to(semantic_search.error_with_request_id()));
+    let stateless = web::resource("personalized_documents")
+        .route(web::post().to(stateless_personalized_documents.error_with_request_id()));
 
-    config.service(users).service(semantic_search);
+    config
+        .service(users)
+        .service(semantic_search)
+        .service(stateless);
 }
 
 /// Represents user interaction request body.
@@ -151,6 +165,160 @@ pub(crate) async fn update_interactions(
     Ok(())
 }
 
+#[derive(Deserialize)]
+struct StatelessPersonalizationRequest {
+    #[serde(default)]
+    count: Option<usize>,
+    #[serde(default)]
+    published_after: Option<DateTime<Utc>>,
+    history: Vec<UncheckedHistoryEntry>,
+}
+
+impl StatelessPersonalizationRequest {
+    fn history(
+        self,
+        config: &PersonalizationConfig,
+        warnings: &mut Vec<Warning>,
+    ) -> Result<Vec<HistoryEntry>, Error> {
+        if self.history.is_empty() {
+            return Err(HistoryTooSmall.into());
+        }
+
+        let max_history_len = config.max_stateless_history_size;
+        if self.history.len() > max_history_len {
+            warnings.push(format!("history truncated, max length is {max_history_len}").into());
+        }
+        let mut most_recent_time = Utc::now();
+        //input is from oldest to newest
+        let mut history = self
+            .history
+            .into_iter()
+            .rev()
+            .take(max_history_len)
+            .map(|unchecked| -> Result<_, Error> {
+                let id = unchecked.id.try_into()?;
+                let timestamp = unchecked.timestamp.unwrap_or(most_recent_time);
+                if timestamp > most_recent_time {
+                    warnings
+                        .push(format!("inconsistent history ordering around document {id}").into());
+                }
+                most_recent_time = timestamp;
+                Ok(HistoryEntry { id, timestamp })
+            })
+            .try_collect::<_, Vec<_>, _>()?;
+        history.reverse();
+        Ok(history)
+    }
+
+    fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
+        let count = self.count.map_or(config.default_number_documents, |count| {
+            count.min(config.max_number_documents)
+        });
+
+        if count > 0 {
+            Ok(count)
+        } else {
+            Err(BadRequest::from("count has to be at least 1").into())
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct UncheckedHistoryEntry {
+    id: String,
+    timestamp: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize)]
+struct HistoryEntry {
+    id: DocumentId,
+    timestamp: DateTime<Utc>,
+}
+
+#[instrument(skip_all)]
+async fn stateless_personalized_documents(
+    state: Data<AppState>,
+    Json(request): Json<StatelessPersonalizationRequest>,
+) -> Result<impl Responder, Error> {
+    let mut warnings = vec![];
+    let published_after = request.published_after;
+    let count = request.document_count(state.config.as_ref())?;
+    let history = request.history(state.config.as_ref(), &mut warnings)?;
+    let ids = history.iter().map(|document| &document.id).collect_vec();
+    let time = history
+        .last()
+        .unwrap(/* history has been checked */)
+        .timestamp;
+
+    let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
+    let documents_from_history = documents_from_history
+        .iter()
+        .map(|document| (&document.id, document))
+        .collect::<HashMap<_, _>>();
+
+    let mut interests = UserInterests::default();
+    for entry in &history {
+        let id = &entry.id;
+        if let Some(document) = documents_from_history.get(id) {
+            state.coi.log_positive_user_reaction(
+                &mut interests.positive,
+                &document.embedding,
+                entry.timestamp,
+            );
+        } else {
+            let msg = format!("document {id} does not exist");
+            warn!("{}", msg);
+            warnings.push(msg.into());
+        }
+    }
+
+    let excluded = history.iter().map(|entry| entry.id.clone()).collect_vec();
+    let mut documents = knn::Search {
+        interests: &interests.positive,
+        excluded: &excluded,
+        horizon: state.coi.config().horizon(),
+        max_cois: state.config.personalization.max_cois_for_knn,
+        count,
+        published_after,
+        time,
+    }
+    .run_on(&state.storage)
+    .await?;
+
+    let tag_weights = tag_weights_from_history(documents_from_history.values().copied());
+
+    rerank_by_interest_and_tag_weight(
+        &state.coi,
+        &mut documents,
+        &interests,
+        &tag_weights,
+        state.config.personalization.interest_tag_bias,
+        time,
+    );
+
+    Ok(Json(StatelessPersonalizationResponse {
+        documents: documents.into_iter().map(Into::into).collect(),
+        warnings,
+    }))
+}
+
+fn tag_weights_from_history<'a>(
+    documents_in_history: impl IntoIterator<Item = &'a InteractedDocument>,
+) -> HashMap<DocumentTag, usize> {
+    let mut weights = HashMap::default();
+    for document in documents_in_history {
+        for tag in &document.tags {
+            *weights.entry(tag.clone()).or_default() += 1;
+        }
+    }
+    weights
+}
+
+#[derive(Serialize)]
+struct StatelessPersonalizationResponse {
+    documents: Vec<PersonalizedDocumentData>,
+    warnings: Vec<Warning>,
+}
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct PersonalizedDocumentsQuery {
@@ -183,7 +351,7 @@ async fn personalized_documents(
         &user_id.into_inner().try_into()?,
         &state.config.personalization,
         PersonalizeBy::KnnSearch {
-            count: options.document_count(&state.config.personalization)?,
+            count: options.document_count(state.config.as_ref())?,
             published_after: options.published_after,
         },
         Utc::now(),
