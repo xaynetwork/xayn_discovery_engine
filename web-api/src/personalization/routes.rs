@@ -517,10 +517,21 @@ async fn semantic_search(
         .await?
         .ok_or(DocumentNotFound)?;
 
+    let mut excluded = if let (Some(personalize), true) = (
+        &personalize,
+        state.config.personalization.store_user_history,
+    ) {
+        storage::Interaction::get(&state.storage, &personalize.for_user).await?
+    } else {
+        Vec::new()
+    };
+
+    excluded.push(document_id);
+
     let mut documents = storage::Document::get_by_embedding(
         &state.storage,
         KnnSearchParams {
-            excluded: &[document_id],
+            excluded: &excluded,
             embedding: &embedding,
             k_neighbors: count,
             num_candidates: count,
