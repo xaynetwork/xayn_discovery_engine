@@ -81,7 +81,7 @@ async fn test_semantic_search() {
                 assert!(first.properties.is_null());
                 assert_eq!(second.properties, json!({ "dodo": 4 }))
             } else {
-                panic!("Unexpected number of documents: {:?}", documents);
+                panic!("Unexpected number of documents: {documents:?}");
             }
 
             Ok(())
@@ -102,17 +102,17 @@ async fn test_semantic_search_min_similarity() {
                 &[
                     IngestionDocument {
                         id: "d1".into(),
-                        snippet: "this is one sentence which we have".into(),
+                        snippet: "Computers are made of technology.".into(),
                         properties: None,
                     },
                     IngestionDocument {
                         id: "d2".into(),
-                        snippet: "1".into(),
-                        properties: Some(json!({ "dodo": 4 })),
+                        snippet: "Mountains smaller then a river.".into(),
+                        properties: None,
                     },
                     IngestionDocument {
                         id: "d3".into(),
-                        snippet: "this is another sentence which we have".into(),
+                        snippet: "Computer technology is made".into(),
                         properties: None,
                     },
                 ],
@@ -123,20 +123,17 @@ async fn test_semantic_search_min_similarity() {
                 &client,
                 client
                     .get(personalization_url.join("/semantic_search/d1")?)
-                    .query(&[("min_similarity", "0.5")])
+                    .query(&[("min_similarity", "0.6")])
                     .build()?,
                 StatusCode::OK,
             )
             .await;
 
-            if let [first, second] = &documents[..] {
+            if let [first] = &documents[..] {
                 assert_eq!(first.id, "d3");
-                assert_eq!(second.id, "d2");
-                assert!(first.score > second.score);
-                assert!(first.properties.is_null());
-                assert_eq!(second.properties, json!({ "dodo": 4 }))
+                assert!(first.score >= 0.6);
             } else {
-                panic!("Unexpected number of documents: {:?}", documents);
+                panic!("Unexpected number of documents: {documents:?}");
             }
 
             Ok(())
