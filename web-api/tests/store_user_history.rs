@@ -18,7 +18,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps};
+use xayn_integration_tests::{extend_config, send_assert, send_assert_json, test_two_apps};
 use xayn_web_api::{Ingestion, Personalization};
 
 #[derive(Deserialize)]
@@ -35,10 +35,13 @@ async fn store_user_history(enabled: bool) {
     test_two_apps::<Ingestion, Personalization, _>(
         |_| {},
         |config| {
-            config.extend(toml! {
-                [personalization]
-                store_user_history = enabled
-            });
+            extend_config(
+                config,
+                toml! {
+                    [personalization]
+                    store_user_history = enabled
+                },
+            );
         },
         |client, ingestion, personalization, _| async move {
             send_assert(

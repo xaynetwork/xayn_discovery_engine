@@ -34,7 +34,7 @@ use once_cell::sync::Lazy;
 use reqwest::{Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
-use toml::{toml, Table};
+use toml::{toml, Table, Value};
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
 
@@ -161,6 +161,19 @@ pub async fn test_two_apps<A1, A2, F>(
 
 pub fn unchanged_config(_: &mut Table) {}
 
+pub fn extend_config(current: &mut Table, extension: Table) {
+    for (key, value) in extension {
+        if let Some(current) = current.get_mut(&key) {
+            match (current, value) {
+                (Value::Table(current), Value::Table(value)) => extend_config(current, value),
+                (current, value) => *current = value,
+            }
+        } else {
+            current.insert(key, value);
+        }
+    }
+}
+
 pub async fn start_test_application<A>(
     services: &Services,
     configure: impl FnOnce(&mut Table),
@@ -281,5 +294,109 @@ mod tests {
             );
         }
         Ok(())
+    }
+
+    #[test]
+    fn test_extend_config_distinct() {
+        let mut config = toml! {
+            0 = "0"
+
+            [a]
+            0 = "a.0"
+        };
+        extend_config(
+            &mut config,
+            toml! {
+                1 = "1"
+
+                [b]
+                0 = "b.0"
+            },
+        );
+        assert_eq!(
+            config,
+            toml! {
+                0 = "0"
+                1 = "1"
+
+                [a]
+                0 = "a.0"
+
+                [b]
+                0 = "b.0"
+            },
+        );
+    }
+
+    #[test]
+    fn test_extend_config_subsume() {
+        let mut config = toml! {
+            0 = "0"
+
+            [a]
+            0 = "a.0"
+
+            [a.b]
+            0 = "a.b.0"
+        };
+        extend_config(
+            &mut config,
+            toml! {
+                0 = "00"
+
+                [a]
+                1 = "a.1"
+
+                [a.b]
+                0 = "a.b.00"
+
+                [a.c]
+                0 = "a.c.0"
+            },
+        );
+        assert_eq!(
+            config,
+            toml! {
+                0 = "00"
+
+                [a]
+                0 = "a.0"
+                1 = "a.1"
+
+                [a.b]
+                0 = "a.b.00"
+
+                [a.c]
+                0 = "a.c.0"
+            },
+        );
+    }
+
+    #[test]
+    fn test_extend_config_mismatch() {
+        let mut config = toml! {
+            0 = "0"
+
+            [a]
+            0 = "a.0"
+        };
+        extend_config(
+            &mut config,
+            toml! {
+                a = "a"
+
+                [0]
+                1 = "0.1"
+            },
+        );
+        assert_eq!(
+            config,
+            toml! {
+                a = "a"
+
+                [0]
+                1 = "0.1"
+            },
+        );
     }
 }
