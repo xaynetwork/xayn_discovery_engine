@@ -54,9 +54,6 @@ use crate::{
 };
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
-    let stateless = web::resource("personalized_documents")
-        .route(web::post().to(stateless_personalized_documents.error_with_request_id()));
-
     let users = web::scope("/users/{user_id}")
         .service(
             web::resource("interactions")
@@ -66,9 +63,10 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
             web::resource("personalized_documents")
                 .route(web::get().to(personalized_documents.error_with_request_id())),
         );
-
     let semantic_search = web::resource("/semantic_search/{document_id}")
         .route(web::get().to(semantic_search.error_with_request_id()));
+    let stateless = web::resource("personalized_documents")
+        .route(web::post().to(stateless_personalized_documents.error_with_request_id()));
 
     config
         .service(users)
@@ -274,9 +272,10 @@ async fn stateless_personalized_documents(
         }
     }
 
+    let excluded = history.iter().map(|entry| entry.id.clone()).collect_vec();
     let mut documents = knn::Search {
         interests: &interests.positive,
-        excluded: &[],
+        excluded: &excluded,
         horizon: state.coi.config().horizon(),
         max_cois: state.config.personalization.max_cois_for_knn,
         count,
