@@ -683,7 +683,7 @@ async fn run_saturation_test() -> Result<(), Error> {
 
         // interact with the document
         state
-            .interact(&user_id, &[document.id.clone()])
+            .interact(&user_id, &[document.id.clone()], Utc::now())
             .await
             .unwrap();
 
@@ -695,6 +695,7 @@ async fn run_saturation_test() -> Result<(), Error> {
                         count: benchmark_config.n_documents,
                         published_after: None,
                     },
+                    Utc::now(),
                 )
                 .await
                 .unwrap()
@@ -715,7 +716,10 @@ async fn run_saturation_test() -> Result<(), Error> {
                 .map(|(id, _)| id.clone())
                 .collect_vec();
             // interact with documents
-            state.interact(&user_id, &to_be_clicked).await.unwrap();
+            state
+                .interact(&user_id, &to_be_clicked, Utc::now())
+                .await
+                .unwrap();
 
             // add results to the topic result
             topic_result.iterations.push(SaturationIterationResult {
@@ -762,7 +766,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
             .collect_vec();
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(user_id, &ids_of_documents_to_prepare)
+            .interact(user_id, &ids_of_documents_to_prepare, Utc::now())
             .await
             .unwrap();
 
@@ -782,6 +786,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                         })
                         .map(|doc| doc.id.clone())
                         .collect_vec(),
+                    Utc::now(),
                 )
                 .await
                 .unwrap();
@@ -793,6 +798,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                         count: benchmark_config.n_documents,
                         published_after: None,
                     },
+                    Utc::now(),
                 )
                 .await
                 .unwrap()
@@ -826,6 +832,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                         })
                         .map(|(id, _)| id.clone())
                         .collect_vec(),
+                    Utc::now(),
                 )
                 .await
                 .unwrap();
@@ -894,7 +901,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                 .collect_vec();
             // prepare reranker by interacting with documents to prepare
             state
-                .interact(user_id, &ids_of_documents_to_prepare)
+                .interact(user_id, &ids_of_documents_to_prepare, Utc::now())
                 .await
                 .unwrap();
 
@@ -906,6 +913,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                             count: grid_search_config.n_documents,
                             published_after: None,
                         },
+                        Utc::now(),
                     )
                     .await
                     .unwrap()
@@ -939,6 +947,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                             })
                             .map(|(id, _)| id.clone())
                             .collect_vec(),
+                        Utc::now(),
                     )
                     .await
                     .unwrap();
