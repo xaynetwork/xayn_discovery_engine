@@ -164,7 +164,7 @@ impl Tokenize for Tokenizer {
 #[cfg(test)]
 mod tests {
     use ndarray::ArrayView;
-    use xayn_ai_test_utils::asset::{sjbert, smbert_mocked};
+    use xayn_test_utils::asset::{sjbert, smbert_mocked};
 
     use super::*;
 

@@ -34,8 +34,8 @@ use once_cell::sync::Lazy;
 use reqwest::{Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
-use toml::Table;
-use xayn_ai_test_utils::{env::clear_env, error::Panic};
+use toml::{toml, Table, Value};
+use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
 
 /// Absolute path to the root of the project as determined by `just`.
@@ -93,64 +93,6 @@ where
             panic!("Failed to decode body of {method} {target}, error: {err}\nbody: {text}")
         }
     }
-}
-
-/// Convenience helper for setting config options.
-///
-/// The paths must at any point refer to a table.
-/// Setting array elements is not supported.
-///
-/// Automatically inserts empty tables as necessary.
-///
-/// Works with both `Table` and `&mut Table`.
-///
-/// ```
-/// # use integration_tests::set_config_option;
-/// # use toml::{toml, Table};
-///
-/// let mut config = Table::default();
-/// set_config_option!( for config =>
-///     [storage.postgres]
-///     base_url = 0;
-///
-///     [storage.elastic]
-///     url = "hy";
-///     index = vec![1,2,3];
-///
-///     [embedding]
-///     directory = "../assets/smbert_v0003";
-/// );
-///
-/// assert_eq!(config, toml! {
-///     [storage.postgres]
-///     base_url = 0
-///
-///     [storage.elastic]
-///     url = "hy"
-///     index = [1,2,3]
-///
-///     [embedding]
-///     directory = "../assets/smbert_v0003"
-/// })
-/// ```
-#[macro_export]
-macro_rules! set_config_option {
-    (for $config:ident => $(
-        [$($key:ident).+]
-        $($key_last:ident = $value:expr;)*
-    )* $(;)?) => {$(
-        let path = [$(stringify!($key)),+];
-        let mut current_base: &mut Table = &mut $config;
-        for sub_table_key in path {
-            current_base = current_base.entry(sub_table_key.to_owned())
-                .or_insert_with(|| Table::default().into())
-                .as_table_mut()
-                .unwrap();
-        }
-        $(
-            current_base.insert(stringify!($key_last).to_owned(), $value.into());
-        )*
-    )*};
 }
 
 const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
@@ -219,6 +161,19 @@ pub async fn test_two_apps<A1, A2, F>(
 
 pub fn unchanged_config(_: &mut Table) {}
 
+pub fn extend_config(current: &mut Table, extension: Table) {
+    for (key, value) in extension {
+        if let Some(current) = current.get_mut(&key) {
+            match (current, value) {
+                (Value::Table(current), Value::Table(value)) => extend_config(current, value),
+                (current, value) => *current = value,
+            }
+        } else {
+            current.insert(key, value);
+        }
+    }
+}
+
 pub async fn start_test_application<A>(
     services: &Services,
     configure: impl FnOnce(&mut Table),
@@ -227,20 +182,19 @@ where
     A: Application + 'static,
 {
     let (es_url, es_index) = services.elastic_search.as_str().rsplit_once('/').unwrap();
+    let pg_url = services.postgres.as_str();
 
-    let mut config = Table::default();
-
-    set_config_option!( for config =>
+    let mut config = toml! {
         [storage.postgres]
-        base_url = services.postgres.as_str();
+        base_url = pg_url
 
         [storage.elastic]
-        url = es_url;
-        index_name = es_index;
+        url = es_url
+        index_name = es_index
 
         [embedding]
-        directory = "../assets/smbert_v0003";
-    );
+        directory = "../assets/smbert_v0003"
+    };
 
     configure(&mut config);
 
@@ -326,7 +280,6 @@ fn start_test_service_containers() -> Result<(), anyhow::Error> {
 #[cfg(test)]
 mod tests {
     use regex::Regex;
-    use toml::toml;
 
     use super::*;
 
@@ -344,69 +297,106 @@ mod tests {
     }
 
     #[test]
-    fn test_set_config_option_works() {
-        let mut config = Table::default();
-        set_config_option!( for config =>
-            [storage.postgres]
-            base_url = 0;
+    fn test_extend_config_distinct() {
+        let mut config = toml! {
+            0 = "0"
 
-            [storage.elastic]
-            url = "hy";
-            index = vec![1,2,3];
+            [a]
+            0 = "a.0"
+        };
+        extend_config(
+            &mut config,
+            toml! {
+                1 = "1"
 
-            [embedding]
-            directory = "../assets/smbert_v0003";
+                [b]
+                0 = "b.0"
+            },
         );
-
         assert_eq!(
             config,
             toml! {
-                [storage.postgres]
-                base_url = 0
+                0 = "0"
+                1 = "1"
 
-                [storage.elastic]
-                url = "hy"
-                index = [1,2,3]
+                [a]
+                0 = "a.0"
 
-                [embedding]
-                directory = "../assets/smbert_v0003"
-            }
-        )
+                [b]
+                0 = "b.0"
+            },
+        );
     }
 
     #[test]
-    fn test_set_config_option_works_with_mut_ref() {
-        let mut config = &mut Table::default();
-        set_config_option!( for config =>
-            [t]
+    fn test_extend_config_subsume() {
+        let mut config = toml! {
+            0 = "0"
 
-            [storage.postgres]
-            base_url = 0;
+            [a]
+            0 = "a.0"
 
-            [storage.elastic]
-            url = "hy";
+            [a.b]
+            0 = "a.b.0"
+        };
+        extend_config(
+            &mut config,
+            toml! {
+                0 = "00"
 
-            [storage.elastic]
-            index = vec![1,2,3];
+                [a]
+                1 = "a.1"
 
-            [embedding]
-            directory = "../assets/smbert_v0003";
+                [a.b]
+                0 = "a.b.00"
+
+                [a.c]
+                0 = "a.c.0"
+            },
         );
-
         assert_eq!(
             config,
-            &mut toml! {
-                [t]
-                [storage.postgres]
-                base_url = 0
+            toml! {
+                0 = "00"
 
-                [storage.elastic]
-                url = "hy"
-                index = [1,2,3]
+                [a]
+                0 = "a.0"
+                1 = "a.1"
 
-                [embedding]
-                directory = "../assets/smbert_v0003"
-            }
-        )
+                [a.b]
+                0 = "a.b.00"
+
+                [a.c]
+                0 = "a.c.0"
+            },
+        );
+    }
+
+    #[test]
+    fn test_extend_config_mismatch() {
+        let mut config = toml! {
+            0 = "0"
+
+            [a]
+            0 = "a.0"
+        };
+        extend_config(
+            &mut config,
+            toml! {
+                a = "a"
+
+                [0]
+                1 = "0.1"
+            },
+        );
+        assert_eq!(
+            config,
+            toml! {
+                a = "a"
+
+                [0]
+                1 = "0.1"
+            },
+        );
     }
 }

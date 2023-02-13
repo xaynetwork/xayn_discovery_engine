@@ -1554,24 +1554,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "integration-tests"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "chrono",
- "once_cell",
- "regex",
- "reqwest",
- "scopeguard",
- "serde",
- "serde_json",
- "tokio",
- "toml 0.7.2",
- "xayn-ai-test-utils",
- "xayn-web-api",
-]
-
-[[package]]
 name = "io-lifetimes"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4133,7 +4115,7 @@ dependencies = [
  "thiserror",
  "tokenizers",
  "tract-onnx",
- "xayn-ai-test-utils",
+ "xayn-test-utils",
 ]
 
 [[package]]
@@ -4155,11 +4137,29 @@ dependencies = [
  "tracing",
  "uuid",
  "xayn-ai-bert",
- "xayn-ai-test-utils",
+ "xayn-test-utils",
 ]
 
 [[package]]
-name = "xayn-ai-test-utils"
+name = "xayn-integration-tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "once_cell",
+ "regex",
+ "reqwest",
+ "scopeguard",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml 0.7.2",
+ "xayn-test-utils",
+ "xayn-web-api",
+]
+
+[[package]]
+name = "xayn-test-utils"
 version = "0.1.0"
 dependencies = [
  "float-cmp",
@@ -4203,6 +4203,7 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokio",
+ "toml 0.7.2",
  "tracing",
  "tracing-subscriber",
  "trycmd",
@@ -4211,7 +4212,8 @@ dependencies = [
  "uuid",
  "xayn-ai-bert",
  "xayn-ai-coi",
- "xayn-ai-test-utils",
+ "xayn-integration-tests",
+ "xayn-test-utils",
 ]
 
 [[package]]

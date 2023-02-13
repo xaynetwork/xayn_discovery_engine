@@ -95,7 +95,7 @@ mod tests {
 
     use serde::{Deserialize, Serialize};
     use serde_json::{from_str, to_string};
-    use xayn_ai_test_utils::assert_approx_eq;
+    use xayn_test_utils::assert_approx_eq;
 
     use super::*;
 

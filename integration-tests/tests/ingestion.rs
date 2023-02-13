@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use integration_tests::{send_assert, test_app};
 use reqwest::StatusCode;
 use serde_json::json;
+use xayn_integration_tests::{send_assert, test_app};
 use xayn_web_api::Ingestion;
 
 #[tokio::test]
