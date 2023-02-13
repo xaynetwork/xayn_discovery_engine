@@ -17,7 +17,7 @@ jobs:
   rust-build:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v9
+      image: xaynetci/yellow:v10
     timeout-minutes: 10
     steps:
       - name: Checkout repository
@@ -65,7 +65,7 @@ jobs:
         uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@8c0edbc76e98fa90f69d9a2c020dcb50019dc325 # v2.2.1
+        uses: docker/setup-buildx-action@f03ac48505955848960e80bbb68046aa35c7b9e7 # v2.4.1
 
       - name: Download artifacts
         id: artifacts

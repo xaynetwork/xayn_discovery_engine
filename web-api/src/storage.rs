@@ -29,6 +29,7 @@ use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
 
 use crate::{
+    app::SetupError,
     error::common::DocumentIdAsObject,
     models::{
         self,
@@ -40,7 +41,6 @@ use crate::{
         PersonalizedDocument,
         UserId,
     },
-    server::SetupError,
     Error,
 };
 
@@ -51,6 +51,8 @@ pub(crate) struct KnnSearchParams<'a> {
     // must be >= k_neighbors
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
+    pub(crate) min_similarity: Option<f32>,
+    pub(crate) time: DateTime<Utc>,
 }
 
 #[derive(Debug, Error, From)]
@@ -77,6 +79,8 @@ pub(crate) trait Document {
         &self,
         ids: &[&DocumentId],
     ) -> Result<Vec<PersonalizedDocument>, Error>;
+
+    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
 
     async fn get_by_embedding<'a>(
         &self,
@@ -135,18 +139,21 @@ pub(crate) struct InteractionUpdateContext<'s, 'l> {
     pub(crate) document: &'s InteractedDocument,
     pub(crate) tag_weight_diff: &'s mut HashMap<&'l DocumentTag, i32>,
     pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
+    pub(crate) time: DateTime<Utc>,
 }
 
 #[async_trait]
 pub(crate) trait Interaction {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error>;
 
-    async fn user_seen(&self, id: &UserId) -> Result<(), Error>;
+    async fn user_seen(&self, id: &UserId, time: DateTime<Utc>) -> Result<(), Error>;
 
     async fn update_interactions<F>(
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
+        store_user_history: bool,
+        time: DateTime<Utc>,
         update_logic: F,
     ) -> Result<(), Error>
     where
@@ -159,10 +166,9 @@ pub(crate) trait Tag {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub(crate) struct Config {
-    #[serde(default)]
+#[serde(default)]
+pub struct Config {
     elastic: elastic::Config,
-    #[serde(default)]
     postgres: postgres::Config,
 }
 
@@ -175,7 +181,13 @@ impl Config {
     }
 }
 
-pub(crate) struct Storage {
+pub struct Storage {
     elastic: elastic::Client,
     postgres: postgres::Database,
+}
+
+impl Storage {
+    pub async fn close(&self) {
+        self.postgres.close().await;
+    }
 }

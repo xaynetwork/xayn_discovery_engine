@@ -77,8 +77,8 @@ build: rust-build
 rust-test: download-assets
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cargo test --lib --bins --tests --quiet --locked
-    cargo test --doc --quiet --locked
+    cargo test --lib --bins --tests --locked
+    cargo test --doc --locked
 
 # Tests all code
 test: rust-test
@@ -116,25 +116,31 @@ build-web-service:
     cargo build --release --bin personalization
 
 build-ingestion-service:
-    #!/usr/bin/env bash
+    #!/usr/bin/env -S bash -eux -o pipefail
     set -eux -o pipefail
     cargo build --release --bin ingestion
 
 web-dev-up:
     #!/usr/bin/env -S bash -eux -o pipefail
-    rm "./web-api/assets" || :
-    ln -s "./assets/smbert_v0003" "./web-api/assets"
-    compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.db.yml" up --detach --remove-orphans
+    PROJECT=web-dev
+    # -gt 1 because of the heading
+    if [[ "$(docker ps --filter "label=com.docker.compose.project=$PROJECT" | wc -l)" -gt 1 ]]; then
+        echo "web-dev composition is already running, SKIPPING STARTUP"
+        exit 0
+    fi
+    if [[ "$(ls -l web-api/assets | grep 'assets/smbert_v0003' | wc -l)" == "0" ]]; then
+        rm "./web-api/assets" || :
+        ln -s "./assets/smbert_v0003" "./web-api/assets"
+    fi
+    export HOST_PORT_SCOPE=30
+    docker-compose -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
 
 web-dev-down:
     #!/usr/bin/env -S bash -eux -o pipefail
-    compose="$(command -v podman-compose || command -v docker-compose)"
-    $compose -f "./web-api/compose.db.yml" down
+    docker-compose -p web-dev -f "./web-api/compose.db.yml" down
 
 build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     #!/usr/bin/env -S bash -eux -o pipefail
-    ociBuilder="$(command -v podman || command -v docker)"
     out="$(mktemp -d -t xayn.web-api.compose.XXXX)"
     echo "Building in: $out"
     cargo install \
@@ -148,7 +154,7 @@ build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     if [ -n "$ASSET_DIR" ]; then
         cp -R "$ASSET_DIR" "$out/assets"
     fi
-    "$ociBuilder" build -f "$CRATE_PATH/Dockerfile" -t "xayn-$CRATE_PATH-$BIN" "$out"
+    docker build -f "$CRATE_PATH/Dockerfile" -t "xayn-$CRATE_PATH-$BIN" "$out"
     rm -rf "$out"
 
 compose-all-build $SMBERT="smbert_v0003":
@@ -158,22 +164,29 @@ compose-all-build $SMBERT="smbert_v0003":
 
 compose-all-up *args:
     #!/usr/bin/env -S bash -eux -o pipefail
-    compose="$(command -v podman-compose || command -v docker-compose)"
-    "$compose" \
-        -f web-api/compose.db.yml \
-        -f web-api/compose.personalization.yml \
-        -f web-api/compose.ingestion.yml \
-        {{args}} \
-        up
+    PROJECT="compose-all"
+    # -gt 1 because of the heading
+    if [[ "$(docker ps --filter "label=com.docker.compose.project=$PROJECT" | wc -l)" -gt 1 ]]; then
+        echo "compose-all composition is already running, can not continue in this case"
+        exit 1
+    fi
+    export HOST_PORT_SCOPE=40
+    docker-compose \
+        -p "$PROJECT" \
+        -f "./web-api/compose.db.yml" \
+        -f "./web-api/compose.personalization.yml" \
+        -f "./web-api/compose.ingestion.yml" \
+        up \
+        --detach --remove-orphans --build {{args}}
 
-compose-all-down:
+compose-all-down *args:
     #!/usr/bin/env -S bash -eux -o pipefail
-    compose="$(command -v podman-compose || command -v docker-compose)"
-    "$compose" \
-        -f web-api/compose.db.yml \
-        -f web-api/compose.personalization.yml \
-        -f web-api/compose.ingestion.yml \
-        down
+    docker-compose \
+        -p "compose-all" \
+        -f "./web-api/compose.db.yml" \
+        -f "./web-api/compose.personalization.yml" \
+        -f "./web-api/compose.ingestion.yml" \
+        down {{args}}
 
 install-openapi-validator:
     #!/usr/bin/env -S bash -eux -o pipefail
@@ -183,7 +196,12 @@ install-openapi-validator:
       validator@${VALIDATOR_VERSION}
 
 validate-openapi:
-    spectral lint --verbose -F warn web-api/openapi/*.yaml
+    #!/usr/bin/env -S bash -eux -o pipefail
+    # We need to call it once per file, if we pass in multiple files it will
+    # have some bug where it does not report error correctly.
+    for file in ls web-api/openapi/*.yaml; do
+        spectral lint --verbose -F warn "$file"
+    done
 
 print-just-env:
     export
@@ -191,6 +209,45 @@ print-just-env:
 mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
+
+_test-project-root:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    echo -n {{justfile_directory()}}
+
+_test-generate-id:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
+
+_test-create-dbs $TEST_ID:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    if [[ "${CI:-false}" == "true" ]]; then
+        PG_HOST="postgres:5432"
+        ES_HOST="elasticsearch:9200"
+    else
+        PG_HOST="localhost:3054"
+        ES_HOST="localhost:3092"
+    fi
+    PG_BASE="postgresql://user:pw@${PG_HOST}"
+    ES_URL="http://${ES_HOST}/${TEST_ID}"
+
+    psql -c "CREATE DATABASE ${TEST_ID};" "${PG_BASE}/xayn" 1>&2
+    ./web-api/elastic-search/create_es_index.sh "${ES_URL}"
+
+    echo "PG_URL=${PG_BASE}/${TEST_ID}"
+    echo "ES_URL=${ES_URL}"
+
+_test-drop-dbs $TEST_ID:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    if [[ "${CI:-false}" == "true" ]]; then
+        PG_HOST="postgres:5432"
+        ES_HOST="elasticsearch:9200"
+    else
+        PG_HOST="localhost:3054"
+        ES_HOST="localhost:3092"
+    fi
+
+    psql -c "DROP DATABASE ${TEST_ID};" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
+    curl -sf -X DELETE "http://${ES_HOST}/${TEST_ID}"
 
 alias r := rust-test
 alias t := test

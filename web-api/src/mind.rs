@@ -19,6 +19,7 @@
 use std::{collections::HashMap, fs::File, io, io::Write, path::Path};
 
 use anyhow::Error;
+use chrono::{DateTime, Utc};
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use itertools::Itertools;
 use ndarray::{Array, Array3, Array4, ArrayView};
@@ -98,29 +99,48 @@ impl State {
             .map_err(Into::into)
     }
 
-    async fn interact(&self, user: &UserId, documents: &[DocumentId]) -> Result<(), Error> {
+    async fn interact(
+        &self,
+        user: &UserId,
+        documents: &[DocumentId],
+        time: DateTime<Utc>,
+    ) -> Result<(), Error> {
         let interactions = documents
             .iter()
             .map(|id| (id.clone(), UserInteractionType::Positive))
             .collect_vec();
 
-        update_interactions(&self.storage, &self.coi, user, &interactions)
-            .await
-            .map_err(Into::into)
+        update_interactions(
+            &self.storage,
+            &self.coi,
+            user,
+            &interactions,
+            self.personalization.store_user_history,
+            time,
+        )
+        .await
+        .map_err(Into::into)
     }
 
     async fn personalize(
         &self,
         user: &UserId,
         by: PersonalizeBy<'_>,
+        time: DateTime<Utc>,
     ) -> Result<Option<Vec<DocumentId>>, Error> {
-        personalize_documents_by(&self.storage, &self.coi, user, &self.personalization, by)
-            .await
-            .map(|documents| {
-                documents
-                    .map(|documents| documents.into_iter().map(|document| document.id).collect())
-            })
-            .map_err(Into::into)
+        personalize_documents_by(
+            &self.storage,
+            &self.coi,
+            user,
+            &self.personalization,
+            by,
+            time,
+        )
+        .await
+        .map(|documents| {
+            documents.map(|documents| documents.into_iter().map(|document| document.id).collect())
+        })
+        .map_err(Into::into)
     }
 }
 
@@ -495,7 +515,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
             .collect_vec();
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(user_id, &ids_of_documents_to_prepare)
+            .interact(user_id, &ids_of_documents_to_prepare, Utc::now())
             .await
             .unwrap();
 
@@ -507,6 +527,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                         count: benchmark_config.n_documents,
                         published_after: None,
                     },
+                    Utc::now(),
                 )
                 .await
                 .unwrap()
@@ -540,6 +561,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                         })
                         .map(|(id, _)| id.clone())
                         .collect_vec(),
+                    Utc::now(),
                 )
                 .await
                 .unwrap();
@@ -576,7 +598,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
 
             if !users.contains(&impression.user_id) {
                 users.push(impression.user_id);
-                state.interact(&user, clicks).await.unwrap();
+                state.interact(&user, clicks, Utc::now()).await.unwrap();
             }
 
             let document_ids = impression
@@ -586,7 +608,11 @@ async fn run_user_benchmark() -> Result<(), Error> {
                 .collect::<Vec<_>>();
 
             state
-                .personalize(&user, PersonalizeBy::Documents(document_ids.as_slice()))
+                .personalize(
+                    &user,
+                    PersonalizeBy::Documents(document_ids.as_slice()),
+                    Utc::now(),
+                )
                 .await
                 .unwrap()
                 .unwrap()

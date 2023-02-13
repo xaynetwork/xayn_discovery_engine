@@ -11,100 +11,115 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
+mod knn;
+mod rerank;
 pub(crate) mod routes;
 
 use actix_web::web::ServiceConfig;
+use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
-    server::{self, Application},
-    storage::Storage,
+    app::{self, Application, SetupError},
+    logging,
+    net,
+    storage::{self, Storage},
 };
 
 pub struct Personalization;
 
+#[async_trait]
 impl Application for Personalization {
-    type ConfigExtension = ConfigExtension;
-    type AppStateExtension = AppStateExtension;
+    const NAME: &'static str = "XAYN_PERSONALIZATION";
+
+    type Config = Config;
+    type Extension = Extension;
+    type Storage = Storage;
 
     fn configure_service(config: &mut ServiceConfig) {
         routes::configure_service(config);
     }
 
-    fn create_app_state_extension(
-        config: &server::Config<Self::ConfigExtension>,
-    ) -> Result<Self::AppStateExtension, server::SetupError> {
-        Ok(AppStateExtension {
-            coi: config.extension.coi.clone().build(),
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
+        Ok(Extension {
+            coi: config.coi.clone().build(),
         })
+    }
+
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError> {
+        config.setup().await
+    }
+
+    async fn close_storage(storage: &Self::Storage) {
+        storage.close().await;
     }
 }
 
-type AppState = server::AppState<
-    <Personalization as Application>::ConfigExtension,
-    <Personalization as Application>::AppStateExtension,
-    Storage,
->;
+type AppState = app::AppState<Personalization>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-pub struct ConfigExtension {
-    #[as_ref]
-    #[serde(default)]
+#[serde(default)]
+pub struct Config {
+    pub(crate) logging: logging::Config,
+    pub(crate) net: net::Config,
+    pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
-
-    #[as_ref]
-    #[serde(default)]
     pub(crate) personalization: PersonalizationConfig,
+    pub(crate) semantic_search: SemanticSearchConfig,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub(crate) struct PersonalizationConfig {
     /// Max number of documents to return.
-    #[serde(default = "default_max_number_documents")]
     pub(crate) max_number_documents: usize,
+
     /// Default number of documents to return.
-    #[serde(default = "default_default_number_documents")]
     pub(crate) default_number_documents: usize,
+
     /// Max number of positive cois to use in knn search.
-    #[serde(default = "default_max_cois_for_knn")]
     pub(crate) max_cois_for_knn: usize,
+
     /// Weighting of user interests vs document tags. Must be in the interval `[0, 1]`.
-    #[serde(default = "default_interest_tag_bias")]
     pub(crate) interest_tag_bias: f32,
-}
 
-const fn default_max_number_documents() -> usize {
-    100
-}
-
-const fn default_default_number_documents() -> usize {
-    100
-}
-
-const fn default_max_cois_for_knn() -> usize {
-    //FIXME what is a default value we know works well with how we do knn?
-    10
-}
-
-const fn default_interest_tag_bias() -> f32 {
-    0.8
+    /// Whether to store the history of user interactions.
+    pub(crate) store_user_history: bool,
 }
 
 impl Default for PersonalizationConfig {
     fn default() -> Self {
         Self {
-            max_number_documents: default_max_number_documents(),
-            default_number_documents: default_default_number_documents(),
-            max_cois_for_knn: default_max_cois_for_knn(),
-            interest_tag_bias: default_interest_tag_bias(),
+            max_number_documents: 100,
+            default_number_documents: 10,
+            // FIXME: what is a default value we know works well with how we do knn?
+            max_cois_for_knn: 10,
+            interest_tag_bias: 0.5,
+            store_user_history: true,
         }
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub(crate) struct SemanticSearchConfig {
+    /// Max number of documents to return.
+    pub(crate) max_number_documents: usize,
+    /// Default number of documents to return.
+    pub(crate) default_number_documents: usize,
+}
+
+impl Default for SemanticSearchConfig {
+    fn default() -> Self {
+        Self {
+            max_number_documents: 100,
+            default_number_documents: 10,
+        }
+    }
+}
 #[derive(AsRef)]
-pub struct AppStateExtension {
-    #[as_ref]
+pub struct Extension {
     pub(crate) coi: CoiSystem,
 }

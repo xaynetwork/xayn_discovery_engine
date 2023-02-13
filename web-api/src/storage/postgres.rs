@@ -41,63 +41,44 @@ use crate::{
     Error,
 };
 
-fn default_base_url() -> String {
-    "postgres://user:pw@localhost:5432/xayn".into()
-}
-
-fn default_password() -> Secret<String> {
-    String::from("pw").into()
-}
-
-fn default_application_name() -> Option<String> {
-    option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}"))
-}
-
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub(crate) struct Config {
     /// The default base url.
     ///
     /// Passwords in the URL will be ignored, do not set the
     /// db password with the db url.
-    #[serde(default = "default_base_url")]
     base_url: String,
 
     /// Override port from base url.
-    #[serde(default)]
     port: Option<u16>,
 
     /// Override user from base url.
-    #[serde(default)]
     user: Option<String>,
 
     /// Sets the password.
-    #[serde(default = "default_password", serialize_with = "serialize_redacted")]
+    #[serde(serialize_with = "serialize_redacted")]
     password: Secret<String>,
 
     /// Override db from base url.
-    #[serde(default)]
     db: Option<String>,
 
     /// Override default application name from base url.
-    ///
-    /// Defaults to `xayn-web-{CARGO_BIN_NAME}`.
-    #[serde(default = "default_application_name")]
     application_name: Option<String>,
 
     /// If true skips running db migrations on start up.
-    #[serde(default)]
     skip_migrations: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            base_url: default_base_url(),
-            user: None,
-            password: default_password(),
-            db: None,
+            base_url: "postgres://user:pw@localhost:5432/xayn".into(),
             port: None,
-            application_name: default_application_name(),
+            user: None,
+            password: String::from("pw").into(),
+            db: None,
+            application_name: option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}")),
             skip_migrations: false,
         }
     }
@@ -154,6 +135,10 @@ pub(crate) struct Database {
 impl Database {
     // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
     const BIND_LIMIT: usize = 65_535;
+
+    pub(crate) async fn close(&self) {
+        self.pool.close().await;
+    }
 
     pub(crate) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
@@ -280,7 +265,7 @@ impl Database {
                 stats: CoiStats {
                     view_count: coi.view_count as usize,
                     view_time: Duration::from_millis(coi.view_time_ms as u64),
-                    last_view: coi.last_view.into(),
+                    last_view: coi.last_view,
                 },
             })
             .collect_vec();
@@ -290,7 +275,7 @@ impl Database {
             .map(|coi| NegativeCoi {
                 id: coi.coi_id,
                 point: coi.embedding,
-                last_view: coi.last_view.into(),
+                last_view: coi.last_view,
             })
             .collect_vec();
 
@@ -307,7 +292,7 @@ impl Database {
     async fn upsert_cois(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        now: DateTime<Utc>,
+        time: DateTime<Utc>,
         cois: &HashMap<CoiId, PositiveCoi>,
     ) -> Result<(), Error> {
         let mut builder = QueryBuilder::new(
@@ -334,7 +319,7 @@ impl Database {
                         .push_bind(update.point.to_vec())
                         .push_bind(update.stats.view_count as i32)
                         .push_bind(update.stats.view_time.as_millis() as i64)
-                        .push_bind(now);
+                        .push_bind(time);
                 })
                 .push(
                     " ON CONFLICT (coi_id) DO UPDATE SET
@@ -354,7 +339,7 @@ impl Database {
     async fn upsert_interactions(
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
-        now: DateTime<Utc>,
+        time: DateTime<Utc>,
         interactions: &HashMap<&DocumentId, (&InteractedDocument, UserInteractionType)>,
     ) -> Result<(), Error> {
         //FIXME micro benchmark and chunking+persist abstraction
@@ -372,7 +357,7 @@ impl Database {
                     builder
                         .push_bind(document_id)
                         .push_bind(user_id)
-                        .push_bind(now)
+                        .push_bind(time)
                         .push_bind(*interaction as i16);
                 })
                 .push(
@@ -468,61 +453,57 @@ impl storage::Interaction for Storage {
         Ok(documents.into_iter().map_into().collect())
     }
 
-    async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
+    async fn user_seen(&self, id: &UserId, time: DateTime<Utc>) -> Result<(), Error> {
         sqlx::query(
             "INSERT INTO users (user_id, last_seen)
-            VALUES ($1, Now())
+            VALUES ($1, $2)
             ON CONFLICT (user_id)
             DO UPDATE SET last_seen = EXCLUDED.last_seen;",
         )
         .bind(id)
+        .bind(time)
         .execute(&self.postgres.pool)
         .await?;
 
         Ok(())
     }
 
-    #[allow(clippy::too_many_lines)]
     async fn update_interactions<F>(
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
+        store_user_history: bool,
+        time: DateTime<Utc>,
         mut update_logic: F,
     ) -> Result<(), Error>
     where
         F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
     {
         let mut tx = self.postgres.pool.begin().await?;
-
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
         let documents = self
             .get_interacted_with_transaction(updated_document_ids, Some(&mut tx))
             .await?;
-
-        let now = Utc::now();
-
-        let mut document_map = documents
+        let document_map = documents
             .iter()
-            .map(|d| (&d.id, (d, UserInteractionType::Positive)))
+            .map(|document| (&document.id, (document, UserInteractionType::Positive)))
             .collect::<HashMap<_, _>>();
-
-        let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
-
         let mut tag_weight_diff = documents
             .iter()
             .flat_map(|document| &document.tags)
             .map(|tag| (tag, 0))
             .collect::<HashMap<_, _>>();
 
+        let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
         let mut updates = HashMap::new();
-
         for id in updated_document_ids {
-            if let Some((document, _)) = document_map.get_mut(id) {
+            if let Some((document, _)) = document_map.get(id) {
                 let updated_coi = update_logic(InteractionUpdateContext {
                     document,
                     tag_weight_diff: &mut tag_weight_diff,
                     positive_cois: &mut interests.positive,
+                    time,
                 });
                 // We might update the same coi min `interests` multiple times,
                 // if we do we only want to keep the latest update.
@@ -532,10 +513,10 @@ impl storage::Interaction for Storage {
             }
         }
 
-        Database::upsert_cois(&mut tx, user_id, now, &updates).await?;
-
-        Database::upsert_interactions(&mut tx, user_id, now, &document_map).await?;
-
+        Database::upsert_cois(&mut tx, user_id, time, &updates).await?;
+        if store_user_history {
+            Database::upsert_interactions(&mut tx, user_id, time, &document_map).await?;
+        }
         Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
 
         tx.commit().await?;

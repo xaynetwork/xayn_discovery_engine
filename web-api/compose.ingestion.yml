@@ -7,17 +7,14 @@ services:
       XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL:  "postgres://user:pw@postgres:5432/xayn"
       XAYN_WEB_API__STORAGE__ELASTIC__URL: "http://elasticsearch:9200/"
     ports:
-      - 3030:3030
+      - "${HOST_PORT_SCOPE:-30}30:3030"
     depends_on:
-      - elasticsearch
-      - postgres
+      db_ready:
+        condition: service_completed_successfully
     networks:
       - internal
       - publisher
 
 networks:
-  # See other compose.db.yml
   internal:
-    name: xayn-web-api_internal
   publisher:
-    name: xayn-web-api_publisher

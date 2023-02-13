@@ -12,34 +12,40 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use derive_more::{AsRef, Deref};
 
-use crate::{
-    server::{Config, SetupError},
-    storage::Storage,
-};
+use crate::app::{Application, SetupError};
 
-#[derive(Deref, AsRef)]
-pub(crate) struct AppState<CE, AE, S> {
-    #[as_ref]
-    pub(crate) config: Config<CE>,
+#[derive(AsRef, Deref)]
+pub(crate) struct AppState<A>
+where
+    A: Application,
+{
+    #[as_ref(forward)]
+    pub(crate) config: A::Config,
     #[deref]
-    pub(crate) extension: AE,
-    pub(crate) storage: S,
+    pub(crate) extension: A::Extension,
+    pub(crate) storage: A::Storage,
 }
 
-impl<CE, AE> AppState<CE, AE, Storage> {
-    pub(super) async fn create(
-        config: Config<CE>,
-        create_extension: impl FnOnce(&Config<CE>) -> Result<AE, SetupError>,
-    ) -> Result<Self, SetupError> {
-        let extension = create_extension(&config)?;
-        let storage = config.storage.setup().await?;
+impl<A> AppState<A>
+where
+    A: Application,
+{
+    pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
+        let extension = A::create_extension(&config)?;
+        let storage = A::setup_storage(config.as_ref()).await?;
 
         Ok(Self {
             config,
             extension,
             storage,
         })
+    }
+
+    pub(super) async fn close(self: Arc<Self>) {
+        A::close_storage(&self.storage).await;
     }
 }

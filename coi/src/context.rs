@@ -12,11 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    collections::HashMap,
-    time::{Duration, SystemTime},
-};
+use std::time::Duration;
 
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 
@@ -25,18 +23,17 @@ use crate::{
     document::Document,
     point::{find_closest_coi, find_closest_coi_index, NegativeCoi, PositiveCoi},
     stats::{compute_coi_decay_factor, compute_coi_relevances},
-    utils::system_time_now,
 };
 
 fn compute_score_for_closest_positive_coi(
     embedding: &NormalizedEmbedding,
     cois: &[PositiveCoi],
     horizon: Duration,
-    now: SystemTime,
+    time: DateTime<Utc>,
 ) -> Option<f32> {
     find_closest_coi_index(cois, embedding).map(|(index, similarity)| {
-        let decay = compute_coi_decay_factor(horizon, now, cois[index].stats.last_view);
-        let relevance = compute_coi_relevances(cois, horizon, now)[index];
+        let decay = compute_coi_decay_factor(horizon, time, cois[index].stats.last_view);
+        let relevance = compute_coi_relevances(cois, horizon, time)[index];
         similarity * decay + relevance
     })
 }
@@ -45,10 +42,10 @@ fn compute_score_for_closest_negative_coi(
     embedding: &NormalizedEmbedding,
     cois: &[NegativeCoi],
     horizon: Duration,
-    now: SystemTime,
+    time: DateTime<Utc>,
 ) -> Option<f32> {
     find_closest_coi(cois, embedding).map(|(coi, similarity)| {
-        let decay = compute_coi_decay_factor(horizon, now, coi.last_view);
+        let decay = compute_coi_decay_factor(horizon, time, coi.last_view);
         similarity * decay
     })
 }
@@ -70,11 +67,11 @@ impl UserInterests {
         &self,
         embedding: &NormalizedEmbedding,
         horizon: Duration,
-        now: SystemTime,
+        time: DateTime<Utc>,
     ) -> Option<f32> {
         match (
-            compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, now),
-            compute_score_for_closest_negative_coi(embedding, &self.negative, horizon, now),
+            compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, time),
+            compute_score_for_closest_negative_coi(embedding, &self.negative, horizon, time),
         ) {
             (Some(positive), Some(negative)) => Some(positive - negative),
             (Some(positive), None) => Some(positive),
@@ -94,16 +91,15 @@ impl UserInterests {
         &self,
         documents: &[D],
         config: &Config,
-    ) -> Option<HashMap<D::Id, f32>>
+        time: DateTime<Utc>,
+    ) -> Option<Vec<f32>>
     where
         D: Document,
     {
-        let now = system_time_now();
         documents
             .iter()
             .map(|document| {
-                self.compute_score_for_embedding(document.bert_embedding(), config.horizon(), now)
-                    .map(|score| (document.id().clone(), score))
+                self.compute_score_for_embedding(document.bert_embedding(), config.horizon(), time)
             })
             .collect()
     }
@@ -111,13 +107,11 @@ impl UserInterests {
 
 #[cfg(test)]
 mod tests {
+    use chrono::Duration;
     use xayn_ai_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::{
-        point::tests::{create_neg_cois, create_pos_cois},
-        utils::SECONDS_PER_DAY_F32,
-    };
+    use crate::point::tests::{create_neg_cois, create_pos_cois};
 
     #[test]
     fn test_has_enough() {
@@ -138,38 +132,37 @@ mod tests {
 
     #[test]
     fn test_compute_score_for_embedding() {
-        let epoch = SystemTime::UNIX_EPOCH;
-        let now = epoch + Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
+        let now = Utc::now();
         let mut positive = create_pos_cois([[62., 55., 11.], [76., 30., 80.]]);
-        positive[0].stats.last_view -= Duration::from_secs_f32(0.5 * SECONDS_PER_DAY_F32);
-        positive[1].stats.last_view -= Duration::from_secs_f32(1.5 * SECONDS_PER_DAY_F32);
-
+        positive[0].stats.last_view = now - Duration::hours(12);
+        positive[1].stats.last_view = now - Duration::hours(36);
         let mut negative = create_neg_cois([[6., 61., 6.]]);
-        negative[0].last_view = epoch;
+        negative[0].last_view = now - Duration::days(1);
         let cois = UserInterests { positive, negative };
 
-        let horizon = Duration::from_secs_f32(2. * SECONDS_PER_DAY_F32);
-
+        let embedding = [1., 4., 4.].try_into().unwrap();
+        let horizon = Duration::days(2).to_std().unwrap();
         let score = cois
-            .compute_score_for_embedding(&[1., 4., 4.].try_into().unwrap(), horizon, now)
+            .compute_score_for_embedding(&embedding, horizon, now)
             .unwrap();
-
-        let pos_similarity = 0.785_516_44;
-        let pos_decay = 0.999_999_34;
-        let neg_similarity = 0.774_465_6;
-        let neg_decay = 0.;
-        let relevance = 0.499_999_67;
-        let expected = pos_similarity * pos_decay + relevance - neg_similarity * neg_decay;
-        assert_approx_eq!(f32, score, expected, epsilon = 1e-6);
+        assert_approx_eq!(
+            f32,
+            score,
+            // positive[1]: similarity * decay + relevance
+            0.785_516_44 * 0.231_573_88 + 0.115_786_94
+            // negative[0]: similarity * decay
+            - 0.774_465_7 * 0.475_020_83,
+            epsilon = 1e-6,
+        );
     }
 
     #[test]
     fn test_compute_score_for_embedding_no_cois() {
-        let horizon = Duration::from_secs_f32(SECONDS_PER_DAY_F32);
+        let horizon = Duration::days(1).to_std().unwrap();
         let score = UserInterests::default().compute_score_for_embedding(
             &[0., 0., 0.].try_into().unwrap(),
             horizon,
-            system_time_now(),
+            Utc::now(),
         );
         assert!(score.is_none());
     }

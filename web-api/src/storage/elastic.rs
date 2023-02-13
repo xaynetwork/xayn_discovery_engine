@@ -30,6 +30,7 @@ use tracing::error;
 use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
+    app::SetupError,
     error::common::InternalError,
     models::{
         self,
@@ -39,47 +40,28 @@ use crate::{
         DocumentPropertyId,
         DocumentTag,
     },
-    server::SetupError,
     storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
 };
 
-fn default_url() -> String {
-    "http://localhost:9200".into()
-}
-
-fn default_user() -> String {
-    "elastic".into()
-}
-
-fn default_password() -> Secret<String> {
-    String::from("changeme").into()
-}
-
-fn default_index_name() -> String {
-    "test_index".into()
-}
-
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub(crate) struct Config {
-    #[serde(default = "default_url")]
     url: String,
-    #[serde(default = "default_user")]
     user: String,
-    #[serde(default = "default_password", serialize_with = "serialize_redacted")]
+    #[serde(serialize_with = "serialize_redacted")]
     password: Secret<String>,
-    #[serde(default = "default_index_name")]
     index_name: String,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
-            url: default_url(),
-            user: default_user(),
-            password: default_password(),
-            index_name: default_index_name(),
+            url: "http://localhost:9200".into(),
+            user: "elastic".into(),
+            password: String::from("changeme").into(),
+            index_name: "test_index".into(),
         }
     }
 }
@@ -170,7 +152,7 @@ impl Client {
 
         let body = serialize_to_ndjson(requests)?;
 
-        self.query_with_bytes::<_, BulkResponse>(url, Some(body), headers)
+        self.query_with_bytes::<_, BulkResponse>(url, Some((headers, body)))
             .await?
             .ok_or_else(|| InternalError::from_message("_bulk endpoint not found").into())
     }
@@ -178,14 +160,13 @@ impl Client {
     async fn query_with_bytes<B, T>(
         &self,
         url: Url,
-        body: Option<B>,
-        headers: HeaderMap<HeaderValue>,
+        post_data: Option<(HeaderMap<HeaderValue>, B)>,
     ) -> Result<Option<T>, Error>
     where
         B: Into<Body>,
         T: DeserializeOwned,
     {
-        let request_builder = if let Some(body) = body {
+        let request_builder = if let Some((headers, body)) = post_data {
             self.client.post(url).headers(headers).body(body)
         } else {
             self.client.get(url)
@@ -199,12 +180,19 @@ impl Client {
             .send()
             .await?;
 
-        if response.status() == StatusCode::NOT_FOUND {
+        let status = response.status();
+        if status == StatusCode::NOT_FOUND {
             Ok(None)
+        } else if !status.is_success() {
+            let url = response.url().clone();
+            let body = response.bytes().await?;
+            let err_msg = String::from_utf8_lossy(&body);
+            Err(InternalError::from_message(format!(
+                "Elastic Search failed, status={status}, url={url}, \nbody={err_msg}"
+            ))
+            .into())
         } else {
-            let value = response.error_for_status()?.json().await?;
-
-            Ok(Some(value))
+            Ok(Some(response.json().await?))
         }
     }
 
@@ -213,12 +201,16 @@ impl Client {
         B: Serialize,
         T: DeserializeOwned,
     {
-        let body = body.map(|json| serde_json::to_vec(&json)).transpose()?;
+        let post_data = body
+            .map(|json| -> Result<_, Error> {
+                let mut headers = HeaderMap::new();
+                headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+                let body = serde_json::to_vec(&json)?;
+                Ok((headers, body))
+            })
+            .transpose()?;
 
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-
-        self.query_with_bytes(url, body, headers).await
+        self.query_with_bytes(url, post_data).await
     }
 }
 
@@ -398,6 +390,26 @@ impl storage::Document for Storage {
         self.get_personalized_with_transaction(ids, None).await
     }
 
+    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
+        #[derive(Deserialize)]
+        struct Response {
+            _source: Fields,
+        }
+        #[derive(Deserialize)]
+        struct Fields {
+            embedding: NormalizedEmbedding,
+        }
+
+        self.elastic
+            .query_with_bytes::<Vec<u8>, Response>(
+                self.elastic
+                    .create_resource_path(["_doc", id.as_ref()], [("_source", Some("embedding"))]),
+                None,
+            )
+            .await
+            .map(|opt| opt.map(|resp| resp._source.embedding))
+    }
+
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
@@ -406,16 +418,17 @@ impl storage::Document for Storage {
         let excluded_ids = json!({
             "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
         });
+        let time = params.time.to_rfc3339();
 
         let filter = if let Some(published_after) = params.published_after {
-            // published_after != null && published_after <= publication_date <= now
+            // published_after != null && published_after <= publication_date <= time
             json!({
                 "bool": {
                     "filter": {
                         "range": {
                             "properties.publication_date": {
                                 "gte": published_after.to_rfc3339(),
-                                "lte": "now"
+                                "lte": time
                             }
                         }
                     },
@@ -425,7 +438,7 @@ impl storage::Document for Storage {
                 }
             })
         } else {
-            // published_after == null || published_after <= now
+            // published_after == null || published_after <= time
             json!({
                 "bool": {
                     "must_not": [
@@ -435,7 +448,7 @@ impl storage::Document for Storage {
                         {
                             "range": {
                                 "properties.publication_date": {
-                                    "gt": "now"
+                                    "gt": time
                                 }
                             }
                         }
@@ -444,15 +457,23 @@ impl storage::Document for Storage {
             })
         };
 
+        let mut knn = json!({
+            "field": "embedding",
+            "query_vector": params.embedding,
+            "k": params.k_neighbors,
+            "num_candidates": params.num_candidates,
+            "filter": filter
+        });
+
+        if let Some(min_similarity) = params.min_similarity {
+            knn.as_object_mut()
+                .unwrap(/* we just created it as object */)
+                .insert("min_score".into(), min_similarity.into());
+        }
+
         let body = Some(json!({
             "size": params.k_neighbors,
-            "knn": {
-                "field": "embedding",
-                "query_vector": params.embedding.normalize()?,
-                "k": params.k_neighbors,
-                "num_candidates": params.num_candidates,
-                "filter": filter
-            },
+            "knn": knn,
             "_source": ["properties", "embedding", "tags"]
         }));
 

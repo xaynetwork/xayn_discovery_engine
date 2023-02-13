@@ -2,31 +2,37 @@
 members = [
     "bert",
     "coi",
+    "integration-tests",
+    "test-utils",
     "web-api",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.66.1"
+rust-version = "1.67.0"
 
 [workspace.dependencies]
+anyhow = "1.0.69"
 criterion = "0.4.0"
 csv = "1.1.6"
-chrono = "0.4.23"
+chrono = { version = "0.4.23", default-features = false, features = ["clock", "serde", "std"] }
 derive_more = { version = "0.99.17", default-features = false, features = ["as_ref", "deref", "display", "from", "into"] }
 displaydoc = "0.2.3"
 figment = "0.10.8"
 itertools = "0.10.5"
 ndarray = "0.15.6"
+once_cell = "1.17.0"
 rand = "0.8.5"
+reqwest = { version = "0.11.13", default-features = false, features = ["json", "rustls-tls"] }
+regex = "1.7.1"
 serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.91"
+serde_json = "1.0.92"
 sqlx = { version = "0.6.2", features = ["postgres", "runtime-tokio-rustls"] }
 thiserror = "1.0.38"
-tokio = { version = "1.24.1", default-features = false }
+tokio = { version = "1.25.0", default-features = false }
 tracing = "0.1.37"
-uuid = { version = "1.2.1", features = ["serde", "v4"] }
+uuid = { version = "1.3.0", features = ["serde", "v4"] }
 
 [profile.dev.package.tract-core]
 opt-level = 3

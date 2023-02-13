@@ -12,17 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::SystemTime;
+use std::convert::identity;
 
+use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::{InvalidEmbedding, NormalizedEmbedding};
 
-use crate::{
-    id::CoiId,
-    stats::CoiStats,
-    utils::{nan_safe_f32_cmp_desc, system_time_now},
-};
+use crate::{id::CoiId, stats::CoiStats, utils::nan_safe_f32_cmp_desc};
 
 /// A positive `CoI`.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -37,13 +34,13 @@ pub struct PositiveCoi {
 pub struct NegativeCoi {
     pub id: CoiId,
     pub point: NormalizedEmbedding,
-    pub last_view: SystemTime,
+    pub last_view: DateTime<Utc>,
 }
 
 /// Common `CoI` properties and functionality.
 pub trait CoiPoint {
     /// Creates a coi.
-    fn new(id: CoiId, point: NormalizedEmbedding) -> Self;
+    fn new(id: CoiId, point: NormalizedEmbedding, time: DateTime<Utc>) -> Self;
 
     /// Gets the coi id.
     fn id(&self) -> CoiId;
@@ -60,15 +57,15 @@ pub trait CoiPoint {
 }
 
 macro_rules! impl_coi_point {
-    ($($(#[$attr:meta])* $coi:ty $({ $($field:ident: $value:expr),* $(,)? })?),* $(,)?) => {
+    ($($(#[$attr:meta])* $coi:ty { $field:ident: $($function:ident)::+($time:ident) }),* $(,)?) => {
         $(
             $(#[$attr])*
             impl CoiPoint for $coi {
-                fn new(id: CoiId, point: NormalizedEmbedding) -> Self {
+                fn new(id: CoiId, point: NormalizedEmbedding, $time: DateTime<Utc>) -> Self {
                     Self {
                         id,
                         point,
-                        $($($field: $value),*)?,
+                        $field: $($function)::+($time),
                     }
                 }
 
@@ -95,8 +92,8 @@ macro_rules! impl_coi_point {
 }
 
 impl_coi_point! {
-    PositiveCoi { stats: CoiStats::new() },
-    NegativeCoi { last_view: system_time_now() },
+    PositiveCoi { stats: CoiStats::new(time) },
+    NegativeCoi { last_view: identity(time) },
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
@@ -147,10 +144,11 @@ pub(crate) mod tests {
     where
         CP: CoiPoint,
     {
+        let now = Utc::now();
         points
             .into_iter()
             .enumerate()
-            .map(|(id, point)| CP::new(CoiId::mocked(id), point.try_into().unwrap()))
+            .map(|(id, point)| CP::new(CoiId::mocked(id), point.try_into().unwrap(), now))
             .collect()
     }
 

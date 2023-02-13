@@ -27,7 +27,7 @@ use std::{
 
 use async_trait::async_trait;
 use bincode::{deserialize, serialize};
-use chrono::{DateTime, Local, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
@@ -219,8 +219,9 @@ impl<'de> Deserialize<'de> for Embeddings {
 pub(crate) struct Storage {
     documents: RwLock<(HashMap<DocumentId, Document>, Embeddings)>,
     interests: RwLock<HashMap<UserId, UserInterests>>,
-    interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, NaiveDateTime)>>>,
-    users: RwLock<HashMap<UserId, NaiveDateTime>>,
+    #[allow(clippy::type_complexity)]
+    interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, DateTime<Utc>)>>>,
+    users: RwLock<HashMap<UserId, DateTime<Utc>>>,
     tags: RwLock<HashMap<UserId, HashMap<DocumentTag, usize>>>,
 }
 
@@ -281,6 +282,10 @@ impl storage::Document for Storage {
             .collect();
 
         Ok(documents)
+    }
+
+    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
+        Ok(self.documents.read().await.1.borrow_map().get(id).cloned())
     }
 
     async fn get_by_embedding<'a>(
@@ -511,11 +516,8 @@ impl storage::Interaction for Storage {
         Ok(document_ids)
     }
 
-    async fn user_seen(&self, id: &UserId) -> Result<(), Error> {
-        self.users
-            .write()
-            .await
-            .insert(id.clone(), Local::now().naive_local());
+    async fn user_seen(&self, id: &UserId, time: DateTime<Utc>) -> Result<(), Error> {
+        self.users.write().await.insert(id.clone(), time);
 
         Ok(())
     }
@@ -524,6 +526,8 @@ impl storage::Interaction for Storage {
         &self,
         user_id: &UserId,
         updated_document_ids: &[&DocumentId],
+        store_user_history: bool,
+        time: DateTime<Utc>,
         mut update_logic: F,
     ) -> Result<(), Error>
     where
@@ -550,11 +554,11 @@ impl storage::Interaction for Storage {
                 document,
                 tag_weight_diff: &mut tag_weight_diff,
                 positive_cois,
+                time,
             });
-            interactions.insert((
-                document.id.clone(),
-                DateTime::<Utc>::from(updated.stats.last_view).naive_utc(),
-            ));
+            if store_user_history {
+                interactions.insert((document.id.clone(), updated.stats.last_view));
+            }
         }
 
         for (tag, diff) in tag_weight_diff {
@@ -642,6 +646,8 @@ mod tests {
                 k_neighbors: 2,
                 num_candidates: 2,
                 published_after: None,
+                min_similarity: None,
+                time: Utc::now(),
             },
         )
         .await
@@ -659,6 +665,8 @@ mod tests {
                 k_neighbors: 3,
                 num_candidates: 3,
                 published_after: None,
+                min_similarity: None,
+                time: Utc::now(),
             },
         )
         .await
@@ -690,12 +698,23 @@ mod tests {
         .await
         .unwrap();
         let user_id = UserId::new("abc").unwrap();
-        storage::Interaction::update_interactions(&storage, &user_id, &[&document_id], |context| {
-            *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
-            let pcoi = PositiveCoi::new(CoiId::new(), [0.2, 9.4, 1.2].try_into().unwrap());
-            context.positive_cois.push(pcoi.clone());
-            pcoi
-        })
+        storage::Interaction::update_interactions(
+            &storage,
+            &user_id,
+            &[&document_id],
+            true,
+            Utc::now(),
+            |context| {
+                *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
+                let pcoi = PositiveCoi::new(
+                    CoiId::new(),
+                    [0.2, 9.4, 1.2].try_into().unwrap(),
+                    context.time,
+                );
+                context.positive_cois.push(pcoi.clone());
+                pcoi
+            },
+        )
         .await
         .unwrap();
 

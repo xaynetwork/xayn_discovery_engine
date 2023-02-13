@@ -15,71 +15,74 @@
 mod routes;
 
 use actix_web::web::ServiceConfig;
+use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    app::{self, Application, SetupError},
     embedding::{self, Embedder},
-    server::{self, Application},
-    storage::Storage,
+    logging,
+    net,
+    storage::{self, Storage},
 };
 
 pub struct Ingestion;
 
+#[async_trait]
 impl Application for Ingestion {
-    type AppStateExtension = AppStateExtension;
-    type ConfigExtension = ConfigExtension;
+    const NAME: &'static str = "XAYN_INGESTION";
+
+    type Config = Config;
+    type Extension = Extension;
+    type Storage = Storage;
 
     fn configure_service(config: &mut ServiceConfig) {
         routes::configure_service(config);
     }
 
-    fn create_app_state_extension(
-        config: &server::Config<Self::ConfigExtension>,
-    ) -> Result<Self::AppStateExtension, server::SetupError> {
-        Ok(AppStateExtension {
-            embedder: Embedder::load(config.extension.as_ref())?,
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
+        Ok(Extension {
+            embedder: Embedder::load(&config.embedding)?,
         })
+    }
+
+    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError> {
+        config.setup().await
+    }
+
+    async fn close_storage(storage: &Self::Storage) {
+        storage.close().await;
     }
 }
 
-type AppState = server::AppState<
-    <Ingestion as Application>::ConfigExtension,
-    <Ingestion as Application>::AppStateExtension,
-    Storage,
->;
+type AppState = app::AppState<Ingestion>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-pub struct ConfigExtension {
-    #[as_ref]
-    #[serde(default)]
+#[serde(default)]
+pub struct Config {
+    pub(crate) logging: logging::Config,
+    pub(crate) net: net::Config,
+    pub(crate) storage: storage::Config,
     pub(crate) ingestion: IngestionConfig,
-    #[as_ref]
-    #[serde(default)]
     pub(crate) embedding: embedding::Config,
 }
 
-#[derive(AsRef, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct IngestionConfig {
-    #[as_ref]
-    #[serde(default = "default_max_document_batch_size")]
     pub(crate) max_document_batch_size: usize,
 }
 
 impl Default for IngestionConfig {
     fn default() -> Self {
         Self {
-            max_document_batch_size: default_max_document_batch_size(),
+            max_document_batch_size: 100,
         }
     }
 }
 
-const fn default_max_document_batch_size() -> usize {
-    100
-}
-
 #[derive(AsRef)]
-pub struct AppStateExtension {
-    #[as_ref]
+pub struct Extension {
     pub(crate) embedder: Embedder,
 }

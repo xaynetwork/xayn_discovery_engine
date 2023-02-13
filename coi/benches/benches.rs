@@ -12,9 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::{Duration, SystemTime};
+use std::{hint::black_box, time::Duration};
 
-use criterion::{black_box, criterion_group, BatchSize, Criterion};
+use chrono::Utc;
+use criterion::{criterion_group, BatchSize, Criterion};
 use itertools::Itertools;
 use rand::Rng;
 use rand_distr::Uniform;
@@ -22,6 +23,7 @@ use xayn_ai_coi::{compute_coi_decay_factor, compute_coi_relevances, CoiId, CoiPo
 
 fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
     let range = Uniform::new(-1., 1.);
+    let now = Utc::now();
 
     (0..n)
         .map(|_| {
@@ -31,30 +33,32 @@ fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
                 .collect_vec()
                 .try_into()
                 .unwrap();
-            PositiveCoi::new(CoiId::new(), point)
+            PositiveCoi::new(CoiId::new(), point, now)
         })
         .collect()
 }
 
 fn bench_compute_coi_decay_factor(c: &mut Criterion) {
-    let horizon = black_box(Duration::new(3600 * 24 * 30, 0)); // 30 days
-    let now = black_box(SystemTime::now());
-    let last_view = black_box(
-        SystemTime::now()
-            .checked_sub(Duration::new(3600, 0))
-            .unwrap(),
-    );
+    let horizon = Duration::new(60 * 60 * 24 * 30, 0); // 30 days
+    let now = Utc::now();
+    let last_view = now - chrono::Duration::seconds(60 * 60);
 
     c.bench_function("compute_coi_decay_factor", |b| {
-        b.iter(|| compute_coi_decay_factor(horizon, now, last_view))
+        b.iter(|| {
+            black_box(compute_coi_decay_factor(
+                black_box(horizon),
+                black_box(now),
+                black_box(last_view),
+            ))
+        })
     });
 }
 
 fn bench_compute_coi_relevance(c: &mut Criterion) {
     let count = [100, 500, 2000];
     let embedding_size = 128;
-    let horizon = black_box(Duration::new(3600 * 24 * 30, 0)); // 30 days
-    let now = black_box(SystemTime::now());
+    let horizon = Duration::new(60 * 60 * 24 * 30, 0); // 30 days
+    let now = Utc::now();
 
     let count_max: usize = *count.iter().max().unwrap();
     let positive_cois = create_positive_coi(count_max, embedding_size);
@@ -62,12 +66,18 @@ fn bench_compute_coi_relevance(c: &mut Criterion) {
     count.iter().for_each(|&n| {
         let positive_cois = &positive_cois[..n];
 
-        let base_name = &format!("n{}_s{}", n, embedding_size);
+        let base_name = &format!("n{n}_s{embedding_size}");
 
-        c.bench_function(&format!("compute_coi_relevance_{}", base_name), |b| {
+        c.bench_function(&format!("compute_coi_relevance_{base_name}"), |b| {
             b.iter_batched(
                 || black_box(positive_cois),
-                |cois| compute_coi_relevances(cois, horizon, now),
+                |cois| {
+                    black_box(compute_coi_relevances(
+                        black_box(cois),
+                        black_box(horizon),
+                        black_box(now),
+                    ))
+                },
                 BatchSize::SmallInput,
             );
         });

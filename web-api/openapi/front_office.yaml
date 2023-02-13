@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.0.0-rc8
+  version: 1.0.0-rc9
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -30,6 +30,43 @@ security:
   - ApiKeyAuth: []
 
 paths:
+  /personalized_documents:
+    post:
+      tags:
+        - front office
+      summary: Get personalized documents based on a given history.
+      description: |-
+        Returns a list of personalized documents based on interests derived
+        from a history. In difference to `getPersonalizedDocuments` any user
+        specific parts are based on the inputs only. Documents still need to
+        be ingested beforehand.
+      operationId: getStatelessPersonalizedDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatelessPersonalizedDocumentsRequest'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatelessPersonalizedDocumentsResponse'
+        '400':
+           $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: -|
+            impossible to create a personalized list for given context
+
+            This mainly can happen if all documents in the user history
+            do no longer exist (or were never ingested).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
+
   /users/{user_id}/personalized_documents:
     get:
       tags:
@@ -39,7 +76,8 @@ paths:
         Returns a list of documents personalized for the given `user_id`.
         Each document contains the id, the score and the properties that are attached to the document.
         The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
-        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made at least one interaction via our system.
+        Documents that have been interacted with by the user are filtered out from the result.
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
       operationId: getPersonalizedDocuments
       parameters:
         - $ref: './parameters/path/user_id.yml'
@@ -48,11 +86,7 @@ paths:
           description: Maximum number of personalized documents to return
           required: false
           schema:
-            type: integer
-            format: int32
-            minimum: 1
-            maximum: 100
-            default: 10
+            $ref: "#/components/schemas/Count"
         - name: published_after
           in: query
           description: |-
@@ -124,11 +158,17 @@ paths:
           description: Maximum number of semantic similar documents to return
           required: false
           schema:
-            type: integer
-            format: int32
-            minimum: 1
-            maximum: 100
-            default: 10
+            $ref: '#/components/schemas/Count'
+        - name: min_similarity
+          in: query
+          description: Minimum similarity a document has to have to be included.
+          required: false
+          schema:
+            type: number
+            format: float
+            minimum: 0
+            maximum: 1
+            default: 0
       responses:
         '200':
           description: successful operation
@@ -144,6 +184,12 @@ components:
     ApiKeyAuth:
       $ref: './securitySchemes/auth.yml#/ApiKeyAuth'
   schemas:
+    Count:
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 100
+      default: 10
     PersonalizedDocumentData:
       type: object
       required: [id, score]
@@ -154,16 +200,48 @@ components:
           type: number
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
+    PersonalizedDocuments:
+      type: array
+      minItems: 0
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/PersonalizedDocumentData'
+    StatelessPersonalizedDocumentsRequest:
+      type: object
+      required: [history]
+      properties:
+        history:
+          $ref: './schemas/document.yml#/History'
+        count:
+          $ref: '#/components/schemas/Count'
+        published_after:
+          $ref: './schemas/time.yml#/PublicationDate'
+    StatelessPersonalizedDocumentsResponse:
+      type: object
+      required: [documents]
+      properties:
+        warnings:
+          type: array
+          minItems: 0
+          maxItems: 200
+          items:
+            type: string
+        documents:
+          $ref: '#/components/schemas/PersonalizedDocuments'
+      example:
+        warnings:
+          - "historic document with id \"document_id1\" does not exist"
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
     PersonalizedDocumentsResponse:
       type: object
       required: [documents]
       properties:
         documents:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/PersonalizedDocumentData'
+          $ref: '#/components/schemas/PersonalizedDocuments'
       example:
         documents:
           - id: 'document_id0'
@@ -175,11 +253,7 @@ components:
       required: [documents]
       properties:
         documents:
-          type: array
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: '#/components/schemas/PersonalizedDocumentData'
+          $ref: '#/components/schemas/PersonalizedDocuments'
       example:
         documents:
           - id: 'document_id0'
