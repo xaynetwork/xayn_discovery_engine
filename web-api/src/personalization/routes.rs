@@ -274,7 +274,7 @@ async fn stateless_personalized_documents(
         }
     }
 
-    let mut documents = personalized_knn::Search {
+    let mut documents = knn::Search {
         interests: &interests.positive,
         excluded: &[],
         horizon: state.coi.config().horizon(),
