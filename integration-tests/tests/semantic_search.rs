@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use xayn_ai_test_utils::error::Panic;
+use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
+use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
 async fn ingest(
