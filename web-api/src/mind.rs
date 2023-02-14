@@ -247,7 +247,6 @@ struct SaturationConfig {
     click_probability: f64,
     n_documents: usize,
     iterations: usize,
-    amount_of_doc_used_to_prepare: usize,
 }
 
 impl Default for SaturationConfig {
@@ -256,12 +255,11 @@ impl Default for SaturationConfig {
             click_probability: 0.2,
             n_documents: 30,
             iterations: 10,
-            amount_of_doc_used_to_prepare: 1,
         }
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize)]
 struct StateConfig {
     coi: CoiConfig,
     personalization: PersonalizationConfig,
@@ -715,7 +713,10 @@ async fn run_saturation_test() -> Result<(), Error> {
 
         // interact with the document
         state
-            .interact(&user_id, &[document.id.clone()], Utc::now())
+            .interact(
+                &user_id,
+                &[(document.id.clone(), state.time - Duration::days(0))],
+            )
             .await
             .unwrap();
 
@@ -749,7 +750,13 @@ async fn run_saturation_test() -> Result<(), Error> {
                 .collect_vec();
             // interact with documents
             state
-                .interact(&user_id, &to_be_clicked, Utc::now())
+                .interact(
+                    &user_id,
+                    &to_be_clicked
+                        .iter()
+                        .map(|id| (id.clone(), state.time - Duration::days(0)))
+                        .collect_vec(),
+                )
                 .await
                 .unwrap();
 
@@ -794,11 +801,11 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
         let interesting_documents = document_provider.get_all_interest(interests);
         let ids_of_documents_to_prepare = interesting_documents
             .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
-            .map(|doc| doc.id.clone())
+            .map(|doc| (doc.id.clone(), state.time - Duration::days(0)))
             .collect_vec();
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(user_id, &ids_of_documents_to_prepare, Utc::now())
+            .interact(user_id, &ids_of_documents_to_prepare)
             .await
             .unwrap();
 
@@ -816,9 +823,8 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                             doc.is_interesting(interests)
                                 && rng.gen_bool(benchmark_config.click_probability)
                         })
-                        .map(|doc| doc.id.clone())
+                        .map(|doc| (doc.id.clone(), state.time - Duration::days(0)))
                         .collect_vec(),
-                    Utc::now(),
                 )
                 .await
                 .unwrap();
@@ -862,9 +868,8 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                             (score - 2.0).abs() < 0.001
                                 && rng.gen_bool(benchmark_config.click_probability)
                         })
-                        .map(|(id, _)| id.clone())
+                        .map(|(id, _)| (id.clone(), state.time - Duration::days(0)))
                         .collect_vec(),
-                    Utc::now(),
                 )
                 .await
                 .unwrap();
@@ -886,6 +891,8 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
 
     let mut configs = Vec::new();
 
+    let start_time = Utc::now();
+
     for t in &grid_search_config.thresholds {
         for s in &grid_search_config.shifts {
             for m in &grid_search_config.min_pos_cois {
@@ -900,6 +907,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                             .unwrap()
                     },
                     personalization: PersonalizationConfig::default(),
+                    time: start_time,
                 });
             }
         }
@@ -929,11 +937,11 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
             let interesting_documents = document_provider.get_all_interest(interests);
             let ids_of_documents_to_prepare = interesting_documents
                 .choose_multiple(&mut rng, state.coi.config().min_positive_cois())
-                .map(|doc| doc.id.clone())
+                .map(|doc| (doc.id.clone(), state.time - Duration::days(0)))
                 .collect_vec();
             // prepare reranker by interacting with documents to prepare
             state
-                .interact(user_id, &ids_of_documents_to_prepare, Utc::now())
+                .interact(user_id, &ids_of_documents_to_prepare)
                 .await
                 .unwrap();
 
@@ -977,9 +985,8 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                                 (score - 2.0).abs() < 0.001
                                     && rng.gen_bool(grid_search_config.click_probability)
                             })
-                            .map(|(id, _)| id.clone())
+                            .map(|(id, _)| (id.clone(), state.time - Duration::days(0)))
                             .collect_vec(),
-                        Utc::now(),
                     )
                     .await
                     .unwrap();
