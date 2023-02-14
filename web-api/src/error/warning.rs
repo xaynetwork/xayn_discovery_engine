@@ -1,4 +1,4 @@
-// Copyright 2021 Xayn AG
+// Copyright 2023 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,20 +12,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-//! Run as `cargo run --example bert
+use serde::Serialize;
 
-use xayn_ai_bert::{tokenizer::bert::Tokenizer, Config, FirstPooler};
-use xayn_test_utils::asset::smbert;
+#[derive(Serialize)]
+#[serde(transparent)]
+pub(crate) struct Warning {
+    message: String,
+}
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pipeline = Config::new(smbert()?)?
-        .with_token_size(64)?
-        .with_tokenizer::<Tokenizer>()
-        .with_pooler::<FirstPooler>()
-        .build()?;
-    let embedding = pipeline.run("This is a sequence.")?;
-    println!("{}", *embedding);
-    assert_eq!(embedding.shape(), [pipeline.embedding_size()]);
+impl From<&'_ str> for Warning {
+    fn from(message: &'_ str) -> Self {
+        Warning {
+            message: message.into(),
+        }
+    }
+}
 
-    Ok(())
+impl From<String> for Warning {
+    fn from(message: String) -> Self {
+        Warning { message }
+    }
 }

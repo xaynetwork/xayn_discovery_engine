@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::BuildHasher,
+};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -257,6 +260,25 @@ impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument
 }
 
 #[derive(Debug, Deserialize)]
+struct SearchEmbedding {
+    embedding: NormalizedEmbedding,
+}
+
+impl<S> From<SearchResponse<SearchEmbedding>> for HashMap<DocumentId, NormalizedEmbedding, S>
+where
+    S: BuildHasher + Default,
+{
+    fn from(response: SearchResponse<SearchEmbedding>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| (hit.id, hit.source.embedding))
+            .collect()
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct PersonalizedDocument {
     #[serde(default)]
     properties: DocumentProperties,
@@ -457,25 +479,23 @@ impl storage::Document for Storage {
             })
         };
 
-        let mut knn = json!({
-            "field": "embedding",
-            "query_vector": params.embedding,
-            "k": params.k_neighbors,
-            "num_candidates": params.num_candidates,
-            "filter": filter
+        let mut body = json!({
+            "size": params.k_neighbors,
+            "knn": {
+                "field": "embedding",
+                "query_vector": params.embedding,
+                "k": params.k_neighbors,
+                "num_candidates": params.num_candidates,
+                "filter": filter
+            },
+            "_source": ["properties", "embedding", "tags"]
         });
 
         if let Some(min_similarity) = params.min_similarity {
-            knn.as_object_mut()
+            body.as_object_mut()
                 .unwrap(/* we just created it as object */)
                 .insert("min_score".into(), min_similarity.into());
         }
-
-        let body = Some(json!({
-            "size": params.k_neighbors,
-            "knn": knn,
-            "_source": ["properties", "embedding", "tags"]
-        }));
 
         // the existing documents are not filtered in the elastic query to avoid too much work for a
         // cold path, filtering them afterwards can occasionally lead to less than k results though
@@ -483,7 +503,7 @@ impl storage::Document for Storage {
             .elastic
             .query_with_json::<_, SearchResponse<_>>(
                 self.elastic.create_resource_path(["_search"], None),
-                body,
+                Some(body),
             )
             .await?
             .map(<Vec<models::PersonalizedDocument>>::from)

@@ -15,3 +15,4 @@
 pub(crate) mod application;
 pub(crate) mod common;
 pub(crate) mod json_error;
+pub(crate) mod warning;

@@ -606,7 +606,7 @@ impl Storage {
 mod tests {
     use itertools::Itertools;
     use xayn_ai_coi::{CoiId, CoiPoint};
-    use xayn_ai_test_utils::assert_approx_eq;
+    use xayn_test_utils::assert_approx_eq;
 
     use super::*;
 

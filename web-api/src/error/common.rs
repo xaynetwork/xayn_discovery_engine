@@ -95,6 +95,12 @@ pub(crate) struct IngestingDocumentsFailed {
 
 impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
 
+/// The requested document was not found.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct HistoryTooSmall;
+
+impl_application_error!(HistoryTooSmall => BAD_REQUEST);
+
 /// Custom error for 400 Bad Request status code.
 #[derive(Debug, Error, Display, Serialize, From)]
 pub(crate) struct BadRequest {
