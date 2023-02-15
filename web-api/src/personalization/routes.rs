@@ -538,27 +538,21 @@ async fn semantic_search(
     .await?;
 
     if let Some(user_id) = user_id {
-        let interest = storage::Interest::get(&state.storage, &user_id).await?;
-        let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
-
-        if !interest.has_enough(state.config.as_ref()) {
-            return Ok(Either::Right((
-                Json(PersonalizedDocumentsError::NotEnoughInteractions),
-                StatusCode::CONFLICT,
-            )));
+        let interests = storage::Interest::get(&state.storage, &user_id).await?;
+        if interests.has_enough(state.config.as_ref()) {
+            let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
+            rerank_by_score_interest_and_tag_weight(
+                &state.coi,
+                &mut documents,
+                &interests,
+                &tag_weights,
+                state.config.semantic_search.score_weights,
+                Utc::now(),
+            );
         }
-
-        rerank_by_score_interest_and_tag_weight(
-            &state.coi,
-            &mut documents,
-            &interest,
-            &tag_weights,
-            state.config.semantic_search.score_weights,
-            Utc::now(),
-        );
     }
 
-    Ok(Either::Left(Json(SemanticSearchResponse {
+    Ok(Json(SemanticSearchResponse {
         documents: documents.into_iter().map_into().collect(),
-    })))
+    }))
 }

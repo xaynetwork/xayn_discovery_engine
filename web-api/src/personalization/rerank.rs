@@ -23,10 +23,10 @@ use crate::models::{DocumentId, DocumentTag, PersonalizedDocument};
 pub(super) fn rerank_by_interest(
     coi_system: &CoiSystem,
     documents: &[PersonalizedDocument],
-    interest: &UserInterests,
+    interests: &UserInterests,
     time: DateTime<Utc>,
 ) -> HashMap<DocumentId, f32> {
-    let scores = coi_system.score(documents, interest, time);
+    let scores = coi_system.score(documents, interests, time);
     rank_keys_by_score(
         izip!(documents.iter().map(|doc| doc.id.clone()), scores),
         nan_safe_f32_cmp_desc,
