@@ -27,13 +27,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 use xayn_ai_coi::{CoiSystem, UserInterests};
 
-use super::{
-    knn,
-    rerank::rerank_by_score_interest_and_tag_weight,
-    AppState,
-    PersonalizationConfig,
-    SemanticSearchConfig,
-};
+use super::{knn, rerank::rerank_by_scores, AppState, PersonalizationConfig, SemanticSearchConfig};
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -287,7 +281,7 @@ async fn stateless_personalized_documents(
 
     let tag_weights = tag_weights_from_history(documents_from_history.values().copied());
 
-    rerank_by_score_interest_and_tag_weight(
+    rerank_by_scores(
         &state.coi,
         &mut documents,
         &interests,
@@ -457,7 +451,7 @@ pub(crate) async fn personalize_documents_by(
 
     let tag_weights = storage::Tag::get(storage, user_id).await?;
 
-    rerank_by_score_interest_and_tag_weight(
+    rerank_by_scores(
         coi_system,
         &mut documents,
         &interests,
@@ -541,7 +535,7 @@ async fn semantic_search(
         let interests = storage::Interest::get(&state.storage, &user_id).await?;
         if interests.has_enough(state.config.as_ref()) {
             let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
-            rerank_by_score_interest_and_tag_weight(
+            rerank_by_scores(
                 &state.coi,
                 &mut documents,
                 &interests,

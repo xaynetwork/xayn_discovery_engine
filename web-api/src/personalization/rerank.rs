@@ -15,10 +15,28 @@
 use std::{cmp::Ordering, collections::HashMap, hash::Hash};
 
 use chrono::{DateTime, Utc};
-use itertools::{izip, Itertools};
+use itertools::Itertools;
 use xayn_ai_coi::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, CoiSystem, UserInterests};
 
 use crate::models::{DocumentId, DocumentTag, PersonalizedDocument};
+
+fn rank_keys_by_score<K, S>(
+    keys_with_score: impl IntoIterator<Item = (K, S)>,
+    mut sort_by: impl FnMut(&S, &S) -> Ordering,
+) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    keys_with_score
+        .into_iter()
+        .sorted_unstable_by(|(_, s1), (_, s2)| sort_by(s1, s2))
+        .enumerate()
+        .map(
+            #[allow(clippy::cast_precision_loss)] // index is small enough
+            |(index, (key, _))| (key, 1. / (1 + index) as f32),
+        )
+        .collect()
+}
 
 pub(super) fn rerank_by_interest(
     coi_system: &CoiSystem,
@@ -28,7 +46,7 @@ pub(super) fn rerank_by_interest(
 ) -> HashMap<DocumentId, f32> {
     let scores = coi_system.score(documents, interests, time);
     rank_keys_by_score(
-        izip!(documents.iter().map(|doc| doc.id.clone()), scores),
+        documents.iter().map(|doc| doc.id.clone()).zip(scores),
         nan_safe_f32_cmp_desc,
     )
 }
@@ -55,7 +73,7 @@ pub(super) fn rerank_by_tag_weight(
 /// The `score_weights` determine the ratios of the scores, it is ordered as
 /// `[interest_weight, tag_weight, elasticsearch_weight]`. The final score/ranking per document is
 /// calculated as the weighted sum of the scores.
-pub(super) fn rerank_by_score_interest_and_tag_weight(
+pub(super) fn rerank_by_scores(
     coi_system: &CoiSystem,
     documents: &mut [PersonalizedDocument],
     interests: &UserInterests,
@@ -93,22 +111,4 @@ pub(super) fn rerank_by_score_interest_and_tag_weight(
             )
         })
     });
-}
-
-fn rank_keys_by_score<K, S>(
-    keys_with_score: impl IntoIterator<Item = (K, S)>,
-    mut sort_by: impl FnMut(&S, &S) -> Ordering,
-) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
-    keys_with_score
-        .into_iter()
-        .sorted_unstable_by(|(_, s1), (_, s2)| sort_by(s1, s2))
-        .enumerate()
-        .map(
-            #[allow(clippy::cast_precision_loss)] // index is small enough
-            |(index, (key, _))| (key, 1. / (1 + index) as f32),
-        )
-        .collect()
 }
