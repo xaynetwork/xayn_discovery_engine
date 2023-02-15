@@ -171,7 +171,9 @@ paths:
             default: 0
         - name: personalize_for
           in: query
-          description: A user for whom the documents will be personalized for.
+          description:  |-
+            A user for whom the documents will be personalized for.
+            If that user doesn't have enough interactions in the system, then the documents are returned unpersonalized.
           required: false
           schema:
             $ref: './schemas/user.yml#/UserId'
