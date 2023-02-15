@@ -16,11 +16,18 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
+use toml::toml;
+use xayn_integration_tests::{
+    extend_config,
+    send_assert,
+    send_assert_json,
+    test_two_apps,
+    unchanged_config,
+};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
-async fn ingest_documents(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
+async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
     send_assert(
         client,
         client
@@ -45,36 +52,22 @@ async fn ingest_documents(client: &Client, ingestion_url: &Url) -> Result<(), Pa
     Ok(())
 }
 
-#[derive(Deserialize)]
-struct Error {
-    kind: String,
-}
-
-#[tokio::test]
-async fn test_not_enough_interactions() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
-        |client, ingestion_url, personalization_url, _services| async move {
-            ingest_documents(&client, &ingestion_url).await?;
-
-            let error =
-                send_assert_json::<Error>(
-                    &client,
-                    client
-                        .get(personalization_url.join(
-                            "/semantic_search/d1?personalization_ratio=1.0&personalize_for=u1",
-                        )?)
-                        .build()?,
-                    StatusCode::CONFLICT,
-                )
-                .await;
-
-            assert_eq!(error.kind, "NotEnoughInteractions");
-            Ok(())
-        },
+async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Panic> {
+    send_assert(
+        client,
+        client
+            .patch(personalization_url.join("/users/u1/interactions")?)
+            .json(&json!({
+                "documents": [
+                    { "id": "d2", "type": "Positive" },
+                    { "id": "d9", "type": "Positive" }
+                ]
+            }))
+            .build()?,
+        StatusCode::NO_CONTENT,
     )
     .await;
+    Ok(())
 }
 
 #[derive(Debug, Deserialize)]
@@ -102,31 +95,44 @@ impl SemanticSearchResponse {
 }
 
 #[tokio::test]
-async fn test_personalization() {
+async fn test_full_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
-        unchanged_config,
+        |config| {
+            extend_config(
+                config,
+                toml! {
+                    [semantic_search]
+                    score_weights = [0.5, 0.5, 0.0]
+                },
+            )
+        },
         |client, ingestion_url, personalization_url, _services| async move {
-            ingest_documents(&client, &ingestion_url).await?;
-            send_assert(
+            ingest(&client, &ingestion_url).await?;
+
+            let not_enough_interactions = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .patch(personalization_url.join("/users/u1/interactions")?)
-                    .json(&json!({
-                        "documents": [
-                            { "id": "d2", "type": "Positive" },
-                            { "id": "d9", "type": "Positive" }
-                        ]
-                    }))
+                    .get(personalization_url.join("/semantic_search/d1")?)
+                    .query(&[("count", "5"), ("personalize_for", "u1")])
                     .build()?,
-                StatusCode::NO_CONTENT,
+                StatusCode::OK,
             )
             .await;
+            assert_eq!(
+                not_enough_interactions.ids(),
+                ["d6", "d4", "d2", "d5", "d7"],
+                "unexpected not enough interactions documents: {:?}",
+                not_enough_interactions.documents,
+            );
+
+            interact(&client, &personalization_url).await?;
 
             let not_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .get(personalization_url.join("/semantic_search/d1?count=5")?)
+                    .get(personalization_url.join("/semantic_search/d1")?)
+                    .query(&[("count", "5")])
                     .build()?,
                 StatusCode::OK,
             )
@@ -141,9 +147,8 @@ async fn test_personalization() {
             let fully_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .get(personalization_url.join(
-                        "/semantic_search/d1?count=5&personalize_ratio=1.0&personalize_for=u1",
-                    )?)
+                    .get(personalization_url.join("/semantic_search/d1")?)
+                    .query(&[("count", "5"), ("personalize_for", "u1")])
                     .build()?,
                 StatusCode::OK,
             )
@@ -155,12 +160,34 @@ async fn test_personalization() {
                 fully_personalized.documents,
             );
 
+            Ok(())
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_subtle_personalization() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        unchanged_config,
+        |config| {
+            extend_config(
+                config,
+                toml! {
+                    [semantic_search]
+                    score_weights = [0.05, 0.05, 0.9]
+                },
+            )
+        },
+        |client, ingestion_url, personalization_url, _services| async move {
+            ingest(&client, &ingestion_url).await?;
+            interact(&client, &personalization_url).await?;
+
             let subtle_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .get(personalization_url.join(
-                        "/semantic_search/d1?count=5&personalize_ratio=0.1&personalize_for=u1",
-                    )?)
+                    .get(personalization_url.join("/semantic_search/d1")?)
+                    .query(&[("count", "5"), ("personalize_for", "u1")])
                     .build()?,
                 StatusCode::OK,
             )
