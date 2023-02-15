@@ -1,0 +1,101 @@
+name: Api Tests
+
+on:
+  push:
+    branches: [ ET-3848-integrate-tests ]
+
+jobs:
+  cargo-test:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v11
+    timeout-minutes: 20
+    env:
+      INGESTION_URI: "127.0.0.1:3030"
+      XAYN_PERSONALIZATION__NET__BIND_TO: "127.0.1.1:3031"
+      PERSONALIZATION_URI: "http://127.0.1.1:3031"
+      XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL: "postgresql://user:pw@postgres/xayn"
+    services:
+      elasticsearch:
+        image: elasticsearch:8.5.3
+        env:
+          "discovery.type": "single-node"
+          "xpack.security.enabled": "false"
+        options: >-
+          --health-cmd "curl --fail 'http://localhost:9200/_cluster/health'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      postgres:
+        image: postgres:15.1
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: pw
+          POSTGRES_DB: xayn
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+
+      - name: Download assets
+        run: just download-assets
+
+      - name: Prepare temp directory
+        run: |
+          cd web-api 
+          mkdir -p assets
+          cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/config.toml ./assets/config.toml
+          cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./assets/vocab.txt
+          cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/model.onnx ./assets/model.onnx
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@f03ac48505955848960e80bbb68046aa35c7b9e7
+
+      - name: Build Ingestion
+        run: |
+          cd web-api
+          cargo run --release --bin ingestion -- --bind-to $INGESTION_URI &
+          ./wait-for-it.sh -t 60 $INGESTION_URI -- echo "Ingestion service is up and running"
+
+
+      - name: Build Personalization
+        run: |
+          cd web-api
+          cargo run --release --bin personalization -- --bind-to $XAYN_PERSONALIZATION__NET__BIND_TO &
+          ./wait-for-it.sh -t 60 $XAYN_PERSONALIZATION__NET__BIND_TO -- echo "Personalization service is up and running"
+      
+
+#      - name: Run pytest
+#        run: |
+#          python3.9 --version
+#      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+#      - name: Set up Python
+#        uses: actions/setup-python@v4
+#        with:
+#          python-version: 3.8
+#
+#      - name: Install Python dependencies
+#        uses: py-actions/py-dependency-install@v4
+#        with:
+#            path: "discovery_engine_api_tests/requirements.txt"
+
+#      - name: Install dependencies
+#        run: |
+#          cd discovery_engine_api_tests
+#          python -m pip install --upgrade pip
+#          pip install -r requirements.txt
+
+#      - name: Run pytest
+#        env:
+#          PYTHONPATH: cd discovery_engine_api_tests
+#        run: |
+#          cd discovery_engine_api_tests
+#          export PYTHONPATH=$(pwd)
+#          cd tests
+#          echo $PYTHONPATH
+#          pytest

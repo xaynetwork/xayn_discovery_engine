@@ -12,7 +12,7 @@ USER root
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-      ca-certificates wget curl git zstd gcc libc6-dev \ 
+      ca-certificates wget curl git zstd gcc libc6-dev \
       nodejs npm postgresql-client python3.9 python3-pip; \
     rm -rf /var/lib/apt/lists/*;
 
