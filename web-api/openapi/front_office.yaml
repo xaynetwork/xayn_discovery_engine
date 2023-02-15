@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.0.0-rc9
+  version: 1.0.0-rc10
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -169,6 +169,14 @@ paths:
             minimum: 0
             maximum: 1
             default: 0
+        - name: personalize_for
+          in: query
+          description:  |-
+            A user for whom the documents will be personalized for.
+            If that user doesn't have enough interactions in the system, then the documents are returned unpersonalized.
+          required: false
+          schema:
+            $ref: './schemas/user.yml#/UserId'
       responses:
         '200':
           description: successful operation

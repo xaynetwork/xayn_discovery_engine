@@ -27,13 +27,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 use xayn_ai_coi::{CoiSystem, UserInterests};
 
-use super::{
-    knn,
-    rerank::rerank_by_interest_and_tag_weight,
-    AppState,
-    PersonalizationConfig,
-    SemanticSearchConfig,
-};
+use super::{knn, rerank::rerank_by_scores, AppState, PersonalizationConfig, SemanticSearchConfig};
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -287,12 +281,12 @@ async fn stateless_personalized_documents(
 
     let tag_weights = tag_weights_from_history(documents_from_history.values().copied());
 
-    rerank_by_interest_and_tag_weight(
+    rerank_by_scores(
         &state.coi,
         &mut documents,
         &interests,
         &tag_weights,
-        state.config.personalization.interest_tag_bias,
+        state.config.personalization.score_weights,
         time,
     );
 
@@ -457,12 +451,12 @@ pub(crate) async fn personalize_documents_by(
 
     let tag_weights = storage::Tag::get(storage, user_id).await?;
 
-    rerank_by_interest_and_tag_weight(
+    rerank_by_scores(
         coi_system,
         &mut documents,
         &interests,
         &tag_weights,
-        personalization.interest_tag_bias,
+        personalization.score_weights,
         time,
     );
 
@@ -479,6 +473,7 @@ pub(crate) async fn personalize_documents_by(
 struct SemanticSearchQuery {
     count: Option<usize>,
     min_similarity: Option<f32>,
+    personalize_for: Option<String>,
 }
 
 impl SemanticSearchQuery {
@@ -510,6 +505,11 @@ async fn semantic_search(
     query: Query<SemanticSearchQuery>,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
+    let user_id = query
+        .personalize_for
+        .as_deref()
+        .map(TryInto::try_into)
+        .transpose()?;
     let count = query.document_count(state.config.as_ref())?;
     let min_similarity = query.min_similarity();
 
@@ -517,7 +517,7 @@ async fn semantic_search(
         .await?
         .ok_or(DocumentNotFound)?;
 
-    let documents = storage::Document::get_by_embedding(
+    let mut documents = storage::Document::get_by_embedding(
         &state.storage,
         KnnSearchParams {
             excluded: &[document_id],
@@ -530,6 +530,21 @@ async fn semantic_search(
         },
     )
     .await?;
+
+    if let Some(user_id) = user_id {
+        let interests = storage::Interest::get(&state.storage, &user_id).await?;
+        if interests.has_enough(state.config.as_ref()) {
+            let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
+            rerank_by_scores(
+                &state.coi,
+                &mut documents,
+                &interests,
+                &tag_weights,
+                state.config.semantic_search.score_weights,
+                Utc::now(),
+            );
+        }
+    }
 
     Ok(Json(SemanticSearchResponse {
         documents: documents.into_iter().map_into().collect(),

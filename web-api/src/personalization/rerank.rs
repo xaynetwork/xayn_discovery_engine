@@ -15,47 +15,46 @@
 use std::{cmp::Ordering, collections::HashMap, hash::Hash};
 
 use chrono::{DateTime, Utc};
-use itertools::{izip, Itertools};
-use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiSystem, UserInterests};
+use itertools::Itertools;
+use xayn_ai_coi::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, CoiSystem, UserInterests};
 
 use crate::models::{DocumentId, DocumentTag, PersonalizedDocument};
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-#[repr(transparent)]
-pub(super) struct Rank(usize);
-
-impl Rank {
-    pub(super) fn from_index(index: usize) -> Rank {
-        Rank(index + 1)
-    }
-
-    pub(super) fn to_score(self) -> f32 {
-        #![allow(clippy::cast_precision_loss)]
-        1. / self.0 as f32
-    }
-
-    pub(super) fn merge_as_score(self, other: Rank, ratio: f32) -> f32 {
-        self.to_score() * ratio + other.to_score() * (1. - ratio)
-    }
+fn rank_keys_by_score<K, S>(
+    keys_with_score: impl IntoIterator<Item = (K, S)>,
+    mut sort_by: impl FnMut(&S, &S) -> Ordering,
+) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    keys_with_score
+        .into_iter()
+        .sorted_unstable_by(|(_, s1), (_, s2)| sort_by(s1, s2))
+        .enumerate()
+        .map(
+            #[allow(clippy::cast_precision_loss)] // index is small enough
+            |(index, (key, _))| (key, 1. / (1 + index) as f32),
+        )
+        .collect()
 }
 
 pub(super) fn rerank_by_interest(
     coi_system: &CoiSystem,
     documents: &[PersonalizedDocument],
-    interest: &UserInterests,
+    interests: &UserInterests,
     time: DateTime<Utc>,
-) -> HashMap<DocumentId, Rank> {
-    let scores = coi_system.score(documents, interest, time);
+) -> HashMap<DocumentId, f32> {
+    let scores = coi_system.score(documents, interests, time);
     rank_keys_by_score(
-        izip!(documents.iter().map(|doc| doc.id.clone()), scores),
+        documents.iter().map(|doc| doc.id.clone()).zip(scores),
         nan_safe_f32_cmp_desc,
     )
 }
 
-pub(super) fn rerank_by_tag_weights(
+pub(super) fn rerank_by_tag_weight(
     documents: &[PersonalizedDocument],
     tag_weights: &HashMap<DocumentTag, usize>,
-) -> HashMap<DocumentId, Rank> {
+) -> HashMap<DocumentId, f32> {
     let weighted_documents = documents.iter().map(|doc| {
         let weight = doc
             .tags
@@ -69,48 +68,47 @@ pub(super) fn rerank_by_tag_weights(
     rank_keys_by_score(weighted_documents, |w1, w2| w1.cmp(w2).reverse())
 }
 
-pub(super) fn rerank_by_interest_and_tag_weight(
+/// Reranks documents based on a combination of their interest, tag weight and elasticsearch scores.
+///
+/// The `score_weights` determine the ratios of the scores, it is ordered as
+/// `[interest_weight, tag_weight, elasticsearch_weight]`. The final score/ranking per document is
+/// calculated as the weighted sum of the scores.
+pub(super) fn rerank_by_scores(
     coi_system: &CoiSystem,
     documents: &mut [PersonalizedDocument],
     interests: &UserInterests,
     tag_weights: &HashMap<DocumentTag, usize>,
-    interest_tag_bias: f32,
+    score_weights: [f32; 3],
     time: DateTime<Utc>,
 ) {
-    let interest_ranks = rerank_by_interest(coi_system, documents, interests, time);
-    let tag_weight_ranks = rerank_by_tag_weights(documents, tag_weights);
+    let interest_scores = rerank_by_interest(coi_system, documents, interests, time);
+    let tag_weight_scores = rerank_by_tag_weight(documents, tag_weights);
+    let mut elasticsearch_scores = HashMap::with_capacity(documents.len());
 
     for document in documents.iter_mut() {
-        document.score = interest_ranks[&document.id]
-            .merge_as_score(tag_weight_ranks[&document.id], interest_tag_bias);
+        elasticsearch_scores.insert(document.id.clone(), document.score);
+        document.score = score_weights[0] * interest_scores[&document.id]
+            + score_weights[1] * tag_weight_scores[&document.id]
+            + score_weights[2] * document.score;
     }
 
-    let secondary_sorting_factor = if interest_tag_bias >= 0.5 {
-        interest_ranks
-    } else {
-        tag_weight_ranks
+    let max_score_weight = score_weights.into_iter().max_by(nan_safe_f32_cmp);
+    let secondary_sorting_factor = match score_weights
+        .into_iter()
+        .position(|score_weight| Some(score_weight) >= max_score_weight)
+    {
+        Some(0) => interest_scores,
+        Some(1) => tag_weight_scores,
+        Some(2) => elasticsearch_scores,
+        _ => unreachable!(),
     };
 
     documents.sort_unstable_by(|a, b| {
         nan_safe_f32_cmp_desc(&a.score, &b.score).then_with(|| {
-            secondary_sorting_factor
-                .get(&a.id)
-                .cmp(&secondary_sorting_factor.get(&b.id))
+            nan_safe_f32_cmp_desc(
+                &secondary_sorting_factor[&a.id],
+                &secondary_sorting_factor[&b.id],
+            )
         })
     });
-}
-
-fn rank_keys_by_score<K, S>(
-    keys_with_score: impl IntoIterator<Item = (K, S)>,
-    mut sort_by: impl FnMut(&S, &S) -> Ordering,
-) -> HashMap<K, Rank>
-where
-    K: Eq + Hash,
-{
-    keys_with_score
-        .into_iter()
-        .sorted_unstable_by(|(_, s1), (_, s2)| sort_by(s1, s2))
-        .enumerate()
-        .map(|(index, (key, _))| (key, Rank::from_index(index)))
-        .collect()
 }
