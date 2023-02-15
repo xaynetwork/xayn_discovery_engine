@@ -35,7 +35,7 @@ async fn ingest_documents(client: &Client, ingestion_url: &Url) -> Result<(), Pa
                     { "id": "d6", "snippet": "Computer", "properties": { "publication_date": "2021-05-12T20:20:20Z" } },
                     { "id": "d7", "snippet": "Dogs" },
                     { "id": "d8", "snippet": "Chicken" },
-                    { "id": "d9", "snippet": "Robot Chicken" },
+                    { "id": "d9", "snippet": "Robot Chicken" }
                 ]
             }))
             .build()?,
@@ -115,7 +115,7 @@ async fn test_personalization() {
                     .json(&json!({
                         "documents": [
                             { "id": "d2", "type": "Positive" },
-                            { "id": "d9", "type": "Positive" },
+                            { "id": "d9", "type": "Positive" }
                         ]
                     }))
                     .build()?,
