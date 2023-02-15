@@ -517,15 +517,13 @@ async fn semantic_search(
         .await?
         .ok_or(DocumentNotFound)?;
 
-    let mut excluded = if let (Some(personalize), true) = (
-        &personalize,
-        state.config.personalization.store_user_history,
-    ) {
-        storage::Interaction::get(&state.storage, &personalize.for_user).await?
+    let mut excluded = if let (Some(user_id), true) =
+        (&user_id, state.config.personalization.store_user_history)
+    {
+        storage::Interaction::get(&state.storage, user_id).await?
     } else {
-        Vec::new()
+        Vec::with_capacity(1)
     };
-
     excluded.push(document_id);
 
     let mut documents = storage::Document::get_by_embedding(
