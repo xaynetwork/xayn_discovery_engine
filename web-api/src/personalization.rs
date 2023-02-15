@@ -82,8 +82,9 @@ pub(crate) struct PersonalizationConfig {
     /// Max number of positive cois to use in knn search.
     pub(crate) max_cois_for_knn: usize,
 
-    /// Weighting of user interests vs document tags. Must be in the interval `[0, 1]`.
-    pub(crate) interest_tag_bias: f32,
+    /// Weights for reranking of the scores. Each weight is in `[0, 1]` and they add up to `1`. The
+    /// order is `[interest_weight, tag_weight, elasticsearch_weight]`.
+    pub(crate) score_weights: [f32; 3],
 
     /// Whether to store the history of user interactions.
     pub(crate) store_user_history: bool,
@@ -99,7 +100,7 @@ impl Default for PersonalizationConfig {
             default_number_documents: 10,
             // FIXME: what is a default value we know works well with how we do knn?
             max_cois_for_knn: 10,
-            interest_tag_bias: 0.5,
+            score_weights: [0.5, 0.5, 0.0],
             store_user_history: true,
             max_stateless_history_size: 20,
         }
@@ -111,8 +112,13 @@ impl Default for PersonalizationConfig {
 pub(crate) struct SemanticSearchConfig {
     /// Max number of documents to return.
     pub(crate) max_number_documents: usize,
+
     /// Default number of documents to return.
     pub(crate) default_number_documents: usize,
+
+    /// Weights for reranking of the scores. Each weight is in `[0, 1]` and they add up to `1`. The
+    /// order is `[interest_weight, tag_weight, elasticsearch_weight]`.
+    pub(crate) score_weights: [f32; 3],
 }
 
 impl Default for SemanticSearchConfig {
@@ -120,6 +126,7 @@ impl Default for SemanticSearchConfig {
         Self {
             max_number_documents: 100,
             default_number_documents: 10,
+            score_weights: [0.4, 0.4, 0.2],
         }
     }
 }

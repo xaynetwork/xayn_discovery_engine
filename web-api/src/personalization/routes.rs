@@ -29,7 +29,7 @@ use xayn_ai_coi::{CoiSystem, UserInterests};
 
 use super::{
     knn,
-    rerank::{rerank_by_score_interest_and_tag_weight, IGNORE_CURRENT_SCORE},
+    rerank::rerank_by_score_interest_and_tag_weight,
     AppState,
     PersonalizationConfig,
     SemanticSearchConfig,
@@ -290,10 +290,9 @@ async fn stateless_personalized_documents(
     rerank_by_score_interest_and_tag_weight(
         &state.coi,
         &mut documents,
-        IGNORE_CURRENT_SCORE,
         &interests,
         &tag_weights,
-        state.config.personalization.interest_tag_bias,
+        state.config.personalization.score_weights,
         time,
     );
 
@@ -461,10 +460,9 @@ pub(crate) async fn personalize_documents_by(
     rerank_by_score_interest_and_tag_weight(
         coi_system,
         &mut documents,
-        IGNORE_CURRENT_SCORE,
         &interests,
         &tag_weights,
-        personalization.interest_tag_bias,
+        personalization.score_weights,
         time,
     );
 
@@ -482,12 +480,6 @@ struct SemanticSearchQuery {
     count: Option<usize>,
     min_similarity: Option<f32>,
     personalize_for: Option<String>,
-    personalize_ratio: Option<f32>,
-}
-
-struct Personalize {
-    for_user: UserId,
-    ratio: f32,
 }
 
 impl SemanticSearchQuery {
@@ -506,19 +498,6 @@ impl SemanticSearchQuery {
     fn min_similarity(&self) -> Option<f32> {
         self.min_similarity.map(|value| value.clamp(0., 1.))
     }
-
-    fn personalize(&self) -> Result<Option<Personalize>, Error> {
-        if let Some(for_user) = self.personalize_for.as_deref() {
-            let for_user = for_user.try_into()?;
-            let ratio = self
-                .personalize_ratio
-                .map_or(0.5, |ratio| ratio.clamp(0., 1.));
-            if ratio > 0. {
-                return Ok(Some(Personalize { for_user, ratio }));
-            }
-        }
-        Ok(None)
-    }
 }
 
 #[derive(Serialize)]
@@ -532,9 +511,13 @@ async fn semantic_search(
     query: Query<SemanticSearchQuery>,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
+    let user_id = query
+        .personalize_for
+        .as_deref()
+        .map(TryInto::try_into)
+        .transpose()?;
     let count = query.document_count(state.config.as_ref())?;
     let min_similarity = query.min_similarity();
-    let personalize = query.personalize()?;
 
     let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?
@@ -554,9 +537,9 @@ async fn semantic_search(
     )
     .await?;
 
-    if let Some(personalize) = personalize {
-        let interest = storage::Interest::get(&state.storage, &personalize.for_user).await?;
-        let tag_weights = storage::Tag::get(&state.storage, &personalize.for_user).await?;
+    if let Some(user_id) = user_id {
+        let interest = storage::Interest::get(&state.storage, &user_id).await?;
+        let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
 
         if !interest.has_enough(state.config.as_ref()) {
             return Ok(Either::Right((
@@ -568,10 +551,9 @@ async fn semantic_search(
         rerank_by_score_interest_and_tag_weight(
             &state.coi,
             &mut documents,
-            personalize.ratio,
             &interest,
             &tag_weights,
-            state.config.personalization.interest_tag_bias,
+            state.config.semantic_search.score_weights,
             Utc::now(),
         );
     }
