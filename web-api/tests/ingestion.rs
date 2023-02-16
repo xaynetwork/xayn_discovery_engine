@@ -27,7 +27,7 @@ async fn test_ingestion() {
                 .json(&json!({
                     "documents": [
                         { "id": "d1", "snippet": "once in a spring there was a fall" },
-                        { "id": "d2", "snippet": "fall in a once" },
+                        { "id": "d2", "snippet": "fall in a once" }
                     ]
                 }))
                 .build()?,
