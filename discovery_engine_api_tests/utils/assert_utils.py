@@ -31,7 +31,7 @@ def assert_score_is_valid(docs):
         assert 0 <= float(doc["score"]) <= 1, f"score must be between 0 and 1"
 
 
-@allure.step("assert that score is valid")
+@allure.step("assert that document field is valid")
 def assert_documents_are_valid(docs):
     array_of_docs = docs["documents"]
     assert len(array_of_docs) > 0, f"Array of docs shouldn't be empty"
