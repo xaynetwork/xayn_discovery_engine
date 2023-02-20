@@ -70,7 +70,7 @@ pub struct Config {
     pub(crate) semantic_search: SemanticSearchConfig,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub(crate) struct PersonalizationConfig {
     /// Max number of documents to return.

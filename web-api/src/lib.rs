@@ -14,7 +14,9 @@
 
 //! The web engine & api.
 
-#![forbid(unsafe_code, unsafe_op_in_unsafe_fn)]
+#![forbid(unsafe_op_in_unsafe_fn)]
+#![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(test, deny(unsafe_code))]
 #![deny(
     // TODO: check if/how this can be enabled as this has conflicts inherently rooted in actix-web trait bounds
     // clippy::future_not_send,
