@@ -18,7 +18,7 @@ class TestActionsWithDocuments:
         au.assert_status_code_equals(request.status_code, 204)
 
     @allure.severity(allure.severity_level.NORMAL)
-    @pytest.mark.skip(reason="todo: create ticket")
+    @pytest.mark.skip(reason="ET-4004")
     def test_delete_doc_negative(self):
         request = self.api_handler.delete_document(doc_id=tu.generate_random_alphanumerical(10))
         au.assert_status_code_equals(request.status_code, 400)
