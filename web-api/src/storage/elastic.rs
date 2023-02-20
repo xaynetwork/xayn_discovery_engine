@@ -364,18 +364,16 @@ impl storage::Document for Storage {
         let filter = if let Some(published_after) = params.published_after {
             // published_after != null && published_after <= publication_date <= now
             json!({
-                "bool": {
-                    "filter": {
-                        "key": "properties.publication_date",
-                        "range": {
-                            "gte": published_after.timestamp_micros(),
-                            "lte": Utc::now().timestamp_micros()
-                        }
-                    },
-                    "must_not": {
-                        "has_id": excluded_ids
-                    }
-                }
+                "must": [{
+                    "key": "properties.publication_date",
+                    "range": {
+                        "gte": published_after.timestamp_micros(),
+                        "lte": Utc::now().timestamp_micros()
+                    }}
+                ],
+                "must_not": [
+                    {"has_id": excluded_ids}
+                ]
             })
         } else {
             // published_after == null || published_after <= now
@@ -384,13 +382,13 @@ impl storage::Document for Storage {
                     {
                         "has_id": excluded_ids
                     }
-                    //,
-                    // {
-                    //     "key": "properties.publication_date",
-                    //     "range": {
-                    //         "gt": Utc::now().timestamp_micros()
-                    //     }
-                    // }
+                    ,
+                    {
+                        "key": "properties.publication_date",
+                        "range": {
+                            "gt": Utc::now().timestamp_micros()
+                        }
+                    }
                 ]
             })
         };
