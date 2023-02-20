@@ -277,14 +277,14 @@ impl Default for StateConfig {
     }
 }
 
-// The results of iteration of the saturation benchmark
+/// The results of iteration of the saturation benchmark
 #[derive(Debug, Default, Serialize)]
 struct SaturationIteration {
-    showndocuments: Vec<DocumentId>,
+    shown_documents: Vec<DocumentId>,
     clicked_documents: Vec<DocumentId>,
 }
 
-// structure that represents the results of the saturation benchmark for one topic
+/// The results of the saturation benchmark for one topic
 #[derive(Debug, Default, Serialize)]
 struct SaturationTopicResult {
     topic: String,
@@ -300,7 +300,7 @@ impl SaturationTopicResult {
     }
 }
 
-// structure that represents the results of the saturation benchmark
+/// The results of the saturation benchmark
 #[derive(Debug, Default, Serialize)]
 struct SaturationResult {
     topics: Vec<SaturationTopicResult>,
@@ -348,6 +348,7 @@ impl Document {
         })
     }
 
+    /// Checks if only the main category is matching user's interests
     fn is_semi_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
@@ -782,7 +783,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
 
             // add results to the topic result
             topic_result.iterations.push(SaturationIteration {
-                showndocuments: personalised_documents,
+                shown_documents: personalised_documents,
                 clicked_documents: to_be_clicked,
             });
         }
