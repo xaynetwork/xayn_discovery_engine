@@ -39,7 +39,7 @@ def assert_documents_are_valid(docs):
         assert all(key in doc for key in ['id', 'score', 'properties']), f"all documents should contain specific " \
                                                                          f"fields such as 'id', 'score','properties' "
 
-@allure.step("assert that score is valid")
+@allure.step("assert that publication date is valid")
 def assert_date_is_after(docs, after_date):
     array_of_docs = docs["documents"]
     assert len(array_of_docs) > 0, f"Array of docs shouldn't be empty"
