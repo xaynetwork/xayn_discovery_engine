@@ -23,10 +23,10 @@ use itertools::Itertools;
 use ndarray::{Array, Array3, Array4, ArrayView};
 use npyz::WriterBuilder;
 use rand::{
+    rngs::StdRng,
     seq::{IteratorRandom, SliceRandom},
     Rng,
     SeedableRng,
-    rngs::StdRng,
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
@@ -308,7 +308,9 @@ struct SaturationResult {
 
 impl SaturationResult {
     fn new(topics: usize) -> Self {
-        Self { topics: Vec::with_capacity(topics) }
+        Self {
+            topics: Vec::with_capacity(topics),
+        }
     }
 }
 
@@ -460,7 +462,7 @@ fn score_documents(
         .map(|document| {
             if document.is_interesting(user_interests) {
                 2.0
-            } else if is_semi_interesting &&  document.is_semi_interesting(user_interests) {
+            } else if is_semi_interesting && document.is_semi_interesting(user_interests) {
                 1.0
             } else {
                 0.0
@@ -485,6 +487,37 @@ where
         .begin_nd()?;
     writer.extend(c_order_items)?;
     writer.finish()
+}
+
+fn create_grid_search_configs(grid_search_config: &GridSearchConfig) -> Vec<StateConfig> {
+    let mut configs = Vec::with_capacity(
+        grid_search_config.thresholds.len()
+            * grid_search_config.shifts.len()
+            * grid_search_config.min_pos_cois.len(),
+    );
+
+    let start_time = Utc::now();
+
+    for t in &grid_search_config.thresholds {
+        for s in &grid_search_config.shifts {
+            for m in &grid_search_config.min_pos_cois {
+                configs.push(StateConfig {
+                    coi: {
+                        CoiConfig::default()
+                            .with_shift_factor(*s)
+                            .unwrap()
+                            .with_threshold(*t)
+                            .unwrap()
+                            .with_min_positive_cois(*m)
+                            .unwrap()
+                    },
+                    personalization: PersonalizationConfig::default(),
+                    time: start_time,
+                });
+            }
+        }
+    }
+    configs
 }
 
 /// Runs the persona-based mind benchmark.
@@ -546,11 +579,8 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                 .map(|id| document_provider.get(id).unwrap())
                 .collect_vec();
 
-            let scores = score_documents(
-                &documents,
-                interests,
-                benchmark_config.is_semi_interesting,
-            );
+            let scores =
+                score_documents(&documents, interests, benchmark_config.is_semi_interesting);
             let ndcgs_iteration = ndcg(&scores, &benchmark_config.nranks);
             //save scores to results array
             for (i, ndcg) in ndcgs_iteration.iter().enumerate() {
@@ -672,11 +702,8 @@ async fn run_user_benchmark() -> Result<(), Error> {
 #[ignore]
 async fn run_saturation_benchmark() -> Result<(), Error> {
     // load list of possible specific topics from file (need to create it)
-    let specific_topics = SpecificTopics::new(
-        "topics.json",
-    )?;
+    let specific_topics = SpecificTopics::new("topics.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-
     let state = State::new(Storage::default(), StateConfig::default()).unwrap();
     // load documents from document provider to state
     state
@@ -695,7 +722,8 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
     // from each topic and then run iterations of personalized search
     for full_category in specific_topics.iter() {
         //create saturation topic result structure
-        let mut topic_result = SaturationTopicResult::new(full_category, benchmark_config.iterations);
+        let mut topic_result =
+            SaturationTopicResult::new(full_category, benchmark_config.iterations);
 
         let documents = document_provider.get_all_interest(std::slice::from_ref(full_category));
         let user_id = UserId::new(full_category).unwrap();
@@ -719,7 +747,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
                         count: benchmark_config.ndocuments,
                         published_after: None,
                     },
-                    Utc::now(),
+                    state.time,
                 )
                 .await
                 .unwrap()
@@ -737,7 +765,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
                 .filter_map(|(id, score)| {
                     ((score - 2.0).abs() < 0.001
                         && rng.gen_bool(benchmark_config.click_probability))
-                        .then(|| id.clone())
+                    .then(|| id.clone())
                 })
                 .collect_vec();
             // interact with documents
@@ -772,7 +800,6 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
 async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-
     let state = State::new(Storage::default(), StateConfig::default()).unwrap();
     // load documents from document provider to state
     state
@@ -814,7 +841,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                         .filter_map(|doc| {
                             (doc.is_interesting(interests)
                                 && rng.gen_bool(benchmark_config.click_probability))
-                                .then(|| (doc.id.clone(), state.time - Duration::days(0)))
+                            .then(|| (doc.id.clone(), state.time - Duration::days(0)))
                         })
                         .collect_vec(),
                 )
@@ -828,7 +855,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                         count: benchmark_config.ndocuments,
                         published_after: None,
                     },
-                    Utc::now(),
+                    state.time,
                 )
                 .await
                 .unwrap()
@@ -839,11 +866,8 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                 .map(|id| document_provider.get(id).unwrap())
                 .collect_vec();
 
-            let scores = score_documents(
-                &documents,
-                interests,
-                benchmark_config.is_semi_interesting,
-            );
+            let scores =
+                score_documents(&documents, interests, benchmark_config.is_semi_interesting);
             let ndcgs_iteration = ndcg(&scores, &benchmark_config.nranks);
             //save scores to results array
             results
@@ -859,7 +883,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                         .filter_map(|(id, score)| {
                             ((score - 2.0).abs() < 0.001
                                 && rng.gen_bool(benchmark_config.click_probability))
-                                .then(|| (id.clone(), state.time - Duration::days(0)))
+                            .then(|| (id.clone(), state.time - Duration::days(0)))
                         })
                         .collect_vec(),
                 )
@@ -880,29 +904,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
     let users_interests = Users::new("user_categories_sample.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
     let grid_search_config = GridSearchConfig::default();
-    let mut configs = Vec::with_capacity(grid_search_config.thresholds.len() * grid_search_config.shifts.len() * grid_search_config.min_pos_cois.len(), );
-
-    let start_time = Utc::now();
-
-    for t in &grid_search_config.thresholds {
-        for s in &grid_search_config.shifts {
-            for m in &grid_search_config.min_pos_cois {
-                configs.push(StateConfig {
-                    coi: {
-                        CoiConfig::default()
-                            .with_shift_factor(*s)
-                            .unwrap()
-                            .with_threshold(*t)
-                            .unwrap()
-                            .with_min_positive_cois(*m)
-                            .unwrap()
-                    },
-                    personalization: PersonalizationConfig::default(),
-                    time: start_time,
-                });
-            }
-        }
-    }
+    let configs = create_grid_search_configs(&grid_search_config);
     let mut state = State::new(Storage::default(), StateConfig::default()).unwrap();
     state
         .insert(document_provider.to_documents())
@@ -921,16 +923,13 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
         grid_search_config.nranks.len(),
     ));
     for (config_idx, config) in configs.into_iter().enumerate() {
-        println!("{config_idx:?}");
         state.with_coi_config(config.coi);
-        // go through users
         for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
             let interesting_documents = document_provider.get_all_interest(interests);
             let ids_of_documents_to_prepare = interesting_documents
                 .choose_multiple(&mut rng, state.coi.config().min_positive_cois())
                 .map(|doc| (doc.id.clone(), state.time - Duration::days(0)))
                 .collect_vec();
-            // prepare reranker by interacting with documents to prepare
             state
                 .interact(user_id, &ids_of_documents_to_prepare)
                 .await
@@ -944,7 +943,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                             count: grid_search_config.ndocuments,
                             published_after: None,
                         },
-                        Utc::now(),
+                        state.time,
                     )
                     .await
                     .unwrap()
@@ -963,7 +962,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                 let ndcgs_iteration = ndcg(&scores, &grid_search_config.nranks);
                 //save scores to results array
                 ndcgs_all_configs
-                    .slice_mut(ndarray::s![config_idx, idx, iter,..])
+                    .slice_mut(ndarray::s![config_idx, idx, iter, ..])
                     .assign(&Array::from(ndcgs_iteration));
                 // interact with documents
                 state
@@ -975,7 +974,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                             .filter_map(|(id, score)| {
                                 ((score - 2.0).abs() < 0.001
                                     && rng.gen_bool(grid_search_config.click_probability))
-                                    .then(|| (id.clone(), state.time))
+                                .then(|| (id.clone(), state.time))
                             })
                             .collect_vec(),
                     )
