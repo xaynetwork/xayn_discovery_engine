@@ -18,6 +18,11 @@ use derive_more::{AsRef, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use sqlx::{
+    postgres::{PgHasArrayType, PgTypeInfo},
+    FromRow,
+    Type,
+};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Document as AiDocument;
 
@@ -43,8 +48,8 @@ macro_rules! id_wrapper {
                 Hash,
                 Serialize,
                 Deserialize,
-                sqlx::Type,
-                sqlx::FromRow,
+                Type,
+                FromRow,
             )]
             #[serde(transparent)]
             #[sqlx(transparent)]
@@ -76,6 +81,12 @@ macro_rules! id_wrapper {
                     Self::new(value)
                 }
             }
+
+            impl PgHasArrayType for $name {
+                fn array_type_info() -> PgTypeInfo {
+                    <String as PgHasArrayType>::array_type_info()
+                }
+            }
         )*
     };
 }
@@ -100,6 +111,7 @@ id_wrapper! {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(transparent)]
 pub(crate) struct DocumentProperty(serde_json::Value);
 
 /// Arbitrary properties that can be attached to a document.

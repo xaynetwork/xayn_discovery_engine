@@ -534,14 +534,14 @@ impl storage::Document for Storage {
 
         let response = self
             .elastic
-            .bulk_request(documents.into_iter().flat_map(|(document, embedding)| {
+            .bulk_request(documents.iter().flat_map(|(document, embedding)| {
                 [
                     serde_json::to_value(BulkInstruction::Index { id: &document.id })
                         .map_err(Into::into),
                     serde_json::to_value(IngestedDocument {
                         snippet: &document.snippet,
                         properties: &document.properties,
-                        embedding: &embedding,
+                        embedding,
                         tags: &document.tags,
                     })
                     .map_err(Into::into),
@@ -572,7 +572,14 @@ impl storage::Document for Storage {
         });
 
         self.postgres
-            .insert_documents(&ids.into_iter().collect_vec(/* Itertools::chunks() is !Send */))
+            .insert_documents(
+                #[cfg(not(feature = "ET-3837"))]
+                &ids.into_iter().collect_vec(),
+                #[cfg(feature = "ET-3837")]
+                documents
+                    .into_iter()
+                    .filter(|(document, _)| ids.contains(&document.id)),
+            )
             .await?;
 
         if let Some(failed_documents) = failed_documents {
