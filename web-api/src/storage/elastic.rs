@@ -396,7 +396,7 @@ impl Storage {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Document for Storage {
     async fn get_interacted(
         &self,
@@ -577,7 +577,7 @@ impl storage::Document for Storage {
                 &ids.into_iter().collect_vec(),
                 #[cfg(feature = "ET-3837")]
                 documents
-                    .into_iter()
+                    .iter()
                     .filter(|(document, _)| ids.contains(&document.id)),
             )
             .await?;

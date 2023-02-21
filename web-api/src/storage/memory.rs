@@ -225,7 +225,7 @@ pub(crate) struct Storage {
     tags: RwLock<HashMap<UserId, HashMap<DocumentTag, usize>>>,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Document for Storage {
     async fn get_interacted(&self, ids: &[&DocumentId]) -> Result<Vec<InteractedDocument>, Error> {
         if ids.is_empty() {
@@ -497,7 +497,7 @@ impl storage::Interest for Storage {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Interaction for Storage {
     async fn get(&self, id: &UserId) -> Result<Vec<DocumentId>, Error> {
         let document_ids = self
@@ -531,7 +531,7 @@ impl storage::Interaction for Storage {
         mut update_logic: F,
     ) -> Result<(), Error>
     where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Sync,
     {
         // Note: This doesn't have the exact same concurrency semantics as the postgres version
         let documents = self.get_interacted(updated_document_ids).await?;

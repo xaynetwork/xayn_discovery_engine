@@ -127,11 +127,6 @@ impl Config {
         let pool = PoolOptions::new().connect_with(options).await?;
         if !self.skip_migrations {
             sqlx::migrate!().run(&pool).await?;
-            #[cfg(feature = "ET-3837")]
-            sqlx::migrate!("migrations/ET-3837")
-                .set_ignore_missing(true)
-                .run(&pool)
-                .await?;
         }
         Ok(Database { pool })
     }
@@ -175,7 +170,7 @@ impl Database {
     #[cfg(feature = "ET-3837")]
     pub(super) async fn insert_documents(
         &self,
-        documents: impl IntoIterator<Item = (IngestedDocument, NormalizedEmbedding)>,
+        documents: impl IntoIterator<Item = &(IngestedDocument, NormalizedEmbedding)>,
     ) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
@@ -190,10 +185,10 @@ impl Database {
                     documents.by_ref().take(Self::BIND_LIMIT / 5),
                     |mut builder, (document, embedding)| {
                         builder
-                            .push_bind(document.id)
-                            .push_bind(document.snippet)
-                            .push_bind(Json(document.properties))
-                            .push_bind(document.tags)
+                            .push_bind(&document.id)
+                            .push_bind(&document.snippet)
+                            .push_bind(Json(&document.properties))
+                            .push_bind(&document.tags)
                             .push_bind(embedding);
                     },
                 )
@@ -487,7 +482,7 @@ impl From<QueriedInteractedDocumentId> for DocumentId {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Interaction for Storage {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
@@ -530,7 +525,7 @@ impl storage::Interaction for Storage {
         mut update_logic: F,
     ) -> Result<(), Error>
     where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Sync,
     {
         let mut tx = self.postgres.pool.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;

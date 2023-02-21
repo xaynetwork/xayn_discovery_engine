@@ -71,7 +71,7 @@ pub(crate) enum DeletionError {
     PartialFailure { errors: Vec<DocumentIdAsObject> },
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub(crate) trait Document {
     async fn get_interacted(&self, ids: &[&DocumentId]) -> Result<Vec<InteractedDocument>, Error>;
 
@@ -142,7 +142,7 @@ pub(crate) struct InteractionUpdateContext<'s, 'l> {
     pub(crate) time: DateTime<Utc>,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub(crate) trait Interaction {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error>;
 
@@ -157,7 +157,7 @@ pub(crate) trait Interaction {
         update_logic: F,
     ) -> Result<(), Error>
     where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync;
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Sync;
 }
 
 #[async_trait]
