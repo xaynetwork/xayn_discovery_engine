@@ -19,6 +19,8 @@ class ApiHandler:
             self.personalization_endpoint = os.environ[
                                                 "PERSONALIZATION_URI"] + "/users/{user_id}/personalized_documents"
             self.interactions_endpoint = os.environ["PERSONALIZATION_URI"] + "/users/{user_id}/interactions"
+            self.semantic_search_endpoint = os.environ[
+                                                "PERSONALIZATION_URI"] + "/semantic_search/{doc_id}"
         except KeyError:
             pytest.fail()
 
@@ -43,6 +45,20 @@ class ApiHandler:
 
     def delete_document(self, doc_id):
         return self.send_delete_request(self.ingestion_endpoint + "/" + doc_id)
+
+    def get_personalized_docs(self, user_id, count=None, published=None):
+        params = ''
+        if count is not None:
+            params += "?count=" + str(count)
+        if published is not None:
+            params += "?published_after=" + published
+        return self.send_get_request(self.personalization_endpoint.format(user_id=user_id) + params)
+
+    def get_semantic_search_doc(self, doc_id, count=None):
+        if count is None:
+            return self.send_get_request(self.semantic_search_endpoint.format(doc_id=doc_id))
+        else:
+            return self.send_get_request(self.semantic_search_endpoint.format(doc_id=doc_id) + "?count=" + str(count))
 
     # basic api calls used in other methods
 

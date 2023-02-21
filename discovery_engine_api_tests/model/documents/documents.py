@@ -1,16 +1,13 @@
 from model.base.model_base import ModelBase
-from model.properties.properties import Properties
 from model.properties.property import Property
 from model.documents.document import Document
-from utils import test_utils as su
+from utils import test_utils as tu
 
 
 class Documents(ModelBase):
 
-    def __init__(self, *docs):
-        self.documents = []
-        for doc in docs:
-            self.documents.append(doc)
+    def __init__(self, docs):
+        self.documents = docs
 
 
 def generate_docs(amount):
@@ -21,9 +18,10 @@ def generate_docs(amount):
     """
     docs_dict = {}
     for i in range(amount):
-        id = su.generate_random_alphanumerical(10)
-        snippet = su.generate_random_alphanumerical(50)
-        property = Property(title="Title")
+        id = tu.generate_random_alphanumerical(20)
+        snippet = tu.generate_random_alphanumerical(50)
+        property = Property(title="Title", publication_date=tu.get_current_date_time())
         doc = Document(id, snippet, property)
         docs_dict[id] = doc
     return docs_dict
+
