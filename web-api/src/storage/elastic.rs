@@ -27,7 +27,7 @@ use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
 use sqlx::{Postgres, Transaction};
-use tracing::error;
+use tracing::{error, info};
 use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
@@ -186,6 +186,7 @@ impl Client {
 #[derive(Debug, Deserialize)]
 struct Response<T> {
     result: Vec<T>,
+    time: f32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -421,6 +422,10 @@ impl storage::Document for Storage {
                 Some(body),
             )
             .await?
+            .map(|res| {
+                info!("time: {}", (res.time * 1000.0) as u32);
+                res
+            })
             .map(<Vec<models::PersonalizedDocument>>::from)
             .unwrap_or_default();
         let ids = self
