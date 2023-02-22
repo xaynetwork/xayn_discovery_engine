@@ -85,7 +85,7 @@ pub(crate) struct FailedToDeleteSomeDocuments {
     pub(crate) errors: Vec<DocumentIdAsObject>,
 }
 
-impl_application_error!(FailedToDeleteSomeDocuments => INTERNAL_SERVER_ERROR);
+impl_application_error!(FailedToDeleteSomeDocuments => BAD_REQUEST);
 
 /// The ingestion of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]

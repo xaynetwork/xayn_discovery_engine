@@ -71,6 +71,12 @@ pub(crate) enum DeletionError {
     PartialFailure { errors: Vec<DocumentIdAsObject> },
 }
 
+impl From<sqlx::Error> for DeletionError {
+    fn from(e: sqlx::Error) -> Self {
+        DeletionError::General(e.into())
+    }
+}
+
 #[async_trait(?Send)]
 pub(crate) trait Document {
     async fn get_interacted(&self, ids: &[&DocumentId]) -> Result<Vec<InteractedDocument>, Error>;

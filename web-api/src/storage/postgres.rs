@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -39,8 +42,9 @@ use super::InteractionUpdateContext;
 #[cfg(feature = "ET-3837")]
 use crate::models::IngestedDocument;
 use crate::{
+    error::common::DocumentIdAsObject,
     models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
-    storage::{self, utils::SqlxPushTupleExt, Storage},
+    storage::{self, utils::SqlxPushTupleExt, DeletionError, Storage},
     utils::serialize_redacted,
     Error,
 };
@@ -210,9 +214,12 @@ impl Database {
         Ok(())
     }
 
-    pub(super) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
+    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), DeletionError> {
         let mut tx = self.pool.begin().await?;
 
+        let documents = self
+            .documents_exist_with_transaction(&ids.iter().collect_vec(), &mut tx)
+            .await?;
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
         for ids in ids.chunks(Self::BIND_LIMIT) {
             builder
@@ -226,7 +233,17 @@ impl Database {
 
         tx.commit().await?;
 
-        Ok(())
+        if documents.len() == ids.len() {
+            Ok(())
+        } else {
+            let errors = ids
+                .iter()
+                .collect::<HashSet<_>>()
+                .difference(&documents.iter().collect::<HashSet<_>>())
+                .map(|id| DocumentIdAsObject { id: id.to_string() })
+                .collect_vec();
+            Err(DeletionError::PartialFailure { errors })
+        }
     }
 
     pub(super) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {

@@ -79,9 +79,7 @@ paths:
         - back office
       summary: Delete all listed documents.
       description: |-
-        Delete all documents listed in the request body. The endpoint is
-        idempotent. I.e. if the list contains one or multiple non-existing
-        documents, no error is produced.
+        Delete all documents listed in the request body.
       operationId: deleteDocuments
       requestBody:
         required: true
@@ -103,8 +101,7 @@ paths:
         - back office
       summary: Delete the document from the system.
       description: |-
-        Permanently deletes the document from the system. The endpoint is
-        idempotent. Deleting a non-existing document does not produce an error.
+        Permanently deletes the document from the system.
       operationId: deleteDocument
       responses:
         '204':
