@@ -19,7 +19,7 @@ use xayn_web_api::Ingestion;
 
 #[tokio::test]
 async fn test_ingestion() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _service| async move {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         send_assert(
             &client,
             client
@@ -32,6 +32,24 @@ async fn test_ingestion() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+        )
+        .await;
+        send_assert(
+            &client,
+            client.get(url.join("/documents/d1/properties")?).build()?,
+            StatusCode::OK,
+        )
+        .await;
+        send_assert(
+            &client,
+            client.get(url.join("/documents/d2/properties")?).build()?,
+            StatusCode::OK,
+        )
+        .await;
+        send_assert(
+            &client,
+            client.get(url.join("/documents/d3/properties")?).build()?,
+            StatusCode::BAD_REQUEST,
         )
         .await;
         Ok(())

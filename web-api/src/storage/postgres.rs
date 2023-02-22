@@ -18,6 +18,8 @@ use async_trait::async_trait;
 use itertools::Itertools;
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
+#[cfg(feature = "ET-3837")]
+use sqlx::types::Json;
 use sqlx::{
     pool::PoolOptions,
     postgres::PgConnectOptions,
@@ -34,6 +36,8 @@ use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
+#[cfg(feature = "ET-3837")]
+use crate::models::IngestedDocument;
 use crate::{
     models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
     storage::{self, utils::SqlxPushTupleExt, Storage},
@@ -136,11 +140,12 @@ impl Database {
     // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
     const BIND_LIMIT: usize = 65_535;
 
-    pub(crate) async fn close(&self) {
+    pub(super) async fn close(&self) {
         self.pool.close().await;
     }
 
-    pub(crate) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
+    #[cfg(not(feature = "ET-3837"))]
+    pub(super) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
         let mut builder = QueryBuilder::new("INSERT INTO document (document_id) ");
@@ -162,7 +167,50 @@ impl Database {
         Ok(())
     }
 
-    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
+    #[cfg(feature = "ET-3837")]
+    pub(super) async fn insert_documents(
+        &self,
+        documents: impl IntoIterator<Item = &(IngestedDocument, NormalizedEmbedding)>,
+    ) -> Result<(), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let mut builder = QueryBuilder::new(
+            "INSERT INTO document (document_id, snippet, properties, tags, embedding) ",
+        );
+        let mut documents = documents.into_iter().peekable();
+        while documents.peek().is_some() {
+            builder
+                .reset()
+                .push_values(
+                    documents.by_ref().take(Self::BIND_LIMIT / 5),
+                    |mut builder, (document, embedding)| {
+                        builder
+                            .push_bind(&document.id)
+                            .push_bind(&document.snippet)
+                            .push_bind(Json(&document.properties))
+                            .push_bind(&document.tags)
+                            .push_bind(embedding);
+                    },
+                )
+                .push(
+                    " ON CONFLICT (document_id) DO UPDATE SET
+                    snippet = EXCLUDED.snippet,
+                    properties = EXCLUDED.properties,
+                    tags = EXCLUDED.tags,
+                    embedding = EXCLUDED.embedding;",
+                )
+                .build()
+                .persistent(false)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        tx.commit().await?;
+
+        Ok(())
+    }
+
+    pub(super) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
         let mut tx = self.pool.begin().await?;
 
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
@@ -181,7 +229,7 @@ impl Database {
         Ok(())
     }
 
-    pub(crate) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
+    pub(super) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
         sqlx::query("SELECT document_id FROM document WHERE document_id = $1;")
             .bind(id)
             .fetch_optional(&self.pool)
@@ -190,7 +238,7 @@ impl Database {
             .map_err(Into::into)
     }
 
-    pub(crate) async fn documents_exist(
+    pub(super) async fn documents_exist(
         &self,
         ids: &[&DocumentId],
     ) -> Result<Vec<DocumentId>, Error> {
@@ -200,7 +248,7 @@ impl Database {
         Ok(res)
     }
 
-    pub(crate) async fn documents_exist_with_transaction(
+    pub(super) async fn documents_exist_with_transaction(
         &self,
         ids: &[&DocumentId],
         tx: &mut Transaction<'_, Postgres>,
@@ -434,7 +482,7 @@ impl From<QueriedInteractedDocumentId> for DocumentId {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Interaction for Storage {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
@@ -477,7 +525,7 @@ impl storage::Interaction for Storage {
         mut update_logic: F,
     ) -> Result<(), Error>
     where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Send + Sync,
+        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Sync,
     {
         let mut tx = self.postgres.pool.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
