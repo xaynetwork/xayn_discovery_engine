@@ -13,9 +13,7 @@
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ALTER TABLE document
-    -- remove default snippet when the feature flag ET-3837 is removed
     ADD COLUMN snippet TEXT NOT NULL DEFAULT '',
     ADD COLUMN properties JSONB NOT NULL DEFAULT '{}'::jsonb,
     ADD COLUMN tags TEXT[] NOT NULL DEFAULT '{}',
-    -- remove default embedding when the feature flag ET-3837 is removed
     ADD COLUMN embedding FLOAT4[] NOT NULL DEFAULT '{}';
