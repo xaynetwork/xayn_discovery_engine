@@ -67,14 +67,10 @@ pub(crate) enum InsertionError {
 
 #[derive(Debug, From)]
 pub(crate) enum DeletionError {
+    #[from(types(sqlx::Error))]
     General(Error),
+    #[from]
     PartialFailure { errors: Vec<DocumentIdAsObject> },
-}
-
-impl From<sqlx::Error> for DeletionError {
-    fn from(e: sqlx::Error) -> Self {
-        DeletionError::General(e.into())
-    }
 }
 
 #[async_trait(?Send)]
