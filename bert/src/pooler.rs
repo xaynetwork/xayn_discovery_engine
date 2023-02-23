@@ -26,6 +26,7 @@ use sqlx::{
     Database,
     Decode,
     Encode,
+    FromRow,
     Postgres,
     Type,
 };
@@ -83,7 +84,7 @@ pub type Embedding1 = Embedding<Ix1>;
 /// A normalized embedding.
 #[derive(Clone, Debug, Deref, Deserialize, Serialize)]
 #[serde(transparent)]
-#[cfg_attr(feature = "sqlx", derive(Type), sqlx(transparent))]
+#[cfg_attr(feature = "sqlx", derive(FromRow, Type), sqlx(transparent))]
 pub struct NormalizedEmbedding(Embedding1);
 
 #[derive(Clone, Debug, Display, Error, Serialize)]

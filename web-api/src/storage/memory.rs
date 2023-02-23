@@ -52,6 +52,7 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         UserId,
+        UserInteractionType,
     },
     storage::{self, DeletionError, InsertionError, KnnSearchParams},
 };
@@ -227,15 +228,14 @@ pub(crate) struct Storage {
 
 #[async_trait(?Send)]
 impl storage::Document for Storage {
-    async fn get_interacted(&self, ids: &[&DocumentId]) -> Result<Vec<InteractedDocument>, Error> {
-        if ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
+    async fn get_interacted(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<InteractedDocument>, Error> {
         let documents = self.documents.read().await;
         let documents = ids
-            .iter()
-            .filter_map(|&id| {
+            .into_iter()
+            .filter_map(|id| {
                 documents.0.get(id).and_then(|document| {
                     documents
                         .1
@@ -255,16 +255,12 @@ impl storage::Document for Storage {
 
     async fn get_personalized(
         &self,
-        ids: &[&DocumentId],
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        if ids.is_empty() {
-            return Ok(Vec::new());
-        }
-
         let documents = self.documents.read().await;
         let documents = ids
-            .iter()
-            .filter_map(|&id| {
+            .into_iter()
+            .filter_map(|id| {
                 documents.0.get(id).and_then(|document| {
                     documents
                         .1
@@ -290,13 +286,13 @@ impl storage::Document for Storage {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a>,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         if params.published_after.is_some() {
-            unimplemented!(/*we don't need it for memory.rs*/);
+            unimplemented!(/* we don't need it for memory.rs */);
         }
 
-        let excluded = params.excluded.iter().collect::<HashSet<_>>();
+        let excluded = params.excluded.into_iter().collect::<HashSet<_>>();
         let documents = self.documents.read().await;
         let documents = documents
             .1
@@ -351,15 +347,14 @@ impl storage::Document for Storage {
         Ok(())
     }
 
-    async fn delete(&self, ids: &[DocumentId]) -> Result<(), DeletionError> {
-        if ids.is_empty() {
-            return Ok(());
-        }
-
+    async fn delete(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<(), DeletionError> {
         let mut documents = self.documents.write().await;
         let mut interactions = self.interactions.write().await;
 
-        let ids = ids.iter().collect::<HashSet<_>>();
+        let ids = ids.into_iter().collect::<HashSet<_>>();
         documents.0.retain(|id, _| !ids.contains(id));
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         embeddings.retain(|id, _| !ids.contains(id));
@@ -522,19 +517,20 @@ impl storage::Interaction for Storage {
         Ok(())
     }
 
-    async fn update_interactions<F>(
+    async fn update_interactions(
         &self,
         user_id: &UserId,
-        updated_document_ids: &[&DocumentId],
+        interactions: impl IntoIterator<
+            IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
+        >,
         store_user_history: bool,
         time: DateTime<Utc>,
-        mut update_logic: F,
-    ) -> Result<(), Error>
-    where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Sync,
-    {
-        // Note: This doesn't have the exact same concurrency semantics as the postgres version
-        let documents = self.get_interacted(updated_document_ids).await?;
+        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi,
+    ) -> Result<(), Error> {
+        // Note: This doesn't has the exact same concurrency semantics as the postgres version
+        let documents = self
+            .get_interacted(interactions.into_iter().map(|(document_id, _)| document_id))
+            .await?;
         let mut interests = self.interests.write().await;
         let mut interactions = self.interactions.write().await;
         let interactions = interactions.entry(user_id.clone()).or_default();
@@ -552,6 +548,7 @@ impl storage::Interaction for Storage {
         for document in &documents {
             let updated = update_logic(InteractionUpdateContext {
                 document,
+                interaction_type: UserInteractionType::Positive,
                 tag_weight_diff: &mut tag_weight_diff,
                 positive_cois,
                 time,
@@ -641,7 +638,7 @@ mod tests {
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {
-                excluded: &[],
+                excluded: [],
                 embedding,
                 k_neighbors: 2,
                 num_candidates: 2,
@@ -660,7 +657,7 @@ mod tests {
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {
-                excluded: &[ids[1].clone()],
+                excluded: [&ids[1]],
                 embedding,
                 k_neighbors: 3,
                 num_candidates: 3,
@@ -680,14 +677,17 @@ mod tests {
     #[tokio::test]
     async fn test_serde() {
         let storage = Storage::default();
-        let document_id = DocumentId::new("42").unwrap();
+        let document = (
+            DocumentId::new("42").unwrap(),
+            UserInteractionType::Positive,
+        );
         let tags = vec![DocumentTag::try_from("tag").unwrap()];
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
             vec![(
                 IngestedDocument {
-                    id: document_id.clone(),
+                    id: document.0.clone(),
                     snippet: "snippet".into(),
                     properties: DocumentProperties::default(),
                     tags: tags.clone(),
@@ -701,7 +701,7 @@ mod tests {
         storage::Interaction::update_interactions(
             &storage,
             &user_id,
-            &[&document_id],
+            [&document],
             true,
             Utc::now(),
             |context| {
@@ -719,10 +719,10 @@ mod tests {
         .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
-        let documents = storage::Document::get_personalized(&storage, &[&document_id])
+        let documents = storage::Document::get_personalized(&storage, [&document.0])
             .await
             .unwrap();
-        assert_eq!(documents[0].id, document_id);
+        assert_eq!(documents[0].id, document.0);
         assert_approx_eq!(f32, documents[0].embedding, embedding);
         assert!(documents[0].properties.is_empty());
         assert_eq!(documents[0].tags, tags);

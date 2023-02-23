@@ -40,12 +40,16 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         UserId,
+        UserInteractionType,
     },
     Error,
 };
 
-pub(crate) struct KnnSearchParams<'a> {
-    pub(crate) excluded: &'a [DocumentId],
+pub(crate) struct KnnSearchParams<'a, I>
+where
+    I: IntoIterator<Item = &'a DocumentId>,
+{
+    pub(crate) excluded: I,
     pub(crate) embedding: &'a NormalizedEmbedding,
     pub(crate) k_neighbors: usize,
     // must be >= k_neighbors
@@ -75,18 +79,21 @@ pub(crate) enum DeletionError {
 
 #[async_trait(?Send)]
 pub(crate) trait Document {
-    async fn get_interacted(&self, ids: &[&DocumentId]) -> Result<Vec<InteractedDocument>, Error>;
+    async fn get_interacted(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<InteractedDocument>, Error>;
 
     async fn get_personalized(
         &self,
-        ids: &[&DocumentId],
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a>,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn insert(
@@ -94,7 +101,10 @@ pub(crate) trait Document {
         documents: Vec<(IngestedDocument, NormalizedEmbedding)>,
     ) -> Result<(), InsertionError>;
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError>;
+    async fn delete(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<(), DeletionError>;
 }
 
 #[async_trait]
@@ -139,6 +149,7 @@ pub(crate) trait Interest {
 
 pub(crate) struct InteractionUpdateContext<'s, 'l> {
     pub(crate) document: &'s InteractedDocument,
+    pub(crate) interaction_type: UserInteractionType,
     pub(crate) tag_weight_diff: &'s mut HashMap<&'l DocumentTag, i32>,
     pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
     pub(crate) time: DateTime<Utc>,
@@ -150,16 +161,16 @@ pub(crate) trait Interaction {
 
     async fn user_seen(&self, id: &UserId, time: DateTime<Utc>) -> Result<(), Error>;
 
-    async fn update_interactions<F>(
+    async fn update_interactions(
         &self,
         user_id: &UserId,
-        updated_document_ids: &[&DocumentId],
+        interactions: impl IntoIterator<
+            IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
+        >,
         store_user_history: bool,
         time: DateTime<Utc>,
-        update_logic: F,
-    ) -> Result<(), Error>
-    where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Sync;
+        update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi,
+    ) -> Result<(), Error>;
 }
 
 #[async_trait]

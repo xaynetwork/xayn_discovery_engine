@@ -27,9 +27,15 @@ use crate::{
     Error,
 };
 
-pub(super) struct Search<'a> {
-    pub(super) interests: &'a [PositiveCoi],
-    pub(super) excluded: &'a [DocumentId],
+pub(super) struct Search<'a, I, J>
+where
+    I: IntoIterator,
+    <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a PositiveCoi>,
+    J: IntoIterator,
+    <J as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a DocumentId>,
+{
+    pub(super) interests: I,
+    pub(super) excluded: J,
     pub(super) horizon: Duration,
     pub(super) max_cois: usize,
     pub(super) count: usize,
@@ -37,16 +43,21 @@ pub(super) struct Search<'a> {
     pub(super) time: DateTime<Utc>,
 }
 
-impl Search<'_> {
+impl<'a, I, J> Search<'a, I, J>
+where
+    I: IntoIterator,
+    <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a PositiveCoi>,
+    J: IntoIterator,
+    <J as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a DocumentId>,
+{
     /// Performs an approximate knn search for documents similar to the positive user interests.
     pub(super) async fn run_on(
         self,
         storage: &impl storage::Document,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let coi_weights = compute_coi_weights(self.interests, self.horizon, self.time);
-        let cois = self
-            .interests
-            .iter()
+        let interests = self.interests.into_iter();
+        let coi_weights = compute_coi_weights(interests.clone(), self.horizon, self.time);
+        let cois = interests
             .zip(coi_weights)
             .sorted_by(|(_, a_weight), (_, b_weight)| nan_safe_f32_cmp(b_weight, a_weight))
             .take(self.max_cois)
@@ -54,6 +65,7 @@ impl Search<'_> {
 
         let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
 
+        let excluded = self.excluded.into_iter();
         let document_futures = cois
             .iter()
             .map(|(coi, weight)| async {
@@ -72,7 +84,7 @@ impl Search<'_> {
                 storage::Document::get_by_embedding(
                     storage,
                     KnnSearchParams {
-                        excluded: self.excluded,
+                        excluded: excluded.clone(),
                         embedding: &coi.point,
                         k_neighbors,
                         num_candidates: self.count,

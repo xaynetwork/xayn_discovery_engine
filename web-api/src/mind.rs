@@ -107,14 +107,12 @@ impl State {
         &self,
         embeddings: Vec<(DocumentId, NormalizedEmbedding)>,
     ) -> Result<(), Error> {
-        let mut documents = storage::Document::get_personalized(
-            &self.storage,
-            &embeddings.iter().map(|(id, _)| id).collect_vec(),
-        )
-        .await?
-        .into_iter()
-        .map(|document| (document.id.clone(), document))
-        .collect::<HashMap<_, _>>();
+        let mut documents =
+            storage::Document::get_personalized(&self.storage, embeddings.iter().map(|(id, _)| id))
+                .await?
+                .into_iter()
+                .map(|document| (document.id.clone(), document))
+                .collect::<HashMap<_, _>>();
         let documents = embeddings
             .into_iter()
             .map(|(id, embedding)| {
@@ -136,16 +134,16 @@ impl State {
     async fn interact(
         &self,
         user: &UserId,
-        documents: &[(DocumentId, DateTime<Utc>)],
+        documents: impl IntoIterator<Item = (&DocumentId, DateTime<Utc>)>,
     ) -> Result<(), Error> {
         for (id, time) in documents {
             update_interactions(
                 &self.storage,
                 &self.coi,
                 user,
-                &[(id.clone(), UserInteractionType::Positive)],
+                [&(id.clone(), UserInteractionType::Positive)],
                 self.personalization.store_user_history,
-                *time,
+                time,
             )
             .await?;
         }
@@ -577,19 +575,20 @@ async fn run_persona_benchmark() -> Result<(), Error> {
     let mut rng = StdRng::seed_from_u64(42);
     for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
         let interesting_documents = document_provider.get_all_interest(interests);
-        let ids_of_documents_to_prepare = interesting_documents
-            .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
-            .map(|doc| {
-                (
-                    doc.id.clone(),
-                    // TODO: set some meaningful value for the interaction time
-                    state.time - Duration::days(0),
-                )
-            })
-            .collect_vec();
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(user_id, &ids_of_documents_to_prepare)
+            .interact(
+                user_id,
+                interesting_documents
+                    .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
+                    .map(|doc| {
+                        (
+                            &doc.id,
+                            // TODO: set some meaningful value for the interaction time
+                            state.time - Duration::days(0),
+                        )
+                    }),
+            )
             .await
             .unwrap();
 
@@ -623,7 +622,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
             state
                 .interact(
                     user_id,
-                    &personalised_documents
+                    personalised_documents
                         .iter()
                         .zip(scores.iter())
                         .filter(|(_, &score)| {
@@ -632,12 +631,11 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                         })
                         .map(|(id, _)| {
                             (
-                                id.clone(),
+                                id,
                                 // TODO: set some meaningful value for the interaction time
                                 state.time - Duration::days(0),
                             )
-                        })
-                        .collect_vec(),
+                        }),
                 )
                 .await
                 .unwrap();
@@ -670,19 +668,21 @@ async fn run_user_benchmark() -> Result<(), Error> {
         let impression = impression?;
         let labels = if let Some(clicks) = impression.clicks {
             let user = UserId::new(&impression.user_id).unwrap();
-            let clicks = clicks
-                .into_iter()
-                .map(|document| {
-                    (
-                        document,
-                        // TODO: set some meaningful value for the interaction time
-                        state.time - Duration::days(0),
-                    )
-                })
-                .collect_vec();
             if !users.contains(&impression.user_id) {
                 users.push(impression.user_id);
-                state.interact(&user, &clicks).await.unwrap();
+                state
+                    .interact(
+                        &user,
+                        clicks.iter().map(|document| {
+                            (
+                                document,
+                                // TODO: set some meaningful value for the interaction time
+                                state.time - Duration::days(0),
+                            )
+                        }),
+                    )
+                    .await
+                    .unwrap();
             }
 
             let document_ids = impression
@@ -765,10 +765,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
 
         // interact with the document
         state
-            .interact(
-                &user_id,
-                &[(document.id.clone(), state.time - Duration::days(0))],
-            )
+            .interact(&user_id, [(&document.id, state.time - Duration::days(0))])
             .await
             .unwrap();
 
@@ -805,10 +802,9 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
             state
                 .interact(
                     &user_id,
-                    &to_be_clicked
+                    to_be_clicked
                         .iter()
-                        .map(|id| (id.clone(), state.time - Duration::days(0)))
-                        .collect_vec(),
+                        .map(|id| (id, state.time - Duration::days(0))),
                 )
                 .await
                 .unwrap();
@@ -851,13 +847,14 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
 
     for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
         let interesting_documents = document_provider.get_all_interest(interests);
-        let ids_of_documents_to_prepare = interesting_documents
-            .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
-            .map(|doc| (doc.id.clone(), state.time - Duration::days(0)))
-            .collect_vec();
         // prepare reranker by interacting with documents to prepare
         state
-            .interact(user_id, &ids_of_documents_to_prepare)
+            .interact(
+                user_id,
+                interesting_documents
+                    .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
+                    .map(|doc| (&doc.id, state.time - Duration::days(0))),
+            )
             .await
             .unwrap();
 
@@ -869,14 +866,11 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
             state
                 .interact(
                     user_id,
-                    &hot_news
-                        .iter()
-                        .filter_map(|doc| {
-                            (doc.is_interesting(interests)
-                                && rng.gen_bool(benchmark_config.click_probability))
-                            .then(|| (doc.id.clone(), state.time - Duration::days(0)))
-                        })
-                        .collect_vec(),
+                    hot_news.iter().filter_map(|doc| {
+                        (doc.is_interesting(interests)
+                            && rng.gen_bool(benchmark_config.click_probability))
+                        .then(|| (&doc.id, state.time - Duration::days(0)))
+                    }),
                 )
                 .await
                 .unwrap();
@@ -910,15 +904,14 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
             state
                 .interact(
                     user_id,
-                    &personalised_documents
+                    personalised_documents
                         .iter()
                         .zip(scores)
                         .filter_map(|(id, score)| {
                             ((score - 2.0).abs() < 0.001
                                 && rng.gen_bool(benchmark_config.click_probability))
-                            .then(|| (id.clone(), state.time - Duration::days(0)))
-                        })
-                        .collect_vec(),
+                            .then(|| (id, state.time - Duration::days(0)))
+                        }),
                 )
                 .await
                 .unwrap();
@@ -959,12 +952,13 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
         state.with_coi_config(config.coi);
         for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
             let interesting_documents = document_provider.get_all_interest(interests);
-            let ids_of_documents_to_prepare = interesting_documents
-                .choose_multiple(&mut rng, state.coi.config().min_positive_cois())
-                .map(|doc| (doc.id.clone(), state.time - Duration::days(0)))
-                .collect_vec();
             state
-                .interact(user_id, &ids_of_documents_to_prepare)
+                .interact(
+                    user_id,
+                    interesting_documents
+                        .choose_multiple(&mut rng, state.coi.config().min_positive_cois())
+                        .map(|doc| (&doc.id, state.time - Duration::days(0))),
+                )
                 .await
                 .unwrap();
 
@@ -1001,15 +995,14 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                 state
                     .interact(
                         user_id,
-                        &personalised_documents
+                        personalised_documents
                             .iter()
                             .zip(scores)
                             .filter_map(|(id, score)| {
                                 ((score - 2.0).abs() < 0.001
                                     && rng.gen_bool(grid_search_config.click_probability))
-                                .then(|| (id.clone(), state.time))
-                            })
-                            .collect_vec(),
+                                .then_some((id, state.time))
+                            }),
                     )
                     .await
                     .unwrap();
