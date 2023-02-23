@@ -29,6 +29,7 @@ use rand::{
     SeedableRng,
 };
 use serde::{de, Deserialize, Deserializer, Serialize};
+use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
 
 use crate::{
@@ -99,6 +100,37 @@ impl State {
         storage::Document::insert(&self.storage, documents)
             .await
             .map_err(Into::into)
+    }
+
+    #[allow(dead_code)]
+    async fn update(
+        &self,
+        embeddings: Vec<(DocumentId, NormalizedEmbedding)>,
+    ) -> Result<(), Error> {
+        let mut documents = storage::Document::get_personalized(
+            &self.storage,
+            &embeddings.iter().map(|(id, _)| id).collect_vec(),
+        )
+        .await?
+        .into_iter()
+        .map(|document| (document.id.clone(), document))
+        .collect::<HashMap<_, _>>();
+        let documents = embeddings
+            .into_iter()
+            .map(|(id, embedding)| {
+                let document = documents.remove(&id).unwrap(/* document must already exist */);
+                let document = IngestedDocument {
+                    id,
+                    snippet: String::new(/* unused for in-memory db */),
+                    properties: document.properties,
+                    tags: document.tags,
+                };
+                (document, embedding)
+            })
+            .collect_vec();
+        storage::Document::insert(&self.storage, documents).await?;
+
+        Ok(())
     }
 
     async fn interact(
