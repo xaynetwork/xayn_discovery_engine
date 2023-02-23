@@ -67,7 +67,9 @@ pub(crate) enum InsertionError {
 
 #[derive(Debug, From)]
 pub(crate) enum DeletionError {
+    #[from(types(sqlx::Error))]
     General(Error),
+    #[from]
     PartialFailure { errors: Vec<DocumentIdAsObject> },
 }
 

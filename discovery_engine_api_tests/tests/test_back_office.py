@@ -18,7 +18,6 @@ class TestBackOfficeEndpoint:
         au.assert_status_code_equals(docs.status_code, 204)
 
     @allure.severity(allure.severity_level.NORMAL)
-    @pytest.mark.skip(reason="ET-4004")
     def test_delete_doc_negative(self):
         api_handler = ApiHandler()
         docs = api_handler.delete_document(su.generate_random_alphanumerical(10))
