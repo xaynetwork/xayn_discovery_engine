@@ -353,7 +353,7 @@ impl Database {
     async fn get_personalized(
         tx: &mut Transaction<'_, Postgres>,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-        scores: &HashMap<DocumentId, f32>,
+        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut builder = QueryBuilder::new(
             "SELECT document_id, properties, tags, embedding
@@ -362,7 +362,7 @@ impl Database {
         );
         let ids = ids.into_iter();
         let mut documents = Vec::with_capacity(ids.len());
-        let mut ids = ids.filter(|id| scores.contains_key(id)).peekable();
+        let mut ids = ids.filter(|id| scores(id).is_some()).peekable();
         while ids.peek().is_some() {
             documents.extend(
                 builder
@@ -371,7 +371,7 @@ impl Database {
                     .build()
                     .try_map(|row| {
                         QueriedPersonalizedDocument::from_row(&row).map(|document| {
-                            let score = scores[&document.document_id];
+                            let score = scores(&document.document_id).unwrap(/* filtered ids */);
                             PersonalizedDocument {
                                 id: document.document_id,
                                 score,
@@ -385,7 +385,9 @@ impl Database {
                     .await?,
             );
         }
-        documents.sort_unstable_by(|a, b| nan_safe_f32_cmp_desc(&scores[&a.id], &scores[&b.id]));
+        documents.sort_unstable_by(|a, b| {
+            nan_safe_f32_cmp_desc(&scores(&a.id).unwrap(), &scores(&b.id).unwrap())
+        });
 
         Ok(documents)
     }
@@ -599,7 +601,7 @@ impl Storage {
     pub(super) async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-        scores: &HashMap<DocumentId, f32>,
+        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
         let documents = Database::get_personalized(&mut tx, ids, scores).await?;

@@ -12,10 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    collections::{HashMap, HashSet},
-    hash::BuildHasher,
-};
+use std::collections::{HashMap, HashSet};
+#[cfg(not(feature = "ET-3837"))]
+use std::hash::BuildHasher;
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -218,35 +217,6 @@ impl Client {
 
         self.query_with_bytes(url, post_data).await
     }
-
-    #[cfg(feature = "ET-3837")]
-    async fn get_score(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
-        let ids = ids.into_iter();
-        if ids.len() == 0 {
-            return Ok(HashMap::new());
-        }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
-        let body = Some(json!({
-            "query": {
-                "ids" : {
-                    "values": ids.into_iter().collect_vec()
-                }
-            },
-            "_source": false
-        }));
-        let response = self
-            .query_with_json::<_, SearchResponse<NoSource>>(
-                self.create_resource_path(["_search"], None),
-                body,
-            )
-            .await?;
-
-        Ok(response.map(Into::into).unwrap_or_default())
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -281,21 +251,6 @@ impl<'de> Deserialize<'de> for NoSource {
         D: Deserializer<'de>,
     {
         Ok(Self)
-    }
-}
-
-#[cfg(feature = "ET-3837")]
-impl<S> From<SearchResponse<NoSource>> for HashMap<DocumentId, f32, S>
-where
-    S: BuildHasher + Default,
-{
-    fn from(response: SearchResponse<NoSource>) -> Self {
-        response
-            .hits
-            .hits
-            .into_iter()
-            .map(|hit| (hit.id, hit.score))
-            .collect()
     }
 }
 
@@ -482,7 +437,7 @@ impl storage::Document for Storage {
 
     async fn get_personalized(
         &self,
-        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         #[cfg(not(feature = "ET-3837"))]
         return self
@@ -490,11 +445,7 @@ impl storage::Document for Storage {
             .await;
 
         #[cfg(feature = "ET-3837")]
-        {
-            let ids = ids.into_iter();
-            let scores = self.elastic.get_score(ids.clone()).await?;
-            self.get_personalized(ids, &scores).await
-        }
+        self.get_personalized(ids, |_| Some(1.0)).await
     }
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
@@ -627,10 +578,18 @@ impl storage::Document for Storage {
                     Some(body),
                 )
                 .await?
-                .map(HashMap::from)
+                .map(|response| {
+                    response
+                        .hits
+                        .hits
+                        .into_iter()
+                        .map(|hit| (hit.id, hit.score))
+                        .collect::<HashMap<_, _>>()
+                })
                 .unwrap_or_default();
 
-            self.get_personalized(scores.keys(), &scores).await
+            self.get_personalized(scores.keys(), |id| scores.get(id).copied())
+                .await
         }
     }
 

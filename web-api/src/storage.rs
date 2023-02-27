@@ -45,10 +45,7 @@ use crate::{
     Error,
 };
 
-pub(crate) struct KnnSearchParams<'a, I>
-where
-    I: IntoIterator<Item = &'a DocumentId>,
-{
+pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) excluded: I,
     pub(crate) embedding: &'a NormalizedEmbedding,
     pub(crate) k_neighbors: usize,
@@ -86,7 +83,7 @@ pub(crate) trait Document {
 
     async fn get_personalized(
         &self,
-        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;

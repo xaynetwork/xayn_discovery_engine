@@ -27,13 +27,7 @@ use crate::{
     Error,
 };
 
-pub(super) struct Search<'a, I, J>
-where
-    I: IntoIterator,
-    <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a PositiveCoi>,
-    J: IntoIterator,
-    <J as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a DocumentId>,
-{
+pub(super) struct Search<I, J> {
     pub(super) interests: I,
     pub(super) excluded: J,
     pub(super) horizon: Duration,
@@ -43,7 +37,7 @@ where
     pub(super) time: DateTime<Utc>,
 }
 
-impl<'a, I, J> Search<'a, I, J>
+impl<'a, I, J> Search<I, J>
 where
     I: IntoIterator,
     <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a PositiveCoi>,

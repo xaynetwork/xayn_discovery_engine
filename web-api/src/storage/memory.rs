@@ -255,7 +255,7 @@ impl storage::Document for Storage {
 
     async fn get_personalized(
         &self,
-        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let documents = self.documents.read().await;
         let documents = ids
