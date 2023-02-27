@@ -368,7 +368,7 @@ impl storage::Document for Storage {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         let properties = self
@@ -414,7 +414,7 @@ impl storage::DocumentProperties for Storage {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::DocumentProperty for Storage {
     async fn get(
         &self,
@@ -458,26 +458,22 @@ impl storage::DocumentProperty for Storage {
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
-    ) -> Result<Option<()>, Error> {
-        let property = self
-            .documents
+    ) -> Result<Option<Option<()>>, Error> {
+        self.documents
             .write()
             .await
             .0
             .get_mut(document_id)
             .ok_or(DocumentNotFound)?
             .properties
-            .remove(property_id);
+            .remove(property_id)
+            .ok_or(DocumentPropertyNotFound)?;
 
-        if property.is_some() {
-            Ok(Some(()))
-        } else {
-            Err(DocumentPropertyNotFound.into())
-        }
+        Ok(Some(Some(())))
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Interest for Storage {
     async fn get(&self, id: &UserId) -> Result<UserInterests, Error> {
         let interests = self
@@ -570,7 +566,7 @@ impl storage::Interaction for Storage {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())

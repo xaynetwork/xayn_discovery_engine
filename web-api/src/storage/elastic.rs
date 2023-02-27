@@ -121,6 +121,13 @@ struct BulkResponse {
     items: Vec<HashMap<String, BulkItemResponse>>,
 }
 
+#[derive(Debug, Deserialize)]
+/// Deserializes from any map/struct dropping all fields.
+///
+/// This will not work with non self describing non schema
+/// formats like bincode.
+struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
+
 impl Client {
     fn create_resource_path<'a>(
         &self,
@@ -216,6 +223,99 @@ impl Client {
             .transpose()?;
 
         self.query_with_bytes(url, post_data).await
+    }
+
+    pub(super) async fn insert_document_properties(
+        &self,
+        id: &DocumentId,
+        properties: &DocumentProperties,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties = params.properties",
+                "params": {
+                    "properties": properties
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
+    }
+
+    pub(super) async fn delete_document_properties(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties = params.properties",
+                "params": {
+                    "properties": DocumentProperties::new()
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
+    }
+
+    pub(super) async fn insert_document_property(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+        property: &DocumentProperty,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        let url = self.create_resource_path(["_update", document_id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties.put(params.prop_id, params.property)",
+                "params": {
+                    "prop_id": property_id,
+                    "property": property
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
+    }
+
+    pub(super) async fn delete_document_property(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<Option<()>>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        let url = self.create_resource_path(["_update", document_id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.properties.remove(params.prop_id)",
+                "params": {
+                    "prop_id": property_id
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| Some(())))
     }
 }
 
@@ -707,21 +807,15 @@ impl storage::Document for Storage {
     }
 }
 
+#[cfg(not(feature = "ET-3837"))]
 #[derive(Clone, Debug, Deserialize)]
 struct DocumentPropertiesResponse {
     #[serde(default)]
     properties: DocumentProperties,
 }
 
-#[derive(Clone, Debug, Deserialize)]
-/// Deserializes from any map/struct dropping all fields.
-///
-/// This will not work with non self describing non schema
-/// formats like bincode.
-//Note: The {} is needed for it to work correctly.
-struct IgnoredResponse {}
-
-#[async_trait]
+#[cfg(not(feature = "ET-3837"))]
+#[async_trait(?Send)]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         if !self.postgres.document_exists(id).await? {
@@ -745,60 +839,26 @@ impl storage::DocumentProperties for Storage {
         id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(id).await? {
-            return Ok(None);
+        if self.postgres.document_exists(id).await? {
+            self.elastic
+                .insert_document_properties(id, properties)
+                .await
+        } else {
+            Ok(None)
         }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self
-            .elastic
-            .create_resource_path(["_update", id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties = params.properties",
-                "params": {
-                    "properties": properties
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
     }
 
     async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(id).await? {
-            return Ok(None);
+        if self.postgres.document_exists(id).await? {
+            self.elastic.delete_document_properties(id).await
+        } else {
+            Ok(None)
         }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        // don't delete the field, but put an empty map instead, similar to the ingestion service
-        let url = self
-            .elastic
-            .create_resource_path(["_update", id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties = params.properties",
-                "params": {
-                    "properties": DocumentProperties::new()
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
     }
 }
 
-#[async_trait]
+#[cfg(not(feature = "ET-3837"))]
+#[async_trait(?Send)]
 impl storage::DocumentProperty for Storage {
     async fn get(
         &self,
@@ -828,59 +888,26 @@ impl storage::DocumentProperty for Storage {
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(document_id).await? {
-            return Ok(None);
+        if self.postgres.document_exists(document_id).await? {
+            self.elastic
+                .insert_document_property(document_id, property_id, property)
+                .await
+        } else {
+            Ok(None)
         }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self
-            .elastic
-            .create_resource_path(["_update", document_id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties.put(params.prop_id, params.property)",
-                "params": {
-                    "prop_id": property_id,
-                    "property": property
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
     }
 
     async fn delete(
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
-    ) -> Result<Option<()>, Error> {
-        if !self.postgres.document_exists(document_id).await? {
-            return Ok(None);
+    ) -> Result<Option<Option<()>>, Error> {
+        if self.postgres.document_exists(document_id).await? {
+            self.elastic
+                .delete_document_property(document_id, property_id)
+                .await
+        } else {
+            Ok(None)
         }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self
-            .elastic
-            .create_resource_path(["_update", document_id.as_ref()], None);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties.remove(params.prop_id)",
-                "params": {
-                    "prop_id": property_id
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, IgnoredResponse>(url, body)
-            .await?
-            .map(|_| ()))
     }
 }

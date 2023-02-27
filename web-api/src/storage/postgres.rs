@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(feature = "ET-3837")]
+use std::slice;
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -42,7 +44,13 @@ use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
 #[cfg(feature = "ET-3837")]
-use crate::models::{DocumentProperties, IngestedDocument, PersonalizedDocument};
+use crate::models::{
+    DocumentProperties,
+    DocumentProperty,
+    DocumentPropertyId,
+    IngestedDocument,
+    PersonalizedDocument,
+};
 use crate::{
     error::common::DocumentIdAsObject,
     models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
@@ -159,6 +167,18 @@ struct QueriedPersonalizedDocument {
     embedding: NormalizedEmbedding,
 }
 
+#[derive(FromRow)]
+struct QueriedCoi {
+    coi_id: CoiId,
+    is_positive: bool,
+    embedding: NormalizedEmbedding,
+    /// The count is a `usize` stored as `i32` in database
+    view_count: i32,
+    /// The time is a `u64` stored as `i64` in database
+    view_time_ms: i64,
+    last_view: DateTime<Utc>,
+}
+
 impl Database {
     // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
     const BIND_LIMIT: usize = 65_535;
@@ -271,12 +291,26 @@ impl Database {
         }
     }
 
+    #[cfg(not(feature = "ET-3837"))]
     pub(super) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
         sqlx::query("SELECT document_id FROM document WHERE document_id = $1;")
             .bind(id)
             .fetch_optional(&self.pool)
             .await
             .map(|id| id.is_some())
+            .map_err(Into::into)
+    }
+
+    #[cfg(feature = "ET-3837")]
+    pub(super) async fn document_exists(
+        tx: &mut Transaction<'_, Postgres>,
+        id: &DocumentId,
+    ) -> Result<bool, Error> {
+        sqlx::query("SELECT 1 FROM document WHERE document_id = $1;")
+            .bind(id)
+            .execute(tx)
+            .await
+            .map(|response| response.rows_affected() > 0)
             .map_err(Into::into)
     }
 
@@ -622,19 +656,187 @@ impl Storage {
     }
 }
 
+#[cfg(feature = "ET-3837")]
 #[derive(FromRow)]
-struct QueriedCoi {
-    coi_id: CoiId,
-    is_positive: bool,
-    embedding: NormalizedEmbedding,
-    /// The count is a `usize` stored as `i32` in database
-    view_count: i32,
-    /// The time is a `u64` stored as `i64` in database
-    view_time_ms: i64,
-    last_view: DateTime<Utc>,
+struct QueriedDocumentProperties(Json<DocumentProperties>);
+
+#[cfg(feature = "ET-3837")]
+#[async_trait(?Send)]
+impl storage::DocumentProperties for Storage {
+    async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let properties = sqlx::query_as::<_, QueriedDocumentProperties>(
+            "SELECT properties
+            FROM document
+            WHERE document_id = $1;",
+        )
+        .bind(id)
+        .fetch_optional(&mut tx)
+        .await?
+        .map(|properties| properties.0 .0);
+
+        tx.commit().await?;
+
+        Ok(properties)
+    }
+
+    async fn put(
+        &self,
+        id: &DocumentId,
+        properties: &DocumentProperties,
+    ) -> Result<Option<()>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let inserted = sqlx::query(
+            "UPDATE document
+            SET properties = $1
+            WHERE document_id = $2;",
+        )
+        .bind(Json(properties))
+        .bind(id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let inserted = if inserted > 0 {
+            self.elastic
+                .insert_document_properties(id, properties)
+                .await?
+        } else {
+            None
+        };
+
+        tx.commit().await?;
+
+        Ok(inserted)
+    }
+
+    async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let deleted = sqlx::query(
+            "UPDATE document
+            SET properties = DEFAULT
+            WHERE document_id = $1;",
+        )
+        .bind(id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let deleted = if deleted > 0 {
+            self.elastic.delete_document_properties(id).await?
+        } else {
+            None
+        };
+
+        tx.commit().await?;
+
+        Ok(deleted)
+    }
 }
 
-#[async_trait]
+#[cfg(feature = "ET-3837")]
+#[derive(FromRow)]
+struct QueriedDocumentProperty(Json<DocumentProperty>);
+
+#[cfg(feature = "ET-3837")]
+#[async_trait(?Send)]
+impl storage::DocumentProperty for Storage {
+    async fn get(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<Option<DocumentProperty>>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let property = sqlx::query_as::<_, QueriedDocumentProperty>(
+            "SELECT properties -> $1
+            FROM document
+            WHERE document_id = $2 AND properties ? $1;",
+        )
+        .bind(property_id)
+        .bind(document_id)
+        .fetch_optional(&mut tx)
+        .await?;
+        let property = if let Some(property) = property {
+            Some(Some(property.0 .0))
+        } else {
+            Database::document_exists(&mut tx, document_id)
+                .await?
+                .then_some(None)
+        };
+
+        tx.commit().await?;
+
+        Ok(property)
+    }
+
+    async fn put(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+        property: &DocumentProperty,
+    ) -> Result<Option<()>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let inserted = sqlx::query(
+            "UPDATE document
+            SET properties = jsonb_set(properties, $1, $2)
+            WHERE document_id = $3;",
+        )
+        .bind(slice::from_ref(property_id))
+        .bind(Json(property))
+        .bind(document_id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let inserted = if inserted > 0 {
+            self.elastic
+                .insert_document_property(document_id, property_id, property)
+                .await?
+        } else {
+            None
+        };
+
+        tx.commit().await?;
+
+        Ok(inserted)
+    }
+
+    async fn delete(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<Option<()>>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let deleted = sqlx::query(
+            "UPDATE document
+            SET properties = properties - $1
+            WHERE document_id = $2 AND properties ? $1;",
+        )
+        .bind(property_id)
+        .bind(document_id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let deleted = if deleted > 0 {
+            self.elastic
+                .delete_document_property(document_id, property_id)
+                .await?
+        } else {
+            Database::document_exists(&mut tx, document_id)
+                .await?
+                .then_some(None)
+        };
+
+        tx.commit().await?;
+
+        Ok(deleted)
+    }
+}
+
+#[async_trait(?Send)]
 impl storage::Interest for Storage {
     async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
         Database::get_user_interests(&self.postgres.pool, user_id).await
@@ -764,7 +966,7 @@ struct QueriedWeightedTag {
     weight: i32,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl storage::Tag for Storage {
     async fn get(&self, user_id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
