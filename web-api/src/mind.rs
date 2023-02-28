@@ -20,11 +20,11 @@ mod state;
 
 use std::{fs::File, io, io::Write};
 
-use anyhow::Error;
 use chrono::Duration;
 use itertools::Itertools;
 use ndarray::{Array, Array3, Array4, ArrayView};
 use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+use xayn_test_utils::error::Panic;
 
 use crate::{
     mind::{
@@ -48,16 +48,15 @@ use crate::{
 /// Runs the persona-based mind benchmark.
 #[tokio::test]
 #[ignore = "run on demand via `just mind-benchmark persona`"]
-async fn run_persona_benchmark() -> Result<(), Error> {
+async fn run_persona_benchmark() -> Result<(), Panic> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
 
-    let state = State::new(Storage::default(), StateConfig::default()).unwrap();
+    let state = State::new(Storage::default(), StateConfig::default())?;
     // load documents from document provider to state
     state
         .insert(document_provider.values().cloned().collect_vec())
-        .await
-        .unwrap();
+        .await?;
     let benchmark_config = PersonaBasedConfig::default();
     // create 3d array of zeros with shape (users, iterations, nranks)
     let mut results = Array3::<f32>::zeros([
@@ -83,8 +82,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                         )
                     }),
             )
-            .await
-            .unwrap();
+            .await?;
 
         for iter in 0..benchmark_config.iterations {
             let personalised_documents = state
@@ -96,8 +94,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                     },
                     state.time,
                 )
-                .await
-                .unwrap()
+                .await?
                 .unwrap();
 
             let documents = personalised_documents
@@ -131,8 +128,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
                             )
                         }),
                 )
-                .await
-                .unwrap();
+                .await?;
         }
     }
     let mut file = File::create("results/persona_based_benchmark_results.npy")?;
@@ -143,14 +139,11 @@ async fn run_persona_benchmark() -> Result<(), Error> {
 /// Runs the user-based mind benchmark.
 #[tokio::test]
 #[ignore = "run on demand via `just mind-benchmark user`"]
-async fn run_user_benchmark() -> Result<(), Error> {
+async fn run_user_benchmark() -> Result<(), Panic> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
-    let state = State::new(Storage::default(), StateConfig::default()).unwrap();
-    state
-        .insert(document_provider.to_documents())
-        .await
-        .unwrap();
+    let state = State::new(Storage::default(), StateConfig::default())?;
+    state.insert(document_provider.to_documents()).await?;
 
     let nranks = vec![5, 10];
     let mut ndcgs = Array::zeros((nranks.len(), 0));
@@ -175,8 +168,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
                             )
                         }),
                     )
-                    .await
-                    .unwrap();
+                    .await?;
             }
 
             let document_ids = impression
@@ -191,8 +183,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
                     PersonalizeBy::Documents(document_ids.as_slice()),
                     state.time,
                 )
-                .await
-                .unwrap()
+                .await?
                 .unwrap()
                 .iter()
                 .map(|reranked_id| {
@@ -215,9 +206,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
         };
 
         let ndcgs_iteration = ndcg(&labels, &nranks);
-        ndcgs
-            .push_column(ArrayView::from(&ndcgs_iteration))
-            .unwrap();
+        ndcgs.push_column(ArrayView::from(&ndcgs_iteration))?;
     }
     println!("{ndcgs:?}");
 
@@ -227,16 +216,15 @@ async fn run_user_benchmark() -> Result<(), Error> {
 /// The function panics if the provided filenames are not correct.
 #[tokio::test]
 #[ignore = "run on demand via `just mind-benchmark saturation`"]
-async fn run_saturation_benchmark() -> Result<(), Error> {
+async fn run_saturation_benchmark() -> Result<(), Panic> {
     // load list of possible specific topics from file (need to create it)
     let specific_topics = SpecificTopics::new("topics.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-    let state = State::new(Storage::default(), StateConfig::default()).unwrap();
+    let state = State::new(Storage::default(), StateConfig::default())?;
     // load documents from document provider to state
     state
         .insert(document_provider.values().cloned().collect_vec())
-        .await
-        .unwrap();
+        .await?;
     let benchmark_config = SaturationConfig::default();
 
     // create rng thread for random number generation with seed 42
@@ -253,15 +241,14 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
             SaturationTopicResult::new(full_category, benchmark_config.iterations);
 
         let documents = document_provider.get_all_interest(std::slice::from_ref(full_category));
-        let user_id = UserId::new(full_category).unwrap();
+        let user_id = UserId::new(full_category)?;
         // get random document from the topic
         let document = documents.choose(&mut rng).unwrap();
 
         // interact with the document
         state
             .interact(&user_id, [(&document.id, state.time - Duration::days(0))])
-            .await
-            .unwrap();
+            .await?;
 
         for _ in 0..benchmark_config.iterations {
             let personalised_documents = state
@@ -273,8 +260,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
                     },
                     state.time,
                 )
-                .await
-                .unwrap()
+                .await?
                 .unwrap();
             // calculate scores for the documents
             let documents = personalised_documents
@@ -300,8 +286,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
                         .iter()
                         .map(|id| (id, state.time - Duration::days(0))),
                 )
-                .await
-                .unwrap();
+                .await?;
 
             // add results to the topic result
             topic_result.push(SaturationIteration {
@@ -320,15 +305,14 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
 
 #[tokio::test]
 #[ignore = "run on demand via `just mind-benchmark persona_hot_news`"]
-async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
+async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-    let state = State::new(Storage::default(), StateConfig::default()).unwrap();
+    let state = State::new(Storage::default(), StateConfig::default())?;
     // load documents from document provider to state
     state
         .insert(document_provider.values().cloned().collect_vec())
-        .await
-        .unwrap();
+        .await?;
     let benchmark_config = PersonaBasedConfig::default();
     // create 3d array of zeros with shape (users, iterations, nranks)
     let mut results = Array3::<f32>::zeros([
@@ -349,8 +333,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                     .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
                     .map(|doc| (&doc.id, state.time - Duration::days(0))),
             )
-            .await
-            .unwrap();
+            .await?;
 
         for iter in 0..benchmark_config.iterations {
             // get random news that will represent tenant's hot news category
@@ -366,8 +349,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                         .then(|| (&doc.id, state.time - Duration::days(0)))
                     }),
                 )
-                .await
-                .unwrap();
+                .await?;
 
             let personalised_documents = state
                 .personalize(
@@ -378,8 +360,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                     },
                     state.time,
                 )
-                .await
-                .unwrap()
+                .await?
                 .unwrap();
 
             let documents = personalised_documents
@@ -407,8 +388,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
                             .then(|| (id, state.time - Duration::days(0)))
                         }),
                 )
-                .await
-                .unwrap();
+                .await?;
         }
     }
     let mut file = File::create("results/persona_based_benchmark_results.npy")?;
@@ -419,17 +399,14 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
 /// Grid search for best parameters for persona based benchmark.
 #[tokio::test]
 #[ignore = "run on demand"]
-async fn grid_search_for_best_parameters() -> Result<(), Error> {
+async fn grid_search_for_best_parameters() -> Result<(), Panic> {
     // load users interests sample as computing all users interests is too expensive in grid search
     let users_interests = Users::new("user_categories_sample.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
     let grid_search_config = GridSearchConfig::default();
-    let configs = grid_search_config.create_state_configs();
-    let mut state = State::new(Storage::default(), StateConfig::default()).unwrap();
-    state
-        .insert(document_provider.to_documents())
-        .await
-        .unwrap();
+    let configs = grid_search_config.create_state_configs()?;
+    let mut state = State::new(Storage::default(), StateConfig::default())?;
+    state.insert(document_provider.to_documents()).await?;
     let mut rng = StdRng::seed_from_u64(42);
     let file = File::create("params.json")?;
     let mut writer = io::BufWriter::new(file);
@@ -453,8 +430,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                         .choose_multiple(&mut rng, state.coi.config().min_positive_cois())
                         .map(|doc| (&doc.id, state.time - Duration::days(0))),
                 )
-                .await
-                .unwrap();
+                .await?;
 
             for iter in 0..grid_search_config.iterations {
                 let personalised_documents = state
@@ -466,8 +442,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                         },
                         state.time,
                     )
-                    .await
-                    .unwrap()
+                    .await?
                     .unwrap();
 
                 let documents = personalised_documents
@@ -498,8 +473,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
                                 .then_some((id, state.time))
                             }),
                     )
-                    .await
-                    .unwrap();
+                    .await?;
             }
         }
     }

@@ -12,9 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, fs::File, io, io::Write, path::Path};
+use std::{collections::HashMap, fs::File, io::Write, path::Path};
 
-use anyhow::Error;
 use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
 use derive_more::Deref;
 use itertools::Itertools;
@@ -22,6 +21,7 @@ use ndarray::{ArrayBase, Data, Dimension};
 use npyz::{AutoSerialize, WriterBuilder};
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use serde::{de, Deserialize, Deserializer};
+use xayn_test_utils::error::Panic;
 
 use crate::models::{DocumentId, DocumentTag, UserId};
 
@@ -36,7 +36,7 @@ where
         .map(|m| {
             m.split(' ')
                 .map(|document| DocumentId::new(document).map_err(de::Error::custom))
-                .collect::<Result<Vec<_>, _>>()
+                .try_collect::<_, Vec<_>, _>()
         })
         .transpose()
 }
@@ -141,7 +141,7 @@ pub(super) fn score_documents(
         .collect()
 }
 
-fn read_from_tsv<P>(path: P) -> Result<Reader<File>, Error>
+fn read_from_tsv<P>(path: P) -> Result<Reader<File>, Panic>
 where
     P: AsRef<Path>,
 {
@@ -153,7 +153,7 @@ where
         .map_err(Into::into)
 }
 
-pub(super) fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Error>
+pub(super) fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Panic>
 where
     for<'de> T: Deserialize<'de>,
 {
@@ -165,7 +165,7 @@ where
 pub(super) struct DocumentProvider(HashMap<DocumentId, Document>);
 
 impl DocumentProvider {
-    pub(super) fn new(path: &str) -> Result<Self, Error> {
+    pub(super) fn new(path: &str) -> Result<Self, Panic> {
         read::<Document>(path)?
             .map(|document| document.map(|document| (document.id.clone(), document)))
             .try_collect()
@@ -195,7 +195,7 @@ impl DocumentProvider {
 pub(super) struct SpecificTopics(Vec<String>);
 
 impl SpecificTopics {
-    pub(super) fn new(path: &str) -> Result<Self, Error> {
+    pub(super) fn new(path: &str) -> Result<Self, Panic> {
         Ok(serde_json::from_reader(File::open(path)?)?)
     }
 }
@@ -206,12 +206,12 @@ pub(super) struct Users(HashMap<UserId, Vec<String>>);
 
 impl Users {
     /// Reads the users interests from a json file.
-    pub(super) fn new(path: &str) -> Result<Self, Error> {
+    pub(super) fn new(path: &str) -> Result<Self, Panic> {
         Ok(serde_json::from_reader(File::open(path)?)?)
     }
 }
 
-pub(super) fn write_array<T, S, D>(writer: impl Write, array: &ArrayBase<S, D>) -> io::Result<()>
+pub(super) fn write_array<T, S, D>(writer: impl Write, array: &ArrayBase<S, D>) -> Result<(), Panic>
 where
     T: Clone + AutoSerialize,
     S: Data<Elem = T>,
@@ -226,5 +226,7 @@ where
         .writer(writer)
         .begin_nd()?;
     writer.extend(c_order_items)?;
-    writer.finish()
+    writer.finish()?;
+
+    Ok(())
 }

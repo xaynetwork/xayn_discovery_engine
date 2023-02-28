@@ -15,6 +15,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use xayn_ai_coi::CoiConfig;
+use xayn_test_utils::error::Panic;
 
 use crate::personalization::PersonalizationConfig;
 
@@ -63,7 +64,7 @@ impl Default for GridSearchConfig {
 }
 
 impl GridSearchConfig {
-    pub(super) fn create_state_configs(&self) -> Vec<StateConfig> {
+    pub(super) fn create_state_configs(&self) -> Result<Vec<StateConfig>, Panic> {
         let mut configs =
             Vec::with_capacity(self.thresholds.len() * self.shifts.len() * self.min_pos_cois.len());
         let start_time = Utc::now();
@@ -74,12 +75,9 @@ impl GridSearchConfig {
                     configs.push(StateConfig {
                         coi: {
                             CoiConfig::default()
-                                .with_shift_factor(shift_factor)
-                                .unwrap()
-                                .with_threshold(threshold)
-                                .unwrap()
-                                .with_min_positive_cois(min_positive_cois)
-                                .unwrap()
+                                .with_shift_factor(shift_factor)?
+                                .with_threshold(threshold)?
+                                .with_min_positive_cois(min_positive_cois)?
                         },
                         personalization: PersonalizationConfig::default(),
                         time: start_time,
@@ -88,7 +86,7 @@ impl GridSearchConfig {
             }
         }
 
-        configs
+        Ok(configs)
     }
 }
 

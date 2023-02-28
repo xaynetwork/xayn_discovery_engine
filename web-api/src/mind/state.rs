@@ -14,13 +14,13 @@
 
 use std::collections::HashMap;
 
-use anyhow::Error;
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use serde::Serialize;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
+use xayn_test_utils::error::Panic;
 
 use crate::{
     embedding::{self, Embedder},
@@ -42,11 +42,12 @@ pub(super) struct State {
 }
 
 impl State {
-    pub(super) fn new(storage: Storage, config: StateConfig) -> Result<Self, Error> {
+    pub(super) fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
         let embedder = Embedder::load(&embedding::Config {
             directory: "../assets/smbert_v0003".into(),
             ..embedding::Config::default()
-        })?;
+        })
+        .map_err(|error| Panic::from(&*error))?;
 
         let coi = config.coi.build();
         let personalization = config.personalization;
@@ -65,7 +66,7 @@ impl State {
         self.coi = config.build();
     }
 
-    pub(super) async fn insert(&self, documents: Vec<Document>) -> Result<(), Error> {
+    pub(super) async fn insert(&self, documents: Vec<Document>) -> Result<(), Panic> {
         let documents = documents
             .into_iter()
             .map(|document| {
@@ -79,18 +80,17 @@ impl State {
 
                 Ok((document, embedding))
             })
-            .try_collect::<_, _, Error>()?;
+            .try_collect::<_, _, Panic>()?;
+        storage::Document::insert(&self.storage, documents).await?;
 
-        storage::Document::insert(&self.storage, documents)
-            .await
-            .map_err(Into::into)
+        Ok(())
     }
 
     #[allow(dead_code)]
     pub(super) async fn update(
         &self,
         embeddings: Vec<(DocumentId, NormalizedEmbedding)>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Panic> {
         let mut documents =
             storage::Document::get_personalized(&self.storage, embeddings.iter().map(|(id, _)| id))
                 .await?
@@ -119,7 +119,7 @@ impl State {
         &self,
         user: &UserId,
         documents: impl IntoIterator<Item = (&DocumentId, DateTime<Utc>)>,
-    ) -> Result<(), Error> {
+    ) -> Result<(), Panic> {
         for (id, time) in documents {
             update_interactions(
                 &self.storage,
@@ -140,7 +140,7 @@ impl State {
         user: &UserId,
         by: PersonalizeBy<'_>,
         time: DateTime<Utc>,
-    ) -> Result<Option<Vec<DocumentId>>, Error> {
+    ) -> Result<Option<Vec<DocumentId>>, Panic> {
         personalize_documents_by(
             &self.storage,
             &self.coi,
