@@ -18,27 +18,19 @@ mod config;
 mod data;
 mod state;
 
-use std::{fs::File, io, io::Write};
+use std::{fs::File, io, io::Write, slice};
 
 use chrono::Duration;
 use itertools::Itertools;
-use ndarray::{Array, Array3, Array4, ArrayView};
+use ndarray::s;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 use xayn_test_utils::error::Panic;
 
 use crate::{
     mind::{
         config::{GridSearchConfig, PersonaBasedConfig, SaturationConfig, StateConfig},
-        data::{
-            read,
-            score_documents,
-            write_array,
-            DocumentProvider,
-            Impression,
-            SpecificTopics,
-            Users,
-        },
-        state::{ndcg, SaturationIteration, SaturationResult, SaturationTopicResult, State},
+        data::{read, DocumentProvider, Impression, Ndcg, SpecificTopics, Users},
+        state::{SaturationIteration, SaturationResult, SaturationTopicResult, State},
     },
     models::UserId,
     personalization::routes::PersonalizeBy,
@@ -51,20 +43,17 @@ use crate::{
 async fn run_persona_benchmark() -> Result<(), Panic> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-
     let state = State::new(Storage::default(), StateConfig::default())?;
     // load documents from document provider to state
-    state
-        .insert(document_provider.values().cloned().collect_vec())
-        .await?;
+    state.insert(document_provider.to_documents()).await?;
     let benchmark_config = PersonaBasedConfig::default();
+
     // create 3d array of zeros with shape (users, iterations, nranks)
-    let mut results = Array3::<f32>::zeros([
+    let mut ndcgs = Ndcg::new([
         users_interests.len(),
         benchmark_config.iterations,
         benchmark_config.nranks.len(),
     ]);
-
     let mut rng = StdRng::seed_from_u64(42);
     for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
         let interesting_documents = document_provider.get_all_interest(interests);
@@ -97,18 +86,12 @@ async fn run_persona_benchmark() -> Result<(), Panic> {
                 .await?
                 .unwrap();
 
-            let documents = personalised_documents
-                .iter()
-                .map(|id| document_provider.get(id).unwrap())
-                .collect_vec();
-
-            let scores =
-                score_documents(&documents, interests, benchmark_config.is_semi_interesting);
-            let ndcgs_iteration = ndcg(&scores, &benchmark_config.nranks);
-            //save scores to results array
-            for (i, ndcg) in ndcgs_iteration.iter().enumerate() {
-                results[[idx, iter, i]] = *ndcg;
-            }
+            let scores = document_provider.score(
+                &personalised_documents,
+                interests,
+                benchmark_config.is_semi_interesting,
+            );
+            ndcgs.assign(s![idx, iter, ..], &scores, &benchmark_config.nranks);
             // interact with documents
             state
                 .interact(
@@ -131,8 +114,8 @@ async fn run_persona_benchmark() -> Result<(), Panic> {
                 .await?;
         }
     }
-    let mut file = File::create("results/persona_based_benchmark_results.npy")?;
-    write_array(&mut file, &results)?;
+    ndcgs.write(File::create("results/persona_based_benchmark_results.npy")?)?;
+
     Ok(())
 }
 
@@ -146,7 +129,7 @@ async fn run_user_benchmark() -> Result<(), Panic> {
     state.insert(document_provider.to_documents()).await?;
 
     let nranks = vec![5, 10];
-    let mut ndcgs = Array::zeros((nranks.len(), 0));
+    let mut ndcgs = Ndcg::new([nranks.len(), 0]);
     let mut users = Vec::new();
 
     // Loop over all impressions, prepare reranker with news in click history
@@ -204,9 +187,7 @@ async fn run_user_benchmark() -> Result<(), Panic> {
                 .map(|viewed_document| u8::from(viewed_document.was_clicked).into())
                 .collect_vec()
         };
-
-        let ndcgs_iteration = ndcg(&labels, &nranks);
-        ndcgs.push_column(ArrayView::from(&ndcgs_iteration))?;
+        ndcgs.push(&labels, &nranks)?;
     }
     println!("{ndcgs:?}");
 
@@ -222,9 +203,7 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
     let document_provider = DocumentProvider::new("news.tsv")?;
     let state = State::new(Storage::default(), StateConfig::default())?;
     // load documents from document provider to state
-    state
-        .insert(document_provider.values().cloned().collect_vec())
-        .await?;
+    state.insert(document_provider.to_documents()).await?;
     let benchmark_config = SaturationConfig::default();
 
     // create rng thread for random number generation with seed 42
@@ -240,7 +219,7 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
         let mut topic_result =
             SaturationTopicResult::new(full_category, benchmark_config.iterations);
 
-        let documents = document_provider.get_all_interest(std::slice::from_ref(full_category));
+        let documents = document_provider.get_all_interest(slice::from_ref(full_category));
         let user_id = UserId::new(full_category)?;
         // get random document from the topic
         let document = documents.choose(&mut rng).unwrap();
@@ -263,12 +242,11 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
                 .await?
                 .unwrap();
             // calculate scores for the documents
-            let documents = personalised_documents
-                .iter()
-                .map(|id| document_provider.get(id).unwrap())
-                .collect_vec();
-
-            let scores = score_documents(&documents, &[full_category.clone()], false);
+            let scores = document_provider.score(
+                &personalised_documents,
+                slice::from_ref(full_category),
+                false,
+            );
             let to_be_clicked = personalised_documents
                 .iter()
                 .zip(scores)
@@ -310,19 +288,16 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
     let document_provider = DocumentProvider::new("news.tsv")?;
     let state = State::new(Storage::default(), StateConfig::default())?;
     // load documents from document provider to state
-    state
-        .insert(document_provider.values().cloned().collect_vec())
-        .await?;
+    state.insert(document_provider.to_documents()).await?;
     let benchmark_config = PersonaBasedConfig::default();
+
     // create 3d array of zeros with shape (users, iterations, nranks)
-    let mut results = Array3::<f32>::zeros([
+    let mut ndcgs = Ndcg::new([
         users_interests.len(),
         benchmark_config.iterations,
         benchmark_config.nranks.len(),
     ]);
-
     let mut rng = StdRng::seed_from_u64(42);
-
     for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
         let interesting_documents = document_provider.get_all_interest(interests);
         // prepare reranker by interacting with documents to prepare
@@ -363,18 +338,12 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
                 .await?
                 .unwrap();
 
-            let documents = personalised_documents
-                .iter()
-                .map(|id| document_provider.get(id).unwrap())
-                .collect_vec();
-
-            let scores =
-                score_documents(&documents, interests, benchmark_config.is_semi_interesting);
-            let ndcgs_iteration = ndcg(&scores, &benchmark_config.nranks);
-            //save scores to results array
-            results
-                .slice_mut(ndarray::s![idx, iter, ..])
-                .assign(&Array::from(ndcgs_iteration));
+            let scores = document_provider.score(
+                &personalised_documents,
+                interests,
+                benchmark_config.is_semi_interesting,
+            );
+            ndcgs.assign(s![idx, iter, ..], &scores, &benchmark_config.nranks);
             // interact with documents
             state
                 .interact(
@@ -391,8 +360,8 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
                 .await?;
         }
     }
-    let mut file = File::create("results/persona_based_benchmark_results.npy")?;
-    write_array(&mut file, &results)?;
+    ndcgs.write(File::create("results/persona_based_benchmark_results.npy")?)?;
+
     Ok(())
 }
 
@@ -413,12 +382,12 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
     serde_json::to_writer(&mut writer, &configs)?;
     writer.flush()?;
 
-    let mut ndcgs_all_configs = Array4::zeros((
+    let mut ndcgs = Ndcg::new([
         configs.len(),
         users_interests.len(),
         grid_search_config.iterations,
         grid_search_config.nranks.len(),
-    ));
+    ]);
     for (config_idx, config) in configs.into_iter().enumerate() {
         state.with_coi_config(config.coi);
         for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
@@ -445,21 +414,16 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
                     .await?
                     .unwrap();
 
-                let documents = personalised_documents
-                    .iter()
-                    .map(|id| document_provider.get(id).unwrap())
-                    .collect_vec();
-
-                let scores = score_documents(
-                    &documents,
+                let scores = document_provider.score(
+                    &personalised_documents,
                     interests,
                     grid_search_config.is_semi_interesting,
                 );
-                let ndcgs_iteration = ndcg(&scores, &grid_search_config.nranks);
-                //save scores to results array
-                ndcgs_all_configs
-                    .slice_mut(ndarray::s![config_idx, idx, iter, ..])
-                    .assign(&Array::from(ndcgs_iteration));
+                ndcgs.assign(
+                    s![config_idx, idx, iter, ..],
+                    &scores,
+                    &grid_search_config.nranks,
+                );
                 // interact with documents
                 state
                     .interact(
@@ -477,5 +441,6 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
             }
         }
     }
+
     Ok(())
 }

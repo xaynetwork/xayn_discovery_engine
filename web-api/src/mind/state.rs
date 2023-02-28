@@ -19,7 +19,7 @@ use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use serde::Serialize;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
+use xayn_ai_coi::{CoiConfig, CoiSystem};
 use xayn_test_utils::error::Panic;
 
 use crate::{
@@ -194,38 +194,4 @@ impl SaturationResult {
             topics: Vec::with_capacity(topics),
         }
     }
-}
-
-pub(super) fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
-    let mut optimal_order = relevance.to_owned();
-    optimal_order.sort_by(nan_safe_f32_cmp_desc);
-    let last = k
-        .iter()
-        .max()
-        .copied()
-        .map_or_else(|| relevance.len(), |k| k.min(relevance.len()));
-
-    let ndcgs = relevance
-        .iter()
-        .zip(optimal_order)
-        .take(last)
-        .scan(
-            (1_f32, 0., 0.),
-            |(i, dcg, ideal_dcg), (relevance, optimal_order)| {
-                *i += 1.;
-                let log_i = (*i).log2();
-                *dcg += (2_f32.powf(*relevance) - 1.) / log_i;
-                *ideal_dcg += (2_f32.powf(optimal_order) - 1.) / log_i;
-                Some(*dcg / (*ideal_dcg + 0.00001))
-            },
-        )
-        .collect::<Vec<_>>();
-
-    k.iter()
-        .map(|nrank| match ndcgs.get(*nrank - 1) {
-            Some(i) => i,
-            None => ndcgs.last().unwrap(),
-        })
-        .copied()
-        .collect::<Vec<_>>()
 }

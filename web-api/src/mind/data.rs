@@ -12,15 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, fs::File, io::Write, path::Path};
+use std::{collections::HashMap, fs::File, io::Write};
 
-use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
+use csv::{DeserializeRecordsIntoIter, ReaderBuilder};
 use derive_more::Deref;
 use itertools::Itertools;
-use ndarray::{ArrayBase, Data, Dimension};
-use npyz::{AutoSerialize, WriterBuilder};
+use ndarray::{Array, Array1, Dimension, Ix2, ShapeBuilder, SliceArg};
+use npyz::WriterBuilder;
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use serde::{de, Deserialize, Deserializer};
+use xayn_ai_coi::nan_safe_f32_cmp_desc;
 use xayn_test_utils::error::Panic;
 
 use crate::models::{DocumentId, DocumentTag, UserId};
@@ -118,46 +119,16 @@ impl Document {
     }
 }
 
-/// Assigns a score to a vector of documents based on the user's interests.
-///
-/// The score is equal to 2 if the document is of interest to the user, 0 otherwise.
-/// if the flag is set to true, the score is equal to 1 if the document is semi interesting to the user, 0 otherwise
-pub(super) fn score_documents(
-    documents: &[&Document],
-    user_interests: &[String],
-    is_semi_interesting: bool,
-) -> Vec<f32> {
-    documents
-        .iter()
-        .map(|document| {
-            if document.is_interesting(user_interests) {
-                2.0
-            } else if is_semi_interesting && document.is_semi_interesting(user_interests) {
-                1.0
-            } else {
-                0.0
-            }
-        })
-        .collect()
-}
-
-fn read_from_tsv<P>(path: P) -> Result<Reader<File>, Panic>
+pub(super) fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Panic>
 where
-    P: AsRef<Path>,
+    T: de::DeserializeOwned,
 {
-    ReaderBuilder::new()
+    Ok(ReaderBuilder::new()
         .delimiter(b'\t')
         .has_headers(false)
         .flexible(true)
-        .from_path(path)
-        .map_err(Into::into)
-}
-
-pub(super) fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Panic>
-where
-    for<'de> T: Deserialize<'de>,
-{
-    Ok(read_from_tsv(path)?.into_deserialize())
+        .from_path(path)?
+        .into_deserialize())
 }
 
 #[derive(Debug, Deref, Deserialize)]
@@ -188,6 +159,31 @@ impl DocumentProvider {
             .filter(|doc| doc.is_interesting(interests))
             .collect()
     }
+
+    /// Assigns a score to documents based on the user's interests.
+    ///
+    /// The score is equal to 2 if the document is of interest to the user, 0 otherwise. If the flag
+    /// is set to true, the score is equal to 1 if the document is semi interesting to the user, 0
+    /// otherwise.
+    pub(super) fn score(
+        &self,
+        ids: &[DocumentId],
+        user_interests: &[String],
+        is_semi_interesting: bool,
+    ) -> Vec<f32> {
+        ids.iter()
+            .map(|id| {
+                let document = &self.0[id];
+                if document.is_interesting(user_interests) {
+                    2.0
+                } else if is_semi_interesting && document.is_semi_interesting(user_interests) {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Deref, Deserialize)]
@@ -211,22 +207,76 @@ impl Users {
     }
 }
 
-pub(super) fn write_array<T, S, D>(writer: impl Write, array: &ArrayBase<S, D>) -> Result<(), Panic>
+#[derive(Debug)]
+pub(super) struct Ndcg<D>(Array<f32, D>)
 where
-    T: Clone + AutoSerialize,
-    S: Data<Elem = T>,
+    D: Dimension;
+
+impl<D> Ndcg<D>
+where
     D: Dimension,
 {
-    let shape = array.shape().iter().map(|&x| x as u64).collect_vec();
-    let c_order_items = array.iter();
+    pub(super) fn new(shape: impl ShapeBuilder<Dim = D>) -> Self {
+        Self(Array::<f32, _>::zeros(shape))
+    }
 
-    let mut writer = npyz::WriteOptions::new()
-        .default_dtype()
-        .shape(&shape)
-        .writer(writer)
-        .begin_nd()?;
-    writer.extend(c_order_items)?;
-    writer.finish()?;
+    fn compute(relevance: &[f32], k: &[usize]) -> Array1<f32> {
+        let mut optimal_order = relevance.to_vec();
+        optimal_order.sort_by(nan_safe_f32_cmp_desc);
+        let last = k
+            .iter()
+            .max()
+            .copied()
+            .map_or_else(|| relevance.len(), |k| k.min(relevance.len()));
 
-    Ok(())
+        let ndcgs = relevance
+            .iter()
+            .zip(optimal_order)
+            .take(last)
+            .scan(
+                (1_f32, 0., 0.),
+                |(i, dcg, ideal_dcg), (relevance, optimal_order)| {
+                    *i += 1.;
+                    let log_i = (*i).log2();
+                    *dcg += (2_f32.powf(*relevance) - 1.) / log_i;
+                    *ideal_dcg += (2_f32.powf(optimal_order) - 1.) / log_i;
+                    Some(*dcg / (*ideal_dcg + 0.00001))
+                },
+            )
+            .collect_vec();
+
+        k.iter()
+            .map(|nrank| match ndcgs.get(*nrank - 1) {
+                Some(i) => i,
+                None => ndcgs.last().unwrap(),
+            })
+            .copied()
+            .collect()
+    }
+
+    pub(super) fn assign(&mut self, indices: impl SliceArg<D>, relevance: &[f32], k: &[usize]) {
+        self.0
+            .slice_mut(indices)
+            .assign(&Self::compute(relevance, k));
+    }
+
+    pub(super) fn write(&self, writer: impl Write) -> Result<(), Panic> {
+        let mut writer = npyz::WriteOptions::new()
+            .writer(writer)
+            .default_dtype()
+            .shape(&self.0.shape().iter().map(|&x| x as u64).collect_vec())
+            .begin_nd()?;
+        writer.extend(&self.0)?;
+        writer.finish()?;
+
+        Ok(())
+    }
+}
+
+impl Ndcg<Ix2> {
+    pub(super) fn push(&mut self, relevance: &[f32], k: &[usize]) -> Result<(), Panic> {
+        self.0
+            .push_column(Self::compute(relevance, k).view())
+            .map_err(Into::into)
+    }
 }
