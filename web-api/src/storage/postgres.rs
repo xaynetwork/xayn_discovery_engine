@@ -36,11 +36,13 @@ use sqlx::{
 };
 use tracing::{info, instrument, warn};
 use xayn_ai_bert::NormalizedEmbedding;
+#[cfg(feature = "ET-3837")]
+use xayn_ai_coi::nan_safe_f32_cmp_desc;
 use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::InteractionUpdateContext;
 #[cfg(feature = "ET-3837")]
-use crate::models::IngestedDocument;
+use crate::models::{DocumentProperties, IngestedDocument, PersonalizedDocument};
 use crate::{
     error::common::DocumentIdAsObject,
     models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
@@ -140,6 +142,23 @@ pub(crate) struct Database {
     pool: Pool<Postgres>,
 }
 
+#[cfg(feature = "ET-3837")]
+#[derive(FromRow)]
+struct QueriedInteractedDocument {
+    document_id: DocumentId,
+    tags: Vec<DocumentTag>,
+    embedding: NormalizedEmbedding,
+}
+
+#[cfg(feature = "ET-3837")]
+#[derive(FromRow)]
+struct QueriedPersonalizedDocument {
+    document_id: DocumentId,
+    properties: Json<DocumentProperties>,
+    tags: Vec<DocumentTag>,
+    embedding: NormalizedEmbedding,
+}
+
 impl Database {
     // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
     const BIND_LIMIT: usize = 65_535;
@@ -214,35 +233,41 @@ impl Database {
         Ok(())
     }
 
-    pub(crate) async fn delete_documents(&self, ids: &[DocumentId]) -> Result<(), DeletionError> {
+    pub(super) async fn delete_documents(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<(), DeletionError> {
         let mut tx = self.pool.begin().await?;
 
-        let documents = self
-            .documents_exist_with_transaction(&ids.iter().collect_vec(), &mut tx)
-            .await?;
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
-        for ids in ids.chunks(Self::BIND_LIMIT) {
-            builder
-                .reset()
-                .push_tuple(ids)
-                .build()
-                .persistent(false)
-                .execute(&mut tx)
-                .await?;
+        let all = ids.into_iter();
+        let mut deleted = Vec::with_capacity(all.len());
+        let mut ids = all.clone().peekable();
+        while ids.peek().is_some() {
+            deleted.extend(
+                builder
+                    .reset()
+                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .push(" RETURNING document_id;")
+                    .build()
+                    .persistent(false)
+                    .try_map(|row| DocumentId::from_row(&row))
+                    .fetch_all(&mut tx)
+                    .await?,
+            );
         }
 
         tx.commit().await?;
 
-        if documents.len() == ids.len() {
+        if deleted.len() == all.len() {
             Ok(())
         } else {
-            let errors = ids
-                .iter()
+            Err(all
                 .collect::<HashSet<_>>()
-                .difference(&documents.iter().collect::<HashSet<_>>())
+                .difference(&deleted.iter().collect::<HashSet<_>>())
                 .map(|id| DocumentIdAsObject { id: id.to_string() })
-                .collect_vec();
-            Err(DeletionError::PartialFailure { errors })
+                .collect_vec()
+                .into())
         }
     }
 
@@ -255,6 +280,7 @@ impl Database {
             .map_err(Into::into)
     }
 
+    #[cfg(not(feature = "ET-3837"))]
     pub(super) async fn documents_exist(
         &self,
         ids: &[&DocumentId],
@@ -265,6 +291,7 @@ impl Database {
         Ok(res)
     }
 
+    #[cfg(not(feature = "ET-3837"))]
     pub(super) async fn documents_exist_with_transaction(
         &self,
         ids: &[&DocumentId],
@@ -285,6 +312,96 @@ impl Database {
             }
         }
         Ok(existing_ids)
+    }
+
+    #[cfg(feature = "ET-3837")]
+    async fn get_interacted(
+        tx: &mut Transaction<'_, Postgres>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<InteractedDocument>, Error> {
+        let mut builder = QueryBuilder::new(
+            "SELECT document_id, tags, embedding
+            FROM document
+            WHERE document_id IN ",
+        );
+        let mut ids = ids.into_iter().peekable();
+        let mut documents = Vec::with_capacity(ids.len());
+        while ids.peek().is_some() {
+            documents.extend(
+                builder
+                    .reset()
+                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .build()
+                    .try_map(|row| {
+                        QueriedInteractedDocument::from_row(&row).map(|document| {
+                            InteractedDocument {
+                                id: document.document_id,
+                                embedding: document.embedding,
+                                tags: document.tags,
+                            }
+                        })
+                    })
+                    .fetch_all(&mut *tx)
+                    .await?,
+            );
+        }
+
+        Ok(documents)
+    }
+
+    #[cfg(feature = "ET-3837")]
+    async fn get_personalized(
+        tx: &mut Transaction<'_, Postgres>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
+        let mut builder = QueryBuilder::new(
+            "SELECT document_id, properties, tags, embedding
+            FROM document
+            WHERE document_id IN ",
+        );
+        let ids = ids.into_iter();
+        let mut documents = Vec::with_capacity(ids.len());
+        let mut ids = ids.filter(|id| scores(id).is_some()).peekable();
+        while ids.peek().is_some() {
+            documents.extend(
+                builder
+                    .reset()
+                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .build()
+                    .try_map(|row| {
+                        QueriedPersonalizedDocument::from_row(&row).map(|document| {
+                            let score = scores(&document.document_id).unwrap(/* filtered ids */);
+                            PersonalizedDocument {
+                                id: document.document_id,
+                                score,
+                                embedding: document.embedding,
+                                properties: document.properties.0,
+                                tags: document.tags,
+                            }
+                        })
+                    })
+                    .fetch_all(&mut *tx)
+                    .await?,
+            );
+        }
+        documents.sort_unstable_by(|a, b| {
+            nan_safe_f32_cmp_desc(&scores(&a.id).unwrap(), &scores(&b.id).unwrap())
+        });
+
+        Ok(documents)
+    }
+
+    #[cfg(feature = "ET-3837")]
+    async fn get_embedding(
+        tx: &mut Transaction<'_, Postgres>,
+        id: &DocumentId,
+    ) -> Result<Option<NormalizedEmbedding>, Error> {
+        sqlx::query_as("SELECT embedding FROM document WHERE document_id = $1;")
+            .bind(id)
+            .fetch_optional(tx)
+            .await
+            .map_err(Into::into)
     }
 
     async fn acquire_user_coi_lock(
@@ -468,6 +585,43 @@ impl Database {
     }
 }
 
+#[cfg(feature = "ET-3837")]
+impl Storage {
+    pub(super) async fn get_interacted(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<InteractedDocument>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+        let documents = Database::get_interacted(&mut tx, ids).await?;
+        tx.commit().await?;
+
+        Ok(documents)
+    }
+
+    pub(super) async fn get_personalized(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+        let documents = Database::get_personalized(&mut tx, ids, scores).await?;
+        tx.commit().await?;
+
+        Ok(documents)
+    }
+
+    pub(super) async fn get_embedding(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<NormalizedEmbedding>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+        let embedding = Database::get_embedding(&mut tx, id).await?;
+        tx.commit().await?;
+
+        Ok(embedding)
+    }
+}
+
 #[derive(FromRow)]
 struct QueriedCoi {
     coi_id: CoiId,
@@ -533,23 +687,36 @@ impl storage::Interaction for Storage {
         Ok(())
     }
 
-    async fn update_interactions<F>(
+    async fn update_interactions(
         &self,
         user_id: &UserId,
-        updated_document_ids: &[&DocumentId],
+        interactions: impl IntoIterator<
+            IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
+        >,
         store_user_history: bool,
         time: DateTime<Utc>,
-        mut update_logic: F,
-    ) -> Result<(), Error>
-    where
-        F: for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi + Sync,
-    {
+        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi,
+    ) -> Result<(), Error> {
         let mut tx = self.postgres.pool.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
+        let interactions = interactions.into_iter();
+        #[cfg(not(feature = "ET-3837"))]
         let documents = self
-            .get_interacted_with_transaction(updated_document_ids, Some(&mut tx))
+            .get_interacted_with_transaction(
+                &interactions
+                    .clone()
+                    .map(|(document_id, _)| document_id)
+                    .collect_vec(),
+                Some(&mut tx),
+            )
             .await?;
+        #[cfg(feature = "ET-3837")]
+        let documents = Database::get_interacted(
+            &mut tx,
+            interactions.clone().map(|(document_id, _)| document_id),
+        )
+        .await?;
         let document_map = documents
             .iter()
             .map(|document| (&document.id, (document, UserInteractionType::Positive)))
@@ -562,10 +729,11 @@ impl storage::Interaction for Storage {
 
         let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
         let mut updates = HashMap::new();
-        for id in updated_document_ids {
-            if let Some((document, _)) = document_map.get(id) {
+        for &(ref document_id, interaction_type) in interactions {
+            if let Some((document, _)) = document_map.get(document_id) {
                 let updated_coi = update_logic(InteractionUpdateContext {
                     document,
+                    interaction_type,
                     tag_weight_diff: &mut tag_weight_diff,
                     positive_cois: &mut interests.positive,
                     time,
@@ -574,7 +742,7 @@ impl storage::Interaction for Storage {
                 // if we do we only want to keep the latest update.
                 updates.insert(updated_coi.id, updated_coi);
             } else {
-                warn!(%id, "interacted document doesn't exist");
+                warn!(%document_id, "interacted document doesn't exist");
             }
         }
 

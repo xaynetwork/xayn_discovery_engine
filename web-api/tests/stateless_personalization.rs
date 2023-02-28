@@ -35,7 +35,7 @@ struct StatelessPersonalizedDocumentsResponse {
 }
 
 #[tokio::test]
-async fn test_test_app() {
+async fn test_stateless_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
         unchanged_config,

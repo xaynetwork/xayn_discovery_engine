@@ -72,32 +72,32 @@ impl NegativeCoi {
 ///
 /// The relevance of each coi is computed from its view count and view time relative to the
 /// other cois. It's an unnormalized score from the interval `[0, ∞)`.
-pub fn compute_coi_relevances(
-    cois: &[PositiveCoi],
+pub fn compute_coi_relevances<'a>(
+    cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a PositiveCoi>>,
     horizon: Duration,
     time: DateTime<Utc>,
 ) -> Vec<f32> {
+    let cois = cois.into_iter();
     #[allow(clippy::cast_precision_loss)] // small values
     let view_counts =
-        cois.iter().map(|coi| coi.stats.view_count).sum::<usize>() as f32 + f32::EPSILON;
+        cois.clone().map(|coi| coi.stats.view_count).sum::<usize>() as f32 + f32::EPSILON;
     let view_times = cois
-        .iter()
+        .clone()
         .map(|coi| coi.stats.view_time)
         .sum::<Duration>()
         .as_secs_f32()
         + f32::EPSILON;
 
-    cois.iter()
-        .map(|coi| {
-            #[allow(clippy::cast_precision_loss)] // small values
-            let view_count = coi.stats.view_count as f32 / view_counts;
-            let view_time = coi.stats.view_time.as_secs_f32() / view_times;
-            let decay = compute_coi_decay_factor(horizon, time, coi.stats.last_view);
+    cois.map(|coi| {
+        #[allow(clippy::cast_precision_loss)] // small values
+        let view_count = coi.stats.view_count as f32 / view_counts;
+        let view_time = coi.stats.view_time.as_secs_f32() / view_times;
+        let decay = compute_coi_decay_factor(horizon, time, coi.stats.last_view);
 
-            #[allow(clippy::manual_clamp)] // prevent NaN propagation
-            ((view_count + view_time) * decay).max(0.).min(f32::MAX)
-        })
-        .collect()
+        #[allow(clippy::manual_clamp)] // prevent NaN propagation
+        ((view_count + view_time) * decay).max(0.).min(f32::MAX)
+    })
+    .collect()
 }
 
 /// Computes the time decay factor for a coi based on its `last_view` stat relative to the current
@@ -122,8 +122,8 @@ pub fn compute_coi_decay_factor(
 }
 
 /// Computes a weight distributions across cois based on their relevance.
-pub fn compute_coi_weights(
-    cois: &[PositiveCoi],
+pub fn compute_coi_weights<'a>(
+    cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a PositiveCoi>>,
     horizon: Duration,
     time: DateTime<Utc>,
 ) -> Vec<f32> {
@@ -142,7 +142,7 @@ pub fn compute_coi_weights(
             } else {
                 // should be ok for our use-case
                 #[allow(clippy::cast_precision_loss)]
-                let len = cois.len() as f32;
+                let len = relevances.len() as f32;
                 // len can't be zero, because this iterator isn't entered for empty cois
                 1. / len
             }

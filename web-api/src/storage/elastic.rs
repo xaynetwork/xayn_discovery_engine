@@ -12,10 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    collections::{HashMap, HashSet},
-    hash::BuildHasher,
-};
+use std::collections::{HashMap, HashSet};
+#[cfg(not(feature = "ET-3837"))]
+use std::hash::BuildHasher;
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -26,8 +25,11 @@ use reqwest::{
     Url,
 };
 use secrecy::{ExposeSecret, Secret};
+#[cfg(feature = "ET-3837")]
+use serde::Deserializer;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
+#[cfg(not(feature = "ET-3837"))]
 use sqlx::{Postgres, Transaction};
 use tracing::error;
 use xayn_ai_bert::NormalizedEmbedding;
@@ -221,6 +223,7 @@ impl Client {
 struct Hit<T> {
     #[serde(rename = "_id")]
     id: DocumentId,
+    #[cfg_attr(feature = "ET-3837", allow(dead_code))]
     #[serde(rename = "_source")]
     source: T,
     #[serde(rename = "_score")]
@@ -237,6 +240,21 @@ struct SearchResponse<T> {
     hits: Hits<T>,
 }
 
+#[cfg(feature = "ET-3837")]
+#[derive(Debug)]
+struct NoSource;
+
+#[cfg(feature = "ET-3837")]
+impl<'de> Deserialize<'de> for NoSource {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self)
+    }
+}
+
+#[cfg(not(feature = "ET-3837"))]
 #[derive(Debug, Deserialize)]
 struct InteractedDocument {
     embedding: NormalizedEmbedding,
@@ -244,6 +262,7 @@ struct InteractedDocument {
     tags: Vec<DocumentTag>,
 }
 
+#[cfg(not(feature = "ET-3837"))]
 impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
     fn from(response: SearchResponse<InteractedDocument>) -> Self {
         response
@@ -259,11 +278,13 @@ impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument
     }
 }
 
+#[cfg(not(feature = "ET-3837"))]
 #[derive(Debug, Deserialize)]
 struct SearchEmbedding {
     embedding: NormalizedEmbedding,
 }
 
+#[cfg(not(feature = "ET-3837"))]
 impl<S> From<SearchResponse<SearchEmbedding>> for HashMap<DocumentId, NormalizedEmbedding, S>
 where
     S: BuildHasher + Default,
@@ -278,6 +299,7 @@ where
     }
 }
 
+#[cfg(not(feature = "ET-3837"))]
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocument {
     #[serde(default)]
@@ -287,6 +309,7 @@ struct PersonalizedDocument {
     tags: Vec<DocumentTag>,
 }
 
+#[cfg(not(feature = "ET-3837"))]
 impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocument> {
     fn from(response: SearchResponse<PersonalizedDocument>) -> Self {
         response
@@ -318,6 +341,7 @@ fn is_success_status(status: u16, allow_not_found: bool) -> bool {
         .unwrap_or(false)
 }
 
+#[cfg(not(feature = "ET-3837"))]
 impl Storage {
     pub(crate) async fn get_interacted_with_transaction(
         &self,
@@ -400,45 +424,66 @@ impl Storage {
 impl storage::Document for Storage {
     async fn get_interacted(
         &self,
-        ids: &[&DocumentId],
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<models::InteractedDocument>, Error> {
-        self.get_interacted_with_transaction(ids, None).await
+        #[cfg(not(feature = "ET-3837"))]
+        return self
+            .get_interacted_with_transaction(&ids.into_iter().collect_vec(), None)
+            .await;
+
+        #[cfg(feature = "ET-3837")]
+        self.get_interacted(ids).await
     }
 
     async fn get_personalized(
         &self,
-        ids: &[&DocumentId],
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
-        self.get_personalized_with_transaction(ids, None).await
+        #[cfg(not(feature = "ET-3837"))]
+        return self
+            .get_personalized_with_transaction(&ids.into_iter().collect_vec(), None)
+            .await;
+
+        #[cfg(feature = "ET-3837")]
+        self.get_personalized(ids, |_| Some(1.0)).await
     }
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        #[derive(Deserialize)]
-        struct Response {
-            _source: Fields,
-        }
-        #[derive(Deserialize)]
-        struct Fields {
-            embedding: NormalizedEmbedding,
-        }
+        #[cfg(not(feature = "ET-3837"))]
+        return {
+            #[derive(Deserialize)]
+            struct Response {
+                _source: Fields,
+            }
+            #[derive(Deserialize)]
+            struct Fields {
+                embedding: NormalizedEmbedding,
+            }
 
-        self.elastic
-            .query_with_bytes::<Vec<u8>, Response>(
-                self.elastic
-                    .create_resource_path(["_doc", id.as_ref()], [("_source", Some("embedding"))]),
-                None,
-            )
-            .await
-            .map(|opt| opt.map(|resp| resp._source.embedding))
+            self.elastic
+                .query_with_bytes::<Vec<u8>, Response>(
+                    self.elastic.create_resource_path(
+                        ["_doc", id.as_ref()],
+                        [("_source", Some("embedding"))],
+                    ),
+                    None,
+                )
+                .await
+                .map(|opt| opt.map(|resp| resp._source.embedding))
+        };
+
+        #[cfg(feature = "ET-3837")]
+        self.get_embedding(id).await
     }
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a>,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
+        // the existing documents are not filtered in the elastic query to avoid too much work for a
+        // cold path, filtering them afterwards can occasionally lead to less than k results though
         let excluded_ids = json!({
-            "values": params.excluded.iter().map(AsRef::as_ref).collect_vec()
+            "values": params.excluded.into_iter().collect_vec()
         });
         let time = params.time.to_rfc3339();
 
@@ -479,6 +524,11 @@ impl storage::Document for Storage {
             })
         };
 
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
+        #[cfg(not(feature = "ET-3837"))]
+        let source = ["properties", "embedding", "tags"];
+        #[cfg(feature = "ET-3837")]
+        let source = false;
         let mut body = json!({
             "size": params.k_neighbors,
             "knn": {
@@ -488,7 +538,7 @@ impl storage::Document for Storage {
                 "num_candidates": params.num_candidates,
                 "filter": filter
             },
-            "_source": ["properties", "embedding", "tags"]
+            "_source": source
         });
 
         if let Some(min_similarity) = params.min_similarity {
@@ -497,26 +547,50 @@ impl storage::Document for Storage {
                 .insert("min_score".into(), min_similarity.into());
         }
 
-        // the existing documents are not filtered in the elastic query to avoid too much work for a
-        // cold path, filtering them afterwards can occasionally lead to less than k results though
-        let mut documents = self
-            .elastic
-            .query_with_json::<_, SearchResponse<_>>(
-                self.elastic.create_resource_path(["_search"], None),
-                Some(body),
-            )
-            .await?
-            .map(<Vec<models::PersonalizedDocument>>::from)
-            .unwrap_or_default();
-        let ids = self
-            .postgres
-            .documents_exist(&documents.iter().map(|document| &document.id).collect_vec())
-            .await?
-            .into_iter()
-            .collect::<HashSet<_>>();
-        documents.retain(|document| ids.contains(&document.id));
+        #[cfg(not(feature = "ET-3837"))]
+        return {
+            let mut documents = self
+                .elastic
+                .query_with_json::<_, SearchResponse<_>>(
+                    self.elastic.create_resource_path(["_search"], None),
+                    Some(body),
+                )
+                .await?
+                .map(<Vec<models::PersonalizedDocument>>::from)
+                .unwrap_or_default();
+            let ids = self
+                .postgres
+                .documents_exist(&documents.iter().map(|document| &document.id).collect_vec())
+                .await?
+                .into_iter()
+                .collect::<HashSet<_>>();
+            documents.retain(|document| ids.contains(&document.id));
 
-        Ok(documents)
+            Ok(documents)
+        };
+
+        #[cfg(feature = "ET-3837")]
+        {
+            let scores = self
+                .elastic
+                .query_with_json::<_, SearchResponse<NoSource>>(
+                    self.elastic.create_resource_path(["_search"], None),
+                    Some(body),
+                )
+                .await?
+                .map(|response| {
+                    response
+                        .hits
+                        .hits
+                        .into_iter()
+                        .map(|hit| (hit.id, hit.score))
+                        .collect::<HashMap<_, _>>()
+                })
+                .unwrap_or_default();
+
+            self.get_personalized(scores.keys(), |id| scores.get(id).copied())
+                .await
+        }
     }
 
     async fn insert(
@@ -589,47 +663,46 @@ impl storage::Document for Storage {
         }
     }
 
-    async fn delete(&self, documents: &[DocumentId]) -> Result<(), DeletionError> {
-        if documents.is_empty() {
+    async fn delete(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<(), DeletionError> {
+        let ids = ids.into_iter();
+        if ids.len() == 0 {
             return Ok(());
         }
 
-        self.postgres.delete_documents(documents).await?;
+        let mut failed_documents = match self.postgres.delete_documents(ids.clone()).await {
+            Ok(()) => Vec::new(),
+            Err(DeletionError::PartialFailure { errors }) => errors,
+            Err(error) => return Err(error),
+        };
 
         let response = self
             .elastic
-            .bulk_request(
-                documents
-                    .iter()
-                    .map(|document_id| Ok(BulkInstruction::Delete { id: document_id })),
-            )
+            .bulk_request(ids.map(|id| Ok(BulkInstruction::Delete { id })))
             .await?;
-        let failed_documents = response.errors.then(|| {
-            response
-                .items
-                .into_iter()
-                .filter_map(|mut response| {
-                    if let Some(response) = response.remove("delete") {
-                        if !is_success_status(response.status, true) {
-                            error!(
-                                document_id=%response.id,
-                                error=%response.error,
-                                "Elastic failed to delete document.",
-                            );
-                            return Some(response.id.into());
-                        }
-                    } else {
-                        error!("Bulk delete request contains non delete responses: {response:?}",);
+        if response.errors {
+            for mut response in response.items {
+                if let Some(response) = response.remove("delete") {
+                    if !is_success_status(response.status, true) {
+                        error!(
+                            document_id=%response.id,
+                            error=%response.error,
+                            "Elastic failed to delete document.",
+                        );
+                        failed_documents.push(response.id.into());
                     }
-                    None
-                })
-                .collect_vec()
-        });
+                } else {
+                    error!("Bulk delete request contains non delete responses: {response:?}");
+                }
+            }
+        }
 
-        if let Some(failed_documents) = failed_documents {
-            Err(failed_documents.into())
-        } else {
+        if failed_documents.is_empty() {
             Ok(())
+        } else {
+            Err(failed_documents.into())
         }
     }
 }

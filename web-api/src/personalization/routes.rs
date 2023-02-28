@@ -114,30 +114,22 @@ pub(crate) async fn update_interactions(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi: &CoiSystem,
     user_id: &UserId,
-    interactions: &[(DocumentId, UserInteractionType)],
+    interactions: impl IntoIterator<
+        IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
+    >,
     store_user_history: bool,
     time: DateTime<Utc>,
 ) -> Result<(), Error> {
     storage::Interaction::user_seen(storage, user_id, time).await?;
 
-    #[allow(clippy::zero_sized_map_values)]
-    let document_id_to_interaction_type = interactions
-        .iter()
-        .map(|(document_id, interaction_type)| (document_id, interaction_type))
-        .collect::<HashMap<_, _>>();
-
-    let document_ids = interactions
-        .iter()
-        .map(|(document_id, _)| document_id)
-        .collect_vec();
     storage::Interaction::update_interactions(
         storage,
         user_id,
-        &document_ids,
+        interactions,
         store_user_history,
         time,
         |context| {
-            match document_id_to_interaction_type[&context.document.id] {
+            match context.interaction_type {
                 UserInteractionType::Positive => {
                     for tag in &context.document.tags {
                         *context.tag_weight_diff
@@ -238,13 +230,16 @@ async fn stateless_personalized_documents(
     let published_after = request.published_after;
     let count = request.document_count(state.config.as_ref())?;
     let history = request.history(state.config.as_ref(), &mut warnings)?;
-    let ids = history.iter().map(|document| &document.id).collect_vec();
     let time = history
         .last()
         .unwrap(/* history has been checked */)
         .timestamp;
 
-    let documents_from_history = storage::Document::get_interacted(&state.storage, &ids).await?;
+    let documents_from_history = storage::Document::get_interacted(
+        &state.storage,
+        history.iter().map(|document| &document.id),
+    )
+    .await?;
     let documents_from_history = documents_from_history
         .iter()
         .map(|document| (&document.id, document))
@@ -266,10 +261,9 @@ async fn stateless_personalized_documents(
         }
     }
 
-    let excluded = history.iter().map(|entry| entry.id.clone()).collect_vec();
     let mut documents = knn::Search {
         interests: &interests.positive,
-        excluded: &excluded,
+        excluded: history.iter().map(|entry| &entry.id),
         horizon: state.coi.config().horizon(),
         max_cois: state.config.personalization.max_cois_for_knn,
         count,
@@ -401,7 +395,7 @@ pub(crate) enum PersonalizeBy<'a> {
         count: usize,
         published_after: Option<DateTime<Utc>>,
     },
-    #[allow(dead_code)]
+    #[cfg_attr(not(test), allow(dead_code))]
     Documents(&'a [&'a DocumentId]),
 }
 
@@ -445,7 +439,7 @@ pub(crate) async fn personalize_documents_by(
             .await?
         }
         PersonalizeBy::Documents(documents) => {
-            storage::Document::get_personalized(storage, documents).await?
+            storage::Document::get_personalized(storage, documents.iter().copied()).await?
         }
     };
 

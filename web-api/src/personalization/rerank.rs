@@ -38,7 +38,7 @@ where
         .collect()
 }
 
-pub(super) fn rerank_by_interest(
+fn rerank_by_interest(
     coi_system: &CoiSystem,
     documents: &[PersonalizedDocument],
     interests: &UserInterests,
@@ -51,7 +51,7 @@ pub(super) fn rerank_by_interest(
     )
 }
 
-pub(super) fn rerank_by_tag_weight(
+fn rerank_by_tag_weight(
     documents: &[PersonalizedDocument],
     tag_weights: &HashMap<DocumentTag, usize>,
 ) -> HashMap<DocumentId, f32> {
