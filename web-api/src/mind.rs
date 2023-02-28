@@ -14,542 +14,42 @@
 
 //! Executes the MIND benchmarks.
 
-use std::{collections::HashMap, fs::File, io, io::Write, path::Path};
+mod config;
+mod data;
+mod state;
+
+use std::{fs::File, io, io::Write};
 
 use anyhow::Error;
-use chrono::{DateTime, Duration, Utc};
-use csv::{DeserializeRecordsIntoIter, Reader, ReaderBuilder};
+use chrono::Duration;
 use itertools::Itertools;
 use ndarray::{Array, Array3, Array4, ArrayView};
-use npyz::WriterBuilder;
-use rand::{
-    rngs::StdRng,
-    seq::{IteratorRandom, SliceRandom},
-    Rng,
-    SeedableRng,
-};
-use serde::{de, Deserialize, Deserializer, Serialize};
-use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{nan_safe_f32_cmp_desc, CoiConfig, CoiSystem};
+use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 
 use crate::{
-    embedding::{self, Embedder},
-    models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentTag,
-        IngestedDocument,
-        UserId,
-        UserInteractionType,
+    mind::{
+        config::{
+            create_grid_search_configs,
+            GridSearchConfig,
+            PersonaBasedConfig,
+            SaturationConfig,
+            StateConfig,
+        },
+        data::{
+            read,
+            score_documents,
+            write_array,
+            DocumentProvider,
+            Impression,
+            SpecificTopics,
+            Users,
+        },
+        state::{ndcg, SaturationIteration, SaturationResult, SaturationTopicResult, State},
     },
-    personalization::{
-        routes::{personalize_documents_by, update_interactions, PersonalizeBy},
-        PersonalizationConfig,
-    },
-    storage::{self, memory::Storage},
+    models::UserId,
+    personalization::routes::PersonalizeBy,
+    storage::memory::Storage,
 };
-
-struct State {
-    storage: Storage,
-    embedder: Embedder,
-    coi: CoiSystem,
-    personalization: PersonalizationConfig,
-    time: DateTime<Utc>,
-}
-
-impl State {
-    fn new(storage: Storage, config: StateConfig) -> Result<Self, Error> {
-        let embedder = Embedder::load(&embedding::Config {
-            directory: "../assets/smbert_v0003".into(),
-            ..embedding::Config::default()
-        })?;
-
-        let coi = config.coi.build();
-        let personalization = config.personalization;
-        let time = config.time;
-
-        Ok(Self {
-            storage,
-            embedder,
-            coi,
-            personalization,
-            time,
-        })
-    }
-
-    fn with_coi_config(&mut self, config: CoiConfig) {
-        self.coi = config.build();
-    }
-
-    async fn insert(&self, documents: Vec<Document>) -> Result<(), Error> {
-        let documents = documents
-            .into_iter()
-            .map(|document| {
-                let document = IngestedDocument {
-                    id: document.id,
-                    snippet: document.snippet,
-                    properties: DocumentProperties::default(),
-                    tags: vec![document.category, document.subcategory],
-                };
-                let embedding = self.embedder.run(&document.snippet)?;
-
-                Ok((document, embedding))
-            })
-            .try_collect::<_, _, Error>()?;
-
-        storage::Document::insert(&self.storage, documents)
-            .await
-            .map_err(Into::into)
-    }
-
-    #[allow(dead_code)]
-    async fn update(
-        &self,
-        embeddings: Vec<(DocumentId, NormalizedEmbedding)>,
-    ) -> Result<(), Error> {
-        let mut documents =
-            storage::Document::get_personalized(&self.storage, embeddings.iter().map(|(id, _)| id))
-                .await?
-                .into_iter()
-                .map(|document| (document.id.clone(), document))
-                .collect::<HashMap<_, _>>();
-        let documents = embeddings
-            .into_iter()
-            .map(|(id, embedding)| {
-                let document = documents.remove(&id).unwrap(/* document must already exist */);
-                let document = IngestedDocument {
-                    id,
-                    snippet: String::new(/* unused for in-memory db */),
-                    properties: document.properties,
-                    tags: document.tags,
-                };
-                (document, embedding)
-            })
-            .collect_vec();
-        storage::Document::insert(&self.storage, documents).await?;
-
-        Ok(())
-    }
-
-    async fn interact(
-        &self,
-        user: &UserId,
-        documents: impl IntoIterator<Item = (&DocumentId, DateTime<Utc>)>,
-    ) -> Result<(), Error> {
-        for (id, time) in documents {
-            update_interactions(
-                &self.storage,
-                &self.coi,
-                user,
-                [&(id.clone(), UserInteractionType::Positive)],
-                self.personalization.store_user_history,
-                time,
-            )
-            .await?;
-        }
-
-        Ok(())
-    }
-
-    async fn personalize(
-        &self,
-        user: &UserId,
-        by: PersonalizeBy<'_>,
-        time: DateTime<Utc>,
-    ) -> Result<Option<Vec<DocumentId>>, Error> {
-        personalize_documents_by(
-            &self.storage,
-            &self.coi,
-            user,
-            &self.personalization,
-            by,
-            time,
-        )
-        .await
-        .map(|documents| {
-            documents.map(|documents| documents.into_iter().map(|document| document.id).collect())
-        })
-        .map_err(Into::into)
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct ViewedDocument {
-    document_id: DocumentId,
-    was_clicked: bool,
-}
-
-fn deserialize_viewed_documents<'de, D>(deserializer: D) -> Result<Vec<ViewedDocument>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    String::deserialize(deserializer)?
-        .split(' ')
-        .map(|viewed_document| {
-            viewed_document
-                .split_once('-')
-                .ok_or_else(|| de::Error::custom("missing document id"))
-                .and_then(|(document_id, was_clicked)| {
-                    let document_id = DocumentId::new(document_id).map_err(de::Error::custom)?;
-                    let was_clicked = match was_clicked {
-                        "0" => Ok(false),
-                        "1" => Ok(true),
-                        _ => Err(de::Error::custom("invalid was_clicked")),
-                    }?;
-                    Ok(ViewedDocument {
-                        document_id,
-                        was_clicked,
-                    })
-                })
-        })
-        .collect()
-}
-
-fn deserialize_clicked_documents<'de, D>(
-    deserializer: D,
-) -> Result<Option<Vec<DocumentId>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Option::<String>::deserialize(deserializer)?
-        .as_ref()
-        .map(|m| {
-            m.split(' ')
-                .map(|document| DocumentId::new(document).map_err(de::Error::custom))
-                .collect::<Result<Vec<_>, _>>()
-        })
-        .transpose()
-}
-
-struct GridSearchConfig {
-    thresholds: Vec<f32>,
-    shifts: Vec<f32>,
-    min_pos_cois: Vec<usize>,
-    click_probability: f64,
-    ndocuments: usize,
-    iterations: usize,
-    nranks: Vec<usize>,
-    is_semi_interesting: bool,
-}
-
-impl Default for GridSearchConfig {
-    fn default() -> Self {
-        Self {
-            thresholds: vec![0.67, 0.7, 0.75, 0.8, 0.85, 0.9],
-            shifts: vec![0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4],
-            min_pos_cois: vec![1],
-            click_probability: 0.2,
-            ndocuments: 100,
-            iterations: 10,
-            nranks: vec![3, 5],
-            is_semi_interesting: false,
-        }
-    }
-}
-
-/// The config of hyperparameters for the persona based benchmark.
-#[derive(Debug, Deserialize)]
-struct PersonaBasedConfig {
-    click_probability: f64,
-    ndocuments: usize,
-    iterations: usize,
-    amount_of_doc_used_to_prepare: usize,
-    nranks: Vec<usize>,
-    ndocuments_hot_news: usize,
-    is_semi_interesting: bool,
-}
-
-impl Default for PersonaBasedConfig {
-    fn default() -> Self {
-        Self {
-            click_probability: 0.2,
-            ndocuments: 100,
-            iterations: 10,
-            amount_of_doc_used_to_prepare: 1,
-            nranks: vec![3, 5],
-            ndocuments_hot_news: 15,
-            is_semi_interesting: false,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct SaturationConfig {
-    click_probability: f64,
-    ndocuments: usize,
-    iterations: usize,
-}
-
-impl Default for SaturationConfig {
-    fn default() -> Self {
-        Self {
-            click_probability: 0.2,
-            ndocuments: 30,
-            iterations: 10,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize)]
-struct StateConfig {
-    coi: CoiConfig,
-    personalization: PersonalizationConfig,
-    time: DateTime<Utc>,
-}
-
-impl Default for StateConfig {
-    fn default() -> Self {
-        Self {
-            coi: CoiConfig::default(),
-            personalization: PersonalizationConfig::default(),
-            time: Utc::now(),
-        }
-    }
-}
-
-/// The results of iteration of the saturation benchmark
-#[derive(Debug, Default, Serialize)]
-struct SaturationIteration {
-    shown_documents: Vec<DocumentId>,
-    clicked_documents: Vec<DocumentId>,
-}
-
-/// The results of the saturation benchmark for one topic
-#[derive(Debug, Default, Serialize)]
-struct SaturationTopicResult {
-    topic: String,
-    iterations: Vec<SaturationIteration>,
-}
-
-impl SaturationTopicResult {
-    fn new(topic: &str, iterations: usize) -> Self {
-        Self {
-            topic: topic.to_owned(),
-            iterations: Vec::with_capacity(iterations),
-        }
-    }
-}
-
-/// The results of the saturation benchmark
-#[derive(Debug, Default, Serialize)]
-struct SaturationResult {
-    topics: Vec<SaturationTopicResult>,
-}
-
-impl SaturationResult {
-    fn new(topics: usize) -> Self {
-        Self {
-            topics: Vec::with_capacity(topics),
-        }
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct Impression {
-    #[allow(dead_code)]
-    id: String,
-    user_id: String,
-    #[allow(dead_code)]
-    time: String,
-    #[serde(deserialize_with = "deserialize_clicked_documents")]
-    clicks: Option<Vec<DocumentId>>,
-    #[serde(deserialize_with = "deserialize_viewed_documents")]
-    news: Vec<ViewedDocument>,
-}
-
-#[derive(Clone, Debug, Deserialize)]
-struct Document {
-    id: DocumentId,
-    category: DocumentTag,
-    subcategory: DocumentTag,
-    #[allow(dead_code)]
-    title: String,
-    snippet: String,
-    #[allow(dead_code)]
-    url: String,
-}
-
-impl Document {
-    /// Checks if the document is of interest to the user.
-    fn is_interesting(&self, user_interests: &[String]) -> bool {
-        user_interests.iter().any(|interest| {
-            let (main_category, sub_category) = interest.split_once('/').unwrap();
-            self.category.as_ref() == main_category || self.subcategory.as_ref() == sub_category
-        })
-    }
-
-    /// Checks if only the main category is matching user's interests
-    fn is_semi_interesting(&self, user_interests: &[String]) -> bool {
-        user_interests.iter().any(|interest| {
-            let (main_category, sub_category) = interest.split_once('/').unwrap();
-            self.category.as_ref() == main_category || self.subcategory.as_ref() != sub_category
-        })
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct DocumentProvider {
-    documents: HashMap<DocumentId, Document>,
-}
-
-impl DocumentProvider {
-    fn new(path: &str) -> Result<Self, Error> {
-        let documents = read::<Document>(path)?
-            .map(|document| document.map(|document| (document.id.clone(), document)))
-            .try_collect()?;
-        Ok(Self { documents })
-    }
-
-    #[allow(dead_code)]
-    fn sample(&self, n: usize) -> Vec<&Document> {
-        self.documents
-            .values()
-            .choose_multiple(&mut StdRng::seed_from_u64(42), n)
-    }
-
-    fn get(&self, id: &DocumentId) -> Option<&Document> {
-        self.documents.get(id)
-    }
-
-    fn to_documents(&self) -> Vec<Document> {
-        self.documents.values().cloned().collect()
-    }
-
-    /// Gets all documents that matches user's interest.
-    fn get_all_interest(&self, interests: &[String]) -> Vec<&Document> {
-        self.documents
-            .values()
-            .filter(|doc| doc.is_interesting(interests))
-            .collect()
-    }
-}
-#[derive(Debug, derive_more::Deref, Deserialize)]
-struct SpecificTopics(Vec<String>);
-
-impl SpecificTopics {
-    fn new(path: &str) -> Result<Self, Error> {
-        let file = File::open(path)?;
-        let topics = serde_json::from_reader::<_, Vec<String>>(file)?;
-        Ok(Self(topics))
-    }
-}
-
-#[derive(Debug, derive_more::Deref, Deserialize)]
-struct Users(HashMap<UserId, Vec<String>>);
-
-impl Users {
-    /// Reads the users interests from a json file.
-    fn new(path: &str) -> Result<Self, Error> {
-        let file = File::open(path)?;
-        let json = serde_json::from_reader::<_, serde_json::Value>(file)?;
-        let map = json.as_object().unwrap();
-        // iterate over map and create a map of user ids and their interests
-        Ok(Users(
-            map.iter()
-                .map(|(user_id, interests)| {
-                    let interests = interests
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .map(|interest| interest.as_str().unwrap().to_string())
-                        .collect();
-                    (UserId::new(user_id).unwrap(), interests)
-                })
-                .collect(),
-        ))
-    }
-}
-
-fn read<T>(path: &str) -> Result<DeserializeRecordsIntoIter<File, T>, Error>
-where
-    for<'de> T: Deserialize<'de>,
-{
-    Ok(read_from_tsv(path)?.into_deserialize())
-}
-
-fn read_from_tsv<P>(path: P) -> Result<Reader<File>, Error>
-where
-    P: AsRef<Path>,
-{
-    ReaderBuilder::new()
-        .delimiter(b'\t')
-        .has_headers(false)
-        .flexible(true)
-        .from_path(path)
-        .map_err(Into::into)
-}
-
-/// Assigns a score to a vector of documents based on the user's interests.
-///
-/// The score is equal to 2 if the document is of interest to the user, 0 otherwise.
-/// if the flag is set to true, the score is equal to 1 if the document is semi interesting to the user, 0 otherwise
-fn score_documents(
-    documents: &[&Document],
-    user_interests: &[String],
-    is_semi_interesting: bool,
-) -> Vec<f32> {
-    documents
-        .iter()
-        .map(|document| {
-            if document.is_interesting(user_interests) {
-                2.0
-            } else if is_semi_interesting && document.is_semi_interesting(user_interests) {
-                1.0
-            } else {
-                0.0
-            }
-        })
-        .collect_vec()
-}
-
-fn write_array<T, S, D>(writer: impl Write, array: &ndarray::ArrayBase<S, D>) -> io::Result<()>
-where
-    T: Clone + npyz::AutoSerialize,
-    S: ndarray::Data<Elem = T>,
-    D: ndarray::Dimension,
-{
-    let shape = array.shape().iter().map(|&x| x as u64).collect_vec();
-    let c_order_items = array.iter();
-
-    let mut writer = npyz::WriteOptions::new()
-        .default_dtype()
-        .shape(&shape)
-        .writer(writer)
-        .begin_nd()?;
-    writer.extend(c_order_items)?;
-    writer.finish()
-}
-
-fn create_grid_search_configs(grid_search_config: &GridSearchConfig) -> Vec<StateConfig> {
-    let mut configs = Vec::with_capacity(
-        grid_search_config.thresholds.len()
-            * grid_search_config.shifts.len()
-            * grid_search_config.min_pos_cois.len(),
-    );
-
-    let start_time = Utc::now();
-
-    for t in &grid_search_config.thresholds {
-        for s in &grid_search_config.shifts {
-            for m in &grid_search_config.min_pos_cois {
-                configs.push(StateConfig {
-                    coi: {
-                        CoiConfig::default()
-                            .with_shift_factor(*s)
-                            .unwrap()
-                            .with_threshold(*t)
-                            .unwrap()
-                            .with_min_positive_cois(*m)
-                            .unwrap()
-                    },
-                    personalization: PersonalizationConfig::default(),
-                    time: start_time,
-                });
-            }
-        }
-    }
-    configs
-}
 
 /// Runs the persona-based mind benchmark.
 #[tokio::test]
@@ -732,7 +232,7 @@ async fn run_user_benchmark() -> Result<(), Error> {
 
 /// The function panics if the provided filenames are not correct.
 #[tokio::test]
-#[ignore]
+#[ignore = "run on demand via `just mind-benchmark saturation`"]
 async fn run_saturation_benchmark() -> Result<(), Error> {
     // load list of possible specific topics from file (need to create it)
     let specific_topics = SpecificTopics::new("topics.json")?;
@@ -825,7 +325,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
 }
 
 #[tokio::test]
-#[ignore]
+#[ignore = "run on demand via `just mind-benchmark persona_hot_news`"]
 async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
@@ -922,9 +422,9 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
     Ok(())
 }
 
-// grid search for best parameters for persona based benchmark as test
+/// Grid search for best parameters for persona based benchmark.
 #[tokio::test]
-#[ignore]
+#[ignore = "run on demand"]
 async fn grid_search_for_best_parameters() -> Result<(), Error> {
     // load users interests sample as computing all users interests is too expensive in grid search
     let users_interests = Users::new("user_categories_sample.json")?;
@@ -1010,38 +510,4 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
         }
     }
     Ok(())
-}
-
-fn ndcg(relevance: &[f32], k: &[usize]) -> Vec<f32> {
-    let mut optimal_order = relevance.to_owned();
-    optimal_order.sort_by(nan_safe_f32_cmp_desc);
-    let last = k
-        .iter()
-        .max()
-        .copied()
-        .map_or_else(|| relevance.len(), |k| k.min(relevance.len()));
-
-    let ndcgs = relevance
-        .iter()
-        .zip(optimal_order)
-        .take(last)
-        .scan(
-            (1_f32, 0., 0.),
-            |(i, dcg, ideal_dcg), (relevance, optimal_order)| {
-                *i += 1.;
-                let log_i = (*i).log2();
-                *dcg += (2_f32.powf(*relevance) - 1.) / log_i;
-                *ideal_dcg += (2_f32.powf(optimal_order) - 1.) / log_i;
-                Some(*dcg / (*ideal_dcg + 0.00001))
-            },
-        )
-        .collect::<Vec<_>>();
-
-    k.iter()
-        .map(|nrank| match ndcgs.get(*nrank - 1) {
-            Some(i) => i,
-            None => ndcgs.last().unwrap(),
-        })
-        .copied()
-        .collect::<Vec<_>>()
 }
