@@ -16,6 +16,7 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use chrono::{DateTime, Utc};
+use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use serde::Serialize;
 use xayn_ai_bert::NormalizedEmbedding;
@@ -156,33 +157,35 @@ impl State {
     }
 }
 
-/// The results of iteration of the saturation benchmark
+/// The results of iteration of the saturation benchmark.
 #[derive(Debug, Default, Serialize)]
 pub(super) struct SaturationIteration {
     pub(super) shown_documents: Vec<DocumentId>,
     pub(super) clicked_documents: Vec<DocumentId>,
 }
 
-/// The results of the saturation benchmark for one topic
-#[derive(Debug, Default, Serialize)]
+/// The results of the saturation benchmark for one topic.
+#[derive(Debug, Default, Deref, DerefMut, Serialize)]
 pub(super) struct SaturationTopicResult {
-    pub(super) topic: String,
-    pub(super) iterations: Vec<SaturationIteration>,
+    topic: String,
+    #[deref]
+    #[deref_mut]
+    iterations: Vec<SaturationIteration>,
 }
 
 impl SaturationTopicResult {
     pub(super) fn new(topic: &str, iterations: usize) -> Self {
         Self {
-            topic: topic.to_owned(),
+            topic: topic.to_string(),
             iterations: Vec::with_capacity(iterations),
         }
     }
 }
 
-/// The results of the saturation benchmark
-#[derive(Debug, Default, Serialize)]
+/// The results of the saturation benchmark.
+#[derive(Debug, Default, Deref, DerefMut, Serialize)]
 pub(super) struct SaturationResult {
-    pub(super) topics: Vec<SaturationTopicResult>,
+    topics: Vec<SaturationTopicResult>,
 }
 
 impl SaturationResult {

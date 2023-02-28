@@ -18,7 +18,7 @@ use xayn_ai_coi::CoiConfig;
 
 use crate::personalization::PersonalizationConfig;
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Debug, Serialize)]
 pub(super) struct StateConfig {
     pub(super) coi: CoiConfig,
     pub(super) personalization: PersonalizationConfig,
@@ -35,6 +35,7 @@ impl Default for StateConfig {
     }
 }
 
+#[derive(Debug)]
 pub(super) struct GridSearchConfig {
     pub(super) thresholds: Vec<f32>,
     pub(super) shifts: Vec<f32>,
@@ -61,37 +62,34 @@ impl Default for GridSearchConfig {
     }
 }
 
-pub(super) fn create_grid_search_configs(
-    grid_search_config: &GridSearchConfig,
-) -> Vec<StateConfig> {
-    let mut configs = Vec::with_capacity(
-        grid_search_config.thresholds.len()
-            * grid_search_config.shifts.len()
-            * grid_search_config.min_pos_cois.len(),
-    );
+impl GridSearchConfig {
+    pub(super) fn create_state_configs(&self) -> Vec<StateConfig> {
+        let mut configs =
+            Vec::with_capacity(self.thresholds.len() * self.shifts.len() * self.min_pos_cois.len());
+        let start_time = Utc::now();
 
-    let start_time = Utc::now();
-
-    for t in &grid_search_config.thresholds {
-        for s in &grid_search_config.shifts {
-            for m in &grid_search_config.min_pos_cois {
-                configs.push(StateConfig {
-                    coi: {
-                        CoiConfig::default()
-                            .with_shift_factor(*s)
-                            .unwrap()
-                            .with_threshold(*t)
-                            .unwrap()
-                            .with_min_positive_cois(*m)
-                            .unwrap()
-                    },
-                    personalization: PersonalizationConfig::default(),
-                    time: start_time,
-                });
+        for &threshold in &self.thresholds {
+            for &shift_factor in &self.shifts {
+                for &min_positive_cois in &self.min_pos_cois {
+                    configs.push(StateConfig {
+                        coi: {
+                            CoiConfig::default()
+                                .with_shift_factor(shift_factor)
+                                .unwrap()
+                                .with_threshold(threshold)
+                                .unwrap()
+                                .with_min_positive_cois(min_positive_cois)
+                                .unwrap()
+                        },
+                        personalization: PersonalizationConfig::default(),
+                        time: start_time,
+                    });
+                }
             }
         }
+
+        configs
     }
-    configs
 }
 
 /// The config of hyperparameters for the persona based benchmark.

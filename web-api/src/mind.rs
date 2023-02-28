@@ -28,13 +28,7 @@ use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 
 use crate::{
     mind::{
-        config::{
-            create_grid_search_configs,
-            GridSearchConfig,
-            PersonaBasedConfig,
-            SaturationConfig,
-            StateConfig,
-        },
+        config::{GridSearchConfig, PersonaBasedConfig, SaturationConfig, StateConfig},
         data::{
             read,
             score_documents,
@@ -61,7 +55,7 @@ async fn run_persona_benchmark() -> Result<(), Error> {
     let state = State::new(Storage::default(), StateConfig::default()).unwrap();
     // load documents from document provider to state
     state
-        .insert(document_provider.documents.values().cloned().collect_vec())
+        .insert(document_provider.values().cloned().collect_vec())
         .await
         .unwrap();
     let benchmark_config = PersonaBasedConfig::default();
@@ -240,7 +234,7 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
     let state = State::new(Storage::default(), StateConfig::default()).unwrap();
     // load documents from document provider to state
     state
-        .insert(document_provider.documents.values().cloned().collect_vec())
+        .insert(document_provider.values().cloned().collect_vec())
         .await
         .unwrap();
     let benchmark_config = SaturationConfig::default();
@@ -310,12 +304,12 @@ async fn run_saturation_benchmark() -> Result<(), Error> {
                 .unwrap();
 
             // add results to the topic result
-            topic_result.iterations.push(SaturationIteration {
+            topic_result.push(SaturationIteration {
                 shown_documents: personalised_documents,
                 clicked_documents: to_be_clicked,
             });
         }
-        results.topics.push(topic_result);
+        results.push(topic_result);
     }
     //save results to json file
     let file = File::create("saturation_results.json")?;
@@ -332,7 +326,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Error> {
     let state = State::new(Storage::default(), StateConfig::default()).unwrap();
     // load documents from document provider to state
     state
-        .insert(document_provider.documents.values().cloned().collect_vec())
+        .insert(document_provider.values().cloned().collect_vec())
         .await
         .unwrap();
     let benchmark_config = PersonaBasedConfig::default();
@@ -430,7 +424,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Error> {
     let users_interests = Users::new("user_categories_sample.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
     let grid_search_config = GridSearchConfig::default();
-    let configs = create_grid_search_configs(&grid_search_config);
+    let configs = grid_search_config.create_state_configs();
     let mut state = State::new(Storage::default(), StateConfig::default()).unwrap();
     state
         .insert(document_provider.to_documents())

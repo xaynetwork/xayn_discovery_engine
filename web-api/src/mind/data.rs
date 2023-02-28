@@ -138,7 +138,7 @@ pub(super) fn score_documents(
                 0.0
             }
         })
-        .collect_vec()
+        .collect()
 }
 
 fn read_from_tsv<P>(path: P) -> Result<Reader<File>, Error>
@@ -160,76 +160,54 @@ where
     Ok(read_from_tsv(path)?.into_deserialize())
 }
 
-#[derive(Debug, Deserialize)]
-pub(super) struct DocumentProvider {
-    pub(super) documents: HashMap<DocumentId, Document>,
-}
+#[derive(Debug, Deref, Deserialize)]
+#[serde(transparent)]
+pub(super) struct DocumentProvider(HashMap<DocumentId, Document>);
 
 impl DocumentProvider {
     pub(super) fn new(path: &str) -> Result<Self, Error> {
-        let documents = read::<Document>(path)?
+        read::<Document>(path)?
             .map(|document| document.map(|document| (document.id.clone(), document)))
-            .try_collect()?;
-        Ok(Self { documents })
+            .try_collect()
+            .map(Self)
+            .map_err(Into::into)
     }
 
     pub(super) fn sample(&self, n: usize) -> Vec<&Document> {
-        self.documents
-            .values()
+        self.values()
             .choose_multiple(&mut StdRng::seed_from_u64(42), n)
     }
 
-    pub(super) fn get(&self, id: &DocumentId) -> Option<&Document> {
-        self.documents.get(id)
-    }
-
     pub(super) fn to_documents(&self) -> Vec<Document> {
-        self.documents.values().cloned().collect()
+        self.values().cloned().collect()
     }
 
     /// Gets all documents that matches user's interest.
     pub(super) fn get_all_interest(&self, interests: &[String]) -> Vec<&Document> {
-        self.documents
-            .values()
+        self.values()
             .filter(|doc| doc.is_interesting(interests))
             .collect()
     }
 }
 
 #[derive(Debug, Deref, Deserialize)]
+#[serde(transparent)]
 pub(super) struct SpecificTopics(Vec<String>);
 
 impl SpecificTopics {
     pub(super) fn new(path: &str) -> Result<Self, Error> {
-        let file = File::open(path)?;
-        let topics = serde_json::from_reader::<_, Vec<String>>(file)?;
-        Ok(Self(topics))
+        Ok(serde_json::from_reader(File::open(path)?)?)
     }
 }
 
 #[derive(Debug, Deref, Deserialize)]
+#[serde(transparent)]
 pub(super) struct Users(HashMap<UserId, Vec<String>>);
 
 impl Users {
     /// Reads the users interests from a json file.
     pub(super) fn new(path: &str) -> Result<Self, Error> {
-        let file = File::open(path)?;
-        let json = serde_json::from_reader::<_, serde_json::Value>(file)?;
-        let map = json.as_object().unwrap();
-        // iterate over map and create a map of user ids and their interests
-        Ok(Users(
-            map.iter()
-                .map(|(user_id, interests)| {
-                    let interests = interests
-                        .as_array()
-                        .unwrap()
-                        .iter()
-                        .map(|interest| interest.as_str().unwrap().to_string())
-                        .collect();
-                    (UserId::new(user_id).unwrap(), interests)
-                })
-                .collect(),
-        ))
+        Ok(serde_json::from_reader(File::open(path)?)?)
     }
 }
 
