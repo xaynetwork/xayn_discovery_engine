@@ -142,50 +142,6 @@ paths:
                 $ref: '#/components/schemas/UserInteractionError'
 
   /semantic_search/{document_id}:
-    get:
-      tags:
-        - front office
-      summary: Returns documents similar to the given document.
-      description: |-
-        Returns a list of documents that are semantically similar to the one given as input.
-        Each document contains the id, the score and the properties.
-        The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
-      operationId: getSimilarDocuments
-      parameters:
-        - $ref: './parameters/path/document_id.yml'
-        - name: count
-          in: query
-          description: Maximum number of semantic similar documents to return
-          required: false
-          schema:
-            $ref: '#/components/schemas/Count'
-        - name: min_similarity
-          in: query
-          description: Minimum similarity a document has to have to be included.
-          required: false
-          schema:
-            type: number
-            format: float
-            minimum: 0
-            maximum: 1
-            default: 0
-        - name: personalize_for
-          in: query
-          description:  |-
-            A user for whom the documents will be personalized for.
-            If that user doesn't have enough interactions in the system, then the documents are returned unpersonalized.
-          required: false
-          schema:
-            $ref: './schemas/user.yml#/UserId'
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SemanticSearchResponse'
-        '400':
-            $ref: './responses/generic.yml#/BadRequest'
     post:
       tags:
         - front office
@@ -194,7 +150,7 @@ paths:
         Returns a list of documents that are semantically similar to the one given as input.
         Each document contains the id, the score and the properties.
         The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
-      operationId: getSimilarDocuments2
+      operationId: getSimilarDocuments
       requestBody:
         required: true
         content:
