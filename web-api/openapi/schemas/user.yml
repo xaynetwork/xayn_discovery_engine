@@ -18,6 +18,7 @@ InputUser:
       $ref: '#/UserId'
     history:
       $ref: './document.yml#/History'
-  oneOf:
-    - required: [id]
-    - required: [history]
+  # Disabled as our linter can't handle that correctly
+  # oneOf:
+  #   - required: [id]
+  #   - required: [history]
