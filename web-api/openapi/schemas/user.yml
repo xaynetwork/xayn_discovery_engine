@@ -16,6 +16,6 @@ InputUser:
   type: object
   properties:
     id:
-      $ref: './schemas/user.yml#/UserId'
+      $ref: '#/UserId'
     history:
-      $ref: './schemas/document.yml#/History'
+      $ref: './document.yml#/History'
