@@ -28,7 +28,14 @@ use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 use xayn_ai_coi::{CoiSystem, UserInterests};
 
-use super::{knn, rerank::rerank_by_scores, AppState, PersonalizationConfig, SemanticSearchConfig};
+use super::{
+    knn,
+    rerank::rerank_by_scores,
+    stateless::{derive_interests_and_tag_weights, HistoryEntry, InvalidatedHistory},
+    AppState,
+    PersonalizationConfig,
+    SemanticSearchConfig,
+};
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -158,43 +165,22 @@ struct StatelessPersonalizationRequest {
     count: Option<usize>,
     #[serde(default)]
     published_after: Option<DateTime<Utc>>,
-    history: Vec<UncheckedHistoryEntry>,
+    history: InvalidatedHistory,
 }
 
 impl StatelessPersonalizationRequest {
-    fn history(
+    async fn history_and_time(
         self,
+        storage: &impl storage::Document,
         config: &PersonalizationConfig,
         warnings: &mut Vec<Warning>,
-    ) -> Result<Vec<HistoryEntry>, Error> {
-        if self.history.is_empty() {
-            return Err(HistoryTooSmall.into());
-        }
-
-        let max_history_len = config.max_stateless_history_size;
-        if self.history.len() > max_history_len {
-            warnings.push(format!("history truncated, max length is {max_history_len}").into());
-        }
-        let mut most_recent_time = Utc::now();
-        //input is from oldest to newest
-        let mut history = self
+    ) -> Result<(Vec<HistoryEntry>, DateTime<Utc>), Error> {
+        let history = self
             .history
-            .into_iter()
-            .rev()
-            .take(max_history_len)
-            .map(|unchecked| -> Result<_, Error> {
-                let id = unchecked.id.try_into()?;
-                let timestamp = unchecked.timestamp.unwrap_or(most_recent_time);
-                if timestamp > most_recent_time {
-                    warnings
-                        .push(format!("inconsistent history ordering around document {id}").into());
-                }
-                most_recent_time = timestamp;
-                Ok(HistoryEntry { id, timestamp })
-            })
-            .try_collect::<_, Vec<_>, _>()?;
-        history.reverse();
-        Ok(history)
+            .validate_and_load(storage, config, warnings)
+            .await?;
+        let time = history.last().unwrap(/* history is checked to be not empty */).timestamp;
+        Ok((history, time))
     }
 
     fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
@@ -206,18 +192,6 @@ impl StatelessPersonalizationRequest {
     }
 }
 
-#[derive(Deserialize)]
-struct UncheckedHistoryEntry {
-    id: String,
-    timestamp: Option<DateTime<Utc>>,
-}
-
-#[derive(Deserialize)]
-struct HistoryEntry {
-    id: DocumentId,
-    timestamp: DateTime<Utc>,
-}
-
 #[instrument(skip_all)]
 async fn stateless_personalized_documents(
     state: Data<AppState>,
@@ -226,37 +200,11 @@ async fn stateless_personalized_documents(
     let mut warnings = vec![];
     let published_after = request.published_after;
     let count = request.document_count(state.config.as_ref())?;
-    let history = request.history(state.config.as_ref(), &mut warnings)?;
-    let time = history
-        .last()
-        .unwrap(/* history has been checked */)
-        .timestamp;
+    let (history, time) = request
+        .history_and_time(&state.storage, state.config.as_ref(), &mut warnings)
+        .await?;
 
-    let documents_from_history = storage::Document::get_interacted(
-        &state.storage,
-        history.iter().map(|document| &document.id),
-    )
-    .await?;
-    let documents_from_history = documents_from_history
-        .iter()
-        .map(|document| (&document.id, document))
-        .collect::<HashMap<_, _>>();
-
-    let mut interests = UserInterests::default();
-    for entry in &history {
-        let id = &entry.id;
-        if let Some(document) = documents_from_history.get(id) {
-            state.coi.log_positive_user_reaction(
-                &mut interests.positive,
-                &document.embedding,
-                entry.timestamp,
-            );
-        } else {
-            let msg = format!("document {id} does not exist");
-            warn!("{}", msg);
-            warnings.push(msg.into());
-        }
-    }
+    let (interests, tag_weights) = derive_interests_and_tag_weights(&state.coi, &history);
 
     let mut documents = knn::CoiSearch {
         interests: &interests.positive,
@@ -269,8 +217,6 @@ async fn stateless_personalized_documents(
     }
     .run_on(&state.storage)
     .await?;
-
-    let tag_weights = tag_weights_from_history(documents_from_history.values().copied());
 
     rerank_by_scores(
         &state.coi,
@@ -555,12 +501,15 @@ async fn semantic_search(
 
     let mut excluded = if let Some(user) = &user {
         match user {
-            InputUser::Ref(id) => {
-                fetch_excluded_documents(id, &state.storage, state.config.as_ref()).await?
+            InputUser::Ref(user_id) => {
+                //FIXME move optimization into storage abstraction
+                if state.config.personalization.store_user_history {
+                    storage::Interaction::get(&state.storage, user_id).await?
+                } else {
+                    Vec::with_capacity(1)
+                }
             }
-            InputUser::Inline { history } => {
-                derive_excluded_documents(history, state.config.as_ref())?
-            }
+            InputUser::Inline { history } => history.clone(),
         }
     } else {
         Vec::with_capacity(1)
@@ -601,30 +550,11 @@ async fn semantic_search(
                 Utc::now(),
             );
         }
-        // let interests = storage::Interest::get(&state.storage, &user_id).await?;
-        // if interests.has_enough(state.config.as_ref()) {
-        //     let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
-        // }
     }
 
     Ok(Json(SemanticSearchResponse {
         documents: documents.into_iter().map_into().collect(),
     }))
-}
-
-async fn fetch_excluded_documents(
-    id: &UserId,
-    storage: &impl storage::Interest,
-    config: &PersonalizationConfig,
-) -> Result<Vec<DocumentId>, Error> {
-    todo!()
-}
-
-fn derive_excluded_documents(
-    history: &[DocumentId],
-    config: &PersonalizationConfig,
-) -> Result<Vec<DocumentId>, Error> {
-    todo!()
 }
 
 async fn fetch_interests_and_tag_weights(
@@ -639,13 +569,6 @@ async fn fetch_interests_and_tag_weights(
     } else {
         Ok(None)
     }
-}
-
-fn derive_interests_and_tag_weights(
-    history: &[DocumentId],
-    config: &PersonalizationConfig,
-) -> Result<Option<(UserInterests, TagWeights)>, Error> {
-    todo!()
 }
 
 type TagWeights = HashMap<DocumentTag, usize>;
