@@ -141,7 +141,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserInteractionError'
 
-  /semantic_search/{document_id}:
+  /semantic_search:
     post:
       tags:
         - front office
@@ -241,6 +241,8 @@ components:
     SemanticSearchRequest:
       type: object
       properties:
+        document:
+          $ref: './schemas/document.yml#/DocumentId'
         count:
           $ref: '#/components/schemas/Count'
         published_after:
