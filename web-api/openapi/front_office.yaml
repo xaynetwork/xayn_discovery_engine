@@ -239,7 +239,7 @@ components:
     SemanticSearchRequest:
       type: object
       properties:
-        document:
+        document_id:
           $ref: './schemas/document.yml#/DocumentId'
         count:
           $ref: '#/components/schemas/Count'
