@@ -156,7 +156,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SimilaritySearchRequest'
+              $ref: '#/components/schemas/SemanticSearchRequest'
       parameters:
         - $ref: './parameters/path/document_id.yml'
       responses:
@@ -253,7 +253,7 @@ components:
           maximum: 1
           default: 0
         user:
-          $ref: InputUser
+          $ref: '#/components/schemas/InputUser'
     InputUser:
       description: "A user either specified by id or with they relevant data inlined directly"
       oneOf:
