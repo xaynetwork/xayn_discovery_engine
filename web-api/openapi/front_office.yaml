@@ -238,6 +238,7 @@ components:
               title: "News title"
     SemanticSearchRequest:
       type: object
+      required: [document_id]
       properties:
         document_id:
           $ref: './schemas/document.yml#/DocumentId'
