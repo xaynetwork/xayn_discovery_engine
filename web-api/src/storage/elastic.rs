@@ -225,6 +225,91 @@ impl Client {
         self.query_with_bytes(url, post_data).await
     }
 
+    pub(super) async fn get_interacted(
+        &self,
+        ids: impl Serialize,
+    ) -> Result<Vec<models::InteractedDocument>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
+        let body = Some(json!({
+            "query": {
+                "ids" : {
+                    "values": ids
+                }
+            },
+            "_source": ["embedding", "tags"]
+        }));
+
+        Ok(self
+            .query_with_json::<_, SearchResponse<_>>(
+                self.create_resource_path(["_search"], None),
+                body,
+            )
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
+    }
+
+    pub(super) async fn get_personalized(
+        &self,
+        ids: impl Serialize,
+    ) -> Result<Vec<models::PersonalizedDocument>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
+        let body = Some(json!({
+            "query": {
+                "ids" : {
+                    "values": ids
+                }
+            },
+            "_source": ["properties", "embedding", "tags"]
+        }));
+
+        Ok(self
+            .query_with_json::<_, SearchResponse<_>>(
+                self.create_resource_path(["_search"], None),
+                body,
+            )
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
+    }
+
+    pub(super) async fn get_embedding(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<NormalizedEmbedding>, Error> {
+        #[derive(Deserialize)]
+        struct Response {
+            #[serde(rename = "_source")]
+            source: Fields,
+        }
+
+        #[derive(Deserialize)]
+        struct Fields {
+            embedding: NormalizedEmbedding,
+        }
+
+        self.query_with_bytes::<Vec<u8>, Response>(
+            self.create_resource_path(["_doc", id.as_ref()], [("_source", Some("embedding"))]),
+            None,
+        )
+        .await
+        .map(|opt| opt.map(|resp| resp.source.embedding))
+    }
+
+    pub(super) async fn get_document_properties(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<DocumentProperties>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
+        let url =
+            self.create_resource_path(["_source", id.as_ref()], [("_source", Some("properties"))]);
+
+        Ok(self
+            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
+            .await?
+            .map(|resp| resp.properties))
+    }
+
     pub(super) async fn insert_document_properties(
         &self,
         id: &DocumentId,
@@ -268,6 +353,23 @@ impl Client {
             .query_with_json::<_, IgnoredResponse>(url, body)
             .await?
             .map(|_| ()))
+    }
+
+    pub(super) async fn get_document_property(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<Option<DocumentProperty>>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
+        let url = self.create_resource_path(
+            ["_source", document_id.as_ref()],
+            [("_source", Some(&*format!("properties.{property_id}")))],
+        );
+
+        Ok(self
+            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
+            .await?
+            .map(|mut response| response.properties.remove(property_id)))
     }
 
     pub(super) async fn insert_document_property(
@@ -317,7 +419,55 @@ impl Client {
             .await?
             .map(|_| Some(())))
     }
+
+    #[cfg(feature = "ET-3837")]
+    pub(super) async fn get_unmigrated(
+        &self,
+        ids: impl Serialize,
+    ) -> Result<Vec<super::postgres::UnmigratedDocument>, Error> {
+        let body = Some(json!({
+            "query": {
+                "ids" : {
+                    "values": ids
+                }
+            },
+            "_source": ["snippet", "properties", "tags", "embedding"]
+        }));
+
+        Ok(self
+            .query_with_json::<_, SearchResponse<_>>(
+                self.create_resource_path(["_search"], None),
+                body,
+            )
+            .await?
+            .map(Into::into)
+            .unwrap_or_default())
+    }
 }
+
+#[cfg(feature = "ET-3837")]
+macro_rules! set_unmigrated {
+    ($documents:ident, $get:expr $(,)?) => {{
+        let unmigrated = $documents
+            .iter()
+            .filter_map(|document| document.embedding.is_empty().then_some(&document.id))
+            .collect_vec();
+        if !unmigrated.is_empty() {
+            let mut unmigrated = $get(unmigrated)
+                .await?
+                .into_iter()
+                .map(|document| (document.id.clone(), document))
+                .collect::<HashMap<_, _>>();
+            for document in &mut $documents {
+                if let Some(unmigrated) = unmigrated.remove(&document.id) {
+                    *document = unmigrated;
+                }
+            }
+        }
+    }};
+}
+#[cfg(feature = "ET-3837")]
+pub(super) use set_unmigrated;
 
 #[derive(Debug, Deserialize)]
 struct Hit<T> {
@@ -354,7 +504,6 @@ impl<'de> Deserialize<'de> for NoSource {
     }
 }
 
-#[cfg(not(feature = "ET-3837"))]
 #[derive(Debug, Deserialize)]
 struct InteractedDocument {
     embedding: NormalizedEmbedding,
@@ -362,7 +511,6 @@ struct InteractedDocument {
     tags: Vec<DocumentTag>,
 }
 
-#[cfg(not(feature = "ET-3837"))]
 impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument> {
     fn from(response: SearchResponse<InteractedDocument>) -> Self {
         response
@@ -399,7 +547,6 @@ where
     }
 }
 
-#[cfg(not(feature = "ET-3837"))]
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocument {
     #[serde(default)]
@@ -409,7 +556,6 @@ struct PersonalizedDocument {
     tags: Vec<DocumentTag>,
 }
 
-#[cfg(not(feature = "ET-3837"))]
 impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocument> {
     fn from(response: SearchResponse<PersonalizedDocument>) -> Self {
         response
@@ -422,6 +568,35 @@ impl From<SearchResponse<PersonalizedDocument>> for Vec<models::PersonalizedDocu
                 embedding: hit.source.embedding,
                 properties: hit.source.properties,
                 tags: hit.source.tags,
+            })
+            .collect()
+    }
+}
+
+#[cfg(feature = "ET-3837")]
+#[derive(Deserialize)]
+struct UnmigratedDocument {
+    snippet: String,
+    #[serde(default)]
+    properties: DocumentProperties,
+    #[serde(default)]
+    tags: Vec<DocumentTag>,
+    embedding: NormalizedEmbedding,
+}
+
+#[cfg(feature = "ET-3837")]
+impl From<SearchResponse<UnmigratedDocument>> for Vec<super::postgres::UnmigratedDocument> {
+    fn from(response: SearchResponse<UnmigratedDocument>) -> Self {
+        response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| super::postgres::UnmigratedDocument {
+                id: hit.id,
+                snippet: hit.source.snippet,
+                properties: hit.source.properties,
+                tags: hit.source.tags,
+                embedding: hit.source.embedding,
             })
             .collect()
     }
@@ -460,25 +635,7 @@ impl Storage {
             self.postgres.documents_exist(ids).await?
         };
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
-        let body = Some(json!({
-            "query": {
-                "ids" : {
-                    "values": values
-                }
-            },
-            "_source": ["embedding", "tags"]
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, SearchResponse<_>>(
-                self.elastic.create_resource_path(["_search"], None),
-                body,
-            )
-            .await?
-            .map(Into::into)
-            .unwrap_or_default())
+        self.elastic.get_interacted(values).await
     }
 
     pub(crate) async fn get_personalized_with_transaction(
@@ -498,25 +655,7 @@ impl Storage {
             self.postgres.documents_exist(ids).await?
         };
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
-        let body = Some(json!({
-            "query": {
-                "ids" : {
-                    "values": values
-                }
-            },
-            "_source": ["properties", "embedding", "tags"]
-        }));
-
-        Ok(self
-            .elastic
-            .query_with_json::<_, SearchResponse<_>>(
-                self.elastic.create_resource_path(["_search"], None),
-                body,
-            )
-            .await?
-            .map(Into::into)
-            .unwrap_or_default())
+        self.elastic.get_personalized(values).await
     }
 }
 
@@ -550,32 +689,13 @@ impl storage::Document for Storage {
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
         #[cfg(not(feature = "ET-3837"))]
-        return {
-            #[derive(Deserialize)]
-            struct Response {
-                _source: Fields,
-            }
-            #[derive(Deserialize)]
-            struct Fields {
-                embedding: NormalizedEmbedding,
-            }
-
-            self.elastic
-                .query_with_bytes::<Vec<u8>, Response>(
-                    self.elastic.create_resource_path(
-                        ["_doc", id.as_ref()],
-                        [("_source", Some("embedding"))],
-                    ),
-                    None,
-                )
-                .await
-                .map(|opt| opt.map(|resp| resp._source.embedding))
-        };
+        return self.elastic.get_embedding(id).await;
 
         #[cfg(feature = "ET-3837")]
         self.get_embedding(id).await
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
@@ -687,9 +807,14 @@ impl storage::Document for Storage {
                         .collect::<HashMap<_, _>>()
                 })
                 .unwrap_or_default();
+            let mut documents = self
+                .get_personalized(scores.keys(), |id| scores.get(id).copied())
+                .await?;
+            if !*self.is_migrated.read().await {
+                set_unmigrated!(documents, |ids| self.elastic.get_personalized(ids));
+            }
 
-            self.get_personalized(scores.keys(), |id| scores.get(id).copied())
-                .await
+            Ok(documents)
         }
     }
 
@@ -807,7 +932,6 @@ impl storage::Document for Storage {
     }
 }
 
-#[cfg(not(feature = "ET-3837"))]
 #[derive(Clone, Debug, Deserialize)]
 struct DocumentPropertiesResponse {
     #[serde(default)]
@@ -818,20 +942,11 @@ struct DocumentPropertiesResponse {
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
-        if !self.postgres.document_exists(id).await? {
-            return Ok(None);
+        if self.postgres.document_exists(id).await? {
+            self.elastic.get_document_properties(id).await
+        } else {
+            Ok(None)
         }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
-        let url = self
-            .elastic
-            .create_resource_path(["_source", id.as_ref()], [("_source", Some("properties"))]);
-
-        Ok(self
-            .elastic
-            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
-            .await?
-            .map(|resp| resp.properties))
     }
 
     async fn put(
@@ -865,21 +980,13 @@ impl storage::DocumentProperty for Storage {
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
-        if !self.postgres.document_exists(document_id).await? {
-            return Ok(None);
+        if self.postgres.document_exists(document_id).await? {
+            self.elastic
+                .get_document_property(document_id, property_id)
+                .await
+        } else {
+            Ok(None)
         }
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-get.html
-        let url = self.elastic.create_resource_path(
-            ["_source", document_id.as_ref()],
-            [("_source", Some(&*format!("properties.{property_id}")))],
-        );
-
-        Ok(self
-            .elastic
-            .query_with_json::<Value, DocumentPropertiesResponse>(url, None)
-            .await?
-            .map(|mut response| response.properties.remove(property_id)))
     }
 
     async fn put(

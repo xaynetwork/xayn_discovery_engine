@@ -25,6 +25,8 @@ use chrono::{DateTime, Utc};
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+#[cfg(feature = "ET-3837")]
+use tokio::sync::RwLock;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
 
@@ -182,20 +184,31 @@ pub(crate) trait Tag {
 pub struct Config {
     elastic: elastic::Config,
     postgres: postgres::Config,
+    #[cfg(feature = "ET-3837")]
+    is_migrated: bool,
 }
 
 impl Config {
     pub(crate) async fn setup(&self) -> Result<Storage, SetupError> {
         let elastic = self.elastic.setup_client()?;
         let postgres = self.postgres.setup_database().await?;
+        #[cfg(feature = "ET-3837")]
+        let is_migrated = RwLock::new(self.is_migrated);
 
-        Ok(Storage { elastic, postgres })
+        Ok(Storage {
+            elastic,
+            postgres,
+            #[cfg(feature = "ET-3837")]
+            is_migrated,
+        })
     }
 }
 
 pub struct Storage {
     elastic: elastic::Client,
     postgres: postgres::Database,
+    #[cfg(feature = "ET-3837")]
+    pub(crate) is_migrated: RwLock<bool>,
 }
 
 impl Storage {

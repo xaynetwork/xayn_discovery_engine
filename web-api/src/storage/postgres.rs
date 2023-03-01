@@ -36,6 +36,8 @@ use sqlx::{
     QueryBuilder,
     Transaction,
 };
+#[cfg(feature = "ET-3837")]
+use tracing::{debug, error};
 use tracing::{info, instrument, warn};
 use xayn_ai_bert::NormalizedEmbedding;
 #[cfg(feature = "ET-3837")]
@@ -43,20 +45,24 @@ use xayn_ai_coi::nan_safe_f32_cmp_desc;
 use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::{InteractionUpdateContext, TagWeights};
-#[cfg(feature = "ET-3837")]
-use crate::models::{
-    DocumentProperties,
-    DocumentProperty,
-    DocumentPropertyId,
-    IngestedDocument,
-    PersonalizedDocument,
-};
 use crate::{
     error::common::DocumentIdAsObject,
     models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
     storage::{self, utils::SqlxPushTupleExt, DeletionError, Storage},
     utils::serialize_redacted,
     Error,
+};
+#[cfg(feature = "ET-3837")]
+use crate::{
+    error::common::DocumentNotFound,
+    models::{
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        IngestedDocument,
+        PersonalizedDocument,
+    },
+    storage::elastic::set_unmigrated,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -562,7 +568,7 @@ impl Database {
         let persist = interactions.len() < 10;
 
         let mut builder = QueryBuilder::new(
-            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction)",
+            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction) ",
         );
         let mut iter = interactions.iter().peekable();
         while iter.peek().is_some() {
@@ -594,7 +600,7 @@ impl Database {
         user_id: &UserId,
         updates: &HashMap<&DocumentTag, i32>,
     ) -> Result<(), Error> {
-        let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight)");
+        let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight) ");
         let mut iter = updates.iter().peekable();
         while iter.peek().is_some() {
             let chunk = iter.by_ref().take(Database::BIND_LIMIT / 7);
@@ -620,14 +626,27 @@ impl Database {
 }
 
 #[cfg(feature = "ET-3837")]
+pub(super) struct UnmigratedDocument {
+    pub(super) id: DocumentId,
+    pub(super) snippet: String,
+    pub(super) properties: DocumentProperties,
+    pub(super) tags: Vec<DocumentTag>,
+    pub(super) embedding: NormalizedEmbedding,
+}
+
+#[cfg(feature = "ET-3837")]
 impl Storage {
     pub(super) async fn get_interacted(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<InteractedDocument>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
-        let documents = Database::get_interacted(&mut tx, ids).await?;
+        let mut documents = Database::get_interacted(&mut tx, ids).await?;
         tx.commit().await?;
+
+        if !*self.is_migrated.read().await {
+            set_unmigrated!(documents, |ids| self.elastic.get_interacted(ids));
+        }
 
         Ok(documents)
     }
@@ -638,8 +657,12 @@ impl Storage {
         scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
-        let documents = Database::get_personalized(&mut tx, ids, scores).await?;
+        let mut documents = Database::get_personalized(&mut tx, ids, scores).await?;
         tx.commit().await?;
+
+        if !*self.is_migrated.read().await {
+            set_unmigrated!(documents, |ids| self.elastic.get_personalized(ids));
+        }
 
         Ok(documents)
     }
@@ -649,10 +672,80 @@ impl Storage {
         id: &DocumentId,
     ) -> Result<Option<NormalizedEmbedding>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
-        let embedding = Database::get_embedding(&mut tx, id).await?;
+        let mut embedding = Database::get_embedding(&mut tx, id).await?;
         tx.commit().await?;
 
+        if !*self.is_migrated.read().await
+            && embedding
+                .as_deref()
+                .map(|embedding| embedding.is_empty())
+                .unwrap_or_default()
+        {
+            embedding = self.elastic.get_embedding(id).await?;
+        }
+
         Ok(embedding)
+    }
+
+    pub(crate) async fn migrate(&self, n: u16) -> Result<bool, Error> {
+        if n == 0 {
+            return Ok(false);
+        }
+
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let ids = sqlx::query_as::<_, DocumentId>(
+            "SELECT document_id
+            FROM document
+            WHERE cardinality(embedding) = 0
+            LIMIT $1
+            FOR UPDATE;",
+        )
+        .bind(i32::from(
+            n.min(u16::try_from(Database::BIND_LIMIT).unwrap()),
+        ))
+        .fetch_all(&mut tx)
+        .await?;
+        let all_migrated = ids.is_empty();
+        let migrated = if all_migrated {
+            Vec::new()
+        } else {
+            let unmigrated = self.elastic.get_unmigrated(&ids).await?;
+            QueryBuilder::new(
+                "INSERT INTO document (document_id, snippet, properties, tags, embedding) ",
+            )
+            .push_values(&unmigrated, |mut builder, document| {
+                builder
+                    .push_bind(&document.id)
+                    .push_bind(&document.snippet)
+                    .push_bind(Json(&document.properties))
+                    .push_bind(&document.tags)
+                    .push_bind(&document.embedding);
+            })
+            .push(
+                " ON CONFLICT (document_id) DO UPDATE SET
+                snippet = EXCLUDED.snippet,
+                properties = EXCLUDED.properties,
+                tags = EXCLUDED.tags,
+                embedding = EXCLUDED.embedding
+                RETURNING document_id;",
+            )
+            .build()
+            .persistent(false)
+            .try_map(|row| DocumentId::from_row(&row))
+            .fetch_all(&mut tx)
+            .await?
+        };
+
+        tx.commit().await?;
+
+        if migrated.len() < ids.len() {
+            error!(expected = ?ids, actual = ?migrated, "Failed to migrate some documents");
+            Err(DocumentNotFound.into())
+        } else {
+            debug!(?ids, "Migrated {} documents", ids.len());
+            Ok(all_migrated)
+        }
     }
 }
 
@@ -664,15 +757,25 @@ struct QueriedDocumentProperties(Json<DocumentProperties>);
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
-        let properties = sqlx::query_as::<_, QueriedDocumentProperties>(
-            "SELECT properties
-            FROM document
-            WHERE document_id = $1;",
-        )
-        .bind(id)
-        .fetch_optional(&self.postgres.pool)
-        .await?
-        .map(|properties| properties.0 .0);
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let properties = if *self.is_migrated.read().await {
+            sqlx::query_as::<_, QueriedDocumentProperties>(
+                "SELECT properties
+                FROM document
+                WHERE document_id = $1;",
+            )
+            .bind(id)
+            .fetch_optional(&mut tx)
+            .await?
+            .map(|properties| properties.0 .0)
+        } else if Database::document_exists(&mut tx, id).await? {
+            self.elastic.get_document_properties(id).await?
+        } else {
+            None
+        };
+
+        tx.commit().await?;
 
         Ok(properties)
     }
@@ -745,21 +848,29 @@ impl storage::DocumentProperty for Storage {
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let property = sqlx::query_as::<_, QueriedDocumentProperty>(
-            "SELECT properties -> $1
-            FROM document
-            WHERE document_id = $2 AND properties ? $1;",
-        )
-        .bind(property_id)
-        .bind(document_id)
-        .fetch_optional(&mut tx)
-        .await?;
-        let property = if let Some(property) = property {
-            Some(Some(property.0 .0))
-        } else {
-            Database::document_exists(&mut tx, document_id)
+        let property = if *self.is_migrated.read().await {
+            let property = sqlx::query_as::<_, QueriedDocumentProperty>(
+                "SELECT properties -> $1
+                FROM document
+                WHERE document_id = $2 AND properties ? $1;",
+            )
+            .bind(property_id)
+            .bind(document_id)
+            .fetch_optional(&mut tx)
+            .await?;
+            if let Some(property) = property {
+                Some(Some(property.0 .0))
+            } else {
+                Database::document_exists(&mut tx, document_id)
+                    .await?
+                    .then_some(None)
+            }
+        } else if Database::document_exists(&mut tx, document_id).await? {
+            self.elastic
+                .get_document_property(document_id, property_id)
                 .await?
-                .then_some(None)
+        } else {
+            None
         };
 
         tx.commit().await?;

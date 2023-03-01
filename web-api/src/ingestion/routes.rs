@@ -13,15 +13,23 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
+#[cfg(feature = "ET-3837")]
+use std::time::Duration;
 
+#[cfg(feature = "ET-3837")]
+use actix_web::web::Query;
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
     HttpResponse,
     Responder,
 };
+#[cfg(feature = "ET-3837")]
+use futures_util::FutureExt;
 use itertools::Itertools;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
+#[cfg(feature = "ET-3837")]
+use tokio::{time::sleep, try_join};
 use tracing::{error, info, instrument};
 
 use super::AppState;
@@ -64,6 +72,10 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::put().to(put_document_property.error_with_request_id()))
                 .route(web::delete().to(delete_document_property.error_with_request_id())),
         );
+    #[cfg(feature = "ET-3837")]
+    config.service(
+        web::resource("/migration").route(web::patch().to(migrate.error_with_request_id())),
+    );
 }
 
 fn deserialize_string_not_empty_or_zero_bytes<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -322,6 +334,42 @@ async fn delete_document_property(
         .await?
         .ok_or(DocumentNotFound)?
         .ok_or(DocumentPropertyNotFound)?;
+
+    Ok(HttpResponse::NoContent())
+}
+
+#[cfg(feature = "ET-3837")]
+#[derive(Debug, Deserialize)]
+struct MigrationQuery {
+    /// Number of documents to migrate per time interval.
+    n: u16,
+    /// Time interval in seconds.
+    t: u64,
+}
+
+#[cfg(feature = "ET-3837")]
+#[instrument(skip(state))]
+async fn migrate(
+    state: Data<AppState>,
+    Query(params): Query<MigrationQuery>,
+) -> Result<impl Responder, Error> {
+    if *state.storage.is_migrated.read().await {
+        return Ok(HttpResponse::Gone());
+    }
+
+    let n = params.n.max(1);
+    let t = Duration::from_secs(params.t.max(1));
+    loop {
+        match try_join!(state.storage.migrate(n), sleep(t).map(Ok)) {
+            Ok((all_migrated, ())) => {
+                if all_migrated {
+                    break;
+                }
+            }
+            Err(error) => return Err(error),
+        }
+    }
+    *state.storage.is_migrated.write().await = true;
 
     Ok(HttpResponse::NoContent())
 }
