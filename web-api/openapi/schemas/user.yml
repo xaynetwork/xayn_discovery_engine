@@ -2,3 +2,20 @@ UserId:
   description: Id of a user.
   $ref: './id.yml#/Id'
   example: "user_id"
+
+InputUser:
+  summary: Information about a user provided as input for an search
+  description: |
+    Information about a user provided as input for an search
+
+    This can be anything from no user information, to a user id, to
+    part of the user data inlined.
+
+    Be aware that currently using the `id` in combination with any
+    other field is not allowed.
+  type: object
+  properties:
+    id:
+      $ref: './schemas/user.yml#/UserId'
+    history:
+      $ref: './schemas/document.yml#/History'

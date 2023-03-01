@@ -253,16 +253,7 @@ components:
           maximum: 1
           default: 0
         user:
-          $ref: '#/components/schemas/InputUser'
-    InputUser:
-      description: "A user either specified by id or with they relevant data inlined directly"
-      oneOf:
-        - $ref: './schemas/document.yml#/DocumentId'
-        - type: object
-          required: [history]
-          properties:
-            history:
-              $ref: './schemas/document.yml#/History'
+          $ref: './schemas/user.yml#/InputUser'
     SemanticSearchResponse:
       type: object
       required: [documents]
