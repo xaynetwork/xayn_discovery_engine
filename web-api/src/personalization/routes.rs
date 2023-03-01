@@ -23,6 +23,7 @@ use actix_web::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use regex::internal::Input;
 use serde::{Deserialize, Serialize};
 use tracing::{instrument, warn};
 use xayn_ai_coi::{CoiSystem, UserInterests};
@@ -552,10 +553,15 @@ async fn semantic_search(
         .await?
         .ok_or(DocumentNotFound)?;
 
-    let mut excluded = if let (Some(InputUser::Ref(user_id)), true) =
-        (&user, state.config.personalization.store_user_history)
-    {
-        storage::Interaction::get(&state.storage, user_id).await?
+    let mut excluded = if let Some(user) = &user {
+        match user {
+            InputUser::Ref(id) => {
+                fetch_excluded_documents(id, &state.storage, state.config.as_ref()).await?
+            }
+            InputUser::Inline { history } => {
+                derive_excluded_documents(history, state.config.as_ref())?
+            }
+        }
     } else {
         Vec::with_capacity(1)
     };
@@ -575,10 +581,17 @@ async fn semantic_search(
     )
     .await?;
 
-    if let Some(InputUser::Ref(user_id)) = user {
-        let interests = storage::Interest::get(&state.storage, &user_id).await?;
-        if interests.has_enough(state.config.as_ref()) {
-            let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
+    if let Some(user) = &user {
+        let reranking_data = match user {
+            InputUser::Ref(id) => {
+                fetch_interests_and_tag_weights(id, &state.storage, state.config.as_ref()).await?
+            }
+            InputUser::Inline { history } => {
+                derive_interests_and_tag_weights(history, state.config.as_ref())?
+            }
+        };
+
+        if let Some((interests, tag_weights)) = reranking_data {
             rerank_by_scores(
                 &state.coi,
                 &mut documents,
@@ -588,9 +601,45 @@ async fn semantic_search(
                 Utc::now(),
             );
         }
+        // let interests = storage::Interest::get(&state.storage, &user_id).await?;
+        // if interests.has_enough(state.config.as_ref()) {
+        //     let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
+        // }
     }
 
     Ok(Json(SemanticSearchResponse {
         documents: documents.into_iter().map_into().collect(),
     }))
 }
+
+async fn fetch_excluded_documents(
+    id: &UserId,
+    storage: &impl storage::Interest,
+    config: &PersonalizationConfig,
+) -> Result<Vec<DocumentId>, Error> {
+    todo!()
+}
+
+fn derive_excluded_documents(
+    history: &[DocumentId],
+    config: &PersonalizationConfig,
+) -> Result<Vec<DocumentId>, Error> {
+    todo!()
+}
+
+async fn fetch_interests_and_tag_weights(
+    id: &UserId,
+    storage: &impl storage::Interest,
+    config: &PersonalizationConfig,
+) -> Result<Option<(UserInterests, TagWeights)>, Error> {
+    todo!()
+}
+
+fn derive_interests_and_tag_weights(
+    history: &[DocumentId],
+    config: &PersonalizationConfig,
+) -> Result<Option<(UserInterests, TagWeights)>, Error> {
+    todo!()
+}
+
+type TagWeights = HashMap<DocumentTag, usize>;
