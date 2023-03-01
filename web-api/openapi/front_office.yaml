@@ -246,6 +246,13 @@ components:
           $ref: '#/components/schemas/Count'
         published_after:
           $ref: './schemas/time.yml#/PublicationDate'
+        exclude_seen:
+          type: bool
+          default: true
+          description: |
+            If true do not include documents the user has already seen as search candidate.
+
+            This option is incompatible with not specifying a user.
         min_similarity:
           description: "Minimal similarity of a document to consider it as search candidate."
           type: number
