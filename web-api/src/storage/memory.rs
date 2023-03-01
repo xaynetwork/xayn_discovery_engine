@@ -36,7 +36,7 @@ use tokio::sync::RwLock;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
 
-use super::{Document as _, InteractionUpdateContext};
+use super::{Document as _, InteractionUpdateContext, TagWeights};
 use crate::{
     error::{
         application::Error,
@@ -572,7 +572,7 @@ impl storage::Interaction for Storage {
 
 #[async_trait]
 impl storage::Tag for Storage {
-    async fn get(&self, id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
+    async fn get(&self, id: &UserId) -> Result<TagWeights, Error> {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
     }
 }
