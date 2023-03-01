@@ -252,6 +252,8 @@ components:
           description: |
             If true do not include documents the user has already seen as search candidate.
 
+            A trimmed version of the users history might be used for this filter.
+
             This option is incompatible with not specifying a user.
         min_similarity:
           description: "Minimal similarity of a document to consider it as search candidate."
