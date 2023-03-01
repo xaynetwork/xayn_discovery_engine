@@ -247,7 +247,7 @@ components:
         published_after:
           $ref: './schemas/time.yml#/PublicationDate'
         exclude_seen:
-          type: bool
+          type: boolean
           default: true
           description: |
             If true do not include documents the user has already seen as search candidate.
