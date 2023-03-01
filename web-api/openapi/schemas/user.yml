@@ -4,7 +4,6 @@ UserId:
   example: "user_id"
 
 InputUser:
-  summary: Information about a user provided as input for an search
   description: |
     Information about a user provided as input for an search
 
