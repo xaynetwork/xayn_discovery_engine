@@ -258,7 +258,7 @@ async fn stateless_personalized_documents(
         }
     }
 
-    let mut documents = knn::Search {
+    let mut documents = knn::CoiSearch {
         interests: &interests.positive,
         excluded: history.iter().map(|entry| &entry.id),
         horizon: state.coi.config().horizon(),
@@ -419,7 +419,7 @@ pub(crate) async fn personalize_documents_by(
             count,
             published_after,
         } => {
-            knn::Search {
+            knn::CoiSearch {
                 interests: &interests.positive,
                 excluded: &excluded,
                 horizon: coi_system.config().horizon(),
