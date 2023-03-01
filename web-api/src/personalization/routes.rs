@@ -584,7 +584,7 @@ async fn semantic_search(
     if let Some(user) = &user {
         let reranking_data = match user {
             InputUser::Ref(id) => {
-                fetch_interests_and_tag_weights(id, &state.storage, state.config.as_ref()).await?
+                fetch_interests_and_tag_weights(id, &state.storage, &state.config).await?
             }
             InputUser::Inline { history } => {
                 derive_interests_and_tag_weights(history, state.config.as_ref())?
@@ -628,11 +628,17 @@ fn derive_excluded_documents(
 }
 
 async fn fetch_interests_and_tag_weights(
-    id: &UserId,
-    storage: &impl storage::Interest,
-    config: &PersonalizationConfig,
+    user_id: &UserId,
+    storage: &(impl storage::Interest + storage::Tag),
+    config: &impl AsRef<xayn_ai_coi::CoiConfig>,
 ) -> Result<Option<(UserInterests, TagWeights)>, Error> {
-    todo!()
+    let interests = storage::Interest::get(storage, user_id).await?;
+    if interests.has_enough(config.as_ref()) {
+        let tag_weights = storage::Tag::get(storage, user_id).await?;
+        Ok(Some((interests, tag_weights)))
+    } else {
+        Ok(None)
+    }
 }
 
 fn derive_interests_and_tag_weights(
