@@ -186,6 +186,32 @@ paths:
                 $ref: '#/components/schemas/SemanticSearchResponse'
         '400':
             $ref: './responses/generic.yml#/BadRequest'
+    post:
+      tags:
+        - front office
+      summary: Returns documents similar to the given document.
+      description: |-
+        Returns a list of documents that are semantically similar to the one given as input.
+        Each document contains the id, the score and the properties.
+        The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
+      operationId: getSimilarDocuments2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimilaritySearchRequest'
+      parameters:
+        - $ref: './parameters/path/document_id.yml'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResponse'
+        '400':
+            $ref: './responses/generic.yml#/BadRequest'
 
 components:
   securitySchemes:
@@ -256,6 +282,31 @@ components:
             score: 0.87
             properties:
               title: "News title"
+    SemanticSearchRequest:
+      type: object
+      properties:
+        count:
+          $ref: '#/components/schemas/Count'
+        published_after:
+          $ref: './schemas/time.yml#/PublicationDate'
+        min_similarity:
+          description: "Minimal similarity of a document to consider it as search candidate."
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0
+        user:
+          $ref: InputUser
+    InputUser:
+      description: "A user either specified by id or with they relevant data inlined directly"
+      oneOf:
+        - $ref: './schemas/document.yml#/DocumentId'
+        - type: object
+          required: [history]
+          properties:
+            history:
+              $ref: './schemas/document.yml#/History'
     SemanticSearchResponse:
       type: object
       required: [documents]
