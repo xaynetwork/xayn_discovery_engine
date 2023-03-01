@@ -197,15 +197,11 @@ impl StatelessPersonalizationRequest {
     }
 
     fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
-        let count = self.count.map_or(config.default_number_documents, |count| {
-            count.min(config.max_number_documents)
-        });
-
-        if count > 0 {
-            Ok(count)
-        } else {
-            Err(BadRequest::from("count has to be at least 1").into())
-        }
+        validate_return_count(
+            self.count,
+            config.max_number_documents,
+            config.default_number_documents,
+        )
     }
 }
 
@@ -316,15 +312,11 @@ pub(crate) struct PersonalizedDocumentsQuery {
 
 impl PersonalizedDocumentsQuery {
     fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
-        let count = self.count.map_or(config.default_number_documents, |count| {
-            count.min(config.max_number_documents)
-        });
-
-        if count > 0 {
-            Ok(count)
-        } else {
-            Err(BadRequest::from("count has to be at least 1").into())
-        }
+        validate_return_count(
+            self.count,
+            config.max_number_documents,
+            config.default_number_documents,
+        )
     }
 }
 
@@ -465,23 +457,23 @@ pub(crate) async fn personalize_documents_by(
 
 #[derive(Serialize, Deserialize)]
 #[serde(untagged)]
-enum InputUser {
+enum InvalidatedInputUser {
     Ref(String),
     Inline { history: Vec<String> },
 }
 
-enum CheckedInputUser {
+enum InputUser {
     Ref(UserId),
     Inline { history: Vec<DocumentId> },
 }
 
-impl TryFrom<InputUser> for CheckedInputUser {
+impl TryFrom<InvalidatedInputUser> for InputUser {
     type Error = Error;
 
-    fn try_from(user: InputUser) -> Result<Self, Self::Error> {
+    fn try_from(user: InvalidatedInputUser) -> Result<Self, Self::Error> {
         Ok(match user {
-            InputUser::Ref(id) => Self::Ref(id.try_into()?),
-            InputUser::Inline { history } => Self::Inline {
+            InvalidatedInputUser::Ref(id) => Self::Ref(id.try_into()?),
+            InvalidatedInputUser::Inline { history } => Self::Inline {
                 history: history
                     .into_iter()
                     .map(DocumentId::try_from)
@@ -492,31 +484,50 @@ impl TryFrom<InputUser> for CheckedInputUser {
 }
 
 #[derive(Deserialize)]
-struct SemanticSearchQuery {
+struct InvalidatedSemanticSearchQuery {
     document_id: String,
     count: Option<usize>,
+    min_similarity: Option<f32>,
+    user: Option<InvalidatedInputUser>,
+}
+
+struct SemanticSearchQuery {
+    document_id: DocumentId,
+    count: usize,
     min_similarity: Option<f32>,
     user: Option<InputUser>,
 }
 
-impl SemanticSearchQuery {
-    fn document_count(&self, config: &SemanticSearchConfig) -> Result<usize, Error> {
-        let count = self.count.map_or(config.default_number_documents, |count| {
-            count.min(config.max_number_documents)
-        });
-
-        if count > 0 {
-            Ok(count)
-        } else {
-            Err(BadRequest::from("count has to be at least 1").into())
-        }
+impl InvalidatedSemanticSearchQuery {
+    fn validate_and_resolve_defaults(
+        self,
+        config: &SemanticSearchConfig,
+    ) -> Result<SemanticSearchQuery, Error> {
+        Ok(SemanticSearchQuery {
+            document_id: self.document_id.try_into()?,
+            count: validate_return_count(
+                self.count,
+                config.max_number_documents,
+                config.default_number_documents,
+            )?,
+            min_similarity: self.min_similarity.map(|value| value.clamp(0., 1.)),
+            user: self.user.map(InputUser::try_from).transpose()?,
+        })
     }
+}
 
-    fn min_similarity(&self) -> Option<f32> {
-        self.min_similarity.map(|value| value.clamp(0., 1.))
+fn validate_return_count(
+    input: Option<usize>,
+    max_value: usize,
+    default_value: usize,
+) -> Result<usize, Error> {
+    let count = input.map_or(default_value, |count| count.min(max_value));
+
+    if count > 0 {
+        Ok(count)
+    } else {
+        Err(BadRequest::from("count has to be at least 1").into())
     }
-
-    fn document(&self) {}
 }
 
 #[derive(Serialize)]
@@ -526,24 +537,23 @@ struct SemanticSearchResponse {
 
 async fn semantic_search(
     state: Data<AppState>,
-    document_id: Path<String>,
-    query: Query<SemanticSearchQuery>,
+    query: Json<InvalidatedSemanticSearchQuery>,
 ) -> Result<impl Responder, Error> {
-    let document_id = document_id.into_inner().try_into()?;
-    let user_id = query
-        .personalize_for
-        .as_deref()
-        .map(TryInto::try_into)
-        .transpose()?;
-    let count = query.document_count(state.config.as_ref())?;
-    let min_similarity = query.min_similarity();
+    let SemanticSearchQuery {
+        document_id,
+        count,
+        min_similarity,
+        user,
+    } = query
+        .into_inner()
+        .validate_and_resolve_defaults(state.config.as_ref())?;
 
     let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?
         .ok_or(DocumentNotFound)?;
 
-    let mut excluded = if let (Some(user_id), true) =
-        (&user_id, state.config.personalization.store_user_history)
+    let mut excluded = if let (Some(InputUser::Ref(user_id)), true) =
+        (&user, state.config.personalization.store_user_history)
     {
         storage::Interaction::get(&state.storage, user_id).await?
     } else {
@@ -565,7 +575,7 @@ async fn semantic_search(
     )
     .await?;
 
-    if let Some(user_id) = user_id {
+    if let Some(InputUser::Ref(user_id)) = user {
         let interests = storage::Interest::get(&state.storage, &user_id).await?;
         if interests.has_enough(state.config.as_ref()) {
             let tag_weights = storage::Tag::get(&state.storage, &user_id).await?;
