@@ -463,11 +463,40 @@ pub(crate) async fn personalize_documents_by(
     Ok(Some(documents))
 }
 
+#[derive(Serialize, Deserialize)]
+#[serde(untagged)]
+enum InputUser {
+    Ref(String),
+    Inline { history: Vec<String> },
+}
+
+enum CheckedInputUser {
+    Ref(UserId),
+    Inline { history: Vec<DocumentId> },
+}
+
+impl TryFrom<InputUser> for CheckedInputUser {
+    type Error = Error;
+
+    fn try_from(user: InputUser) -> Result<Self, Self::Error> {
+        Ok(match user {
+            InputUser::Ref(id) => Self::Ref(id.try_into()?),
+            InputUser::Inline { history } => Self::Inline {
+                history: history
+                    .into_iter()
+                    .map(DocumentId::try_from)
+                    .try_collect()?,
+            },
+        })
+    }
+}
+
 #[derive(Deserialize)]
 struct SemanticSearchQuery {
+    document_id: String,
     count: Option<usize>,
     min_similarity: Option<f32>,
-    personalize_for: Option<String>,
+    user: Option<InputUser>,
 }
 
 impl SemanticSearchQuery {
@@ -486,6 +515,8 @@ impl SemanticSearchQuery {
     fn min_similarity(&self) -> Option<f32> {
         self.min_similarity.map(|value| value.clamp(0., 1.))
     }
+
+    fn document(&self) {}
 }
 
 #[derive(Serialize)]
