@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
@@ -23,15 +21,20 @@ use actix_web::{
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
-use regex::internal::Input;
 use serde::{Deserialize, Serialize};
-use tracing::{instrument, warn};
-use xayn_ai_coi::{CoiSystem, UserInterests};
+use tracing::instrument;
+use xayn_ai_coi::CoiSystem;
 
 use super::{
     knn,
     rerank::rerank_by_scores,
-    stateless::{derive_interests_and_tag_weights, HistoryEntry, InvalidatedHistory},
+    stateless::{
+        derive_interests_and_tag_weights,
+        load_history,
+        validate_history,
+        HistoryEntry,
+        InvalidatedHistoryEntry,
+    },
     AppState,
     PersonalizationConfig,
     SemanticSearchConfig,
@@ -39,18 +42,10 @@ use super::{
 use crate::{
     error::{
         application::WithRequestIdExt,
-        common::{BadRequest, DocumentNotFound, HistoryTooSmall},
+        common::{BadRequest, DocumentNotFound},
         warning::Warning,
     },
-    models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentTag,
-        InteractedDocument,
-        PersonalizedDocument,
-        UserId,
-        UserInteractionType,
-    },
+    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
     storage::{self, KnnSearchParams},
     Error,
 };
@@ -165,20 +160,16 @@ struct StatelessPersonalizationRequest {
     count: Option<usize>,
     #[serde(default)]
     published_after: Option<DateTime<Utc>>,
-    history: InvalidatedHistory,
+    history: Vec<InvalidatedHistoryEntry>,
 }
 
 impl StatelessPersonalizationRequest {
-    async fn history_and_time(
+    fn history_and_time(
         self,
-        storage: &impl storage::Document,
         config: &PersonalizationConfig,
         warnings: &mut Vec<Warning>,
     ) -> Result<(Vec<HistoryEntry>, DateTime<Utc>), Error> {
-        let history = self
-            .history
-            .validate_and_load(storage, config, warnings)
-            .await?;
+        let history = validate_history(self.history, config, warnings, Utc::now())?;
         let time = history.last().unwrap(/* history is checked to be not empty */).timestamp;
         Ok((history, time))
     }
@@ -200,9 +191,9 @@ async fn stateless_personalized_documents(
     let mut warnings = vec![];
     let published_after = request.published_after;
     let count = request.document_count(state.config.as_ref())?;
-    let (history, time) = request
-        .history_and_time(&state.storage, state.config.as_ref(), &mut warnings)
-        .await?;
+    let (history, time) = request.history_and_time(state.config.as_ref(), &mut warnings)?;
+
+    let history = load_history(&state.storage, history).await?;
 
     let (interests, tag_weights) = derive_interests_and_tag_weights(&state.coi, &history);
 
@@ -231,18 +222,6 @@ async fn stateless_personalized_documents(
         documents: documents.into_iter().map(Into::into).collect(),
         warnings,
     }))
-}
-
-fn tag_weights_from_history<'a>(
-    documents_in_history: impl IntoIterator<Item = &'a InteractedDocument>,
-) -> HashMap<DocumentTag, usize> {
-    let mut weights = HashMap::default();
-    for document in documents_in_history {
-        for tag in &document.tags {
-            *weights.entry(tag.clone()).or_default() += 1;
-        }
-    }
-    weights
 }
 
 #[derive(Serialize)]
@@ -402,29 +381,30 @@ pub(crate) async fn personalize_documents_by(
     Ok(Some(documents))
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Deserialize)]
 #[serde(untagged)]
 enum InvalidatedInputUser {
     Ref(String),
-    Inline { history: Vec<String> },
+    Inline {
+        history: Vec<InvalidatedHistoryEntry>,
+    },
 }
 
 enum InputUser {
     Ref(UserId),
-    Inline { history: Vec<DocumentId> },
+    Inline { history: Vec<HistoryEntry> },
 }
 
-impl TryFrom<InvalidatedInputUser> for InputUser {
-    type Error = Error;
-
-    fn try_from(user: InvalidatedInputUser) -> Result<Self, Self::Error> {
-        Ok(match user {
-            InvalidatedInputUser::Ref(id) => Self::Ref(id.try_into()?),
-            InvalidatedInputUser::Inline { history } => Self::Inline {
-                history: history
-                    .into_iter()
-                    .map(DocumentId::try_from)
-                    .try_collect()?,
+impl InvalidatedInputUser {
+    fn validate(
+        self,
+        config: &PersonalizationConfig,
+        warnings: &mut Vec<Warning>,
+    ) -> Result<InputUser, Error> {
+        Ok(match self {
+            Self::Ref(id) => InputUser::Ref(id.try_into()?),
+            Self::Inline { history } => InputUser::Inline {
+                history: validate_history(history, config, warnings, Utc::now())?,
             },
         })
     }
@@ -448,17 +428,22 @@ struct SemanticSearchQuery {
 impl InvalidatedSemanticSearchQuery {
     fn validate_and_resolve_defaults(
         self,
-        config: &SemanticSearchConfig,
+        semantic_search_config: &SemanticSearchConfig,
+        personalization_config: &PersonalizationConfig,
+        warnings: &mut Vec<Warning>,
     ) -> Result<SemanticSearchQuery, Error> {
         Ok(SemanticSearchQuery {
             document_id: self.document_id.try_into()?,
             count: validate_return_count(
                 self.count,
-                config.max_number_documents,
-                config.default_number_documents,
+                semantic_search_config.max_number_documents,
+                semantic_search_config.default_number_documents,
             )?,
             min_similarity: self.min_similarity.map(|value| value.clamp(0., 1.)),
-            user: self.user.map(InputUser::try_from).transpose()?,
+            user: self
+                .user
+                .map(|user| user.validate(personalization_config, warnings))
+                .transpose()?,
         })
     }
 }
@@ -486,14 +471,18 @@ async fn semantic_search(
     state: Data<AppState>,
     query: Json<InvalidatedSemanticSearchQuery>,
 ) -> Result<impl Responder, Error> {
+    let mut warnings = Vec::new();
+
     let SemanticSearchQuery {
         document_id,
         count,
         min_similarity,
         user,
-    } = query
-        .into_inner()
-        .validate_and_resolve_defaults(state.config.as_ref())?;
+    } = query.into_inner().validate_and_resolve_defaults(
+        state.config.as_ref(),
+        state.config.as_ref(),
+        &mut warnings,
+    )?;
 
     let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?
@@ -509,7 +498,7 @@ async fn semantic_search(
                     Vec::with_capacity(1)
                 }
             }
-            InputUser::Inline { history } => history.clone(),
+            InputUser::Inline { history } => history.iter().map(|entry| entry.id.clone()).collect(),
         }
     } else {
         Vec::with_capacity(1)
@@ -530,17 +519,19 @@ async fn semantic_search(
     )
     .await?;
 
-    if let Some(user) = &user {
-        let reranking_data = match user {
-            InputUser::Ref(id) => {
-                fetch_interests_and_tag_weights(id, &state.storage, &state.config).await?
-            }
+    if let Some(user) = user {
+        let (interests, tag_weights) = match user {
+            InputUser::Ref(user_id) => (
+                storage::Interest::get(&state.storage, &user_id).await?,
+                storage::Tag::get(&state.storage, &user_id).await?,
+            ),
             InputUser::Inline { history } => {
-                derive_interests_and_tag_weights(history, state.config.as_ref())?
+                let history = load_history(&state.storage, history).await?;
+                derive_interests_and_tag_weights(&state.coi, &history)
             }
         };
 
-        if let Some((interests, tag_weights)) = reranking_data {
+        if interests.has_enough(state.config.as_ref()) {
             rerank_by_scores(
                 &state.coi,
                 &mut documents,
@@ -556,19 +547,3 @@ async fn semantic_search(
         documents: documents.into_iter().map_into().collect(),
     }))
 }
-
-async fn fetch_interests_and_tag_weights(
-    user_id: &UserId,
-    storage: &(impl storage::Interest + storage::Tag),
-    config: &impl AsRef<xayn_ai_coi::CoiConfig>,
-) -> Result<Option<(UserInterests, TagWeights)>, Error> {
-    let interests = storage::Interest::get(storage, user_id).await?;
-    if interests.has_enough(config.as_ref()) {
-        let tag_weights = storage::Tag::get(storage, user_id).await?;
-        Ok(Some((interests, tag_weights)))
-    } else {
-        Ok(None)
-    }
-}
-
-type TagWeights = HashMap<DocumentTag, usize>;

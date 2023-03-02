@@ -170,7 +170,7 @@ pub(crate) trait Interaction {
     ) -> Result<(), Error>;
 }
 
-pub type TagWeights = HashMap<DocumentTag, usize>;
+pub(crate) type TagWeights = HashMap<DocumentTag, usize>;
 
 #[async_trait]
 pub(crate) trait Tag {

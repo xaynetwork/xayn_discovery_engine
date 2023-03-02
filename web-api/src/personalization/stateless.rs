@@ -28,95 +28,86 @@ use crate::{
     Error,
 };
 
-/// Represents a Users history passed to an endpoint.
+#[derive(Deserialize)]
+pub(super) struct InvalidatedHistoryEntry {
+    id: String,
+    #[serde(default)]
+    timestamp: Option<DateTime<Utc>>,
+}
+
+#[derive(Deserialize, PartialEq, Debug)]
+pub(super) struct HistoryEntry {
+    pub(super) id: DocumentId,
+    pub(super) timestamp: DateTime<Utc>,
+}
+
+/// Validates given history.
 ///
 /// The history is expected to be ordered from oldest to
 /// newest entry, i.e. new entries are pushed to the end
 /// of the history vec.
-#[derive(Deserialize)]
-#[serde(transparent)]
-pub(super) struct InvalidatedHistory(Vec<InvalidatedHistoryEntry>);
+pub(super) fn validate_history(
+    history: Vec<InvalidatedHistoryEntry>,
+    config: &PersonalizationConfig,
+    warnings: &mut Vec<Warning>,
+    time: DateTime<Utc>,
+) -> Result<Vec<HistoryEntry>, Error> {
+    if history.is_empty() {
+        return Err(HistoryTooSmall.into());
+    }
+    let max_history_len = config.max_stateless_history_size;
+    if history.len() > max_history_len {
+        warnings.push(format!("history truncated, max length is {max_history_len}").into());
+    }
+    let mut most_recent_time = time;
+    let mut history = history
+        .into_iter()
+        .rev()
+        .take(max_history_len)
+        .map(|unchecked| {
+            let id = DocumentId::try_from(unchecked.id)?;
+            let timestamp = unchecked.timestamp.unwrap_or(most_recent_time);
+            if timestamp > most_recent_time {
+                warnings.push(format!("inconsistent history ordering around document {id}").into());
+            }
+            most_recent_time = timestamp;
+            Ok(HistoryEntry { id, timestamp })
+        })
+        .try_collect::<_, Vec<_>, Error>()?;
 
-#[derive(Deserialize)]
-struct InvalidatedHistoryEntry {
-    id: String,
-    timestamp: Option<DateTime<Utc>>,
+    history.reverse();
+    Ok(history)
 }
 
-impl InvalidatedHistory {
-    pub(super) async fn validate_and_load(
-        self,
-        storage: &impl storage::Document,
-        config: &PersonalizationConfig,
-        warnings: &mut Vec<Warning>,
-    ) -> Result<Vec<HistoryEntry>, Error> {
-        let history = self.validate(config, warnings, Utc::now())?;
-        Self::load(storage, history).await
-    }
-
-    fn validate(
-        self,
-        config: &PersonalizationConfig,
-        warnings: &mut Vec<Warning>,
-        time: DateTime<Utc>,
-    ) -> Result<Vec<(DocumentId, DateTime<Utc>)>, Error> {
-        if self.0.is_empty() {
-            return Err(HistoryTooSmall.into());
-        }
-        let max_history_len = config.max_stateless_history_size;
-        if self.0.len() > max_history_len {
-            warnings.push(format!("history truncated, max length is {max_history_len}").into());
-        }
-        let mut most_recent_time = Utc::now();
-        let mut history = self
-            .0
+pub(super) async fn load_history(
+    storage: &impl storage::Document,
+    history: Vec<HistoryEntry>,
+) -> Result<Vec<LoadedHistoryEntry>, Error> {
+    let mut loaded =
+        storage::Document::get_interacted(storage, history.iter().map(|entry| &entry.id))
+            .await?
             .into_iter()
-            .rev()
-            .take(max_history_len)
-            .map(|unchecked| {
-                let id = DocumentId::try_from(unchecked.id)?;
-                let timestamp = unchecked.timestamp.unwrap_or(most_recent_time);
-                if timestamp > most_recent_time {
-                    warnings
-                        .push(format!("inconsistent history ordering around document {id}").into());
-                }
-                most_recent_time = timestamp;
-                Ok((id, timestamp))
-            })
-            .try_collect::<_, Vec<_>, Error>()?;
+            .map(|document| (document.id, (document.embedding, document.tags)))
+            .collect::<HashMap<_, _>>();
 
-        history.reverse();
-        Ok(history)
-    }
-
-    async fn load(
-        storage: &impl storage::Document,
-        history: Vec<(DocumentId, DateTime<Utc>)>,
-    ) -> Result<Vec<HistoryEntry>, Error> {
-        let mut loaded =
-            storage::Document::get_interacted(storage, history.iter().map(|(id, _)| id))
-                .await?
-                .into_iter()
-                .map(|document| (document.id, (document.embedding, document.tags)))
-                .collect::<HashMap<_, _>>();
-
-        Ok(history
-            .into_iter()
-            // filter ignores documents which don't exist in our database (i.e. have
-            // been deleted)
-            .filter_map(|(id, timestamp)| {
-                loaded.remove(&id).map(|(embedding, tags)| HistoryEntry {
+    Ok(history
+        .into_iter()
+        // filter ignores documents which don't exist in our database (i.e. have
+        // been deleted)
+        .filter_map(|HistoryEntry { id, timestamp }| {
+            loaded
+                .remove(&id)
+                .map(|(embedding, tags)| LoadedHistoryEntry {
                     id,
                     timestamp,
                     embedding,
                     tags,
                 })
-            })
-            .collect())
-    }
+        })
+        .collect())
 }
 
-pub(super) struct HistoryEntry {
+pub(super) struct LoadedHistoryEntry {
     pub(super) id: DocumentId,
     pub(super) timestamp: DateTime<Utc>,
     pub(super) embedding: NormalizedEmbedding,
@@ -126,7 +117,7 @@ pub(super) struct HistoryEntry {
 /// Given an iterator over the history from _newest_ to oldest calculates user interests and tag weights.
 pub(super) fn derive_interests_and_tag_weights<'a>(
     coi_system: &CoiSystem,
-    history: impl IntoIterator<Item = &'a HistoryEntry>,
+    history: impl IntoIterator<Item = &'a LoadedHistoryEntry>,
 ) -> (UserInterests, TagWeights) {
     let mut user_interests = UserInterests::default();
     let mut tag_weights = TagWeights::default();
@@ -141,4 +132,161 @@ pub(super) fn derive_interests_and_tag_weights<'a>(
         }
     }
     (user_interests, tag_weights)
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{Duration, TimeZone};
+    use xayn_test_utils::error::Panic;
+
+    use super::*;
+
+    #[test]
+    fn test_validating_empty_history_fails() {
+        let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
+        let config = PersonalizationConfig::default();
+        let mut warnings = Vec::new();
+        let res = validate_history(vec![], &config, &mut warnings, now);
+        assert!(res.is_err());
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_validating_to_large_history_warns() -> Result<(), Panic> {
+        let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
+        let mut config = PersonalizationConfig::default();
+        config.max_stateless_history_size = 1;
+        let mut warnings = Vec::new();
+
+        validate_history(
+            vec![InvalidatedHistoryEntry {
+                id: "doc-1".into(),
+                timestamp: Some(now - Duration::days(1)),
+            }],
+            &config,
+            &mut warnings,
+            now,
+        )?;
+        assert!(warnings.is_empty());
+
+        let documents = validate_history(
+            vec![
+                InvalidatedHistoryEntry {
+                    id: "doc-1".into(),
+                    timestamp: Some(now - Duration::days(2)),
+                },
+                InvalidatedHistoryEntry {
+                    id: "doc-2".into(),
+                    timestamp: Some(now - Duration::days(1)),
+                },
+            ],
+            &config,
+            &mut warnings,
+            now,
+        )?;
+
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(
+            documents,
+            vec![HistoryEntry {
+                id: "doc-2".try_into()?,
+                timestamp: now - Duration::days(1)
+            }]
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_history_gaps_are_filled_in() -> Result<(), Panic> {
+        let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
+        let config = PersonalizationConfig::default();
+        let mut warnings = Vec::new();
+
+        let documents = validate_history(
+            vec![
+                InvalidatedHistoryEntry {
+                    id: "doc-1".into(),
+                    timestamp: Some(now - Duration::days(2)),
+                },
+                InvalidatedHistoryEntry {
+                    id: "doc-2".into(),
+                    timestamp: None,
+                },
+                InvalidatedHistoryEntry {
+                    id: "doc-3".into(),
+                    timestamp: None,
+                },
+                InvalidatedHistoryEntry {
+                    id: "doc-4".into(),
+                    timestamp: Some(now - Duration::days(1)),
+                },
+                InvalidatedHistoryEntry {
+                    id: "doc-5".into(),
+                    timestamp: None,
+                },
+            ],
+            &config,
+            &mut warnings,
+            now,
+        )?;
+
+        assert!(warnings.is_empty());
+        assert_eq!(
+            documents,
+            vec![
+                HistoryEntry {
+                    id: "doc-1".try_into()?,
+                    timestamp: now - Duration::days(2),
+                },
+                HistoryEntry {
+                    id: "doc-2".try_into()?,
+                    timestamp: now - Duration::days(1),
+                },
+                HistoryEntry {
+                    id: "doc-3".try_into()?,
+                    timestamp: now - Duration::days(1),
+                },
+                HistoryEntry {
+                    id: "doc-4".try_into()?,
+                    timestamp: now - Duration::days(1),
+                },
+                HistoryEntry {
+                    id: "doc-5".try_into()?,
+                    timestamp: now,
+                },
+            ],
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_inconsistent_ordering_warns() -> Result<(), Panic> {
+        let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
+        let config = PersonalizationConfig::default();
+        let mut warnings = Vec::new();
+
+        validate_history(
+            vec![
+                InvalidatedHistoryEntry {
+                    id: "doc-1".into(),
+                    timestamp: Some(now + Duration::days(2)),
+                },
+                InvalidatedHistoryEntry {
+                    id: "doc-4".into(),
+                    timestamp: Some(now + Duration::days(1)),
+                },
+                InvalidatedHistoryEntry {
+                    id: "doc-5".into(),
+                    timestamp: None,
+                },
+            ],
+            &config,
+            &mut warnings,
+            now,
+        )?;
+
+        assert_eq!(warnings.len(), 2);
+        Ok(())
+    }
 }
