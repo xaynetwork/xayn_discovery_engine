@@ -7,7 +7,7 @@ InputUser:
   description: |
     Information about a user provided as input for an search
 
-    Currently this can either be the users `id` oder a users `history`.
+    Currently this can _either_ be the users `id` oder a users `history`.
   type: object
   properties:
     id:
