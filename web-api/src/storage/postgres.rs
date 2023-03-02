@@ -62,7 +62,6 @@ use crate::{
         IngestedDocument,
         PersonalizedDocument,
     },
-    storage::elastic::set_unmigrated,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -371,6 +370,7 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .push(" FOR UPDATE;")
                     .build()
                     .try_map(|row| {
                         QueriedInteractedDocument::from_row(&row).map(|document| {
@@ -408,6 +408,7 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .push(" FOR UPDATE;")
                     .build()
                     .try_map(|row| {
                         QueriedPersonalizedDocument::from_row(&row).map(|document| {
@@ -437,7 +438,7 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         id: &DocumentId,
     ) -> Result<Option<NormalizedEmbedding>, Error> {
-        sqlx::query_as("SELECT embedding FROM document WHERE document_id = $1;")
+        sqlx::query_as("SELECT embedding FROM document WHERE document_id = $1 FOR UPDATE;")
             .bind(id)
             .fetch_optional(tx)
             .await
@@ -635,18 +636,41 @@ pub(super) struct UnmigratedDocument {
 }
 
 #[cfg(feature = "ET-3837")]
+macro_rules! set_unmigrated {
+    ($documents:ident, $get:expr $(,)?) => {{
+        let unmigrated = $documents
+            .iter()
+            .filter_map(|document| document.embedding.is_empty().then_some(&document.id))
+            .collect_vec();
+        if !unmigrated.is_empty() {
+            let mut unmigrated = $get(unmigrated)
+                .await?
+                .into_iter()
+                .map(|document| (document.id.clone(), document))
+                .collect::<HashMap<_, _>>();
+            for document in &mut $documents {
+                if let Some(unmigrated) = unmigrated.remove(&document.id) {
+                    *document = unmigrated;
+                }
+            }
+        }
+    }};
+}
+
+#[cfg(feature = "ET-3837")]
 impl Storage {
     pub(super) async fn get_interacted(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<InteractedDocument>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
-        let mut documents = Database::get_interacted(&mut tx, ids).await?;
-        tx.commit().await?;
 
+        let mut documents = Database::get_interacted(&mut tx, ids).await?;
         if !*self.is_migrated.read().await {
             set_unmigrated!(documents, |ids| self.elastic.get_interacted(ids));
         }
+
+        tx.commit().await?;
 
         Ok(documents)
     }
@@ -657,12 +681,13 @@ impl Storage {
         scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
-        let mut documents = Database::get_personalized(&mut tx, ids, scores).await?;
-        tx.commit().await?;
 
+        let mut documents = Database::get_personalized(&mut tx, ids, scores).await?;
         if !*self.is_migrated.read().await {
             set_unmigrated!(documents, |ids| self.elastic.get_personalized(ids));
         }
+
+        tx.commit().await?;
 
         Ok(documents)
     }
@@ -672,9 +697,8 @@ impl Storage {
         id: &DocumentId,
     ) -> Result<Option<NormalizedEmbedding>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
-        let mut embedding = Database::get_embedding(&mut tx, id).await?;
-        tx.commit().await?;
 
+        let mut embedding = Database::get_embedding(&mut tx, id).await?;
         if !*self.is_migrated.read().await
             && embedding
                 .as_deref()
@@ -683,6 +707,8 @@ impl Storage {
         {
             embedding = self.elastic.get_embedding(id).await?;
         }
+
+        tx.commit().await?;
 
         Ok(embedding)
     }
@@ -759,16 +785,17 @@ impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
+        let properties = sqlx::query_as::<_, QueriedDocumentProperties>(
+            "SELECT properties
+            FROM document
+            WHERE document_id = $1
+            FOR UPDATE;",
+        )
+        .bind(id)
+        .fetch_optional(&mut tx)
+        .await?;
         let properties = if *self.is_migrated.read().await {
-            sqlx::query_as::<_, QueriedDocumentProperties>(
-                "SELECT properties
-                FROM document
-                WHERE document_id = $1;",
-            )
-            .bind(id)
-            .fetch_optional(&mut tx)
-            .await?
-            .map(|properties| properties.0 .0)
+            properties.map(|properties| properties.0 .0)
         } else if Database::document_exists(&mut tx, id).await? {
             self.elastic.get_document_properties(id).await?
         } else {
@@ -790,7 +817,12 @@ impl storage::DocumentProperties for Storage {
         let inserted = sqlx::query(
             "UPDATE document
             SET properties = $1
-            WHERE document_id = $2;",
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $2
+                FOR UPDATE
+            );",
         )
         .bind(Json(properties))
         .bind(id)
@@ -816,7 +848,12 @@ impl storage::DocumentProperties for Storage {
         let deleted = sqlx::query(
             "UPDATE document
             SET properties = DEFAULT
-            WHERE document_id = $1;",
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $1
+                FOR UPDATE
+            );",
         )
         .bind(id)
         .execute(&mut tx)
@@ -848,16 +885,17 @@ impl storage::DocumentProperty for Storage {
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
+        let property = sqlx::query_as::<_, QueriedDocumentProperty>(
+            "SELECT properties -> $1
+            FROM document
+            WHERE document_id = $2 AND properties ? $1
+            FOR UPDATE;",
+        )
+        .bind(property_id)
+        .bind(document_id)
+        .fetch_optional(&mut tx)
+        .await?;
         let property = if *self.is_migrated.read().await {
-            let property = sqlx::query_as::<_, QueriedDocumentProperty>(
-                "SELECT properties -> $1
-                FROM document
-                WHERE document_id = $2 AND properties ? $1;",
-            )
-            .bind(property_id)
-            .bind(document_id)
-            .fetch_optional(&mut tx)
-            .await?;
             if let Some(property) = property {
                 Some(Some(property.0 .0))
             } else {
@@ -889,7 +927,12 @@ impl storage::DocumentProperty for Storage {
         let inserted = sqlx::query(
             "UPDATE document
             SET properties = jsonb_set(properties, $1, $2)
-            WHERE document_id = $3;",
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $3
+                FOR UPDATE
+            );",
         )
         .bind(slice::from_ref(property_id))
         .bind(Json(property))
@@ -920,7 +963,12 @@ impl storage::DocumentProperty for Storage {
         let deleted = sqlx::query(
             "UPDATE document
             SET properties = properties - $1
-            WHERE document_id = $2 AND properties ? $1;",
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $2
+                FOR UPDATE
+            ) AND properties ? $1;",
         )
         .bind(property_id)
         .bind(document_id)

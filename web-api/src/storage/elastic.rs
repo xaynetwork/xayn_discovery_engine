@@ -445,30 +445,6 @@ impl Client {
     }
 }
 
-#[cfg(feature = "ET-3837")]
-macro_rules! set_unmigrated {
-    ($documents:ident, $get:expr $(,)?) => {{
-        let unmigrated = $documents
-            .iter()
-            .filter_map(|document| document.embedding.is_empty().then_some(&document.id))
-            .collect_vec();
-        if !unmigrated.is_empty() {
-            let mut unmigrated = $get(unmigrated)
-                .await?
-                .into_iter()
-                .map(|document| (document.id.clone(), document))
-                .collect::<HashMap<_, _>>();
-            for document in &mut $documents {
-                if let Some(unmigrated) = unmigrated.remove(&document.id) {
-                    *document = unmigrated;
-                }
-            }
-        }
-    }};
-}
-#[cfg(feature = "ET-3837")]
-pub(super) use set_unmigrated;
-
 #[derive(Debug, Deserialize)]
 struct Hit<T> {
     #[serde(rename = "_id")]
@@ -807,14 +783,9 @@ impl storage::Document for Storage {
                         .collect::<HashMap<_, _>>()
                 })
                 .unwrap_or_default();
-            let mut documents = self
-                .get_personalized(scores.keys(), |id| scores.get(id).copied())
-                .await?;
-            if !*self.is_migrated.read().await {
-                set_unmigrated!(documents, |ids| self.elastic.get_personalized(ids));
-            }
 
-            Ok(documents)
+            self.get_personalized(scores.keys(), |id| scores.get(id).copied())
+                .await
         }
     }
 
