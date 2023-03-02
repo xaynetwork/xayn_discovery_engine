@@ -33,7 +33,7 @@ use super::{
         load_history,
         validate_history,
         HistoryEntry,
-        InvalidatedHistoryEntry,
+        UnvalidatedHistoryEntry,
     },
     AppState,
     PersonalizationConfig,
@@ -160,7 +160,7 @@ struct StatelessPersonalizationRequest {
     count: Option<usize>,
     #[serde(default)]
     published_after: Option<DateTime<Utc>>,
-    history: Vec<InvalidatedHistoryEntry>,
+    history: Vec<UnvalidatedHistoryEntry>,
 }
 
 impl StatelessPersonalizationRequest {
@@ -383,10 +383,10 @@ pub(crate) async fn personalize_documents_by(
 
 #[derive(Deserialize)]
 #[serde(untagged)]
-enum InvalidatedInputUser {
+enum UnvalidatedInputUser {
     Ref(String),
     Inline {
-        history: Vec<InvalidatedHistoryEntry>,
+        history: Vec<UnvalidatedHistoryEntry>,
     },
 }
 
@@ -395,7 +395,7 @@ enum InputUser {
     Inline { history: Vec<HistoryEntry> },
 }
 
-impl InvalidatedInputUser {
+impl UnvalidatedInputUser {
     fn validate(
         self,
         config: &PersonalizationConfig,
@@ -411,11 +411,11 @@ impl InvalidatedInputUser {
 }
 
 #[derive(Deserialize)]
-struct InvalidatedSemanticSearchQuery {
+struct UnvalidatedSemanticSearchQuery {
     document_id: String,
     count: Option<usize>,
     min_similarity: Option<f32>,
-    user: Option<InvalidatedInputUser>,
+    user: Option<UnvalidatedInputUser>,
 }
 
 struct SemanticSearchQuery {
@@ -425,7 +425,7 @@ struct SemanticSearchQuery {
     user: Option<InputUser>,
 }
 
-impl InvalidatedSemanticSearchQuery {
+impl UnvalidatedSemanticSearchQuery {
     fn validate_and_resolve_defaults(
         self,
         semantic_search_config: &SemanticSearchConfig,
@@ -469,7 +469,7 @@ struct SemanticSearchResponse {
 
 async fn semantic_search(
     state: Data<AppState>,
-    query: Json<InvalidatedSemanticSearchQuery>,
+    query: Json<UnvalidatedSemanticSearchQuery>,
 ) -> Result<impl Responder, Error> {
     let mut warnings = Vec::new();
 

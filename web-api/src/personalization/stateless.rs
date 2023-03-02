@@ -29,7 +29,7 @@ use crate::{
 };
 
 #[derive(Deserialize)]
-pub(super) struct InvalidatedHistoryEntry {
+pub(super) struct UnvalidatedHistoryEntry {
     id: String,
     #[serde(default)]
     timestamp: Option<DateTime<Utc>>,
@@ -47,7 +47,7 @@ pub(super) struct HistoryEntry {
 /// newest entry, i.e. new entries are pushed to the end
 /// of the history vec.
 pub(super) fn validate_history(
-    history: Vec<InvalidatedHistoryEntry>,
+    history: Vec<UnvalidatedHistoryEntry>,
     config: &PersonalizationConfig,
     warnings: &mut Vec<Warning>,
     time: DateTime<Utc>,
@@ -161,7 +161,7 @@ mod tests {
         let mut warnings = Vec::new();
 
         validate_history(
-            vec![InvalidatedHistoryEntry {
+            vec![UnvalidatedHistoryEntry {
                 id: "doc-1".into(),
                 timestamp: Some(now - Duration::days(1)),
             }],
@@ -173,11 +173,11 @@ mod tests {
 
         let documents = validate_history(
             vec![
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-1".into(),
                     timestamp: Some(now - Duration::days(2)),
                 },
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-2".into(),
                     timestamp: Some(now - Duration::days(1)),
                 },
@@ -207,23 +207,23 @@ mod tests {
 
         let documents = validate_history(
             vec![
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-1".into(),
                     timestamp: Some(now - Duration::days(2)),
                 },
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-2".into(),
                     timestamp: None,
                 },
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-3".into(),
                     timestamp: None,
                 },
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-4".into(),
                     timestamp: Some(now - Duration::days(1)),
                 },
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-5".into(),
                     timestamp: None,
                 },
@@ -270,15 +270,15 @@ mod tests {
 
         validate_history(
             vec![
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-1".into(),
                     timestamp: Some(now + Duration::days(2)),
                 },
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-4".into(),
                     timestamp: Some(now + Duration::days(1)),
                 },
-                InvalidatedHistoryEntry {
+                UnvalidatedHistoryEntry {
                     id: "doc-5".into(),
                     timestamp: None,
                 },
