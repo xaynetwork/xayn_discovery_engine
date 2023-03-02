@@ -137,6 +137,8 @@ pub(super) fn derive_interests_and_tag_weights<'a>(
 #[cfg(test)]
 mod tests {
     use chrono::{Duration, TimeZone};
+    use xayn_ai_bert::Embedding1;
+    use xayn_ai_coi::CoiConfig;
     use xayn_test_utils::error::Panic;
 
     use super::*;
@@ -287,6 +289,71 @@ mod tests {
         )?;
 
         assert_eq!(warnings.len(), 2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_derive_interests_and_tag_weights() -> Result<(), Panic> {
+        let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
+        let coi_system = CoiConfig::default().build();
+        let (interests, tag_weights) = derive_interests_and_tag_weights(
+            &coi_system,
+            &vec![
+                LoadedHistoryEntry {
+                    id: "doc-1".try_into()?,
+                    timestamp: now - Duration::days(4),
+                    embedding: Embedding1::from([1., 1.]).normalize()?,
+                    tags: vec!["tag-1".try_into()?],
+                },
+                LoadedHistoryEntry {
+                    id: "doc-2".try_into()?,
+                    timestamp: now - Duration::days(3),
+                    embedding: Embedding1::from([0., 1.]).normalize()?,
+                    tags: vec![],
+                },
+                LoadedHistoryEntry {
+                    id: "doc-3".try_into()?,
+                    timestamp: now - Duration::days(2),
+                    embedding: Embedding1::from([0.1, 0.5]).normalize()?,
+                    tags: vec!["tag-1".try_into()?, "tag-2".try_into()?],
+                },
+                LoadedHistoryEntry {
+                    id: "doc-4".try_into()?,
+                    timestamp: now - Duration::days(1),
+                    embedding: Embedding1::from([1., 0.]).normalize()?,
+                    tags: vec!["tag-2".try_into()?, "tag-3".try_into()?],
+                },
+                LoadedHistoryEntry {
+                    id: "doc-5".try_into()?,
+                    timestamp: now,
+                    embedding: Embedding1::from([0., 0.]).normalize()?,
+                    tags: vec!["tag-3".try_into()?, "tag-1".try_into()?],
+                },
+            ],
+        );
+
+        assert_eq!(
+            tag_weights,
+            [
+                ("tag-1".try_into()?, 3),
+                ("tag-2".try_into()?, 2),
+                ("tag-3".try_into()?, 2),
+            ]
+            .into_iter()
+            .collect::<HashMap<DocumentTag, usize>>()
+        );
+
+        assert!(interests.negative.is_empty());
+        assert!(!interests.positive.is_empty());
+        assert_eq!(
+            interests
+                .positive
+                .iter()
+                .fold(0, |acc, coi| acc + coi.stats.view_count),
+            5
+        );
+        assert!(interests.positive.len() <= 5);
+
         Ok(())
     }
 }
