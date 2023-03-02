@@ -382,14 +382,11 @@ pub(crate) async fn personalize_documents_by(
 }
 
 #[derive(Deserialize)]
-#[serde(untagged)]
-enum UnvalidatedInputUser {
-    Ref {
-        id: String,
-    },
-    Inline {
-        history: Vec<UnvalidatedHistoryEntry>,
-    },
+struct UnvalidatedInputUser {
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    history: Option<Vec<UnvalidatedHistoryEntry>>,
 }
 
 enum InputUser {
@@ -403,11 +400,17 @@ impl UnvalidatedInputUser {
         config: &PersonalizationConfig,
         warnings: &mut Vec<Warning>,
     ) -> Result<InputUser, Error> {
-        Ok(match self {
-            Self::Ref { id } => InputUser::Ref { id: id.try_into()? },
-            Self::Inline { history } => InputUser::Inline {
+        Ok(match (self.id, self.history) {
+            (Some(id), None) => InputUser::Ref { id: id.try_into()? },
+            (None, Some(history)) => InputUser::Inline {
                 history: validate_history(history, config, warnings, Utc::now())?,
             },
+            _ => {
+                return Err(BadRequest::from(
+                    "personalize.user must haver _either_ an `id` or a `history` field",
+                )
+                .into())
+            }
         })
     }
 }
