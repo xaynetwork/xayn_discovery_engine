@@ -23,7 +23,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
-use xayn_ai_coi::CoiSystem;
+use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use super::{
     knn,
@@ -384,14 +384,16 @@ pub(crate) async fn personalize_documents_by(
 #[derive(Deserialize)]
 #[serde(untagged)]
 enum UnvalidatedInputUser {
-    Ref(String),
+    Ref {
+        id: String,
+    },
     Inline {
         history: Vec<UnvalidatedHistoryEntry>,
     },
 }
 
 enum InputUser {
-    Ref(UserId),
+    Ref { id: UserId },
     Inline { history: Vec<HistoryEntry> },
 }
 
@@ -402,7 +404,7 @@ impl UnvalidatedInputUser {
         warnings: &mut Vec<Warning>,
     ) -> Result<InputUser, Error> {
         Ok(match self {
-            Self::Ref(id) => InputUser::Ref(id.try_into()?),
+            Self::Ref { id } => InputUser::Ref { id: id.try_into()? },
             Self::Inline { history } => InputUser::Inline {
                 history: validate_history(history, config, warnings, Utc::now())?,
             },
@@ -413,16 +415,12 @@ impl UnvalidatedInputUser {
 #[derive(Deserialize)]
 struct UnvalidatedSemanticSearchQuery {
     document_id: String,
+    #[serde(default)]
     count: Option<usize>,
+    #[serde(default)]
     min_similarity: Option<f32>,
-    user: Option<UnvalidatedInputUser>,
-}
-
-struct SemanticSearchQuery {
-    document_id: DocumentId,
-    count: usize,
-    min_similarity: Option<f32>,
-    user: Option<InputUser>,
+    #[serde(default)]
+    personalize: Option<UnvalidatedPersonalize>,
 }
 
 impl UnvalidatedSemanticSearchQuery {
@@ -440,12 +438,47 @@ impl UnvalidatedSemanticSearchQuery {
                 semantic_search_config.default_number_documents,
             )?,
             min_similarity: self.min_similarity.map(|value| value.clamp(0., 1.)),
-            user: self
-                .user
-                .map(|user| user.validate(personalization_config, warnings))
+            personalize: self
+                .personalize
+                .map(|personalize| personalize.validate(personalization_config, warnings))
                 .transpose()?,
         })
     }
+}
+#[derive(Deserialize)]
+struct UnvalidatedPersonalize {
+    #[serde(default = "true_fn")]
+    exclude_seen: bool,
+    user: UnvalidatedInputUser,
+}
+
+fn true_fn() -> bool {
+    true
+}
+
+impl UnvalidatedPersonalize {
+    fn validate(
+        self,
+        personalization_config: &PersonalizationConfig,
+        warnings: &mut Vec<Warning>,
+    ) -> Result<Personalize, Error> {
+        Ok(Personalize {
+            exclude_seen: self.exclude_seen,
+            user: self.user.validate(personalization_config, warnings)?,
+        })
+    }
+}
+
+struct SemanticSearchQuery {
+    document_id: DocumentId,
+    count: usize,
+    min_similarity: Option<f32>,
+    personalize: Option<Personalize>,
+}
+
+struct Personalize {
+    exclude_seen: bool,
+    user: InputUser,
 }
 
 fn validate_return_count(
@@ -477,7 +510,7 @@ async fn semantic_search(
         document_id,
         count,
         min_similarity,
-        user,
+        personalize,
     } = query.into_inner().validate_and_resolve_defaults(
         state.config.as_ref(),
         state.config.as_ref(),
@@ -488,21 +521,12 @@ async fn semantic_search(
         .await?
         .ok_or(DocumentNotFound)?;
 
-    let mut excluded = if let Some(user) = &user {
-        match user {
-            InputUser::Ref(user_id) => {
-                //FIXME move optimization into storage abstraction
-                if state.config.personalization.store_user_history {
-                    storage::Interaction::get(&state.storage, user_id).await?
-                } else {
-                    Vec::with_capacity(1)
-                }
-            }
-            InputUser::Inline { history } => history.iter().map(|entry| entry.id.clone()).collect(),
-        }
+    let mut excluded = if let Some(personalize) = &personalize {
+        personalized_exclusions(&state.storage, state.config.as_ref(), personalize).await?
     } else {
         Vec::with_capacity(1)
     };
+
     excluded.push(document_id);
 
     let mut documents = storage::Document::get_by_embedding(
@@ -519,31 +543,72 @@ async fn semantic_search(
     )
     .await?;
 
-    if let Some(user) = user {
-        let (interests, tag_weights) = match user {
-            InputUser::Ref(user_id) => (
-                storage::Interest::get(&state.storage, &user_id).await?,
-                storage::Tag::get(&state.storage, &user_id).await?,
-            ),
-            InputUser::Inline { history } => {
-                let history = load_history(&state.storage, history).await?;
-                derive_interests_and_tag_weights(&state.coi, &history)
-            }
-        };
-
-        if interests.has_enough(state.config.as_ref()) {
-            rerank_by_scores(
-                &state.coi,
-                &mut documents,
-                &interests,
-                &tag_weights,
-                state.config.semantic_search.score_weights,
-                Utc::now(),
-            );
-        }
+    if let Some(personalize) = personalize {
+        personalize_knn_search_result(
+            &state.storage,
+            &state.config,
+            &state.coi,
+            personalize,
+            &mut documents,
+        )
+        .await?;
     }
 
     Ok(Json(SemanticSearchResponse {
         documents: documents.into_iter().map_into().collect(),
     }))
+}
+
+async fn personalized_exclusions(
+    storage: &impl storage::Interaction,
+    config: &PersonalizationConfig,
+    personalize: &Personalize,
+) -> Result<Vec<DocumentId>, Error> {
+    if !personalize.exclude_seen {
+        return Ok(Vec::new());
+    }
+
+    Ok(match &personalize.user {
+        InputUser::Ref { id } => {
+            //FIXME move optimization into storage abstraction
+            if config.store_user_history {
+                storage::Interaction::get(storage, id).await?
+            } else {
+                Vec::new()
+            }
+        }
+        InputUser::Inline { history } => history.iter().map(|entry| entry.id.clone()).collect(),
+    })
+}
+
+async fn personalize_knn_search_result(
+    storage: &(impl storage::Interest + storage::Tag + storage::Document),
+    config: &(impl AsRef<CoiConfig> + AsRef<SemanticSearchConfig>),
+    coi_system: &CoiSystem,
+    personalize: Personalize,
+    documents: &mut [PersonalizedDocument],
+) -> Result<(), Error> {
+    let (interests, tag_weights) = match personalize.user {
+        InputUser::Ref { id } => (
+            storage::Interest::get(storage, &id).await?,
+            storage::Tag::get(storage, &id).await?,
+        ),
+        InputUser::Inline { history } => {
+            let history = load_history(storage, history).await?;
+            derive_interests_and_tag_weights(coi_system, &history)
+        }
+    };
+
+    if interests.has_enough(config.as_ref()) {
+        let config: &SemanticSearchConfig = config.as_ref();
+        rerank_by_scores(
+            coi_system,
+            documents,
+            &interests,
+            &tag_weights,
+            config.score_weights,
+            Utc::now(),
+        );
+    }
+    Ok(())
 }
