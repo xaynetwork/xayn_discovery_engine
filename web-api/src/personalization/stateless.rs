@@ -160,8 +160,10 @@ mod tests {
     #[test]
     fn test_validating_to_large_history_warns() -> Result<(), Panic> {
         let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
-        let mut config = PersonalizationConfig::default();
-        config.max_stateless_history_size = 1;
+        let config = PersonalizationConfig {
+            max_stateless_history_size: 1,
+            ..Default::default()
+        };
         let mut warnings = Vec::new();
 
         validate_history(
