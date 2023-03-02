@@ -231,3 +231,95 @@ async fn test_subtle_personalization() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn test_full_personalization_with_inline_history() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        unchanged_config,
+        |config| {
+            extend_config(
+                config,
+                toml! {
+                    [semantic_search]
+                    score_weights = [0.5, 0.5, 0.0]
+                },
+            )
+        },
+        |client, ingestion_url, personalization_url, _services| async move {
+            ingest(&client, &ingestion_url).await?;
+
+            let not_enough_interactions = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "count": 5,
+                        "personalize": {
+                            "user": {
+                                "history": []
+                            }
+                        }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(
+                not_enough_interactions.ids(),
+                ["d6", "d4", "d2", "d5", "d7"],
+                "unexpected not enough interactions documents: {:?}",
+                not_enough_interactions.documents,
+            );
+
+            let not_personalized = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "count": 5
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(
+                not_personalized.ids(),
+                ["d6", "d4", "d2", "d5", "d7"],
+                "unexpected not personalized documents: {:?}",
+                not_personalized.documents,
+            );
+
+            let fully_personalized = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "count": 5,
+                        "personalize": {
+                            "user": {
+                                "history": [
+                                    { "id": "d2" },
+                                    { "id": "d9" }
+                                ]
+                            }
+                        }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(
+                fully_personalized.ids(),
+                ["d6", "d8", "d5", "d4", "d7"],
+                "unexpected fully personalized documents: {:?}",
+                fully_personalized.documents,
+            );
+
+            Ok(())
+        },
+    )
+    .await;
+}

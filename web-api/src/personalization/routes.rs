@@ -169,7 +169,7 @@ impl StatelessPersonalizationRequest {
         config: &PersonalizationConfig,
         warnings: &mut Vec<Warning>,
     ) -> Result<(Vec<HistoryEntry>, DateTime<Utc>), Error> {
-        let history = validate_history(self.history, config, warnings, Utc::now())?;
+        let history = validate_history(self.history, config, warnings, Utc::now(), false)?;
         let time = history.last().unwrap(/* history is checked to be not empty */).timestamp;
         Ok((history, time))
     }
@@ -403,7 +403,7 @@ impl UnvalidatedInputUser {
         Ok(match (self.id, self.history) {
             (Some(id), None) => InputUser::Ref { id: id.try_into()? },
             (None, Some(history)) => InputUser::Inline {
-                history: validate_history(history, config, warnings, Utc::now())?,
+                history: validate_history(history, config, warnings, Utc::now(), true)?,
             },
             _ => {
                 return Err(BadRequest::from(

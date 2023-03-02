@@ -51,8 +51,9 @@ pub(super) fn validate_history(
     config: &PersonalizationConfig,
     warnings: &mut Vec<Warning>,
     time: DateTime<Utc>,
+    allow_empty_history: bool,
 ) -> Result<Vec<HistoryEntry>, Error> {
-    if history.is_empty() {
+    if !allow_empty_history && history.is_empty() {
         return Err(HistoryTooSmall.into());
     }
     let max_history_len = config.max_stateless_history_size;
@@ -148,8 +149,11 @@ mod tests {
         let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
         let config = PersonalizationConfig::default();
         let mut warnings = Vec::new();
-        let res = validate_history(vec![], &config, &mut warnings, now);
+        let res = validate_history(vec![], &config, &mut warnings, now, false);
         assert!(res.is_err());
+        assert!(warnings.is_empty());
+        let res = validate_history(vec![], &config, &mut warnings, now, true);
+        assert!(res.is_ok());
         assert!(warnings.is_empty());
     }
 
@@ -168,6 +172,7 @@ mod tests {
             &config,
             &mut warnings,
             now,
+            true,
         )?;
         assert!(warnings.is_empty());
 
@@ -185,6 +190,7 @@ mod tests {
             &config,
             &mut warnings,
             now,
+            true,
         )?;
 
         assert_eq!(warnings.len(), 1);
@@ -231,6 +237,7 @@ mod tests {
             &config,
             &mut warnings,
             now,
+            true,
         )?;
 
         assert!(warnings.is_empty());
@@ -286,6 +293,7 @@ mod tests {
             &config,
             &mut warnings,
             now,
+            true,
         )?;
 
         assert_eq!(warnings.len(), 2);
