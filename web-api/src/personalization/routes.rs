@@ -426,10 +426,10 @@ struct UnvalidatedSemanticSearchQuery {
 impl UnvalidatedSemanticSearchQuery {
     fn validate_and_resolve_defaults(
         self,
-        semantic_search_config: &SemanticSearchConfig,
-        personalization_config: &PersonalizationConfig,
+        config: &(impl AsRef<SemanticSearchConfig> + AsRef<PersonalizationConfig>),
         warnings: &mut Vec<Warning>,
     ) -> Result<SemanticSearchQuery, Error> {
+        let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         Ok(SemanticSearchQuery {
             document_id: self.document_id.try_into()?,
             count: validate_return_count(
@@ -440,7 +440,7 @@ impl UnvalidatedSemanticSearchQuery {
             min_similarity: self.min_similarity.map(|value| value.clamp(0., 1.)),
             personalize: self
                 .personalize
-                .map(|personalize| personalize.validate(personalization_config, warnings))
+                .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
         })
     }
@@ -511,11 +511,9 @@ async fn semantic_search(
         count,
         min_similarity,
         personalize,
-    } = query.into_inner().validate_and_resolve_defaults(
-        state.config.as_ref(),
-        state.config.as_ref(),
-        &mut warnings,
-    )?;
+    } = query
+        .into_inner()
+        .validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?
