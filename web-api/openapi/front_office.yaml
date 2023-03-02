@@ -256,6 +256,7 @@ components:
         personalize:
           description: Personalize the ranking of candidates based on a users preferences
           type: object
+          required: [user]
           properties:
             exclude_seen:
               type: boolean
