@@ -58,7 +58,7 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::get().to(personalized_documents.error_with_request_id())),
         );
     let semantic_search = web::resource("/semantic_search/{document_id}")
-        .route(web::get().to(semantic_search_from_id.error_with_request_id()));
+        .route(web::get().to(semantic_search.error_with_request_id()));
     let semantic_free_text_search = web::resource("/semantic_search")
         .route(web::post().to(semantic_search_from_text.error_with_request_id()));
     let stateless = web::resource("personalized_documents")
@@ -545,7 +545,7 @@ async fn semantic_search_from_text(
     }))
 }
 
-async fn semantic_search_from_id(
+async fn semantic_search(
     state: Data<AppState>,
     document_id: Path<String>,
     query: Query<SemanticSearchQuery>,
