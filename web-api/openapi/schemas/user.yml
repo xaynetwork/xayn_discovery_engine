@@ -2,3 +2,24 @@ UserId:
   description: Id of a user.
   $ref: './id.yml#/Id'
   example: "user_id"
+
+InputUser:
+  description: |
+    Information about a user provided as input for an search
+
+    Currently this can either be the users `id` oder a users `history`.
+  oneOf:
+    - $ref: "#/InputUserById"
+    - $ref: "#/InputUserWithHistory"
+
+InputUserById:
+  type: object
+  properties:
+    id:
+      $ref: '#/UserId'
+
+InputUserWithHistory:
+  type: object
+  properties:
+    history:
+      $ref: './document.yml#/History'

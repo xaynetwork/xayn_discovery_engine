@@ -141,8 +141,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserInteractionError'
 
-  /semantic_search/{document_id}:
-    get:
+  /semantic_search:
+    post:
       tags:
         - front office
       summary: Returns documents similar to the given document.
@@ -151,32 +151,12 @@ paths:
         Each document contains the id, the score and the properties.
         The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
       operationId: getSimilarDocuments
-      parameters:
-        - $ref: './parameters/path/document_id.yml'
-        - name: count
-          in: query
-          description: Maximum number of semantic similar documents to return
-          required: false
-          schema:
-            $ref: '#/components/schemas/Count'
-        - name: min_similarity
-          in: query
-          description: Minimum similarity a document has to have to be included.
-          required: false
-          schema:
-            type: number
-            format: float
-            minimum: 0
-            maximum: 1
-            default: 0
-        - name: personalize_for
-          in: query
-          description:  |-
-            A user for whom the documents will be personalized for.
-            If that user doesn't have enough interactions in the system, then the documents are returned unpersonalized.
-          required: false
-          schema:
-            $ref: './schemas/user.yml#/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SemanticSearchRequest'
       responses:
         '200':
           description: successful operation
@@ -256,6 +236,39 @@ components:
             score: 0.87
             properties:
               title: "News title"
+    SemanticSearchRequest:
+      type: object
+      required: [document_id]
+      properties:
+        document_id:
+          $ref: './schemas/document.yml#/DocumentId'
+        count:
+          $ref: '#/components/schemas/Count'
+        published_after:
+          $ref: './schemas/time.yml#/PublicationDate'
+        min_similarity:
+          description: "Minimal similarity of a document to consider it as search candidate."
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0
+        personalize:
+          description: Personalize the ranking of candidates based on a users preferences
+          type: object
+          required: [user]
+          properties:
+            exclude_seen:
+              type: boolean
+              default: true
+              description: |
+                If true do not include documents the user has already seen as search candidate.
+
+                A trimmed version of the users history might be used for this filter.
+
+                This option is incompatible with not specifying a user.
+            user:
+              $ref: './schemas/user.yml#/InputUser'
     SemanticSearchResponse:
       type: object
       required: [documents]
