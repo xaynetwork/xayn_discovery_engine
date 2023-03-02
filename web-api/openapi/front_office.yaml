@@ -246,15 +246,6 @@ components:
           $ref: '#/components/schemas/Count'
         published_after:
           $ref: './schemas/time.yml#/PublicationDate'
-        exclude_seen:
-          type: boolean
-          default: true
-          description: |
-            If true do not include documents the user has already seen as search candidate.
-
-            A trimmed version of the users history might be used for this filter.
-
-            This option is incompatible with not specifying a user.
         min_similarity:
           description: "Minimal similarity of a document to consider it as search candidate."
           type: number
@@ -262,8 +253,21 @@ components:
           minimum: 0
           maximum: 1
           default: 0
-        user:
-          $ref: './schemas/user.yml#/InputUser'
+        personalize:
+          description: Personalize the ranking of candidates based on a users preferences
+          type: object
+          properties:
+            exclude_seen:
+              type: boolean
+              default: true
+              description: |
+                If true do not include documents the user has already seen as search candidate.
+
+                A trimmed version of the users history might be used for this filter.
+
+                This option is incompatible with not specifying a user.
+            user:
+              $ref: './schemas/user.yml#/InputUser'
     SemanticSearchResponse:
       type: object
       required: [documents]
