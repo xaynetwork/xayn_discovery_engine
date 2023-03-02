@@ -113,8 +113,16 @@ async fn test_full_personalization() {
             let not_enough_interactions = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .get(personalization_url.join("/semantic_search/d1")?)
-                    .query(&[("count", "5"), ("personalize_for", "u1")])
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "count": 5,
+                        "personalize": {
+                            "user": {
+                                "id": "u1"
+                            }
+                        }
+                    }))
                     .build()?,
                 StatusCode::OK,
             )
@@ -131,8 +139,11 @@ async fn test_full_personalization() {
             let not_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .get(personalization_url.join("/semantic_search/d1")?)
-                    .query(&[("count", "5")])
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "count": 5
+                    }))
                     .build()?,
                 StatusCode::OK,
             )
@@ -147,8 +158,16 @@ async fn test_full_personalization() {
             let fully_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .get(personalization_url.join("/semantic_search/d1")?)
-                    .query(&[("count", "5"), ("personalize_for", "u1")])
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "count": 5,
+                        "personalize": {
+                            "user": {
+                                "id": "u1"
+                            }
+                        }
+                    }))
                     .build()?,
                 StatusCode::OK,
             )
@@ -186,8 +205,16 @@ async fn test_subtle_personalization() {
             let subtle_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
-                    .get(personalization_url.join("/semantic_search/d1")?)
-                    .query(&[("count", "5"), ("personalize_for", "u1")])
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "count": 5,
+                        "personalize": {
+                            "user": {
+                                "id": "u1"
+                            }
+                        }
+                    }))
                     .build()?,
                 StatusCode::OK,
             )

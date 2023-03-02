@@ -60,8 +60,8 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
             web::resource("personalized_documents")
                 .route(web::get().to(personalized_documents.error_with_request_id())),
         );
-    let semantic_search = web::resource("/semantic_search/{document_id}")
-        .route(web::get().to(semantic_search.error_with_request_id()));
+    let semantic_search = web::resource("/semantic_search")
+        .route(web::post().to(semantic_search.error_with_request_id()));
     let stateless = web::resource("personalized_documents")
         .route(web::post().to(stateless_personalized_documents.error_with_request_id()));
 
