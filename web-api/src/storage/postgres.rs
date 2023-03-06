@@ -661,22 +661,18 @@ impl Storage {
 struct QueriedDocumentProperties(Json<DocumentProperties>);
 
 #[cfg(feature = "ET-3837")]
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
-
         let properties = sqlx::query_as::<_, QueriedDocumentProperties>(
             "SELECT properties
             FROM document
             WHERE document_id = $1;",
         )
         .bind(id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&self.postgres.pool)
         .await?
         .map(|properties| properties.0 .0);
-
-        tx.commit().await?;
 
         Ok(properties)
     }
@@ -740,7 +736,7 @@ impl storage::DocumentProperties for Storage {
 struct QueriedDocumentProperty(Json<DocumentProperty>);
 
 #[cfg(feature = "ET-3837")]
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::DocumentProperty for Storage {
     async fn get(
         &self,
@@ -836,7 +832,7 @@ impl storage::DocumentProperty for Storage {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::Interest for Storage {
     async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
         Database::get_user_interests(&self.postgres.pool, user_id).await
@@ -966,7 +962,7 @@ struct QueriedWeightedTag {
     weight: i32,
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::Tag for Storage {
     async fn get(&self, user_id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
         let mut tx = self.postgres.pool.begin().await?;

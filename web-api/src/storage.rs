@@ -104,7 +104,7 @@ pub(crate) trait Document {
     ) -> Result<(), DeletionError>;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub(crate) trait DocumentProperties {
     async fn get(&self, id: &DocumentId) -> Result<Option<models::DocumentProperties>, Error>;
 
@@ -117,7 +117,7 @@ pub(crate) trait DocumentProperties {
     async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error>;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub(crate) trait DocumentProperty {
     async fn get(
         &self,
@@ -139,7 +139,7 @@ pub(crate) trait DocumentProperty {
     ) -> Result<Option<Option<()>>, Error>;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub(crate) trait Interest {
     async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error>;
 }
@@ -170,7 +170,7 @@ pub(crate) trait Interaction {
     ) -> Result<(), Error>;
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 pub(crate) trait Tag {
     async fn get(&self, user_id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error>;
 }

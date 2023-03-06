@@ -815,7 +815,7 @@ struct DocumentPropertiesResponse {
 }
 
 #[cfg(not(feature = "ET-3837"))]
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         if !self.postgres.document_exists(id).await? {
@@ -858,7 +858,7 @@ impl storage::DocumentProperties for Storage {
 }
 
 #[cfg(not(feature = "ET-3837"))]
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::DocumentProperty for Storage {
     async fn get(
         &self,

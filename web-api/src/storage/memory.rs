@@ -368,7 +368,7 @@ impl storage::Document for Storage {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         let properties = self
@@ -414,7 +414,7 @@ impl storage::DocumentProperties for Storage {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::DocumentProperty for Storage {
     async fn get(
         &self,
@@ -473,7 +473,7 @@ impl storage::DocumentProperty for Storage {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::Interest for Storage {
     async fn get(&self, id: &UserId) -> Result<UserInterests, Error> {
         let interests = self
@@ -566,7 +566,7 @@ impl storage::Interaction for Storage {
     }
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
