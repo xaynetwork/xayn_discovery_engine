@@ -75,19 +75,25 @@ where
             )]
                 let k_neighbors = (weight * self.count as f32).ceil() as usize;
 
-                storage::Document::get_by_embedding(
-                    storage,
-                    KnnSearchParams {
-                        excluded: excluded.clone(),
-                        embedding: &coi.point,
-                        k_neighbors,
-                        num_candidates: self.count,
-                        published_after: self.published_after,
-                        min_similarity: None,
-                        time: self.time,
-                    },
-                )
-                .await
+                if k_neighbors == 0 {
+                    // using k_neighbors 0 in a KNN-search would cause storage to throw.
+                    // since the value is 0, we anyway can safely return an empty result set.
+                    Ok(Vec::new())
+                } else {
+                    storage::Document::get_by_embedding(
+                        storage,
+                        KnnSearchParams {
+                            excluded: excluded.clone(),
+                            embedding: &coi.point,
+                            k_neighbors,
+                            num_candidates: self.count,
+                            published_after: self.published_after,
+                            min_similarity: None,
+                            time: self.time,
+                        },
+                    )
+                    .await
+                }
             })
             .collect::<FuturesUnordered<_>>();
 
