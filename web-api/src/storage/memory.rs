@@ -458,22 +458,18 @@ impl storage::DocumentProperty for Storage {
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
-    ) -> Result<Option<()>, Error> {
-        let property = self
-            .documents
+    ) -> Result<Option<Option<()>>, Error> {
+        self.documents
             .write()
             .await
             .0
             .get_mut(document_id)
             .ok_or(DocumentNotFound)?
             .properties
-            .remove(property_id);
+            .remove(property_id)
+            .ok_or(DocumentPropertyNotFound)?;
 
-        if property.is_some() {
-            Ok(Some(()))
-        } else {
-            Err(DocumentPropertyNotFound.into())
-        }
+        Ok(Some(Some(())))
     }
 }
 

@@ -136,7 +136,7 @@ pub(crate) trait DocumentProperty {
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
-    ) -> Result<Option<()>, Error>;
+    ) -> Result<Option<Option<()>>, Error>;
 }
 
 #[async_trait]

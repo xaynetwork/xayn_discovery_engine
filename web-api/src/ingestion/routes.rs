@@ -80,7 +80,7 @@ where
     }
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct IngestedDocument {
     id: String,
     #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_bytes")]
@@ -92,7 +92,7 @@ struct IngestedDocument {
 }
 
 /// Represents body of a POST documents request.
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct IngestionRequestBody {
     documents: Vec<IngestedDocument>,
 }
@@ -208,12 +208,12 @@ async fn delete_documents(
     Ok(HttpResponse::NoContent())
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct BatchDeleteRequest {
     documents: Vec<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Serialize)]
 struct DocumentPropertiesResponse {
     properties: DocumentProperties,
 }
@@ -231,7 +231,7 @@ pub(crate) async fn get_document_properties(
     Ok(Json(DocumentPropertiesResponse { properties }))
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct DocumentPropertiesRequest {
     properties: HashMap<String, DocumentProperty>,
 }
@@ -268,8 +268,8 @@ async fn delete_document_properties(
     Ok(HttpResponse::NoContent())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct DocumentPropertyAsObject {
+#[derive(Debug, Serialize)]
+struct DocumentPropertyResponse {
     property: DocumentProperty,
 }
 
@@ -286,14 +286,19 @@ async fn get_document_property(
         .ok_or(DocumentNotFound)?
         .ok_or(DocumentPropertyNotFound)?;
 
-    Ok(Json(DocumentPropertyAsObject { property }))
+    Ok(Json(DocumentPropertyResponse { property }))
+}
+
+#[derive(Debug, Deserialize)]
+struct DocumentPropertyRequest {
+    property: DocumentProperty,
 }
 
 #[instrument(skip(state))]
 async fn put_document_property(
     state: Data<AppState>,
     ids: Path<(String, String)>,
-    Json(body): Json<DocumentPropertyAsObject>,
+    Json(body): Json<DocumentPropertyRequest>,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
@@ -315,7 +320,8 @@ async fn delete_document_property(
     let property_id = property_id.try_into()?;
     storage::DocumentProperty::delete(&state.storage, &document_id, &property_id)
         .await?
-        .ok_or(DocumentNotFound)?;
+        .ok_or(DocumentNotFound)?
+        .ok_or(DocumentPropertyNotFound)?;
 
     Ok(HttpResponse::NoContent())
 }
