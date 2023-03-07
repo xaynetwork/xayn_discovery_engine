@@ -103,7 +103,7 @@ impl Default for PersonalizationConfig {
             max_cois_for_knn: 10,
             score_weights: [0.5, 0.5, 0.0],
             store_user_history: true,
-            max_stateless_history_size: 20,
+            max_stateless_history_size: 200,
         }
     }
 }
