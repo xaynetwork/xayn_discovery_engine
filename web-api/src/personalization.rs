@@ -90,10 +90,10 @@ pub(crate) struct PersonalizationConfig {
     /// Whether to store the history of user interactions.
     pub(crate) store_user_history: bool,
 
-    /// Them maximal number of history entries used as stateless user history.
+    /// The maximal number of history entries used as stateless user history.
     pub(crate) max_stateless_history_size: usize,
 
-    /// Them maximal number of history entries used when calculating CoIs from a stateless user history.
+    /// The maximal number of history entries used when calculating CoIs from a stateless user history.
     pub(crate) max_stateless_history_for_cois: usize,
 }
 
