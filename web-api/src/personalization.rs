@@ -90,8 +90,11 @@ pub(crate) struct PersonalizationConfig {
     /// Whether to store the history of user interactions.
     pub(crate) store_user_history: bool,
 
-    /// The maximal size the history of the stateless personalization endpoint can have.
+    /// Them maximal number of history entries used as stateless user history.
     pub(crate) max_stateless_history_size: usize,
+
+    /// Them maximal number of history entries used when calculating CoIs from a stateless user history.
+    pub(crate) max_stateless_history_for_cois: usize,
 }
 
 impl Default for PersonalizationConfig {
@@ -104,6 +107,7 @@ impl Default for PersonalizationConfig {
             score_weights: [0.5, 0.5, 0.0],
             store_user_history: true,
             max_stateless_history_size: 200,
+            max_stateless_history_for_cois: 20,
         }
     }
 }
