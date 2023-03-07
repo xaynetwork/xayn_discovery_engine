@@ -164,6 +164,7 @@ struct StatelessPersonalizationRequest {
 }
 
 impl StatelessPersonalizationRequest {
+    /// Return the validated input history, it's expected to be ordered from oldest to newest.
     fn history_and_time(
         self,
         config: &PersonalizationConfig,
@@ -381,7 +382,6 @@ pub(crate) async fn personalize_documents_by(
     Ok(Some(documents))
 }
 
-#[derive(Deserialize)]
 #[derive(Default, Deserialize)]
 #[serde(default)]
 struct UnvalidatedInputUser {
@@ -514,9 +514,7 @@ async fn semantic_search(
         count,
         min_similarity,
         personalize,
-    } = query
-        .into_inner()
-        .validate_and_resolve_defaults(&state.config, &mut warnings)?;
+    } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let embedding = storage::Document::get_embedding(&state.storage, &document_id)
         .await?

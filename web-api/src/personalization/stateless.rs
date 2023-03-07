@@ -46,6 +46,8 @@ pub(super) struct HistoryEntry {
 /// The history is expected to be ordered from oldest to
 /// newest entry, i.e. new entries are pushed to the end
 /// of the history vec.
+///
+/// The returned history is also ordered from oldest to newest.
 pub(super) fn validate_history(
     history: Vec<UnvalidatedHistoryEntry>,
     config: &PersonalizationConfig,
@@ -80,6 +82,7 @@ pub(super) fn validate_history(
     Ok(history)
 }
 
+/// Enriches the history with data loaded from the database.
 pub(super) async fn load_history(
     storage: &impl storage::Document,
     history: Vec<HistoryEntry>,
@@ -115,7 +118,7 @@ pub(super) struct LoadedHistoryEntry {
     pub(super) tags: Vec<DocumentTag>,
 }
 
-/// Given an iterator over the history from _newest_ to oldest calculates user interests and tag weights.
+/// Given an iterator over the history from oldest to newest calculates user interests and tag weights.
 pub(super) fn derive_interests_and_tag_weights<'a>(
     coi_system: &CoiSystem,
     history: impl IntoIterator<Item = &'a LoadedHistoryEntry>,
