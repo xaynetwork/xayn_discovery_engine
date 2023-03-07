@@ -184,8 +184,6 @@ pub(crate) trait Tag {
 pub struct Config {
     elastic: elastic::Config,
     postgres: postgres::Config,
-    #[cfg(feature = "ET-3837")]
-    is_migrated: bool,
 }
 
 impl Config {
@@ -193,7 +191,7 @@ impl Config {
         let elastic = self.elastic.setup_client()?;
         let postgres = self.postgres.setup_database().await?;
         #[cfg(feature = "ET-3837")]
-        let is_migrated = RwLock::new(self.is_migrated);
+        let is_migrated = RwLock::new(false);
 
         Ok(Storage {
             elastic,

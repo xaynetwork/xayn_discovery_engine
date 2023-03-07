@@ -54,3 +54,7 @@ xayn-test-utils = { path = "../test-utils" }
 
 [features]
 ET-3837 = []
+
+[[bin]]
+name = "migration"
+required-features = ["ET-3837"]
