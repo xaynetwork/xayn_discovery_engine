@@ -42,7 +42,7 @@ use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::nan_safe_f32_cmp_desc;
 use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
-use super::InteractionUpdateContext;
+use super::{InteractionUpdateContext, TagWeights};
 #[cfg(feature = "ET-3837")]
 use crate::models::{
     DocumentProperties,
@@ -964,7 +964,7 @@ struct QueriedWeightedTag {
 
 #[async_trait]
 impl storage::Tag for Storage {
-    async fn get(&self, user_id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error> {
+    async fn get(&self, user_id: &UserId) -> Result<TagWeights, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
         let tags = sqlx::query_as::<_, QueriedWeightedTag>(

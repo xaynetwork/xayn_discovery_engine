@@ -89,7 +89,10 @@ async fn test_semantic_search() {
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .get(personalization_url.join("/semantic_search/d1")?)
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1"
+                    }))
                     .build()?,
                 StatusCode::OK,
             )
@@ -143,8 +146,11 @@ async fn test_semantic_search_min_similarity() {
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .get(personalization_url.join("/semantic_search/d1")?)
-                    .query(&[("min_similarity", "0.6")])
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document_id": "d1",
+                        "min_similarity": 0.6
+                    }))
                     .build()?,
                 StatusCode::OK,
             )

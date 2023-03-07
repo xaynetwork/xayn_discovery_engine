@@ -27,7 +27,8 @@ use crate::{
     Error,
 };
 
-pub(super) struct Search<I, J> {
+/// KNN search based on Centers of Interest.
+pub(super) struct CoiSearch<I, J> {
     pub(super) interests: I,
     pub(super) excluded: J,
     pub(super) horizon: Duration,
@@ -37,7 +38,7 @@ pub(super) struct Search<I, J> {
     pub(super) time: DateTime<Utc>,
 }
 
-impl<'a, I, J> Search<I, J>
+impl<'a, I, J> CoiSearch<I, J>
 where
     I: IntoIterator,
     <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a PositiveCoi>,
@@ -147,7 +148,7 @@ mod tests {
     #[tokio::test]
     async fn test_search_knn_documents_for_empty_cois() {
         let storage = Storage::default();
-        let documents = Search {
+        let documents = CoiSearch {
             interests: &[],
             excluded: &[],
             horizon: CoiConfig::default().horizon(),

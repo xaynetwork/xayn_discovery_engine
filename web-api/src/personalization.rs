@@ -14,6 +14,7 @@
 mod knn;
 mod rerank;
 pub(crate) mod routes;
+mod stateless;
 
 use actix_web::web::ServiceConfig;
 use async_trait::async_trait;

@@ -170,9 +170,11 @@ pub(crate) trait Interaction {
     ) -> Result<(), Error>;
 }
 
+pub(crate) type TagWeights = HashMap<DocumentTag, usize>;
+
 #[async_trait]
 pub(crate) trait Tag {
-    async fn get(&self, user_id: &UserId) -> Result<HashMap<DocumentTag, usize>, Error>;
+    async fn get(&self, user_id: &UserId) -> Result<TagWeights, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
