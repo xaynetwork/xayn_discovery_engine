@@ -27,7 +27,7 @@ use crate::{
     Error,
 };
 
-/// KNN search based on Centers of Interest;
+/// KNN search based on Centers of Interest.
 pub(super) struct CoiSearch<I, J> {
     pub(super) interests: I,
     pub(super) excluded: J,

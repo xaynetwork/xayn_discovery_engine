@@ -382,10 +382,10 @@ pub(crate) async fn personalize_documents_by(
 }
 
 #[derive(Deserialize)]
+#[derive(Default, Deserialize)]
+#[serde(default)]
 struct UnvalidatedInputUser {
-    #[serde(default)]
     id: Option<String>,
-    #[serde(default)]
     history: Option<Vec<UnvalidatedHistoryEntry>>,
 }
 
@@ -407,7 +407,7 @@ impl UnvalidatedInputUser {
             },
             _ => {
                 return Err(BadRequest::from(
-                    "personalize.user must haver _either_ an `id` or a `history` field",
+                    "personalize.user must have _either_ an `id` or a `history` field",
                 )
                 .into())
             }
@@ -505,7 +505,7 @@ struct SemanticSearchResponse {
 
 async fn semantic_search(
     state: Data<AppState>,
-    query: Json<UnvalidatedSemanticSearchQuery>,
+    Json(query): Json<UnvalidatedSemanticSearchQuery>,
 ) -> Result<impl Responder, Error> {
     let mut warnings = Vec::new();
 
