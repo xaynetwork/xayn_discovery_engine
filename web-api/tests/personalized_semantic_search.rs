@@ -115,7 +115,7 @@ async fn test_full_personalization() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "count": 5,
                         "personalize": {
                             "user": {
@@ -141,7 +141,7 @@ async fn test_full_personalization() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "count": 5
                     }))
                     .build()?,
@@ -160,7 +160,7 @@ async fn test_full_personalization() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "count": 5,
                         "personalize": {
                             "user": {
@@ -207,7 +207,7 @@ async fn test_subtle_personalization() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "count": 5,
                         "personalize": {
                             "user": {
@@ -253,7 +253,7 @@ async fn test_full_personalization_with_inline_history() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "count": 5,
                         "personalize": {
                             "user": {
@@ -277,7 +277,7 @@ async fn test_full_personalization_with_inline_history() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "count": 5
                     }))
                     .build()?,
@@ -296,7 +296,7 @@ async fn test_full_personalization_with_inline_history() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "count": 5,
                         "personalize": {
                             "user": {

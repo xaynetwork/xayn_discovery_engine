@@ -66,4 +66,4 @@ InputDocument:
   type: object
   properties:
     id:
-      $ref: '#/Document'
+      $ref: '#/DocumentId'
