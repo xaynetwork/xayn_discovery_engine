@@ -428,6 +428,8 @@ struct UnvalidatedSemanticSearchQuery {
     #[serde(default)]
     min_similarity: Option<f32>,
     #[serde(default)]
+    published_after: Option<DateTime<Utc>>,
+    #[serde(default)]
     personalize: Option<UnvalidatedPersonalize>,
 }
 
@@ -437,17 +439,24 @@ impl UnvalidatedSemanticSearchQuery {
         config: &(impl AsRef<SemanticSearchConfig> + AsRef<PersonalizationConfig>),
         warnings: &mut Vec<Warning>,
     ) -> Result<SemanticSearchQuery, Error> {
+        let Self {
+            document,
+            count,
+            min_similarity,
+            published_after,
+            personalize,
+        } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         Ok(SemanticSearchQuery {
-            document: self.document.validate()?,
+            document: document.validate()?,
+            published_after,
             count: validate_return_count(
-                self.count,
+                count,
                 semantic_search_config.max_number_documents,
                 semantic_search_config.default_number_documents,
             )?,
-            min_similarity: self.min_similarity.map(|value| value.clamp(0., 1.)),
-            personalize: self
-                .personalize
+            min_similarity: min_similarity.map(|value| value.clamp(0., 1.)),
+            personalize: personalize
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
         })
@@ -493,6 +502,7 @@ struct SemanticSearchQuery {
     document: InputDocument,
     count: usize,
     min_similarity: Option<f32>,
+    published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
 }
 
@@ -535,6 +545,7 @@ async fn semantic_search(
         count,
         min_similarity,
         personalize,
+        published_after,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let (embedding, document_id) = match document {
@@ -563,7 +574,7 @@ async fn semantic_search(
             embedding: &embedding,
             k_neighbors: count,
             num_candidates: count,
-            published_after: None,
+            published_after,
             min_similarity,
             time: Utc::now(),
         },
