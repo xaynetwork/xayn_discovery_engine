@@ -205,7 +205,7 @@ async fn stateless_personalized_documents(
 
     let mut documents = knn::CoiSearch {
         interests: &interests.positive,
-        excluded: history.iter().map(|entry| &entry.id),
+        excluded: &excluded,
         horizon: state.coi.config().horizon(),
         max_cois: state.config.personalization.max_cois_for_knn,
         count,
