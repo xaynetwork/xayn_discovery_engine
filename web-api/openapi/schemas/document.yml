@@ -57,3 +57,13 @@ HistoryEntry:
       $ref: '#/DocumentId'
     timestamp:
       $ref: './time.yml#/Timestamp'
+
+InputDocument:
+  description: |
+    Information about a document provided as input for an search.
+
+    Currently this can _only_ be the user's `id`, more options will be added in the future.
+  type: object
+  properties:
+    id:
+      $ref: '#/Document'
