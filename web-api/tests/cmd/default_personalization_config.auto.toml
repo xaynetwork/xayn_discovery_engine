@@ -48,7 +48,8 @@ stdout = """
       0.0
     ],
     "store_user_history": true,
-    "max_stateless_history_size": 20
+    "max_stateless_history_size": 200,
+    "max_stateless_history_for_cois": 20
   },
   "semantic_search": {
     "max_number_documents": 100,
