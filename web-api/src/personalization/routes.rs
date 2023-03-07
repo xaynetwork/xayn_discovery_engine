@@ -605,7 +605,7 @@ async fn personalized_exclusions(
 
 async fn personalize_knn_search_result(
     storage: &(impl storage::Interest + storage::Tag + storage::Document),
-    config: &(impl AsRef<CoiConfig> + AsRef<SemanticSearchConfig>),
+    config: &(impl AsRef<CoiConfig> + AsRef<SemanticSearchConfig> + AsRef<PersonalizationConfig>),
     coi_system: &CoiSystem,
     personalize: Personalize,
     documents: &mut [PersonalizedDocument],
@@ -615,7 +615,14 @@ async fn personalize_knn_search_result(
             storage::Interest::get(storage, &id).await?,
             storage::Tag::get(storage, &id).await?,
         ),
-        InputUser::Inline { history } => {
+        InputUser::Inline { mut history } => {
+            let config: &PersonalizationConfig = config.as_ref();
+            if let Some(surplus) = history
+                .len()
+                .checked_sub(config.max_stateless_history_for_cois)
+            {
+                history.drain(..surplus);
+            }
             let history = load_history(storage, history).await?;
             derive_interests_and_tag_weights(coi_system, &history)
         }
