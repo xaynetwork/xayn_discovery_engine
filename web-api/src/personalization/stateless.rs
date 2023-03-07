@@ -110,7 +110,6 @@ pub(super) async fn load_history(
             loaded
                 .remove(&id)
                 .map(|(embedding, tags)| LoadedHistoryEntry {
-                    id,
                     timestamp,
                     embedding,
                     tags,
@@ -120,7 +119,6 @@ pub(super) async fn load_history(
 }
 
 pub(super) struct LoadedHistoryEntry {
-    pub(super) id: DocumentId,
     pub(super) timestamp: DateTime<Utc>,
     pub(super) embedding: NormalizedEmbedding,
     pub(super) tags: Vec<DocumentTag>,
@@ -321,31 +319,26 @@ mod tests {
             &coi_system,
             &vec![
                 LoadedHistoryEntry {
-                    id: "doc-1".try_into()?,
                     timestamp: now - Duration::days(4),
                     embedding: Embedding1::from([1., 1.]).normalize()?,
                     tags: vec!["tag-1".try_into()?],
                 },
                 LoadedHistoryEntry {
-                    id: "doc-2".try_into()?,
                     timestamp: now - Duration::days(3),
                     embedding: Embedding1::from([0., 1.]).normalize()?,
                     tags: vec![],
                 },
                 LoadedHistoryEntry {
-                    id: "doc-3".try_into()?,
                     timestamp: now - Duration::days(2),
                     embedding: Embedding1::from([0.1, 0.5]).normalize()?,
                     tags: vec!["tag-1".try_into()?, "tag-2".try_into()?],
                 },
                 LoadedHistoryEntry {
-                    id: "doc-4".try_into()?,
                     timestamp: now - Duration::days(1),
                     embedding: Embedding1::from([1., 0.]).normalize()?,
                     tags: vec!["tag-2".try_into()?, "tag-3".try_into()?],
                 },
                 LoadedHistoryEntry {
-                    id: "doc-5".try_into()?,
                     timestamp: now,
                     embedding: Embedding1::from([0., 0.]).normalize()?,
                     tags: vec!["tag-3".try_into()?, "tag-1".try_into()?],
