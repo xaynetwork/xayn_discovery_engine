@@ -82,6 +82,14 @@ pub(super) fn validate_history(
     Ok(history)
 }
 
+/// Trims history to only contain the `max_len` newest documents.
+pub(super) fn trim_history(mut history: Vec<HistoryEntry>, max_len: usize) -> Vec<HistoryEntry> {
+    if let Some(surplus) = history.len().checked_sub(max_len) {
+        history.drain(..surplus);
+    }
+    history
+}
+
 /// Enriches the history with data loaded from the database.
 pub(super) async fn load_history(
     storage: &impl storage::Document,
@@ -367,6 +375,40 @@ mod tests {
         );
         assert!(interests.positive.len() <= 5);
 
+        Ok(())
+    }
+
+    #[test]
+    fn test_history_trimming_trims_new_documents() -> Result<(), Panic> {
+        let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
+        let history = vec![
+            HistoryEntry {
+                id: "doc-1".try_into()?,
+                timestamp: now - Duration::days(4),
+            },
+            HistoryEntry {
+                id: "doc-2".try_into()?,
+                timestamp: now - Duration::days(3),
+            },
+            HistoryEntry {
+                id: "doc-3".try_into()?,
+                timestamp: now - Duration::days(2),
+            },
+        ];
+        let history = trim_history(history, 2);
+        assert_eq!(
+            history,
+            vec![
+                HistoryEntry {
+                    id: "doc-2".try_into()?,
+                    timestamp: now - Duration::days(3),
+                },
+                HistoryEntry {
+                    id: "doc-3".try_into()?,
+                    timestamp: now - Duration::days(2),
+                },
+            ]
+        );
         Ok(())
     }
 }

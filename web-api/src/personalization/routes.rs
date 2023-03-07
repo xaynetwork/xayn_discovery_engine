@@ -31,6 +31,7 @@ use super::{
     stateless::{
         derive_interests_and_tag_weights,
         load_history,
+        trim_history,
         validate_history,
         HistoryEntry,
         UnvalidatedHistoryEntry,
@@ -194,8 +195,12 @@ async fn stateless_personalized_documents(
     let count = request.document_count(state.config.as_ref())?;
     let (history, time) = request.history_and_time(state.config.as_ref(), &mut warnings)?;
 
+    let excluded = history.iter().map(|entry| entry.id.clone()).collect_vec();
+    let history = trim_history(
+        history,
+        state.config.personalization.max_stateless_history_for_cois,
+    );
     let history = load_history(&state.storage, history).await?;
-
     let (interests, tag_weights) = derive_interests_and_tag_weights(&state.coi, &history);
 
     let mut documents = knn::CoiSearch {
@@ -615,14 +620,9 @@ async fn personalize_knn_search_result(
             storage::Interest::get(storage, &id).await?,
             storage::Tag::get(storage, &id).await?,
         ),
-        InputUser::Inline { mut history } => {
+        InputUser::Inline { history } => {
             let config: &PersonalizationConfig = config.as_ref();
-            if let Some(surplus) = history
-                .len()
-                .checked_sub(config.max_stateless_history_for_cois)
-            {
-                history.drain(..surplus);
-            }
+            let history = trim_history(history, config.max_stateless_history_for_cois);
             let history = load_history(storage, history).await?;
             derive_interests_and_tag_weights(coi_system, &history)
         }
