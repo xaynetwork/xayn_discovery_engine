@@ -91,7 +91,7 @@ async fn test_semantic_search() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1"
+                        "document": { "id": "d1" },
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -148,7 +148,7 @@ async fn test_semantic_search_min_similarity() {
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
-                        "document_id": "d1",
+                        "document": { "id": "d1" },
                         "min_similarity": 0.6
                     }))
                     .build()?,

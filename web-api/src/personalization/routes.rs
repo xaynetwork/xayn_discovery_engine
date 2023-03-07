@@ -417,7 +417,7 @@ impl UnvalidatedInputUser {
 
 #[derive(Deserialize)]
 struct UnvalidatedSemanticSearchQuery {
-    document_id: String,
+    document: UnvalidatedInputDocument,
     #[serde(default)]
     count: Option<usize>,
     #[serde(default)]
@@ -434,7 +434,7 @@ impl UnvalidatedSemanticSearchQuery {
     ) -> Result<SemanticSearchQuery, Error> {
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         Ok(SemanticSearchQuery {
-            document_id: self.document_id.try_into()?,
+            document: self.document.validate()?,
             count: validate_return_count(
                 self.count,
                 semantic_search_config.max_number_documents,
@@ -448,6 +448,18 @@ impl UnvalidatedSemanticSearchQuery {
         })
     }
 }
+
+#[derive(Deserialize)]
+struct UnvalidatedInputDocument {
+    id: String,
+}
+
+impl UnvalidatedInputDocument {
+    fn validate(self) -> Result<InputDocument, Error> {
+        Ok(InputDocument::Ref(self.id.try_into()?))
+    }
+}
+
 #[derive(Deserialize)]
 struct UnvalidatedPersonalize {
     #[serde(default = "true_fn")]
@@ -473,10 +485,14 @@ impl UnvalidatedPersonalize {
 }
 
 struct SemanticSearchQuery {
-    document_id: DocumentId,
+    document: InputDocument,
     count: usize,
     min_similarity: Option<f32>,
     personalize: Option<Personalize>,
+}
+
+enum InputDocument {
+    Ref(DocumentId),
 }
 
 struct Personalize {
@@ -510,15 +526,20 @@ async fn semantic_search(
     let mut warnings = Vec::new();
 
     let SemanticSearchQuery {
-        document_id,
+        document,
         count,
         min_similarity,
         personalize,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
-    let embedding = storage::Document::get_embedding(&state.storage, &document_id)
-        .await?
-        .ok_or(DocumentNotFound)?;
+    let (embedding, document_id) = match document {
+        InputDocument::Ref(id) => {
+            let embedding = storage::Document::get_embedding(&state.storage, &id)
+                .await?
+                .ok_or(DocumentNotFound)?;
+            (embedding, Some(id))
+        }
+    };
 
     let mut excluded = if let Some(personalize) = &personalize {
         personalized_exclusions(&state.storage, state.config.as_ref(), personalize).await?
@@ -526,7 +547,9 @@ async fn semantic_search(
         Vec::with_capacity(1)
     };
 
-    excluded.push(document_id);
+    if let Some(document_id) = document_id {
+        excluded.push(document_id);
+    }
 
     let mut documents = storage::Document::get_by_embedding(
         &state.storage,
