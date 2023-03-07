@@ -22,7 +22,6 @@ use actix_web::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use super::{
@@ -63,13 +62,8 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
         );
     let semantic_search = web::resource("/semantic_search")
         .route(web::post().to(semantic_search.error_with_request_id()));
-    let stateless = web::resource("personalized_documents")
-        .route(web::post().to(stateless_personalized_documents.error_with_request_id()));
 
-    config
-        .service(users)
-        .service(semantic_search)
-        .service(stateless);
+    config.service(users).service(semantic_search);
 }
 
 /// Represents user interaction request body.
@@ -153,87 +147,6 @@ pub(crate) async fn update_interactions(
     .await?;
 
     Ok(())
-}
-
-#[derive(Deserialize)]
-struct StatelessPersonalizationRequest {
-    #[serde(default)]
-    count: Option<usize>,
-    #[serde(default)]
-    published_after: Option<DateTime<Utc>>,
-    history: Vec<UnvalidatedHistoryEntry>,
-}
-
-impl StatelessPersonalizationRequest {
-    /// Return the validated input history, it's expected to be ordered from oldest to newest.
-    fn history_and_time(
-        self,
-        config: &PersonalizationConfig,
-        warnings: &mut Vec<Warning>,
-    ) -> Result<(Vec<HistoryEntry>, DateTime<Utc>), Error> {
-        let history = validate_history(self.history, config, warnings, Utc::now(), false)?;
-        let time = history.last().unwrap(/* history is checked to be not empty */).timestamp;
-        Ok((history, time))
-    }
-
-    fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
-        validate_return_count(
-            self.count,
-            config.max_number_documents,
-            config.default_number_documents,
-        )
-    }
-}
-
-#[instrument(skip_all)]
-async fn stateless_personalized_documents(
-    state: Data<AppState>,
-    Json(request): Json<StatelessPersonalizationRequest>,
-) -> Result<impl Responder, Error> {
-    let mut warnings = vec![];
-    let published_after = request.published_after;
-    let count = request.document_count(state.config.as_ref())?;
-    let (history, time) = request.history_and_time(state.config.as_ref(), &mut warnings)?;
-
-    let excluded = history.iter().map(|entry| entry.id.clone()).collect_vec();
-    let history = trim_history(
-        history,
-        state.config.personalization.max_stateless_history_for_cois,
-    );
-    let history = load_history(&state.storage, history).await?;
-    let (interests, tag_weights) = derive_interests_and_tag_weights(&state.coi, &history);
-
-    let mut documents = knn::CoiSearch {
-        interests: &interests.positive,
-        excluded: &excluded,
-        horizon: state.coi.config().horizon(),
-        max_cois: state.config.personalization.max_cois_for_knn,
-        count,
-        published_after,
-        time,
-    }
-    .run_on(&state.storage)
-    .await?;
-
-    rerank_by_scores(
-        &state.coi,
-        &mut documents,
-        &interests,
-        &tag_weights,
-        state.config.personalization.score_weights,
-        time,
-    );
-
-    Ok(Json(StatelessPersonalizationResponse {
-        documents: documents.into_iter().map(Into::into).collect(),
-        warnings,
-    }))
-}
-
-#[derive(Serialize)]
-struct StatelessPersonalizationResponse {
-    documents: Vec<PersonalizedDocumentData>,
-    warnings: Vec<Warning>,
 }
 /// Represents personalized documents query params.
 #[derive(Debug, Clone, Deserialize)]
