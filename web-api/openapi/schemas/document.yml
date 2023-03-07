@@ -64,6 +64,7 @@ InputDocument:
 
     Currently this can _only_ be the user's `id`, more options will be added in the future.
   type: object
+  required: [id]
   properties:
     id:
       $ref: '#/DocumentId'
