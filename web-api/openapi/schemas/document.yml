@@ -35,7 +35,7 @@ DocumentTag:
 DocumentSearchQuery:
   description: A search query can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
   type: string
-  pattern: '^[^\x00]+$'
+  pattern: ".+"
   minLength: 1
   maxLength: 512
   example: "what are the latest developments surrounding transformer models?"  
