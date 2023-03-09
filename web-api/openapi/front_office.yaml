@@ -30,43 +30,6 @@ security:
   - ApiKeyAuth: []
 
 paths:
-  /personalized_documents:
-    post:
-      tags:
-        - front office
-      summary: Get personalized documents based on a given history.
-      description: |-
-        Returns a list of personalized documents based on interests derived
-        from a history. In difference to `getPersonalizedDocuments` any user
-        specific parts are based on the inputs only. Documents still need to
-        be ingested beforehand.
-      operationId: getStatelessPersonalizedDocuments
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/StatelessPersonalizedDocumentsRequest'
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StatelessPersonalizedDocumentsResponse'
-        '400':
-           $ref: './responses/generic.yml#/BadRequest'
-        '409':
-          description: -|
-            impossible to create a personalized list for given context
-
-            This mainly can happen if all documents in the user history
-            do no longer exist (or were never ingested).
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PersonalizedDocumentsError'
-
   /users/{user_id}/personalized_documents:
     get:
       tags:
@@ -194,36 +157,6 @@ components:
       maxItems: 100
       items:
         $ref: '#/components/schemas/PersonalizedDocumentData'
-    StatelessPersonalizedDocumentsRequest:
-      type: object
-      required: [history]
-      properties:
-        history:
-          $ref: './schemas/document.yml#/History'
-        count:
-          $ref: '#/components/schemas/Count'
-        published_after:
-          $ref: './schemas/time.yml#/PublicationDate'
-    StatelessPersonalizedDocumentsResponse:
-      type: object
-      required: [documents]
-      properties:
-        warnings:
-          type: array
-          minItems: 0
-          maxItems: 200
-          items:
-            type: string
-        documents:
-          $ref: '#/components/schemas/PersonalizedDocuments'
-      example:
-        warnings:
-          - "historic document with id \"document_id1\" does not exist"
-        documents:
-          - id: 'document_id0'
-            score: 0.87
-            properties:
-              title: "News title"
     PersonalizedDocumentsResponse:
       type: object
       required: [documents]
