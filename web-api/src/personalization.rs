@@ -24,6 +24,7 @@ use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use crate::{
     app::{self, Application, SetupError},
+    embedding::{self, Embedder},
     logging,
     net,
     storage::{self, Storage},
@@ -46,6 +47,7 @@ impl Application for Personalization {
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         Ok(Extension {
             coi: config.coi.clone().build(),
+            embedder: Embedder::load(&config.embedding)?,
         })
     }
 
@@ -67,6 +69,7 @@ pub struct Config {
     pub(crate) net: net::Config,
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
+    pub(crate) embedding: embedding::Config,
     pub(crate) personalization: PersonalizationConfig,
     pub(crate) semantic_search: SemanticSearchConfig,
 }
@@ -138,4 +141,5 @@ impl Default for SemanticSearchConfig {
 #[derive(AsRef)]
 pub struct Extension {
     pub(crate) coi: CoiSystem,
+    pub(crate) embedder: Embedder,
 }

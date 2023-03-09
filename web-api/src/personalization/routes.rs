@@ -465,12 +465,19 @@ impl UnvalidatedSemanticSearchQuery {
 
 #[derive(Deserialize)]
 struct UnvalidatedInputDocument {
-    id: String,
+    id: Option<String>,
+    query: Option<String>,
 }
 
 impl UnvalidatedInputDocument {
     fn validate(self) -> Result<InputDocument, Error> {
-        Ok(InputDocument::Ref(self.id.try_into()?))
+        if let Some(id) = self.id {
+            Ok(InputDocument::Ref(id.try_into()?))
+        } else if let Some(query) = self.query {
+            Ok(InputDocument::Query(query))
+        } else {
+            Err(BadRequest::from("either id or query must be present in the request").into())
+        }
     }
 }
 
@@ -508,6 +515,7 @@ struct SemanticSearchQuery {
 
 enum InputDocument {
     Ref(DocumentId),
+    Query(String),
 }
 
 struct Personalize {
@@ -554,6 +562,10 @@ async fn semantic_search(
                 .await?
                 .ok_or(DocumentNotFound)?;
             (embedding, Some(id))
+        }
+        InputDocument::Query(query) => {
+            let embedding = state.embedder.run(&query)?;
+            (embedding, None)
         }
     };
 

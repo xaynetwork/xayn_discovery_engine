@@ -29,17 +29,24 @@ jobs:
       - name: Build artifacts
         run: just build-web-service
 
+      - name: Download assets
+        run: just download-assets
+
       - name: Prepare temp directory
         working-directory: ${{ runner.temp }}
         run: |
           rm -rf ./web-service
           mkdir web-service
+          mkdir -p web-service/assets
 
       - name: Create archive
         working-directory: ${{ runner.temp }}
         run: |
           cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/server.bin
           cp ${GITHUB_WORKSPACE}/web-api/Dockerfile ./web-service/Dockerfile
+          cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/config.toml ./web-service/assets/config.toml
+          cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./web-service/assets/vocab.txt
+          cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/model.onnx ./web-service/assets/model.onnx
           tar -cvf web-service.tar ./web-service
 
       - name: Upload archive

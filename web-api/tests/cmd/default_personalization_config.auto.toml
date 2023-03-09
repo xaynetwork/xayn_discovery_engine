@@ -38,6 +38,10 @@ stdout = """
     "min_negative_cois": 0,
     "horizon": 30
   },
+  "embedding": {
+    "directory": "assets",
+    "token_size": 250
+  },
   "personalization": {
     "max_number_documents": 100,
     "default_number_documents": 10,
