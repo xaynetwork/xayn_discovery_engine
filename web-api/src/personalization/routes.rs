@@ -471,7 +471,12 @@ struct UnvalidatedInputDocument {
 
 impl UnvalidatedInputDocument {
     fn validate(self) -> Result<InputDocument, Error> {
-        if let Some(id) = self.id {
+        if let (Some(_id), Some(_query)) = (&self.id, &self.query) {
+            Err(BadRequest::from(
+                "either id or query must be present in the request, but both were found",
+            )
+            .into())
+        } else if let Some(id) = self.id {
             Ok(InputDocument::Ref(id.try_into()?))
         } else if let Some(query) = self.query {
             Ok(InputDocument::Query(query))
