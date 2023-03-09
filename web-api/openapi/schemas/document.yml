@@ -32,6 +32,14 @@ DocumentTag:
   maxLength: 256
   example: "tag"
 
+DocumentSearchQuery:
+  description: A search query can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
+  type: string
+  pattern: ".+"
+  minLength: 1
+  maxLength: 512
+  example: "inflation is causing world-wide price hikes, especially for energy and food consumption"  
+
 History:
   type: array
   minItems: 1
@@ -62,8 +70,10 @@ InputDocument:
   description: |
     Information about a document provided as input for an search.
 
-    Currently this can _only_ be the user's `id`, more options will be added in the future.
+    You can either include an existing Document's `id`, or use query which can hold arbitrary free text.
   type: object
   properties:
     id:
       $ref: '#/DocumentId'
+    query:
+      $ref: '#/DocumentSearchQuery'
