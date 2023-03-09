@@ -59,6 +59,7 @@ History:
 
 HistoryEntry:
   type: object
+  required: [id]
   properties:
     id:
       $ref: '#/DocumentId'
