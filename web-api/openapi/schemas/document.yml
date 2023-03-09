@@ -38,7 +38,7 @@ DocumentSearchQuery:
   pattern: ".+"
   minLength: 1
   maxLength: 512
-  example: "what are the latest developments surrounding transformer models?"  
+  example: "inflation is causing world-wide price hikes, especially for energy and food consumption"  
 
 History:
   type: array
