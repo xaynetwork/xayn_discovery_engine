@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(feature = "ET-3837")]
+use std::num::NonZeroU16;
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -502,11 +504,7 @@ pub(super) struct UnmigratedDocument {
 
 #[cfg(feature = "ET-3837")]
 impl Storage {
-    pub(crate) async fn migrate(&self, n: u16) -> Result<bool, Error> {
-        if n == 0 {
-            return Ok(false);
-        }
-
+    pub(crate) async fn migrate(&self, n: NonZeroU16) -> Result<bool, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
         let ids = sqlx::query_as::<_, DocumentId>(
@@ -517,7 +515,7 @@ impl Storage {
             FOR UPDATE;",
         )
         .bind(i32::from(
-            n.min(u16::try_from(Database::BIND_LIMIT).unwrap()),
+            n.get().min(u16::try_from(Database::BIND_LIMIT).unwrap()),
         ))
         .fetch_all(&mut tx)
         .await?;

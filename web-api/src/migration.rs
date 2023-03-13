@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{
+    num::{NonZeroU16, NonZeroU64},
+    time::Duration,
+};
 
 use futures_util::FutureExt;
 use serde::{Deserialize, Serialize};
@@ -24,13 +27,12 @@ use crate::{
     storage,
 };
 
-#[derive(Debug, Default, Deserialize, Serialize)]
-#[serde(default)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     logging: logging::Config,
     storage: storage::Config,
-    n: u16,
-    t: u64,
+    n: NonZeroU16,
+    t: NonZeroU64,
 }
 
 pub async fn start() -> Result<(), anyhow::Error> {
@@ -38,12 +40,9 @@ pub async fn start() -> Result<(), anyhow::Error> {
 
     init_tracing(&config.logging);
     let storage = config.storage.setup().await?;
-    if *storage.is_migrated.read().await {
-        return Ok(());
-    }
 
     let n = config.n;
-    let t = Duration::from_secs(config.t);
+    let t = Duration::from_secs(config.t.get());
     loop {
         match try_join!(storage.migrate(n), sleep(t).map(Ok)) {
             Ok((all_migrated, ())) => {
@@ -57,7 +56,6 @@ pub async fn start() -> Result<(), anyhow::Error> {
             }
         }
     }
-    *storage.is_migrated.write().await = true;
 
     storage.close().await;
 
