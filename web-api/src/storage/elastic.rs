@@ -13,8 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::{HashMap, HashSet};
-#[cfg(not(feature = "ET-3837"))]
-use std::hash::BuildHasher;
 
 use async_trait::async_trait;
 use itertools::Itertools;
@@ -25,11 +23,8 @@ use reqwest::{
     Url,
 };
 use secrecy::{ExposeSecret, Secret};
-#[cfg(feature = "ET-3837")]
-use serde::Deserializer;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::{json, Value};
-#[cfg(not(feature = "ET-3837"))]
 use sqlx::{Postgres, Transaction};
 use tracing::error;
 use xayn_ai_bert::NormalizedEmbedding;
@@ -449,7 +444,6 @@ impl Client {
 struct Hit<T> {
     #[serde(rename = "_id")]
     id: DocumentId,
-    #[cfg_attr(feature = "ET-3837", allow(dead_code))]
     #[serde(rename = "_source")]
     source: T,
     #[serde(rename = "_score")]
@@ -464,20 +458,6 @@ struct Hits<T> {
 #[derive(Debug, Deserialize)]
 struct SearchResponse<T> {
     hits: Hits<T>,
-}
-
-#[cfg(feature = "ET-3837")]
-#[derive(Debug)]
-struct NoSource;
-
-#[cfg(feature = "ET-3837")]
-impl<'de> Deserialize<'de> for NoSource {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(Self)
-    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -498,27 +478,6 @@ impl From<SearchResponse<InteractedDocument>> for Vec<models::InteractedDocument
                 embedding: hit.source.embedding,
                 tags: hit.source.tags,
             })
-            .collect()
-    }
-}
-
-#[cfg(not(feature = "ET-3837"))]
-#[derive(Debug, Deserialize)]
-struct SearchEmbedding {
-    embedding: NormalizedEmbedding,
-}
-
-#[cfg(not(feature = "ET-3837"))]
-impl<S> From<SearchResponse<SearchEmbedding>> for HashMap<DocumentId, NormalizedEmbedding, S>
-where
-    S: BuildHasher + Default,
-{
-    fn from(response: SearchResponse<SearchEmbedding>) -> Self {
-        response
-            .hits
-            .hits
-            .into_iter()
-            .map(|hit| (hit.id, hit.source.embedding))
             .collect()
     }
 }
@@ -592,7 +551,6 @@ fn is_success_status(status: u16, allow_not_found: bool) -> bool {
         .unwrap_or(false)
 }
 
-#[cfg(not(feature = "ET-3837"))]
 impl Storage {
     pub(crate) async fn get_interacted_with_transaction(
         &self,
@@ -641,37 +599,22 @@ impl storage::Document for Storage {
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<models::InteractedDocument>, Error> {
-        #[cfg(not(feature = "ET-3837"))]
-        return self
-            .get_interacted_with_transaction(&ids.into_iter().collect_vec(), None)
-            .await;
-
-        #[cfg(feature = "ET-3837")]
-        self.get_interacted(ids).await
+        self.get_interacted_with_transaction(&ids.into_iter().collect_vec(), None)
+            .await
     }
 
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
-        #[cfg(not(feature = "ET-3837"))]
-        return self
-            .get_personalized_with_transaction(&ids.into_iter().collect_vec(), None)
-            .await;
-
-        #[cfg(feature = "ET-3837")]
-        self.get_personalized(ids, |_| Some(1.0)).await
+        self.get_personalized_with_transaction(&ids.into_iter().collect_vec(), None)
+            .await
     }
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        #[cfg(not(feature = "ET-3837"))]
-        return self.elastic.get_embedding(id).await;
-
-        #[cfg(feature = "ET-3837")]
-        self.get_embedding(id).await
+        self.elastic.get_embedding(id).await
     }
 
-    #[allow(clippy::too_many_lines)]
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
@@ -721,10 +664,6 @@ impl storage::Document for Storage {
         };
 
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
-        #[cfg(not(feature = "ET-3837"))]
-        let source = ["properties", "embedding", "tags"];
-        #[cfg(feature = "ET-3837")]
-        let source = false;
         let mut body = json!({
             "size": params.k_neighbors,
             "knn": {
@@ -734,7 +673,7 @@ impl storage::Document for Storage {
                 "num_candidates": params.num_candidates,
                 "filter": filter
             },
-            "_source": source
+            "_source": ["properties", "embedding", "tags"]
         });
 
         if let Some(min_similarity) = params.min_similarity {
@@ -743,50 +682,24 @@ impl storage::Document for Storage {
                 .insert("min_score".into(), min_similarity.into());
         }
 
-        #[cfg(not(feature = "ET-3837"))]
-        return {
-            let mut documents = self
-                .elastic
-                .query_with_json::<_, SearchResponse<_>>(
-                    self.elastic.create_resource_path(["_search"], None),
-                    Some(body),
-                )
-                .await?
-                .map(<Vec<models::PersonalizedDocument>>::from)
-                .unwrap_or_default();
-            let ids = self
-                .postgres
-                .documents_exist(&documents.iter().map(|document| &document.id).collect_vec())
-                .await?
-                .into_iter()
-                .collect::<HashSet<_>>();
-            documents.retain(|document| ids.contains(&document.id));
+        let mut documents = self
+            .elastic
+            .query_with_json::<_, SearchResponse<_>>(
+                self.elastic.create_resource_path(["_search"], None),
+                Some(body),
+            )
+            .await?
+            .map(<Vec<models::PersonalizedDocument>>::from)
+            .unwrap_or_default();
+        let ids = self
+            .postgres
+            .documents_exist(&documents.iter().map(|document| &document.id).collect_vec())
+            .await?
+            .into_iter()
+            .collect::<HashSet<_>>();
+        documents.retain(|document| ids.contains(&document.id));
 
-            Ok(documents)
-        };
-
-        #[cfg(feature = "ET-3837")]
-        {
-            let scores = self
-                .elastic
-                .query_with_json::<_, SearchResponse<NoSource>>(
-                    self.elastic.create_resource_path(["_search"], None),
-                    Some(body),
-                )
-                .await?
-                .map(|response| {
-                    response
-                        .hits
-                        .hits
-                        .into_iter()
-                        .map(|hit| (hit.id, hit.score))
-                        .collect::<HashMap<_, _>>()
-                })
-                .unwrap_or_default();
-
-            self.get_personalized(scores.keys(), |id| scores.get(id).copied())
-                .await
-        }
+        Ok(documents)
     }
 
     async fn insert(
@@ -909,7 +822,6 @@ struct DocumentPropertiesResponse {
     properties: DocumentProperties,
 }
 
-#[cfg(not(feature = "ET-3837"))]
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
@@ -943,7 +855,6 @@ impl storage::DocumentProperties for Storage {
     }
 }
 
-#[cfg(not(feature = "ET-3837"))]
 #[async_trait]
 impl storage::DocumentProperty for Storage {
     async fn get(
