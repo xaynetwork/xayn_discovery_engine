@@ -182,6 +182,16 @@ struct QueriedPersonalizedDocument {
     embedding: NormalizedEmbedding,
 }
 
+#[cfg(feature = "ET-4089")]
+#[derive(FromRow)]
+struct QueriedCandidateDocument {
+    document_id: DocumentId,
+    snippet: String,
+    properties: Json<DocumentProperties>,
+    tags: Vec<DocumentTag>,
+    embedding: NormalizedEmbedding,
+}
+
 #[derive(FromRow)]
 struct QueriedCoi {
     coi_id: CoiId,
@@ -450,6 +460,118 @@ impl Database {
             .fetch_optional(tx)
             .await
             .map_err(Into::into)
+    }
+
+    #[cfg(feature = "ET-4089")]
+    async fn get_candidates(
+        tx: &mut Transaction<'_, Postgres>,
+        ids: Option<impl IntoIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<DocumentId>, Error> {
+        if let Some(ids) = ids {
+            let mut builder = QueryBuilder::new(
+                "SELECT document_id FROM document WHERE is_candidate = TRUE AND document_id IN ",
+            );
+            let mut candidates = Vec::new();
+            let mut ids = ids.into_iter().peekable();
+            while ids.peek().is_some() {
+                candidates.extend(
+                    builder
+                        .reset()
+                        .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                        .build()
+                        .try_map(|row| DocumentId::from_row(&row))
+                        .fetch_all(&mut *tx)
+                        .await?,
+                );
+            }
+
+            Ok(candidates)
+        } else {
+            sqlx::query_as("SELECT document_id FROM document WHERE is_candidate = TRUE;")
+                .fetch_all(tx)
+                .await
+                .map_err(Into::into)
+        }
+    }
+
+    #[cfg(feature = "ET-4089")]
+    async fn set_candidates(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<(Vec<IngestedDocument>, Vec<DocumentId>, Warning<DocumentId>), Error> {
+        let mut tx = self.pool.begin().await?;
+
+        let all = ids.into_iter();
+        let unchanged = Database::get_candidates(&mut tx, Some(all.clone())).await?;
+
+        let mut builder = QueryBuilder::new(
+            "UPDATE document
+            SET is_candidate = TRUE
+            WHERE is_candidate = FALSE AND document_id IN ",
+        );
+        let mut ingested = Vec::with_capacity(all.len());
+        let mut ids = all.clone().peekable();
+        while ids.peek().is_some() {
+            ingested.extend(
+                builder
+                    .reset()
+                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .push(" RETURNING document_id, snippet, properties, tags, embedding;")
+                    .build()
+                    .try_map(|row| {
+                        QueriedCandidateDocument::from_row(&row).map(|document| IngestedDocument {
+                            id: document.document_id,
+                            snippet: document.snippet,
+                            properties: document.properties.0,
+                            tags: document.tags,
+                            embedding: document.embedding,
+                            is_candidate: true,
+                        })
+                    })
+                    .fetch_all(&mut tx)
+                    .await?,
+            );
+        }
+
+        let mut builder = QueryBuilder::new(
+            "UPDATE document
+            SET is_candidate = FALSE
+            WHERE is_candidate = TRUE AND document_id NOT IN ",
+        );
+        let mut deleted = Vec::new();
+        let mut ids = all.clone().peekable();
+        while ids.peek().is_some() {
+            deleted.extend(
+                builder
+                    .reset()
+                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .push(" RETURNING document_id;")
+                    .build()
+                    .try_map(|row| DocumentId::from_row(&row))
+                    .fetch_all(&mut tx)
+                    .await?,
+            );
+        }
+
+        tx.commit().await?;
+
+        let failed = (ingested.len() + unchanged.len() < all.len())
+            .then(|| {
+                all.collect::<HashSet<_>>()
+                    .difference(
+                        &ingested
+                            .iter()
+                            .map(|document| &document.id)
+                            .chain(&unchanged)
+                            .collect::<HashSet<_>>(),
+                    )
+                    .copied()
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        Ok((ingested, deleted, failed))
     }
 
     async fn acquire_user_coi_lock(
@@ -734,6 +856,21 @@ impl storage::Document for Storage {
         failed_documents.extend(self.elastic.delete_documents(&candidates).await?);
 
         Ok(failed_documents)
+    }
+}
+
+#[cfg(feature = "ET-4089")]
+#[async_trait(?Send)]
+impl storage::DocumentCandidate for Storage {
+    async fn set(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        let (ingested, deleted, mut failed) = self.postgres.set_candidates(ids).await?;
+        failed.extend(self.elastic.insert_documents(&ingested).await?);
+        failed.extend(self.elastic.delete_documents(&deleted).await?);
+
+        Ok(failed)
     }
 }
 

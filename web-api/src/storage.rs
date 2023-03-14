@@ -107,6 +107,16 @@ pub(crate) trait Document {
     ) -> Result<Warning<DocumentId>, Error>;
 }
 
+#[cfg(feature = "ET-4089")]
+#[async_trait(?Send)]
+pub(crate) trait DocumentCandidate {
+    /// Sets the document candidates and reports failed ids.
+    async fn set(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Warning<DocumentId>, Error>;
+}
+
 #[async_trait]
 pub(crate) trait DocumentProperties {
     async fn get(&self, id: &DocumentId) -> Result<Option<models::DocumentProperties>, Error>;

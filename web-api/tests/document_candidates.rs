@@ -12,8 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#![cfg(feature = "ET-4089")]
+
 use reqwest::{Client, StatusCode, Url};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, unchanged_config};
 use xayn_test_utils::error::Panic;
@@ -27,7 +29,8 @@ async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
             .json(&json!({
                 "documents": [
                     { "id": "d1", "snippet": "once in a spring there was a fall" },
-                    { "id": "d2", "snippet": "fall in a once" }
+                    { "id": "d2", "snippet": "fall in a once" },
+                    { "id": "d3", "snippet": "once in a fall" }
                 ]
             }))
             .build()?,
@@ -40,74 +43,106 @@ async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
 #[derive(Debug, Deserialize, PartialEq)]
 enum Kind {
     DocumentNotFound,
-    FailedToDeleteSomeDocuments,
+    FailedToSetSomeDocumentCandidates,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 enum Details {
-    #[serde(rename = "errors")]
-    Delete(Value),
+    #[serde(rename = "documents")]
+    Set(Value),
 }
 
 #[derive(Deserialize)]
 struct Error {
     kind: Kind,
-    details: Option<Details>,
+    details: Details,
 }
 
 #[tokio::test]
-async fn test_ingestion() {
+async fn test_candidates_all() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
-            client.get(url.join("/documents/d1/properties")?).build()?,
-            StatusCode::OK,
+            client
+                .put(url.join("/documents/candidates")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1" },
+                        { "id": "d2" },
+                        { "id": "d3" }
+                    ]
+                }))
+                .build()?,
+            StatusCode::NO_CONTENT,
         )
         .await;
-        send_assert(
-            &client,
-            client.get(url.join("/documents/d2/properties")?).build()?,
-            StatusCode::OK,
-        )
-        .await;
-        let error = send_assert_json::<Error>(
-            &client,
-            client.get(url.join("/documents/d3/properties")?).build()?,
-            StatusCode::BAD_REQUEST,
-        )
-        .await;
-        assert_eq!(error.kind, Kind::DocumentNotFound);
-        assert!(error.details.is_none());
         Ok(())
     })
     .await;
 }
 
 #[tokio::test]
-async fn test_deletion() {
+async fn test_candidates_some() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
-            client.delete(url.join("/documents/d1")?).build()?,
+            client
+                .put(url.join("/documents/candidates")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1" },
+                        { "id": "d3" }
+                    ]
+                }))
+                .build()?,
             StatusCode::NO_CONTENT,
         )
         .await;
+        Ok(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn test_candidates_none() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        ingest(&client, &url).await?;
+        send_assert(
+            &client,
+            client
+                .put(url.join("/documents/candidates")?)
+                .json(&json!({ "documents": [] }))
+                .build()?,
+            StatusCode::NO_CONTENT,
+        )
+        .await;
+        Ok(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn test_candidates_warning() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        ingest(&client, &url).await?;
         let error = send_assert_json::<Error>(
             &client,
             client
-                .delete(url.join("/documents")?)
-                .json(&json!({ "documents": ["d1", "d2"] }))
+                .put(url.join("/documents/candidates")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1" },
+                        { "id": "d4" }
+                    ]
+                }))
                 .build()?,
             StatusCode::BAD_REQUEST,
         )
         .await;
-        assert_eq!(error.kind, Kind::FailedToDeleteSomeDocuments);
-        assert_eq!(
-            error.details.unwrap(),
-            Details::Delete(json!([ { "id": "d1" } ])),
-        );
+        assert_eq!(error.kind, Kind::FailedToSetSomeDocumentCandidates);
+        assert_eq!(error.details, Details::Set(json!([ { "id": "d4" } ])));
         Ok(())
     })
     .await;

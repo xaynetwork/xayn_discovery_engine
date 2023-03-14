@@ -93,6 +93,25 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
 
+  /documents/candidates:
+    put:
+      tags:
+        - back office
+      summary: Set the documents considerred for recommendations.
+      description: Set the documents considerred for recommendations.
+      operationId: replaceDocumentCandidates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCandidatesRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
   /documents/{document_id}:
     parameters:
       - $ref: './parameters/path/document_id.yml'
@@ -307,3 +326,19 @@ components:
           maxItems: 1000
           items:
             $ref: './schemas/document.yml#/DocumentId'
+    DocumentCandidate:
+      type: object
+      required: [id]
+      properties:
+        id:
+          $ref: './schemas/document.yml#/DocumentId'
+    DocumentCandidatesRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 0
+          maxItems: 1e+6
+          items:
+            $ref: '#/components/schemas/DocumentCandidate'
