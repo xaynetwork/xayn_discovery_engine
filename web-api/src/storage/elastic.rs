@@ -306,17 +306,30 @@ impl Client {
             "knn": {
                 "field": "embedding",
                 "query_vector": params.embedding,
-                "k": params.k_neighbors,
+                "k": params.count,
                 "num_candidates": params.num_candidates,
                 "filter": filter
             },
-            "size": params.k_neighbors,
+            "size": params.count,
             "_source": false
         });
         if let Some(min_similarity) = params.min_similarity {
             body.as_object_mut()
                 .unwrap(/* we just created it as object */)
                 .insert("min_score".into(), min_similarity.into());
+        }
+        if let Some(query) = params.query {
+            let mut filter: Value = filter;
+            //TODO better abstraction outside of PoC
+            let filter_mut = filter.as_object_mut().unwrap()["bool"]
+                .as_object_mut()
+                .unwrap();
+            debug_assert!(!filter_mut.contains_key("match"));
+            filter_mut.insert("match".into(), json!({ "snippet": query }));
+            let body_mut = body.as_object_mut()
+                .unwrap(/* we just created it as object */);
+            debug_assert!(!body_mut.contains_key("bool"));
+            body_mut.insert("query".into(), filter);
         }
 
         Ok(self

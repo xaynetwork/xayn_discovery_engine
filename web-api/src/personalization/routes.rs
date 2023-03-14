@@ -473,16 +473,16 @@ async fn semantic_search(
         published_after,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
-    let (embedding, document_id) = match document {
+    let (embedding, document_id, query) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&state.storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
-            (embedding, Some(id))
+            (embedding, Some(id), None)
         }
         InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
-            (embedding, None)
+            (embedding, None, Some(query))
         }
     };
 
@@ -501,10 +501,11 @@ async fn semantic_search(
         KnnSearchParams {
             excluded: &excluded,
             embedding: &embedding,
-            k_neighbors: count,
+            count,
             num_candidates: count,
             published_after,
             min_similarity,
+            query: query.as_deref(),
             time: Utc::now(),
         },
     )

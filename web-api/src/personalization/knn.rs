@@ -86,10 +86,11 @@ where
                         KnnSearchParams {
                             excluded: excluded.clone(),
                             embedding: &coi.point,
-                            k_neighbors,
+                            count: k_neighbors,
                             num_candidates: self.count,
                             published_after: self.published_after,
                             min_similarity: None,
+                            query: None,
                             time: self.time,
                         },
                     )
