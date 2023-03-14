@@ -22,15 +22,12 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use derive_more::From;
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
 
 use crate::{
     app::SetupError,
-    error::common::DocumentIdAsObject,
     models::{
         self,
         DocumentId,
@@ -56,24 +53,6 @@ pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) time: DateTime<Utc>,
 }
 
-#[derive(Debug, Error, From)]
-pub(crate) enum InsertionError {
-    #[error("{0}")]
-    General(Error),
-    #[error("{failed_documents:?}")]
-    PartialFailure {
-        failed_documents: Vec<DocumentIdAsObject>,
-    },
-}
-
-#[derive(Debug, From)]
-pub(crate) enum DeletionError {
-    #[from(types(sqlx::Error))]
-    General(Error),
-    #[from]
-    PartialFailure { errors: Vec<DocumentIdAsObject> },
-}
-
 #[async_trait(?Send)]
 pub(crate) trait Document {
     async fn get_interacted(
@@ -93,15 +72,14 @@ pub(crate) trait Document {
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
-    async fn insert(
-        &self,
-        documents: Vec<(IngestedDocument, NormalizedEmbedding)>,
-    ) -> Result<(), InsertionError>;
+    /// Inserts the documents and reports failed ids.
+    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Vec<DocumentId>, Error>;
 
+    /// Deletes the documents and reports failed ids.
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<(), DeletionError>;
+    ) -> Result<Vec<DocumentId>, Error>;
 }
 
 #[async_trait]

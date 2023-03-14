@@ -37,7 +37,7 @@ use crate::{
         },
     },
     models::{self, DocumentProperties, DocumentProperty},
-    storage::{self, DeletionError, InsertionError},
+    storage,
     Error,
 };
 
@@ -80,6 +80,11 @@ where
     }
 }
 
+#[cfg(feature = "ET-4089")]
+const fn default_is_candidate() -> bool {
+    true
+}
+
 #[derive(Debug, Deserialize)]
 struct IngestedDocument {
     id: String,
@@ -89,6 +94,9 @@ struct IngestedDocument {
     properties: HashMap<String, DocumentProperty>,
     #[serde(default)]
     tags: Vec<String>,
+    #[cfg(feature = "ET-4089")]
+    #[serde(default = "default_is_candidate")]
+    is_candidate: bool,
 }
 
 /// Represents body of a POST documents request.
@@ -122,23 +130,28 @@ async fn new_documents(
         .into_iter()
         .map(|document| {
             let map_document = || -> anyhow::Result<_> {
-                let document = models::IngestedDocument {
-                    id: document.id.as_str().try_into()?,
-                    snippet: document.snippet,
-                    properties: document
-                        .properties
-                        .into_iter()
-                        .map(|(id, property)| id.try_into().map(|id| (id, property)))
-                        .try_collect()?,
-                    tags: document
-                        .tags
-                        .into_iter()
-                        .map(TryInto::try_into)
-                        .try_collect()?,
-                };
+                let id = document.id.as_str().try_into()?;
+                let properties = document
+                    .properties
+                    .into_iter()
+                    .map(|(id, property)| id.try_into().map(|id| (id, property)))
+                    .try_collect()?;
+                let tags = document
+                    .tags
+                    .into_iter()
+                    .map(TryInto::try_into)
+                    .try_collect()?;
                 let embedding = state.embedder.run(&document.snippet)?;
 
-                Ok((document, embedding))
+                Ok(models::IngestedDocument {
+                    id,
+                    snippet: document.snippet,
+                    properties,
+                    tags,
+                    embedding,
+                    #[cfg(feature = "ET-4089")]
+                    is_candidate: document.is_candidate,
+                })
             };
 
             map_document().map_err(|error| {
@@ -157,22 +170,21 @@ async fn new_documents(
         start.elapsed().as_secs(),
     );
 
-    storage::Document::insert(&state.storage, documents)
-        .await
-        .map_err(|err| match err {
-            InsertionError::General(err) => err,
-            InsertionError::PartialFailure {
-                failed_documents: fd,
-            } => {
-                failed_documents.extend(fd);
-                IngestingDocumentsFailed {
-                    documents: failed_documents,
-                }
-                .into()
-            }
-        })?;
+    failed_documents.extend(
+        storage::Document::insert(&state.storage, documents)
+            .await?
+            .into_iter()
+            .map(Into::into),
+    );
 
-    Ok(HttpResponse::Created())
+    if failed_documents.is_empty() {
+        Ok(HttpResponse::Created())
+    } else {
+        Err(IngestingDocumentsFailed {
+            documents: failed_documents,
+        }
+        .into())
+    }
 }
 
 async fn delete_document(state: Data<AppState>, id: Path<String>) -> Result<impl Responder, Error> {
@@ -196,16 +208,16 @@ async fn delete_documents(
         .into_iter()
         .map(TryInto::try_into)
         .try_collect::<_, Vec<_>, _>()?;
-    storage::Document::delete(&state.storage, &documents)
-        .await
-        .map_err(|error| match error {
-            DeletionError::General(error) => error,
-            DeletionError::PartialFailure { errors } => {
-                FailedToDeleteSomeDocuments { errors }.into()
-            }
-        })?;
+    let failed_documents = storage::Document::delete(&state.storage, &documents).await?;
 
-    Ok(HttpResponse::NoContent())
+    if failed_documents.is_empty() {
+        Ok(HttpResponse::NoContent())
+    } else {
+        Err(FailedToDeleteSomeDocuments {
+            errors: failed_documents.into_iter().map(Into::into).collect(),
+        }
+        .into())
+    }
 }
 
 #[derive(Debug, Deserialize)]

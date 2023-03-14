@@ -180,6 +180,13 @@ pub(crate) struct IngestedDocument {
 
     /// The tags associated to the document.
     pub(crate) tags: Vec<DocumentTag>,
+
+    /// Embedding from smbert.
+    pub(crate) embedding: NormalizedEmbedding,
+
+    #[cfg(feature = "ET-4089")]
+    /// Indicates if the document is considered for recommendations.
+    pub(crate) is_candidate: bool,
 }
 
 #[cfg(test)]

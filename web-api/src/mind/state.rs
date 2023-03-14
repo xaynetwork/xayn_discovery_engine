@@ -70,15 +70,16 @@ impl State {
         let documents = documents
             .into_iter()
             .map(|document| {
-                let document = IngestedDocument {
+                let embedding = self.embedder.run(&document.snippet)?;
+                Ok(IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory],
-                };
-                let embedding = self.embedder.run(&document.snippet)?;
-
-                Ok((document, embedding))
+                    embedding,
+                    #[cfg(feature = "ET-4089")]
+                    is_candidate: true,
+                })
             })
             .try_collect::<_, _, Panic>()?;
         storage::Document::insert(&self.storage, documents).await?;
@@ -101,13 +102,15 @@ impl State {
             .into_iter()
             .map(|(id, embedding)| {
                 let document = documents.remove(&id).unwrap(/* document must already exist */);
-                let document = IngestedDocument {
+                IngestedDocument {
                     id,
                     snippet: String::new(/* unused for in-memory db */),
                     properties: document.properties,
                     tags: document.tags,
-                };
-                (document, embedding)
+                    embedding,
+                    #[cfg(feature = "ET-4089")]
+                    is_candidate: true,
+                }
             })
             .collect_vec();
         storage::Document::insert(&self.storage, documents).await?;
