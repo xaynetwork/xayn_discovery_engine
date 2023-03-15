@@ -27,6 +27,7 @@ use crate::{
     logging::init_tracing,
     net::{self, AppHandle},
     storage,
+    tenants,
 };
 
 #[async_trait]
@@ -36,6 +37,7 @@ pub trait Application {
     type Config: AsRef<logging::Config>
         + AsRef<net::Config>
         + AsRef<storage::Config>
+        + AsRef<tenants::Config>
         + DeserializeOwned
         + Serialize
         + Send

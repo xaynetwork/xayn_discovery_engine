@@ -31,10 +31,11 @@ use std::{
 
 use anyhow::bail;
 use once_cell::sync::Lazy;
-use reqwest::{Client, Request, Response, StatusCode, Url};
+use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
 use toml::{toml, Table, Value};
+use uuid::Uuid;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
 
@@ -73,7 +74,9 @@ pub async fn send_assert(client: &Client, req: Request, expected: StatusCode) ->
     if status != expected {
         let bytes = response.bytes().await.unwrap();
         let text = String::from_utf8_lossy(&bytes);
-        panic!("Failed to {method} {target}, status {status} instead of {expected}. Body:\n{text}");
+        panic!(
+            "Failed to {method} {target}, status `{status}` instead of `{expected}`.\nBody: `{text}`\n"
+        );
     }
     response
 }
@@ -121,11 +124,14 @@ pub async fn test_app<A, F>(
     let services = setup_web_dev_test_context().await.unwrap();
 
     let handle = start_test_application::<A>(&services, configure).await;
-    let client = Client::new();
 
-    test(Arc::new(client), Arc::new(handle.url()), services.clone())
-        .await
-        .unwrap();
+    test(
+        build_client(&services),
+        Arc::new(handle.url()),
+        services.clone(),
+    )
+    .await
+    .unwrap();
 
     handle.stop_and_wait(APP_STOP_TIMEOUT).await.unwrap();
 }
@@ -144,7 +150,7 @@ pub async fn test_two_apps<A1, A2, F>(
     let first_handle = start_test_application::<A1>(&services, configure_first).await;
     let second_handle = start_test_application::<A2>(&services, configure_second).await;
     test(
-        Arc::new(Client::new()),
+        build_client(&services),
         Arc::new(first_handle.url()),
         Arc::new(second_handle.url()),
         services.clone(),
@@ -157,6 +163,20 @@ pub async fn test_two_apps<A1, A2, F>(
     );
     res1.expect("first application to not fail during shutdown");
     res2.expect("second application to not fail during shutdown");
+}
+
+fn build_client(services: &Services) -> Arc<Client> {
+    let mut default_headers = HeaderMap::default();
+    default_headers.insert(
+        "X-Tenant-Id",
+        services.tenant_id.as_str().try_into().unwrap(),
+    );
+    Arc::new(
+        Client::builder()
+            .default_headers(default_headers)
+            .build()
+            .unwrap(),
+    )
 }
 
 pub fn unchanged_config(_: &mut Table) {}
@@ -197,6 +217,9 @@ where
 
         [embedding]
         directory = "../assets/smbert_v0003"
+
+        [request_context]
+        disable_legacy_tenant = false
     };
 
     configure(&mut config);
@@ -229,6 +252,8 @@ pub struct Services {
     pub postgres: Url,
     /// Uri to a elastic search db for this test.
     pub elastic_search: Url,
+    /// Id of the auto generated tenant
+    pub tenant_id: String,
 }
 
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
@@ -256,6 +281,7 @@ async fn setup_web_dev_test_context(
         id,
         postgres: postgres.unwrap(),
         elastic_search: elastic_search.unwrap(),
+        tenant_id: Uuid::new_v4().to_string(),
     };
 
     Ok(guard_on_success(uris, move |uris| {

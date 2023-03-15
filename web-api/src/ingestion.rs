@@ -25,6 +25,7 @@ use crate::{
     logging,
     net,
     storage::{self, Storage},
+    tenants,
 };
 
 pub struct Ingestion;
@@ -66,6 +67,7 @@ pub struct Config {
     pub(crate) storage: storage::Config,
     pub(crate) ingestion: IngestionConfig,
     pub(crate) embedding: embedding::Config,
+    pub(crate) tenants: tenants::Config,
 }
 
 #[derive(Debug, Deserialize, Serialize)]

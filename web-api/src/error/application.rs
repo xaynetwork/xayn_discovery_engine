@@ -15,6 +15,7 @@
 use std::{
     marker::PhantomData,
     pin::Pin,
+    sync::Arc,
     task::{Context, Poll},
 };
 
@@ -36,7 +37,7 @@ use thiserror::Error;
 use tracing::error;
 
 use super::json_error::JsonErrorResponseBuilder;
-use crate::middleware::tracing::RequestId;
+use crate::middleware::request_context::{RequestContext, RequestId};
 
 #[derive(Display, Debug, Deref, Error)]
 #[display(fmt = "{error}")]
@@ -221,12 +222,12 @@ macro_rules! impl_with_request_id_hint {
         where $(
             $name: FromRequest + 'static,
         )* {
-            type ExtendedArgs = ($($name,)* ReqData<RequestId>,);
+            type ExtendedArgs = ($($name,)* ReqData<Arc<RequestContext>>,);
 
             fn strip_request_id(args: Self::ExtendedArgs) -> (Self, RequestId) {
                 #![allow(non_snake_case)]
                 let ($($name,)* last,) = args;
-                (($($name,)*), *last)
+                (($($name,)*), last.request_id)
             }
         }
     );

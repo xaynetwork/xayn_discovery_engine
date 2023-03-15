@@ -36,6 +36,9 @@ stdout = """
   "embedding": {
     "directory": "assets",
     "token_size": 250
+  },
+  "tenants": {
+    "enable_legacy_tenant": false
   }
 }
 """

@@ -1,4 +1,4 @@
-// Copyright 2022 Xayn AG
+// Copyright 2023 Xayn AG
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -12,8 +12,18 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub(crate) mod application;
-pub(crate) mod common;
-pub(crate) mod early_failure;
-pub(crate) mod json_error;
-pub(crate) mod warning;
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Config {
+    pub(crate) enable_legacy_tenant: bool,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            enable_legacy_tenant: true,
+        }
+    }
+}

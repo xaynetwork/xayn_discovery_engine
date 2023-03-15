@@ -17,16 +17,18 @@ use actix_web::{
     body::{BoxBody, MessageBody},
     dev::{Service, ServiceRequest, ServiceResponse},
     http::{header::CONTENT_TYPE, StatusCode},
-    HttpMessage,
     HttpResponse,
     ResponseError,
 };
 use derive_more::Display;
-use futures_util::TryFutureExt;
+use futures_util::{
+    future::{self, Either},
+    TryFutureExt,
+};
 use serde_json::{json, Value};
 
-use super::tracing::RequestId;
-use crate::error::json_error::JsonErrorResponseBuilder;
+use super::request_context::{RequestContext, RequestId};
+use crate::error::{early_failure::middleware_failure, json_error::JsonErrorResponseBuilder};
 
 pub(crate) fn wrap_non_json_errors<S, B>(
     request: ServiceRequest,
@@ -37,18 +39,24 @@ where
     S::Future: 'static,
     B: MessageBody + Debug + 'static,
 {
-    let request_id = request
-        .extensions()
-        .get::<RequestId>()
-        .copied()
-        .unwrap_or_else(RequestId::missing);
+    let request_id = match RequestContext::try_extract_from_request(request.request(), |context| {
+        context.request_id
+    }) {
+        Ok(id) => id,
+        Err(error) => {
+            let response = middleware_failure("wrap_non_json_errors", request, None, None, error);
+            return Either::Left(future::ok(response));
+        }
+    };
 
-    service
-        .call(request)
-        .map_ok(move |resp| wrap_service_response(resp, request_id))
-        // note that endpoints _directly_ turn any `Err(..)` into an `Ok(err_resp)`,
-        // so we will only see middleware errors here, never endpoint errors
-        .map_err(move |resp| WrappedMiddlewareError::wrap(resp, request_id))
+    Either::Right(
+        service
+            .call(request)
+            .map_ok(move |resp| wrap_service_response(resp, request_id))
+            // note that endpoints _directly_ turn any `Err(..)` into an `Ok(err_resp)`,
+            // so we will only see middleware errors here, never endpoint errors
+            .map_err(move |resp| WrappedMiddlewareError::wrap(resp, request_id)),
+    )
 }
 
 fn wrap_service_response<B: MessageBody + Debug + 'static>(
