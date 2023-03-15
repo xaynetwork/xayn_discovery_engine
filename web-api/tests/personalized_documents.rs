@@ -31,7 +31,7 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
                     { "id": "d1", "snippet": "Computer", "properties": { "publication_date": "2023-01-12T20:20:20Z" } },
                     { "id": "d2", "snippet": "Technology", "properties": { "publication_date": "2023-05-12T20:20:20Z" } },
                     { "id": "d3", "snippet": "Politic", "properties": { "publication_date": "2023-02-12T20:20:20Z" } },
-                    { "id": "d4", "snippet": "Laptop", "properties": { "publication_date": "2023-03-12T20:20:20Z" } },
+                    { "id": "d4", "snippet": "Laptop", "properties": { "publication_date": "2100-01-01T00:00:00Z" } },
                     { "id": "d5", "snippet": "Smartphone", "properties": { "publication_date": "2023-08-12T20:20:20Z" } },
                     { "id": "d6", "snippet": "Computer", "properties": { "publication_date": "2021-05-12T20:20:20Z" } },
                     { "id": "d7", "snippet": "Dogs" },
@@ -140,7 +140,7 @@ async fn test_personalization_all_dates() {
                     .iter()
                     .map(|document| document.id.as_str())
                     .collect::<HashSet<_>>(),
-                ["d1", "d4", "d6", "d7", "d8"].into(),
+                ["d1", "d3", "d6", "d7", "d8"].into(),
             );
 
             Ok(())
@@ -167,7 +167,7 @@ async fn test_personalization_limited_dates() {
                     .iter()
                     .map(|document| document.id.as_str())
                     .collect::<HashSet<_>>(),
-                ["d1", "d3", "d4"].into(),
+                ["d1", "d3"].into(),
             );
 
             Ok(())
