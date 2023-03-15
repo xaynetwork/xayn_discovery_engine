@@ -471,8 +471,9 @@ impl Database {
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
         let unchanged = sqlx::query_as::<_, DocumentId>(
-            "UPDATE document SET
-            is_candidate = FALSE
+            "UPDATE document
+            SET is_candidate = FALSE
+            WHERE is_candidate
             RETURNING document_id;",
         )
         .fetch_all(&mut tx)
