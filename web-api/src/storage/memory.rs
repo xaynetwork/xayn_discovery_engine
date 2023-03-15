@@ -375,6 +375,19 @@ impl storage::Document for Storage {
 #[cfg(feature = "ET-4089")]
 #[async_trait(?Send)]
 impl storage::DocumentCandidate for Storage {
+    async fn get(&self) -> Result<Vec<DocumentId>, Error> {
+        let documents = self
+            .documents
+            .read()
+            .await
+            .0
+            .iter()
+            .filter_map(|(id, document)| document.is_candidate.then(|| id.clone()))
+            .collect();
+
+        Ok(documents)
+    }
+
     async fn set(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,

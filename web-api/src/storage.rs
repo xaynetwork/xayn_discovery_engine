@@ -110,6 +110,9 @@ pub(crate) trait Document {
 #[cfg(feature = "ET-4089")]
 #[async_trait(?Send)]
 pub(crate) trait DocumentCandidate {
+    /// Gets the document candidates.
+    async fn get(&self) -> Result<Vec<DocumentId>, Error>;
+
     /// Sets the document candidates and reports failed ids.
     async fn set(
         &self,
