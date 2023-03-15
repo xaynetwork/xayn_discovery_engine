@@ -97,8 +97,8 @@ paths:
     put:
       tags:
         - back office
-      summary: Set the documents considerred for recommendations.
-      description: Set the documents considerred for recommendations.
+      summary: Set the documents considered for recommendations.
+      description: Set the documents considered for recommendations.
       operationId: replaceDocumentCandidates
       requestBody:
         required: true
@@ -339,6 +339,5 @@ components:
         documents:
           type: array
           minItems: 0
-          maxItems: 1e+6
           items:
             $ref: '#/components/schemas/DocumentCandidate'

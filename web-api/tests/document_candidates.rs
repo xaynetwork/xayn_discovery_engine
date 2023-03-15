@@ -14,6 +14,7 @@
 
 #![cfg(feature = "ET-4089")]
 
+use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
@@ -40,6 +41,46 @@ async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
     Ok(())
 }
 
+async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) -> Result<(), Panic> {
+    let request = client
+        .put(url.join("/documents/candidates")?)
+        .json(&json!({ "documents": ids.into_iter().map(|id| json!({ "id": id })).collect_vec() }))
+        .build()?;
+    send_assert(client, request, StatusCode::NO_CONTENT).await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_candidates_all() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        ingest(&client, &url).await?;
+        set(&client, &url, ["d1", "d2", "d3"]).await?;
+        Ok(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn test_candidates_some() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        ingest(&client, &url).await?;
+        set(&client, &url, ["d1", "d3"]).await?;
+        Ok(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn test_candidates_none() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        ingest(&client, &url).await?;
+        set(&client, &url, None).await?;
+        Ok(())
+    })
+    .await;
+}
+
 #[derive(Debug, Deserialize, PartialEq)]
 enum Kind {
     DocumentNotFound,
@@ -56,71 +97,6 @@ enum Details {
 struct Error {
     kind: Kind,
     details: Details,
-}
-
-#[tokio::test]
-async fn test_candidates_all() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
-        ingest(&client, &url).await?;
-        send_assert(
-            &client,
-            client
-                .put(url.join("/documents/candidates")?)
-                .json(&json!({
-                    "documents": [
-                        { "id": "d1" },
-                        { "id": "d2" },
-                        { "id": "d3" }
-                    ]
-                }))
-                .build()?,
-            StatusCode::NO_CONTENT,
-        )
-        .await;
-        Ok(())
-    })
-    .await;
-}
-
-#[tokio::test]
-async fn test_candidates_some() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
-        ingest(&client, &url).await?;
-        send_assert(
-            &client,
-            client
-                .put(url.join("/documents/candidates")?)
-                .json(&json!({
-                    "documents": [
-                        { "id": "d1" },
-                        { "id": "d3" }
-                    ]
-                }))
-                .build()?,
-            StatusCode::NO_CONTENT,
-        )
-        .await;
-        Ok(())
-    })
-    .await;
-}
-
-#[tokio::test]
-async fn test_candidates_none() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
-        ingest(&client, &url).await?;
-        send_assert(
-            &client,
-            client
-                .put(url.join("/documents/candidates")?)
-                .json(&json!({ "documents": [] }))
-                .build()?,
-            StatusCode::NO_CONTENT,
-        )
-        .await;
-        Ok(())
-    })
-    .await;
 }
 
 #[tokio::test]

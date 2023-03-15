@@ -14,3 +14,7 @@
 
 ALTER TABLE document
     ADD COLUMN is_candidate BOOLEAN NOT NULL DEFAULT TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_document_is_candidate
+    ON document (document_id)
+    WHERE is_candidate;
