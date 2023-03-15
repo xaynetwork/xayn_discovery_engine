@@ -37,3 +37,5 @@ uuid = { version = "1.3.0", features = ["serde", "v4"] }
 
 [profile.dev.package.tract-core]
 opt-level = 3
+# extremely slows down tract ^0.19 if enabled for non-trivial onnx models
+debug-assertions = false
