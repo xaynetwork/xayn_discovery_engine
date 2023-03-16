@@ -20,12 +20,9 @@ use std::{
 
 use itertools::Itertools;
 use lindera::{
+    dictionary::DictionaryConfig as JapaneseDictionaryConfig,
     mode::Mode as JapaneseMode,
-    tokenizer::{
-        DictionaryConfig as JapaneseDictionaryConfig,
-        Tokenizer as JapanesePreTokenizer,
-        TokenizerConfig as JapanesePreTokenizerConfig,
-    },
+    tokenizer::{Tokenizer as JapanesePreTokenizer, TokenizerConfig as JapanesePreTokenizerConfig},
 };
 use ndarray::Array2;
 use tokenizers::{
@@ -67,7 +64,7 @@ impl Tokenize for Tokenizer {
             .extract::<String>("pre-tokenizer.path")
             .ok()
             .map(|mecab| {
-                JapanesePreTokenizer::with_config(JapanesePreTokenizerConfig {
+                JapanesePreTokenizer::from_config(JapanesePreTokenizerConfig {
                     dictionary: JapaneseDictionaryConfig {
                         kind: None,
                         path: Some(config.dir.join(mecab)),
@@ -142,7 +139,7 @@ impl Tokenize for Tokenizer {
                 .tokenize(sequence.as_ref())?
                 .into_iter()
                 .map(|token| token.text)
-                .intersperse(" ".into())
+                .intersperse(" ")
                 .collect::<String>()
                 .into()
         } else {

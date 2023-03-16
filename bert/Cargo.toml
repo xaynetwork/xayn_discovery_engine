@@ -10,7 +10,7 @@ derive_more = { workspace = true }
 displaydoc = { workspace = true }
 figment = { workspace = true, features = ["toml"] }
 itertools = { workspace = true }
-lindera = "0.18.0"
+lindera = "0.23.0"
 ndarray = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
