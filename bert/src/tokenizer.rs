@@ -18,7 +18,7 @@ pub mod roberta;
 use derive_more::{Deref, From};
 use ndarray::Array2;
 use tokenizers::Error;
-use tract_onnx::prelude::{tvec, TVec, Tensor};
+use tract_onnx::prelude::{tvec, IntoArcTensor, TValue, TVec};
 
 use crate::config::Config;
 
@@ -42,16 +42,17 @@ impl Encoding {
     }
 }
 
-impl From<Encoding> for TVec<Tensor> {
+impl From<Encoding> for TVec<TValue> {
     fn from(encoding: Encoding) -> Self {
-        if let Some(type_ids) = encoding.type_ids {
-            tvec![
-                encoding.token_ids.into(),
-                encoding.attention_mask.into(),
-                type_ids.into(),
-            ]
+        let token_ids = TValue::Const(encoding.token_ids.into_arc_tensor());
+        let attention_mask = TValue::Const(encoding.attention_mask.into_arc_tensor());
+        if let Some(type_ids) = encoding
+            .type_ids
+            .map(|type_ids| TValue::Const(type_ids.into_arc_tensor()))
+        {
+            tvec![token_ids, attention_mask, type_ids]
         } else {
-            tvec![encoding.token_ids.into(), encoding.attention_mask.into()]
+            tvec![token_ids, attention_mask]
         }
     }
 }

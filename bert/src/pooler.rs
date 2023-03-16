@@ -277,20 +277,9 @@ mod tests {
     use std::f32::consts::SQRT_2;
 
     use ndarray::{arr2, arr3};
-    use tract_onnx::prelude::IntoArcTensor;
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
-
-    #[test]
-    fn t() {
-        assert_approx_eq!(f32, [0.25, 1.25], Embedding::from([0.25, 1.25]));
-        assert_approx_eq!(
-            f32,
-            ndarray::arr1(&[1., 5.]) / 26_f32.sqrt(),
-            NormalizedEmbedding::try_from([0.25, 1.25]).unwrap(),
-        );
-    }
 
     #[test]
     fn test_normalize() {
@@ -312,40 +301,36 @@ mod tests {
 
     #[test]
     fn test_none() {
-        let prediction = arr3::<f32, _, _>(&[[[1., 2., 3.], [4., 5., 6.]]])
-            .into_arc_tensor()
-            .into();
+        let prediction = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into();
         let embedding = NonePooler::pool(&prediction).unwrap();
         assert_approx_eq!(f32, embedding, [[1., 2., 3.], [4., 5., 6.]]);
     }
 
     #[test]
     fn test_first() {
-        let prediction = arr3::<f32, _, _>(&[[[1., 2., 3.], [4., 5., 6.]]])
-            .into_arc_tensor()
-            .into();
+        let prediction = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into();
         let embedding = FirstPooler::pool(&prediction).unwrap();
         assert_approx_eq!(f32, embedding, [1., 2., 3.]);
     }
 
     #[test]
     fn test_average() {
-        let prediction = arr3::<f32, _, _>(&[[[1., 2., 3.], [4., 5., 6.]]]).into_arc_tensor();
+        let prediction = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into();
 
         let mask = arr2(&[[0, 0]]).into();
-        let embedding = AveragePooler::pool(&prediction.clone().into(), &mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
         assert_approx_eq!(f32, embedding, [0., 0., 0.]);
 
         let mask = arr2(&[[0, 1]]).into();
-        let embedding = AveragePooler::pool(&prediction.clone().into(), &mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
         assert_approx_eq!(f32, embedding, [4., 5., 6.]);
 
         let mask = arr2(&[[1, 0]]).into();
-        let embedding = AveragePooler::pool(&prediction.clone().into(), &mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
         assert_approx_eq!(f32, embedding, [1., 2., 3.]);
 
         let mask = arr2(&[[1, 1]]).into();
-        let embedding = AveragePooler::pool(&prediction.into(), &mask).unwrap();
+        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
         assert_approx_eq!(f32, embedding, [2.5, 3.5, 4.5]);
     }
 }

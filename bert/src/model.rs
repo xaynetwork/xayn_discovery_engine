@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{fs::File, io::BufReader, sync::Arc};
+use std::{fs::File, io::BufReader};
 
 use derive_more::{Deref, From};
 use serde::Deserialize;
@@ -21,7 +21,7 @@ use tract_onnx::prelude::{
     InferenceFact,
     InferenceModel,
     InferenceModelExt,
-    Tensor,
+    TValue,
     TractError,
     TypedModel,
     TypedRunnableModel,
@@ -89,7 +89,7 @@ pub(crate) struct Model {
 ///
 /// The prediction is of shape `(1, token_size, embedding_size)`.
 #[derive(Clone, Deref, From)]
-pub(crate) struct Prediction(Arc<Tensor>);
+pub(crate) struct Prediction(TValue);
 
 impl Model {
     /// Creates a model from a configuration.
@@ -110,19 +110,28 @@ impl Model {
     /// Runs prediction on the encoded sequence.
     pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction, TractError> {
         let inputs = encoding.into();
-        let outputs = self.model.run(inputs)?;
+        let mut outputs = self.model.run(inputs)?;
 
-        Ok(outputs[0].clone().into())
+        Ok(outputs.swap_remove(0).into())
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array2;
-    use tract_onnx::prelude::DatumType;
+    use ndarray::{Array, Array2, Dimension};
+    use tract_onnx::prelude::{DatumType, IntoArcTensor};
     use xayn_test_utils::asset::smbert_mocked;
 
     use super::*;
+
+    impl<D> From<Array<f32, D>> for Prediction
+    where
+        D: Dimension,
+    {
+        fn from(array: Array<f32, D>) -> Self {
+            TValue::Const(array.into_arc_tensor()).into()
+        }
+    }
 
     #[test]
     fn test_new() {
