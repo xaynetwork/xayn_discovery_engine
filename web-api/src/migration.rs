@@ -38,7 +38,7 @@ pub struct Config {
 }
 
 pub async fn start() -> Result<(), anyhow::Error> {
-    let config = config::load::<Config>(["XAYN_MIGRATION"]);
+    let config = config::load::<Config>(["XAYN_MIGRATION", "XAYN_WEB_API"]);
 
     init_tracing(&config.logging);
     let storage = config.storage.setup().await?;
