@@ -48,7 +48,7 @@ pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) embedding: &'a NormalizedEmbedding,
     /// The number of documents which will be returned if there are enough fitting documents.
     pub(crate) count: usize,
-    // must be >= k_neighbors
+    // must be >= count
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(crate) min_similarity: Option<f32>,

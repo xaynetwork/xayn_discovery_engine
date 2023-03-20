@@ -62,7 +62,7 @@ async fn test_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
         unchanged_config,
-        |client, ingestion_url, personalization_url, _services| async move {
+        |client, ingestion_url, personalization_url, _| async move {
             ingest(
                 &client,
                 &ingestion_url,
@@ -119,7 +119,7 @@ async fn test_semantic_search_min_similarity() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
         unchanged_config,
-        |client, ingestion_url, personalization_url, _services| async move {
+        |client, ingestion_url, personalization_url, _| async move {
             ingest(
                 &client,
                 &ingestion_url,
@@ -174,7 +174,7 @@ async fn test_semantic_search_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
         unchanged_config,
-        |client, ingestion_url, personalization_url, _services| async move {
+        |client, ingestion_url, personalization_url, _| async move {
             ingest(
                 &client,
                 &ingestion_url,

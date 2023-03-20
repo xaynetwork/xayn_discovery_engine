@@ -473,28 +473,24 @@ async fn semantic_search(
         published_after,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
-    let (embedding, document_id, query) = match document {
+    let mut excluded = if let Some(personalize) = &personalize {
+        personalized_exclusions(&state.storage, state.config.as_ref(), personalize).await?
+    } else {
+        Vec::new()
+    };
+    let (embedding, query) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&state.storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
-            (embedding, Some(id), None)
+            excluded.push(id);
+            (embedding, None)
         }
         InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
-            (embedding, None, Some(query))
+            (embedding, Some(query))
         }
     };
-
-    let mut excluded = if let Some(personalize) = &personalize {
-        personalized_exclusions(&state.storage, state.config.as_ref(), personalize).await?
-    } else {
-        Vec::with_capacity(1)
-    };
-
-    if let Some(document_id) = document_id {
-        excluded.push(document_id);
-    }
 
     let mut documents = storage::Document::get_by_embedding(
         &state.storage,

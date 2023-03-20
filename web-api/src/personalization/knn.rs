@@ -74,10 +74,10 @@ where
                 // fine as number of neighbors is small enough
                 clippy::cast_possible_truncation
             )]
-                let k_neighbors = (weight * self.count as f32).ceil() as usize;
+                let count = (weight * self.count as f32).ceil() as usize;
 
-                if k_neighbors == 0 {
-                    // using k_neighbors 0 in a KNN-search would cause storage to throw.
+                if count == 0 {
+                    // using count 0 in a KNN-search would cause storage to throw.
                     // since the value is 0, we anyway can safely return an empty result set.
                     Ok(Vec::new())
                 } else {
@@ -86,7 +86,7 @@ where
                         KnnSearchParams {
                             excluded: excluded.clone(),
                             embedding: &coi.point,
-                            count: k_neighbors,
+                            count,
                             num_candidates: self.count,
                             published_after: self.published_after,
                             min_similarity: None,
