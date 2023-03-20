@@ -1,0 +1,12 @@
+# https://kerkour.com/rust-small-docker-image
+
+FROM rust:latest AS builder
+RUN update-ca-certificates
+WORKDIR /migration
+COPY ./ .
+RUN CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse cargo build --bin migration --release --features ET-3837
+
+FROM gcr.io/distroless/cc
+WORKDIR /migration
+COPY --from=builder /migration/target/release/migration ./
+ENTRYPOINT ["/migration/migration"]

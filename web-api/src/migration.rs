@@ -29,7 +29,9 @@ use crate::{
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default)]
     logging: logging::Config,
+    #[serde(default)]
     storage: storage::Config,
     n: NonZeroU16,
     t: NonZeroU64,
