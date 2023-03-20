@@ -7,10 +7,10 @@ jobs:
   cargo-format:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v10
+      image: xaynetci/yellow:v11
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
       - name: Setup the CI.
         uses: ./.github/actions/setup-job-docker
@@ -21,10 +21,10 @@ jobs:
   cargo-clippy:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v10
+      image: xaynetci/yellow:v11
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
@@ -35,7 +35,7 @@ jobs:
   cargo-test:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v10
+      image: xaynetci/yellow:v11
     timeout-minutes: 20
     env:
       XAYN_INGESTION__NET__BIND_TO: "127.0.0.1:3030"
@@ -44,7 +44,7 @@ jobs:
       PERSONALIZATION_URI: "http://127.0.0.1:3031"
     services:
       elasticsearch:
-        image: elasticsearch:8.5.3
+        image: elasticsearch:8.6.1
         env:
           "discovery.type": "single-node"
           "xpack.security.enabled": "false"
@@ -54,7 +54,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
       postgres:
-        image: postgres:15.1
+        image: postgres:15.2
         env:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: pw
@@ -65,7 +65,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
@@ -79,10 +79,10 @@ jobs:
   cargo-doc:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v10
+      image: xaynetci/yellow:v11
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker

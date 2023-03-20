@@ -13,11 +13,11 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
       ca-certificates wget curl git zstd gcc libc6-dev \ 
-      nodejs npm postgresql-client; \
+      nodejs npm postgresql-client python3.9 python3-pip; \
     rm -rf /var/lib/apt/lists/*;
 
 # Begin: Rust base
-# Taken from https://github.com/rust-lang/docker-rust/blob/d534735bae832da4c60ddf799a8dfbefa9939020/1.67.0/bullseye/slim/Dockerfile
+# Taken from https://github.com/rust-lang/docker-rust/blob/f558c4c660fd925e278da432640342de993f2bc7/1.68.0/bullseye/slim/Dockerfile
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
@@ -65,4 +65,3 @@ RUN set -eux; \
       @stoplight/spectral-cli@${spectral_cli_version} \
       @ibm-cloud/openapi-ruleset@${ibm_openapi_ruleset_version} \
       validator@${validator_version}
-

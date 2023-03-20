@@ -20,9 +20,9 @@ jobs:
   open-api:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v10
+      image: xaynetci/yellow:v11
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
   
       - name: Validate openapi
         run: just validate-openapi
@@ -31,10 +31,10 @@ jobs:
     if: ${{ always() }}
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v10
+      image: xaynetci/yellow:v11
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
       - name: Check copyright
         run: .github/scripts/copyright.sh
