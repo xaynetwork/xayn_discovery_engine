@@ -168,3 +168,63 @@ async fn test_semantic_search_min_similarity() {
     )
     .await;
 }
+
+#[tokio::test]
+async fn test_semantic_search_with_query() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        unchanged_config,
+        unchanged_config,
+        |client, ingestion_url, personalization_url, _services| async move {
+            ingest(
+                &client,
+                &ingestion_url,
+                &[
+                    IngestedDocument {
+                        id: "d1".into(),
+                        snippet: "this is one sentence which we have".into(),
+                        properties: None,
+                    },
+                    IngestedDocument {
+                        id: "d2".into(),
+                        snippet: "duck duck quack".into(),
+                        properties: Some(json!({ "dodo": 4 })),
+                    },
+                    IngestedDocument {
+                        id: "d3".into(),
+                        snippet: "this is another sentence which we have".into(),
+                        properties: None,
+                    },
+                ],
+            )
+            .await?;
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            if let [first, second, third] = &documents[..] {
+                assert_eq!(first.id, "d1");
+                assert_eq!(second.id, "d3");
+                assert_eq!(third.id, "d2");
+                assert!(first.score > second.score);
+                assert!(second.score > third.score);
+                assert!(first.properties.is_null());
+                assert!(second.properties.is_null());
+                assert_eq!(third.properties, json!({ "dodo": 4 }))
+            } else {
+                panic!("Unexpected number of documents: {documents:?}");
+            }
+
+            Ok(())
+        },
+    )
+    .await;
+}

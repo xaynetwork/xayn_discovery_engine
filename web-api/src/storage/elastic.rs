@@ -320,12 +320,12 @@ impl Client {
         }
         if let Some(query) = params.query {
             let mut filter: Value = filter;
-            //TODO better abstraction outside of PoC
+            //TODO better abstraction/implementation outside of PoC
             let filter_mut = filter.as_object_mut().unwrap()["bool"]
                 .as_object_mut()
                 .unwrap();
-            debug_assert!(!filter_mut.contains_key("match"));
-            filter_mut.insert("match".into(), json!({ "snippet": query }));
+            debug_assert!(!filter_mut.contains_key("must"));
+            filter_mut.insert("must".into(), json!({ "match": { "snippet": query }}));
             let body_mut = body.as_object_mut()
                 .unwrap(/* we just created it as object */);
             debug_assert!(!body_mut.contains_key("bool"));
