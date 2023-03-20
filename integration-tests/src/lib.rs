@@ -185,6 +185,9 @@ where
     let pg_url = services.postgres.as_str();
 
     let mut config = toml! {
+        [logging]
+        level = "warn"
+
         [storage.postgres]
         base_url = pg_url
 
