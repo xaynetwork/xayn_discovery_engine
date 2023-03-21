@@ -122,7 +122,7 @@ build-ingestion-service:
     cargo build --release --bin ingestion
 
 web-dev-up:
-    #!/usr/bin/env -S bash -eux -o pipefail
+    #!/usr/bin/env -S bash -eu -o pipefail
     PROJECT=web-dev
     # -gt 1 because of the heading
     if [[ "$(docker ps --filter "label=com.docker.compose.project=$PROJECT" | wc -l)" -gt 1 ]]; then
@@ -137,7 +137,7 @@ web-dev-up:
     docker-compose -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
 
 web-dev-down:
-    #!/usr/bin/env -S bash -eux -o pipefail
+    #!/usr/bin/env -S bash -eu -o pipefail
     docker-compose -p web-dev -f "./web-api/compose.db.yml" down
 
 build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
@@ -219,7 +219,7 @@ _test-generate-id:
     #!/usr/bin/env -S bash -eu -o pipefail
     echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
 
-_test-create-dbs $TEST_ID:
+_test-create-dbs test_id:
     #!/usr/bin/env -S bash -eu -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
         PG_HOST="postgres:5432"
@@ -229,15 +229,15 @@ _test-create-dbs $TEST_ID:
         ES_HOST="localhost:3092"
     fi
     PG_BASE="postgresql://user:pw@${PG_HOST}"
-    ES_URL="http://${ES_HOST}/${TEST_ID}"
+    ES_URL="http://${ES_HOST}/{{test_id}}"
 
-    psql -c "CREATE DATABASE ${TEST_ID};" "${PG_BASE}/xayn" 1>&2
+    psql -q -c "CREATE DATABASE {{test_id}};" "${PG_BASE}/xayn" 1>&2
     ./web-api/elastic-search/create_es_index.sh "${ES_URL}"
 
-    echo "PG_URL=${PG_BASE}/${TEST_ID}"
+    echo "PG_URL=${PG_BASE}/{{test_id}}"
     echo "ES_URL=${ES_URL}"
 
-_test-drop-dbs $TEST_ID:
+_test-drop-dbs test_id:
     #!/usr/bin/env -S bash -eu -o pipefail
     if [[ "${CI:-false}" == "true" ]]; then
         PG_HOST="postgres:5432"
@@ -247,8 +247,8 @@ _test-drop-dbs $TEST_ID:
         ES_HOST="localhost:3092"
     fi
 
-    psql -c "DROP DATABASE ${TEST_ID};" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
-    curl -sf -X DELETE "http://${ES_HOST}/${TEST_ID}"
+    psql -q -c "DROP DATABASE {{test_id}};" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
+    curl -sf -X DELETE "http://${ES_HOST}/{{test_id}}"
 
 alias r := rust-test
 alias t := test

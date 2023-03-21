@@ -13,6 +13,6 @@ while ! curl -sf -X OPTIONS "${URL}" ; do
     sleep 1;
 done;
 
-curl -if -X PUT "${URL}?pretty" \
+curl -isf -X PUT "${URL}?pretty" \
     -H 'Content-Type: application/json' \
     -d @mapping.json
