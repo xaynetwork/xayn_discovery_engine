@@ -37,8 +37,8 @@ use sqlx::{
     Transaction,
 };
 #[cfg(feature = "ET-3837")]
-use tracing::{debug, error};
-use tracing::{info, instrument, warn};
+use tracing::debug;
+use tracing::{error, info, instrument, warn};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
@@ -136,6 +136,24 @@ impl Config {
         let options = self.build_connection_options()?;
         info!("starting postgres setup");
         let pool = PoolOptions::new().connect_with(options).await?;
+
+        match sqlx::query::<Postgres>(
+            "UPDATE _sqlx_migrations
+            SET checksum = decode('80482d7c5870ce78cbd73c39d498f6375fe260fde7b594085200aa2058c886a19e2de188a7799b202d0fe2c040460c97', 'hex')
+            WHERE version = 20230216164200;"
+        ).execute(&pool).await {
+            Ok(result) => {
+                let updated = result.rows_affected();
+                if updated == 1 {
+                    info!("updated migrations history");
+                } else {
+                    error!(updated, "failed to update migrations history");
+                }
+            }
+            Err(sqlx::Error::Database(error)) => info!(?error, "migrations history doesn't exist"),
+            Err(error) => return Err(error),
+        }
+
         if !self.skip_migrations {
             sqlx::migrate!().run(&pool).await?;
         }
