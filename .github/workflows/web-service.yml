@@ -6,6 +6,11 @@ on:
       tag:
         required: false
         description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_web_service:$TAG)
+      features:
+        required: false
+        type: string
+        default: ""
+        description: a comma-separated list of features that will be used to compile this version with
 
 permissions:
   contents: read
@@ -27,7 +32,7 @@ jobs:
         uses: ./.github/actions/setup-job-docker
 
       - name: Build artifacts
-        run: just build-web-service
+        run: just build-web-service ${{ github.event.inputs.features }}
 
       - name: Download assets
         run: just download-assets
