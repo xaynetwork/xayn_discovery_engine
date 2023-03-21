@@ -137,8 +137,17 @@ impl Config {
         info!("starting postgres setup");
         let pool = PoolOptions::new().connect_with(options).await?;
         if !self.skip_migrations {
-            sqlx::migrate!().run(&pool).await?;
+            let mut migrator = sqlx::migrate!();
+            migrator.run(&pool).await?;
+            migrator.undo(&pool, 20_221_214_154_900).await?;
+            migrator
+                .migrations
+                .to_mut()
+                .last_mut()
+                .replace(&mut sqlx::migrate!("./migrations_ET_3837").migrations.to_mut()[0]);
+            migrator.run(&pool).await?;
         }
+
         Ok(Database { pool })
     }
 }

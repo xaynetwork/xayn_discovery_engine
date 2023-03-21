@@ -111,15 +111,15 @@ download-assets:
     cd {{justfile_directory()}}/.github/scripts
     ./download_assets.sh
 
-build-web-service:
+build-web-service features="":
     #!/usr/bin/env bash
     set -eux -o pipefail
-    cargo build --release --bin personalization
+    cargo build --release --bin personalization --features "{{features}}"
 
-build-ingestion-service:
+build-ingestion-service features="":
     #!/usr/bin/env -S bash -eux -o pipefail
     set -eux -o pipefail
-    cargo build --release --bin ingestion
+    cargo build --release --bin ingestion --features "{{features}}"
 
 web-dev-up:
     #!/usr/bin/env -S bash -eu -o pipefail
