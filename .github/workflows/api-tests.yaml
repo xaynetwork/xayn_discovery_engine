@@ -39,8 +39,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
       - name: Download assets
         run: just download-assets
@@ -58,14 +57,12 @@ jobs:
 
       - name: Build Ingestion
         run: |
-          cd web-api
           cargo run --release --bin ingestion -- --bind-to $INGESTION_URI &
           .github/scripts/wait_for_it.sh $INGESTION_URI -t 60 -- echo "Ingestion service is up and running"
 
 
       - name: Build Personalization
         run: |
-          cd web-api
           cargo run --release --bin personalization -- --bind-to $XAYN_PERSONALIZATION__NET__BIND_TO &
           .github/scripts/wait_for_it.sh $XAYN_PERSONALIZATION__NET__BIND_TO -t 60 -- echo "Personalization service is up and running"
 
