@@ -43,17 +43,14 @@ use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::{InteractionUpdateContext, TagWeights};
+#[cfg(feature = "ET-3837")]
+use crate::models::{DocumentProperties, IngestedDocument};
 use crate::{
     error::common::DocumentIdAsObject,
     models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
     storage::{self, utils::SqlxPushTupleExt, DeletionError, Storage},
     utils::serialize_redacted,
     Error,
-};
-#[cfg(feature = "ET-3837")]
-use crate::{
-    error::common::DocumentNotFound,
-    models::{DocumentProperties, IngestedDocument},
 };
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -539,11 +536,18 @@ impl Storage {
         .fetch_all(&mut tx)
         .await?;
         let all_migrated = ids.is_empty();
-        let migrated = if all_migrated {
-            Vec::new()
-        } else {
+
+        if !all_migrated {
             let unmigrated = self.elastic.get_unmigrated(&ids).await?;
-            QueryBuilder::new(
+            if unmigrated.len() < ids.len() {
+                warn!(
+                    pg = ids.len(),
+                    es = unmigrated.len(),
+                    "Failed to get some documents from es",
+                );
+            }
+
+            let migrated = QueryBuilder::new(
                 "INSERT INTO document (document_id, snippet, properties, tags, embedding) ",
             )
             .push_values(&unmigrated, |mut builder, document| {
@@ -566,18 +570,30 @@ impl Storage {
             .persistent(false)
             .try_map(|row| DocumentId::from_row(&row))
             .fetch_all(&mut tx)
-            .await?
+            .await?;
+
+            if migrated.len() < ids.len() {
+                let removed = ids
+                    .iter()
+                    .collect::<HashSet<_>>()
+                    .difference(&migrated.iter().collect::<HashSet<_>>())
+                    .copied()
+                    .cloned()
+                    .collect_vec();
+                QueryBuilder::new("DELETE FROM document WHERE document_id IN ")
+                    .push_tuple(&removed)
+                    .build()
+                    .execute(&mut tx)
+                    .await?;
+                warn!(expected = ?ids, actual = ?migrated, ?removed, "Failed to migrate some documents: ids are in pg but not in es");
+            } else {
+                debug!(?ids, "Migrated {} documents", ids.len());
+            }
         };
 
         tx.commit().await?;
 
-        if migrated.len() < ids.len() {
-            error!(expected = ?ids, actual = ?migrated, "Failed to migrate some documents");
-            Err(DocumentNotFound.into())
-        } else {
-            debug!(?ids, "Migrated {} documents", ids.len());
-            Ok(all_migrated)
-        }
+        Ok(all_migrated)
     }
 }
 

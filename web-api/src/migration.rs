@@ -29,14 +29,16 @@ use crate::{
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default)]
     logging: logging::Config,
+    #[serde(default)]
     storage: storage::Config,
     n: NonZeroU16,
     t: NonZeroU64,
 }
 
 pub async fn start() -> Result<(), anyhow::Error> {
-    let config = config::load::<Config>(["XAYN_MIGRATION"]);
+    let config = config::load::<Config>(["XAYN_MIGRATION", "XAYN_WEB_API"]);
 
     init_tracing(&config.logging);
     let storage = config.storage.setup().await?;
