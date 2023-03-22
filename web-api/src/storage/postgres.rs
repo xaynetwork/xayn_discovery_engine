@@ -539,6 +539,14 @@ impl Storage {
 
         if !all_migrated {
             let unmigrated = self.elastic.get_unmigrated(&ids).await?;
+            if unmigrated.len() < ids.len() {
+                warn!(
+                    pg = ids.len(),
+                    es = unmigrated.len(),
+                    "Failed to get some documents from es",
+                );
+            }
+
             let migrated = QueryBuilder::new(
                 "INSERT INTO document (document_id, snippet, properties, tags, embedding) ",
             )

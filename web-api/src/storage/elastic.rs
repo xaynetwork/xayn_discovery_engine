@@ -222,7 +222,7 @@ impl Client {
 
     pub(super) async fn get_interacted(
         &self,
-        ids: impl Serialize,
+        ids: &[DocumentId],
     ) -> Result<Vec<models::InteractedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
         let body = Some(json!({
@@ -231,6 +231,7 @@ impl Client {
                     "values": ids
                 }
             },
+            "size": ids.len(),
             "_source": ["embedding", "tags"]
         }));
 
@@ -246,7 +247,7 @@ impl Client {
 
     pub(super) async fn get_personalized(
         &self,
-        ids: impl Serialize,
+        ids: &[DocumentId],
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-ids-query.html
         let body = Some(json!({
@@ -255,6 +256,7 @@ impl Client {
                     "values": ids
                 }
             },
+            "size": ids.len(),
             "_source": ["properties", "embedding", "tags"]
         }));
 
@@ -418,7 +420,7 @@ impl Client {
     #[cfg(feature = "ET-3837")]
     pub(super) async fn get_unmigrated(
         &self,
-        ids: impl Serialize,
+        ids: &[DocumentId],
     ) -> Result<Vec<super::postgres::UnmigratedDocument>, Error> {
         let body = Some(json!({
             "query": {
@@ -426,6 +428,7 @@ impl Client {
                     "values": ids
                 }
             },
+            "size": ids.len(),
             "_source": ["snippet", "properties", "tags", "embedding"]
         }));
 
@@ -569,7 +572,7 @@ impl Storage {
             self.postgres.documents_exist(ids).await?
         };
 
-        self.elastic.get_interacted(values).await
+        self.elastic.get_interacted(&values).await
     }
 
     pub(crate) async fn get_personalized_with_transaction(
@@ -589,7 +592,7 @@ impl Storage {
             self.postgres.documents_exist(ids).await?
         };
 
-        self.elastic.get_personalized(values).await
+        self.elastic.get_personalized(&values).await
     }
 }
 
