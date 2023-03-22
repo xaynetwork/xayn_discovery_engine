@@ -11,12 +11,13 @@ jobs:
       image: xaynetci/yellow:v11
     timeout-minutes: 20
     env:
+      INGESTION_URI: "https://127.0.0.1:3030/test_index"
       XAYN_INGESTION__NET__BIND_TO: "127.0.0.1:3030"
+      PERSONALIZATION_URI: "http://127.0.1.1:3031"
       XAYN_PERSONALIZATION__NET__BIND_TO: "127.0.0.1:3031"
       XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL: "postgresql://user:pw@postgres/xayn"
+      XAYN_WEB_API__STORAGE__ELASTIC__URL: "http://elasticsearch:9200"
       XAYN_WEB_API__STORAGE__ELASTIC__INDEX_NAME: "test_index"
-      PERSONALIZATION_URI: "http://127.0.1.1:3031"
-      INGESTION_URI: "https://127.0.0.1:3030/test_index"
     services:
       elasticsearch:
         image: elasticsearch:8.5.3
@@ -56,7 +57,7 @@ jobs:
 
       - name: Setup ES index
         run: |
-          ./web-api/elastic-search/create_es_index.sh "$INGESTION_URI"
+          ./web-api/elastic-search/create_es_index.sh "$XAYN_WEB_API__STORAGE__ELASTIC__URL/$XAYN_WEB_API__STORAGE__ELASTIC__INDEX_NAME"
 
       - name: Build Ingestion
         run: |
