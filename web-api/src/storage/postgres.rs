@@ -63,7 +63,7 @@ use crate::{
         UserId,
         UserInteractionType,
     },
-    storage::{self, utils::SqlxPushTupleExt, Storage},
+    storage::{self, utils::SqlxPushTupleExt, Storage, Warning},
     utils::serialize_redacted,
     Error,
 };
@@ -268,7 +268,7 @@ impl Database {
     pub(super) async fn delete_documents(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let mut tx = self.pool.begin().await?;
 
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
@@ -308,7 +308,7 @@ impl Database {
     async fn delete_documents(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<(Vec<DocumentId>, Vec<DocumentId>), Error> {
+    ) -> Result<(Vec<DocumentId>, Warning<DocumentId>), Error> {
         let mut tx = self.pool.begin().await?;
 
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
@@ -717,7 +717,10 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
-    async fn insert(&self, mut documents: Vec<IngestedDocument>) -> Result<Vec<DocumentId>, Error> {
+    async fn insert(
+        &self,
+        mut documents: Vec<IngestedDocument>,
+    ) -> Result<Warning<DocumentId>, Error> {
         self.postgres.insert_documents(&documents).await?;
         documents.retain(|document| document.is_candidate);
         self.elastic.insert_documents(&documents).await
@@ -726,7 +729,7 @@ impl storage::Document for Storage {
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let (candidates, mut failed_documents) = self.postgres.delete_documents(ids).await?;
         failed_documents.extend(self.elastic.delete_documents(&candidates).await?);
 

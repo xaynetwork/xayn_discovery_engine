@@ -54,7 +54,7 @@ use crate::{
         UserId,
         UserInteractionType,
     },
-    storage::{self, KnnSearchParams},
+    storage::{self, KnnSearchParams, Warning},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -323,9 +323,12 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
-    async fn insert(&self, new_documents: Vec<IngestedDocument>) -> Result<Vec<DocumentId>, Error> {
+    async fn insert(
+        &self,
+        new_documents: Vec<IngestedDocument>,
+    ) -> Result<Warning<DocumentId>, Error> {
         if new_documents.is_empty() {
-            return Ok(Vec::new());
+            return Ok(Warning::default());
         }
 
         let mut documents = self.documents.write().await;
@@ -345,13 +348,13 @@ impl storage::Document for Storage {
         }
         documents.1 = Embeddings::borrowed(embeddings);
 
-        Ok(Vec::new())
+        Ok(Warning::default())
     }
 
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let mut documents = self.documents.write().await;
         let mut interactions = self.interactions.write().await;
 

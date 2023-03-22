@@ -22,6 +22,7 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
@@ -53,6 +54,30 @@ pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) time: DateTime<Utc>,
 }
 
+#[derive(Debug, Deref, DerefMut, From)]
+pub(crate) struct Warning<T>(Vec<T>);
+
+impl<T> Default for Warning<T> {
+    fn default() -> Self {
+        Vec::default().into()
+    }
+}
+
+impl<T> IntoIterator for Warning<T> {
+    type Item = <Vec<T> as IntoIterator>::Item;
+    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<T> FromIterator<T> for Warning<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Vec::from_iter(iter).into()
+    }
+}
+
 #[async_trait(?Send)]
 pub(crate) trait Document {
     async fn get_interacted(
@@ -73,13 +98,13 @@ pub(crate) trait Document {
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     /// Inserts the documents and reports failed ids.
-    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Vec<DocumentId>, Error>;
+    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Warning<DocumentId>, Error>;
 
     /// Deletes the documents and reports failed ids.
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<DocumentId>, Error>;
+    ) -> Result<Warning<DocumentId>, Error>;
 }
 
 #[async_trait]

@@ -44,7 +44,7 @@ use crate::{
         DocumentPropertyId,
         DocumentTag,
     },
-    storage::KnnSearchParams,
+    storage::{KnnSearchParams, Warning},
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
 };
@@ -347,10 +347,10 @@ impl Client {
         documents: impl IntoIterator<
             IntoIter = impl ExactSizeIterator<Item = &models::IngestedDocument>,
         >,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let documents = documents.into_iter();
         if documents.len() == 0 {
-            return Ok(Vec::new());
+            return Ok(Warning::default());
         }
 
         self.bulk_request(documents.flat_map(|document| {
@@ -367,21 +367,21 @@ impl Client {
             ]
         }))
         .await
-        .map(|response| response.failed_documents("index", false))
+        .map(|response| response.failed_documents("index", false).into())
     }
 
     pub(super) async fn delete_documents(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let ids = ids.into_iter();
         if ids.len() == 0 {
-            return Ok(Vec::new());
+            return Ok(Warning::default());
         }
 
         self.bulk_request(ids.map(|id| Ok(BulkInstruction::Delete { id })))
             .await
-            .map(|response| response.failed_documents("delete", true))
+            .map(|response| response.failed_documents("delete", true).into())
     }
 
     pub(super) async fn insert_document_properties(
@@ -552,7 +552,7 @@ impl storage::Document for Storage {
     async fn insert(
         &self,
         documents: Vec<models::IngestedDocument>,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let failed_documents = self.elastic.insert_documents(&documents).await?;
         let ids = failed_documents.iter().cloned().collect::<HashSet<_>>();
         self.postgres
@@ -569,7 +569,7 @@ impl storage::Document for Storage {
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<DocumentId>, Error> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let ids = ids.into_iter();
         let mut failed_documents = self.postgres.delete_documents(ids.clone()).await?;
         failed_documents.extend(self.elastic.delete_documents(ids).await?);
