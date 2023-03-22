@@ -247,7 +247,7 @@ _test-drop-dbs test_id:
         ES_HOST="localhost:3092"
     fi
 
-    psql -q -c "DROP DATABASE {{test_id}};" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
+    psql -q -c "DROP DATABASE {{test_id}} WITH (FORCE);" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
     curl -sf -X DELETE "http://${ES_HOST}/{{test_id}}"
 
 alias r := rust-test
