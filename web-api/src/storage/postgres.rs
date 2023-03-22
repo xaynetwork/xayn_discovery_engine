@@ -48,8 +48,6 @@ use xayn_ai_coi::{
 };
 
 use super::{InteractionUpdateContext, TagWeights};
-#[cfg(feature = "ET-4089")]
-use crate::storage::KnnSearchParams;
 use crate::{
     models::{
         DocumentId,
@@ -63,7 +61,7 @@ use crate::{
         UserId,
         UserInteractionType,
     },
-    storage::{self, utils::SqlxPushTupleExt, Storage, Warning},
+    storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
     utils::serialize_redacted,
     Error,
 };
@@ -160,7 +158,6 @@ pub(crate) struct Database {
     pool: Pool<Postgres>,
 }
 
-#[cfg(feature = "ET-4089")]
 #[derive(FromRow)]
 struct QueriedDeletedDocument {
     document_id: DocumentId,
@@ -182,7 +179,6 @@ struct QueriedPersonalizedDocument {
     embedding: NormalizedEmbedding,
 }
 
-#[cfg(feature = "ET-4089")]
 #[derive(FromRow)]
 struct QueriedCandidateDocument {
     document_id: DocumentId,
@@ -219,9 +215,6 @@ impl Database {
         let mut tx = self.pool.begin().await?;
 
         let mut builder = QueryBuilder::new(
-            #[cfg(not(feature = "ET-4089"))]
-            "INSERT INTO document (document_id, snippet, properties, tags, embedding) ",
-            #[cfg(feature = "ET-4089")]
             "INSERT INTO document (
                 document_id,
                 snippet,
@@ -243,19 +236,11 @@ impl Database {
                             .push_bind(&document.snippet)
                             .push_bind(Json(&document.properties))
                             .push_bind(&document.tags)
-                            .push_bind(&document.embedding);
-                        #[cfg(feature = "ET-4089")]
-                        builder.push_bind(document.is_candidate);
+                            .push_bind(&document.embedding)
+                            .push_bind(document.is_candidate);
                     },
                 )
                 .push(
-                    #[cfg(not(feature = "ET-4089"))]
-                    " ON CONFLICT (document_id) DO UPDATE SET
-                        snippet = EXCLUDED.snippet,
-                        properties = EXCLUDED.properties,
-                        tags = EXCLUDED.tags,
-                        embedding = EXCLUDED.embedding;",
-                    #[cfg(feature = "ET-4089")]
                     " ON CONFLICT (document_id) DO UPDATE SET
                         snippet = EXCLUDED.snippet,
                         properties = EXCLUDED.properties,
@@ -274,47 +259,6 @@ impl Database {
         Ok(())
     }
 
-    #[cfg(not(feature = "ET-4089"))]
-    pub(super) async fn delete_documents(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Warning<DocumentId>, Error> {
-        let mut tx = self.pool.begin().await?;
-
-        let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
-        let all = ids.into_iter();
-        let mut deleted = Vec::with_capacity(all.len());
-        let mut ids = all.clone().peekable();
-        while ids.peek().is_some() {
-            deleted.extend(
-                builder
-                    .reset()
-                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id;")
-                    .build()
-                    .persistent(false)
-                    .try_map(|row| DocumentId::from_row(&row))
-                    .fetch_all(&mut tx)
-                    .await?,
-            );
-        }
-
-        tx.commit().await?;
-
-        let failed = (deleted.len() < all.len())
-            .then(|| {
-                all.collect::<HashSet<_>>()
-                    .difference(&deleted.iter().collect::<HashSet<_>>())
-                    .copied()
-                    .cloned()
-                    .collect()
-            })
-            .unwrap_or_default();
-
-        Ok(failed)
-    }
-
-    #[cfg(feature = "ET-4089")]
     async fn delete_documents(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
@@ -462,7 +406,6 @@ impl Database {
             .map_err(Into::into)
     }
 
-    #[cfg(feature = "ET-4089")]
     async fn set_candidates(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
@@ -719,44 +662,6 @@ impl Database {
     }
 }
 
-#[cfg(not(feature = "ET-4089"))]
-impl Storage {
-    pub(super) async fn get_interacted(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<InteractedDocument>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
-        let documents = Database::get_interacted(&mut tx, ids).await?;
-        tx.commit().await?;
-
-        Ok(documents)
-    }
-
-    pub(super) async fn get_personalized(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
-    ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
-        let documents = Database::get_personalized(&mut tx, ids, scores).await?;
-        tx.commit().await?;
-
-        Ok(documents)
-    }
-
-    pub(super) async fn get_embedding(
-        &self,
-        id: &DocumentId,
-    ) -> Result<Option<NormalizedEmbedding>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
-        let embedding = Database::get_embedding(&mut tx, id).await?;
-        tx.commit().await?;
-
-        Ok(embedding)
-    }
-}
-
-#[cfg(feature = "ET-4089")]
 #[async_trait(?Send)]
 impl storage::Document for Storage {
     async fn get_interacted(
@@ -823,7 +728,6 @@ impl storage::Document for Storage {
     }
 }
 
-#[cfg(feature = "ET-4089")]
 #[async_trait(?Send)]
 impl storage::DocumentCandidate for Storage {
     async fn get(&self) -> Result<Vec<DocumentId>, Error> {

@@ -77,7 +77,6 @@ impl State {
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory],
                     embedding,
-                    #[cfg(feature = "ET-4089")]
                     is_candidate: true,
                 })
             })
@@ -108,7 +107,6 @@ impl State {
                     properties: document.properties,
                     tags: document.tags,
                     embedding,
-                    #[cfg(feature = "ET-4089")]
                     is_candidate: true,
                 }
             })

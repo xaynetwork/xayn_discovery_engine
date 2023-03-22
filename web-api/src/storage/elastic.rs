@@ -13,11 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-#[cfg(not(feature = "ET-4089"))]
-use std::collections::HashSet;
 
-#[cfg(not(feature = "ET-4089"))]
-use async_trait::async_trait;
 use itertools::Itertools;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
@@ -31,8 +27,6 @@ use serde_json::{json, Value};
 use tracing::error;
 use xayn_ai_bert::NormalizedEmbedding;
 
-#[cfg(not(feature = "ET-4089"))]
-use crate::storage::{self, Storage};
 use crate::{
     app::SetupError,
     error::common::InternalError,
@@ -384,7 +378,6 @@ impl Client {
             .map(|response| response.failed_documents("delete", true).into())
     }
 
-    #[cfg(feature = "ET-4089")]
     pub(super) async fn retain_documents(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
@@ -541,63 +534,4 @@ struct IngestedDocument<'a> {
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
     tags: &'a [DocumentTag],
-}
-
-#[cfg(not(feature = "ET-4089"))]
-#[async_trait(?Send)]
-impl storage::Document for Storage {
-    async fn get_interacted(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<models::InteractedDocument>, Error> {
-        self.get_interacted(ids).await
-    }
-
-    async fn get_personalized(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<models::PersonalizedDocument>, Error> {
-        self.get_personalized(ids, |_| Some(1.0)).await
-    }
-
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        self.get_embedding(id).await
-    }
-
-    async fn get_by_embedding<'a>(
-        &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
-    ) -> Result<Vec<models::PersonalizedDocument>, Error> {
-        let scores = self.elastic.get_by_embedding(params).await?;
-        self.get_personalized(scores.keys(), |id| scores.get(id).copied())
-            .await
-    }
-
-    async fn insert(
-        &self,
-        documents: Vec<models::IngestedDocument>,
-    ) -> Result<Warning<DocumentId>, Error> {
-        let failed_documents = self.elastic.insert_documents(&documents).await?;
-        let ids = failed_documents.iter().cloned().collect::<HashSet<_>>();
-        self.postgres
-            .insert_documents(
-                documents
-                    .iter()
-                    .filter(|document| !ids.contains(&document.id)),
-            )
-            .await?;
-
-        Ok(failed_documents)
-    }
-
-    async fn delete(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Warning<DocumentId>, Error> {
-        let ids = ids.into_iter();
-        let mut failed_documents = self.postgres.delete_documents(ids.clone()).await?;
-        failed_documents.extend(self.elastic.delete_documents(ids).await?);
-
-        Ok(failed_documents)
-    }
 }

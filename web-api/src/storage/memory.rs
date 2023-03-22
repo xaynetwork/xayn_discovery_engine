@@ -61,7 +61,6 @@ use crate::{
 struct Document {
     properties: DocumentProperties,
     tags: Vec<DocumentTag>,
-    #[cfg(feature = "ET-4089")]
     is_candidate: bool,
 }
 
@@ -340,7 +339,6 @@ impl storage::Document for Storage {
                 Document {
                     properties: document.properties,
                     tags: document.tags,
-                    #[cfg(feature = "ET-4089")]
                     is_candidate: document.is_candidate,
                 },
             );
@@ -372,7 +370,6 @@ impl storage::Document for Storage {
     }
 }
 
-#[cfg(feature = "ET-4089")]
 #[async_trait(?Send)]
 impl storage::DocumentCandidate for Storage {
     async fn get(&self) -> Result<Vec<DocumentId>, Error> {
@@ -657,7 +654,6 @@ mod tests {
                 properties: DocumentProperties::default(),
                 tags: Vec::new(),
                 embedding,
-                #[cfg(feature = "ET-4089")]
                 is_candidate: true,
             })
             .collect_vec();
@@ -723,7 +719,6 @@ mod tests {
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
                 embedding: embedding.clone(),
-                #[cfg(feature = "ET-4089")]
                 is_candidate: true,
             }],
         )

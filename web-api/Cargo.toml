@@ -51,6 +51,3 @@ toml = { workspace = true }
 trycmd = "0.14.14"
 xayn-integration-tests = { path = "../integration-tests" }
 xayn-test-utils = { path = "../test-utils" }
-
-[features]
-ET-4089 = []
