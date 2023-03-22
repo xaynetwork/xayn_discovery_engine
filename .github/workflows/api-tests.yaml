@@ -11,10 +11,12 @@ jobs:
       image: xaynetci/yellow:v11
     timeout-minutes: 20
     env:
-      INGESTION_URI: "127.0.0.1:3030"
-      XAYN_PERSONALIZATION__NET__BIND_TO: "127.0.1.1:3031"
-      PERSONALIZATION_URI: "http://127.0.1.1:3031"
+      XAYN_INGESTION__NET__BIND_TO: "127.0.0.1:3030"
+      XAYN_PERSONALIZATION__NET__BIND_TO: "127.0.0.1:3031"
       XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL: "postgresql://user:pw@postgres/xayn"
+      XAYN_WEB_API__STORAGE__ELASTIC__INDEX_NAME: "test_index"
+      PERSONALIZATION_URI: "http://127.0.1.1:3031"
+      INGESTION_URI: "https://127.0.0.1:3030/test_index"
     services:
       elasticsearch:
         image: elasticsearch:8.5.3
@@ -52,18 +54,19 @@ jobs:
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./assets/vocab.txt
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/model.onnx ./assets/model.onnx
 
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@f03ac48505955848960e80bbb68046aa35c7b9e7
+      - name: Setup ES index
+        run: |
+          ./web-api/elastic-search/create_es_index.sh "$INGESTION_URI"
 
       - name: Build Ingestion
         run: |
-          cargo run --release --bin ingestion -- --bind-to $INGESTION_URI &
-          .github/scripts/wait_for_it.sh $INGESTION_URI -t 60 -- echo "Ingestion service is up and running"
+          cargo run --release --bin ingestion -- &
+          .github/scripts/wait_for_it.sh $XAYN_INGESTION__NET__BIND_TO -t 60 -- echo "Ingestion service is up and running"
 
 
       - name: Build Personalization
         run: |
-          cargo run --release --bin personalization -- --bind-to $XAYN_PERSONALIZATION__NET__BIND_TO &
+          cargo run --release --bin personalization &
           .github/scripts/wait_for_it.sh $XAYN_PERSONALIZATION__NET__BIND_TO -t 60 -- echo "Personalization service is up and running"
 
 
