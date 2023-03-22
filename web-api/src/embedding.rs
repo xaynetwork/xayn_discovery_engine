@@ -57,9 +57,9 @@ impl Embedder {
         let path = config.directory.relative();
         if !path.exists() {
             bail!(
-              "Fail to load Embedder: asset dir missing :: {}; pwd: {}",
-               path.display(),
-               std::env::current_dir().unwrap().display(),
+                "Fail to load Embedder: asset dir missing :: {}; pwd: {}",
+                path.display(),
+                std::env::current_dir().unwrap().display(),
             );
         }
         let config_file = path.join("config.toml");

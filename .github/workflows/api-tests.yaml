@@ -47,7 +47,7 @@ jobs:
 
       - name: Prepare temp directory
         run: |
-          cd web-api 
+          cd web-api
           mkdir -p assets
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/config.toml ./assets/config.toml
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./assets/vocab.txt
@@ -60,15 +60,15 @@ jobs:
         run: |
           cd web-api
           cargo run --release --bin ingestion -- --bind-to $INGESTION_URI &
-          ./wait-for-it.sh -t 60 $INGESTION_URI -- echo "Ingestion service is up and running"
+          .github/scripts/wait_for_it.sh $INGESTION_URI -t 60 -- echo "Ingestion service is up and running"
 
 
       - name: Build Personalization
         run: |
           cd web-api
           cargo run --release --bin personalization -- --bind-to $XAYN_PERSONALIZATION__NET__BIND_TO &
-          ./wait-for-it.sh -t 60 $XAYN_PERSONALIZATION__NET__BIND_TO -- echo "Personalization service is up and running"
-      
+          .github/scripts/wait_for_it.sh $XAYN_PERSONALIZATION__NET__BIND_TO -t 60 -- echo "Personalization service is up and running"
+
 
 #      - name: Run pytest
 #        run: |
