@@ -40,8 +40,6 @@ mod error;
 mod ingestion;
 mod logging;
 mod middleware;
-#[cfg(feature = "ET-3837")]
-pub mod migration;
 #[cfg(test)]
 mod mind;
 mod models;

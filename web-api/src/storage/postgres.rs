@@ -12,10 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-#[cfg(feature = "ET-3837")]
-use std::num::NonZeroU16;
 use std::{
     collections::{HashMap, HashSet},
+    slice,
     time::Duration,
 };
 
@@ -23,12 +22,13 @@ use async_trait::async_trait;
 use itertools::Itertools;
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
-#[cfg(feature = "ET-3837")]
-use sqlx::types::Json;
 use sqlx::{
     pool::PoolOptions,
     postgres::PgConnectOptions,
-    types::chrono::{DateTime, Utc},
+    types::{
+        chrono::{DateTime, Utc},
+        Json,
+    },
     Executor,
     FromRow,
     Pool,
@@ -36,18 +36,32 @@ use sqlx::{
     QueryBuilder,
     Transaction,
 };
-#[cfg(feature = "ET-3837")]
-use tracing::debug;
-use tracing::{error, info, instrument, warn};
+use tracing::{info, instrument, warn};
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
+use xayn_ai_coi::{
+    nan_safe_f32_cmp_desc,
+    CoiId,
+    CoiStats,
+    NegativeCoi,
+    PositiveCoi,
+    UserInterests,
+};
 
 use super::{InteractionUpdateContext, TagWeights};
-#[cfg(feature = "ET-3837")]
-use crate::models::{DocumentProperties, IngestedDocument};
 use crate::{
     error::common::DocumentIdAsObject,
-    models::{DocumentId, DocumentTag, InteractedDocument, UserId, UserInteractionType},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentTag,
+        IngestedDocument,
+        InteractedDocument,
+        PersonalizedDocument,
+        UserId,
+        UserInteractionType,
+    },
     storage::{self, utils::SqlxPushTupleExt, DeletionError, Storage},
     utils::serialize_redacted,
     Error,
@@ -133,24 +147,6 @@ impl Config {
         let options = self.build_connection_options()?;
         info!("starting postgres setup");
         let pool = PoolOptions::new().connect_with(options).await?;
-
-        match sqlx::query::<Postgres>(
-            "UPDATE _sqlx_migrations
-            SET checksum = decode('80482d7c5870ce78cbd73c39d498f6375fe260fde7b594085200aa2058c886a19e2de188a7799b202d0fe2c040460c97', 'hex')
-            WHERE version = 20230216164200;"
-        ).execute(&pool).await {
-            Ok(result) => {
-                let updated = result.rows_affected();
-                if updated == 1 {
-                    info!("updated migrations history");
-                } else {
-                    error!(updated, "failed to update migrations history");
-                }
-            }
-            Err(sqlx::Error::Database(error)) => info!(?error, "migrations history doesn't exist"),
-            Err(error) => return Err(error),
-        }
-
         if !self.skip_migrations {
             sqlx::migrate!().run(&pool).await?;
         }
@@ -161,6 +157,21 @@ impl Config {
 
 pub(crate) struct Database {
     pool: Pool<Postgres>,
+}
+
+#[derive(FromRow)]
+struct QueriedInteractedDocument {
+    document_id: DocumentId,
+    tags: Vec<DocumentTag>,
+    embedding: NormalizedEmbedding,
+}
+
+#[derive(FromRow)]
+struct QueriedPersonalizedDocument {
+    document_id: DocumentId,
+    properties: Json<DocumentProperties>,
+    tags: Vec<DocumentTag>,
+    embedding: NormalizedEmbedding,
 }
 
 #[derive(FromRow)]
@@ -183,30 +194,6 @@ impl Database {
         self.pool.close().await;
     }
 
-    #[cfg(not(feature = "ET-3837"))]
-    pub(super) async fn insert_documents(&self, ids: &[DocumentId]) -> Result<(), Error> {
-        let mut tx = self.pool.begin().await?;
-
-        let mut builder = QueryBuilder::new("INSERT INTO document (document_id) ");
-        for ids in ids.chunks(Self::BIND_LIMIT) {
-            builder
-                .reset()
-                .push_values(ids, |mut builder, id| {
-                    builder.push_bind(id);
-                })
-                .push(" ON CONFLICT DO NOTHING;")
-                .build()
-                .persistent(false)
-                .execute(&mut tx)
-                .await?;
-        }
-
-        tx.commit().await?;
-
-        Ok(())
-    }
-
-    #[cfg(feature = "ET-3837")]
     pub(super) async fn insert_documents(
         &self,
         documents: impl IntoIterator<Item = &(IngestedDocument, NormalizedEmbedding)>,
@@ -287,45 +274,103 @@ impl Database {
         }
     }
 
-    pub(super) async fn document_exists(&self, id: &DocumentId) -> Result<bool, Error> {
-        sqlx::query("SELECT document_id FROM document WHERE document_id = $1;")
+    async fn document_exists(
+        tx: &mut Transaction<'_, Postgres>,
+        id: &DocumentId,
+    ) -> Result<bool, Error> {
+        sqlx::query("SELECT 1 FROM document WHERE document_id = $1;")
             .bind(id)
-            .fetch_optional(&self.pool)
+            .execute(tx)
             .await
-            .map(|id| id.is_some())
+            .map(|response| response.rows_affected() > 0)
             .map_err(Into::into)
     }
 
-    pub(super) async fn documents_exist(
-        &self,
-        ids: &[&DocumentId],
-    ) -> Result<Vec<DocumentId>, Error> {
-        let mut tx = self.pool.begin().await?;
-        let res = self.documents_exist_with_transaction(ids, &mut tx).await?;
-        tx.commit().await?;
-        Ok(res)
+    async fn get_interacted(
+        tx: &mut Transaction<'_, Postgres>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<InteractedDocument>, Error> {
+        let mut builder = QueryBuilder::new(
+            "SELECT document_id, tags, embedding
+            FROM document
+            WHERE document_id IN ",
+        );
+        let mut ids = ids.into_iter().peekable();
+        let mut documents = Vec::with_capacity(ids.len());
+        while ids.peek().is_some() {
+            documents.extend(
+                builder
+                    .reset()
+                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .build()
+                    .try_map(|row| {
+                        QueriedInteractedDocument::from_row(&row).map(|document| {
+                            InteractedDocument {
+                                id: document.document_id,
+                                embedding: document.embedding,
+                                tags: document.tags,
+                            }
+                        })
+                    })
+                    .fetch_all(&mut *tx)
+                    .await?,
+            );
+        }
+
+        Ok(documents)
     }
 
-    pub(super) async fn documents_exist_with_transaction(
-        &self,
-        ids: &[&DocumentId],
+    async fn get_personalized(
         tx: &mut Transaction<'_, Postgres>,
-    ) -> Result<Vec<DocumentId>, Error> {
-        let mut builder =
-            QueryBuilder::new("SELECT document_id FROM document WHERE document_id IN ");
-        let mut existing_ids = Vec::with_capacity(ids.len());
-        for ids in ids.chunks(Self::BIND_LIMIT) {
-            for id in builder
-                .reset()
-                .push_tuple(ids)
-                .build()
-                .fetch_all(&mut *tx)
-                .await?
-            {
-                existing_ids.push(DocumentId::from_row(&id)?);
-            }
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
+        let mut builder = QueryBuilder::new(
+            "SELECT document_id, properties, tags, embedding
+            FROM document
+            WHERE document_id IN ",
+        );
+        let ids = ids.into_iter();
+        let mut documents = Vec::with_capacity(ids.len());
+        let mut ids = ids.filter(|id| scores(id).is_some()).peekable();
+        while ids.peek().is_some() {
+            documents.extend(
+                builder
+                    .reset()
+                    .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
+                    .build()
+                    .try_map(|row| {
+                        QueriedPersonalizedDocument::from_row(&row).map(|document| {
+                            let score = scores(&document.document_id).unwrap(/* filtered ids */);
+                            PersonalizedDocument {
+                                id: document.document_id,
+                                score,
+                                embedding: document.embedding,
+                                properties: document.properties.0,
+                                tags: document.tags,
+                            }
+                        })
+                    })
+                    .fetch_all(&mut *tx)
+                    .await?,
+            );
         }
-        Ok(existing_ids)
+        documents.sort_unstable_by(|a, b| {
+            nan_safe_f32_cmp_desc(&scores(&a.id).unwrap(), &scores(&b.id).unwrap())
+        });
+
+        Ok(documents)
+    }
+
+    async fn get_embedding(
+        tx: &mut Transaction<'_, Postgres>,
+        id: &DocumentId,
+    ) -> Result<Option<NormalizedEmbedding>, Error> {
+        sqlx::query_as("SELECT embedding FROM document WHERE document_id = $1;")
+            .bind(id)
+            .fetch_optional(tx)
+            .await
+            .map_err(Into::into)
     }
 
     async fn acquire_user_coi_lock(
@@ -509,91 +554,235 @@ impl Database {
     }
 }
 
-#[cfg(feature = "ET-3837")]
-pub(super) struct UnmigratedDocument {
-    pub(super) id: DocumentId,
-    pub(super) snippet: String,
-    pub(super) properties: DocumentProperties,
-    pub(super) tags: Vec<DocumentTag>,
-    pub(super) embedding: NormalizedEmbedding,
+impl Storage {
+    pub(super) async fn get_interacted(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<InteractedDocument>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+        let documents = Database::get_interacted(&mut tx, ids).await?;
+        tx.commit().await?;
+
+        Ok(documents)
+    }
+
+    pub(super) async fn get_personalized(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+    ) -> Result<Vec<PersonalizedDocument>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+        let documents = Database::get_personalized(&mut tx, ids, scores).await?;
+        tx.commit().await?;
+
+        Ok(documents)
+    }
+
+    pub(super) async fn get_embedding(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<NormalizedEmbedding>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+        let embedding = Database::get_embedding(&mut tx, id).await?;
+        tx.commit().await?;
+
+        Ok(embedding)
+    }
 }
 
-#[cfg(feature = "ET-3837")]
-impl Storage {
-    pub(crate) async fn migrate(&self, n: NonZeroU16) -> Result<bool, Error> {
+#[derive(FromRow)]
+struct QueriedDocumentProperties(Json<DocumentProperties>);
+
+#[async_trait]
+impl storage::DocumentProperties for Storage {
+    async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let ids = sqlx::query_as::<_, DocumentId>(
-            "SELECT document_id
+        let properties = sqlx::query_as::<_, QueriedDocumentProperties>(
+            "SELECT properties
             FROM document
-            WHERE cardinality(embedding) = 0
-            LIMIT $1
-            FOR UPDATE;",
+            WHERE document_id = $1;",
         )
-        .bind(i32::from(
-            n.get().min(u16::try_from(Database::BIND_LIMIT).unwrap()),
-        ))
-        .fetch_all(&mut tx)
-        .await?;
-        let all_migrated = ids.is_empty();
+        .bind(id)
+        .fetch_optional(&mut tx)
+        .await?
+        .map(|properties| properties.0 .0);
 
-        if !all_migrated {
-            let unmigrated = self.elastic.get_unmigrated(&ids).await?;
-            if unmigrated.len() < ids.len() {
-                warn!(
-                    pg = ids.len(),
-                    es = unmigrated.len(),
-                    "Failed to get some documents from es",
-                );
-            }
+        tx.commit().await?;
 
-            let migrated = QueryBuilder::new(
-                "INSERT INTO document (document_id, snippet, properties, tags, embedding) ",
-            )
-            .push_values(&unmigrated, |mut builder, document| {
-                builder
-                    .push_bind(&document.id)
-                    .push_bind(&document.snippet)
-                    .push_bind(Json(&document.properties))
-                    .push_bind(&document.tags)
-                    .push_bind(&document.embedding);
-            })
-            .push(
-                " ON CONFLICT (document_id) DO UPDATE SET
-                snippet = EXCLUDED.snippet,
-                properties = EXCLUDED.properties,
-                tags = EXCLUDED.tags,
-                embedding = EXCLUDED.embedding
-                RETURNING document_id;",
-            )
-            .build()
-            .persistent(false)
-            .try_map(|row| DocumentId::from_row(&row))
-            .fetch_all(&mut tx)
-            .await?;
+        Ok(properties)
+    }
 
-            if migrated.len() < ids.len() {
-                let removed = ids
-                    .iter()
-                    .collect::<HashSet<_>>()
-                    .difference(&migrated.iter().collect::<HashSet<_>>())
-                    .copied()
-                    .cloned()
-                    .collect_vec();
-                QueryBuilder::new("DELETE FROM document WHERE document_id IN ")
-                    .push_tuple(&removed)
-                    .build()
-                    .execute(&mut tx)
-                    .await?;
-                warn!(expected = ?ids, actual = ?migrated, ?removed, "Failed to migrate some documents: ids are in pg but not in es");
-            } else {
-                debug!(?ids, "Migrated {} documents", ids.len());
-            }
+    async fn put(
+        &self,
+        id: &DocumentId,
+        properties: &DocumentProperties,
+    ) -> Result<Option<()>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let inserted = sqlx::query(
+            "UPDATE document
+            SET properties = $1
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $2
+                FOR UPDATE
+            );",
+        )
+        .bind(Json(properties))
+        .bind(id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let inserted = if inserted > 0 {
+            self.elastic
+                .insert_document_properties(id, properties)
+                .await?
+        } else {
+            None
         };
 
         tx.commit().await?;
 
-        Ok(all_migrated)
+        Ok(inserted)
+    }
+
+    async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let deleted = sqlx::query(
+            "UPDATE document
+            SET properties = DEFAULT
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $1
+                FOR UPDATE
+            );",
+        )
+        .bind(id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let deleted = if deleted > 0 {
+            self.elastic.delete_document_properties(id).await?
+        } else {
+            None
+        };
+
+        tx.commit().await?;
+
+        Ok(deleted)
+    }
+}
+
+#[derive(FromRow)]
+struct QueriedDocumentProperty(Json<DocumentProperty>);
+
+#[async_trait]
+impl storage::DocumentProperty for Storage {
+    async fn get(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<Option<DocumentProperty>>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let property = sqlx::query_as::<_, QueriedDocumentProperty>(
+            "SELECT properties -> $1
+            FROM document
+            WHERE document_id = $2 AND properties ? $1;",
+        )
+        .bind(property_id)
+        .bind(document_id)
+        .fetch_optional(&mut tx)
+        .await?;
+        let property = if let Some(property) = property {
+            Some(Some(property.0 .0))
+        } else {
+            Database::document_exists(&mut tx, document_id)
+                .await?
+                .then_some(None)
+        };
+
+        tx.commit().await?;
+
+        Ok(property)
+    }
+
+    async fn put(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+        property: &DocumentProperty,
+    ) -> Result<Option<()>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let inserted = sqlx::query(
+            "UPDATE document
+            SET properties = jsonb_set(properties, $1, $2)
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $3
+                FOR UPDATE
+            );",
+        )
+        .bind(slice::from_ref(property_id))
+        .bind(Json(property))
+        .bind(document_id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let inserted = if inserted > 0 {
+            self.elastic
+                .insert_document_property(document_id, property_id, property)
+                .await?
+        } else {
+            None
+        };
+
+        tx.commit().await?;
+
+        Ok(inserted)
+    }
+
+    async fn delete(
+        &self,
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+    ) -> Result<Option<Option<()>>, Error> {
+        let mut tx = self.postgres.pool.begin().await?;
+
+        let deleted = sqlx::query(
+            "UPDATE document
+            SET properties = properties - $1
+            WHERE document_id = (
+                SELECT document_id
+                FROM document
+                WHERE document_id = $2
+                FOR UPDATE
+            ) AND properties ? $1;",
+        )
+        .bind(property_id)
+        .bind(document_id)
+        .execute(&mut tx)
+        .await?
+        .rows_affected();
+        let deleted = if deleted > 0 {
+            self.elastic
+                .delete_document_property(document_id, property_id)
+                .await?
+        } else {
+            Database::document_exists(&mut tx, document_id)
+                .await?
+                .then_some(None)
+        };
+
+        tx.commit().await?;
+
+        Ok(deleted)
     }
 }
 
@@ -664,15 +853,11 @@ impl storage::Interaction for Storage {
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
         let interactions = interactions.into_iter();
-        let documents = self
-            .get_interacted_with_transaction(
-                &interactions
-                    .clone()
-                    .map(|(document_id, _)| document_id)
-                    .collect_vec(),
-                Some(&mut tx),
-            )
-            .await?;
+        let documents = Database::get_interacted(
+            &mut tx,
+            interactions.clone().map(|(document_id, _)| document_id),
+        )
+        .await?;
         let document_map = documents
             .iter()
             .map(|document| (&document.id, (document, UserInteractionType::Positive)))

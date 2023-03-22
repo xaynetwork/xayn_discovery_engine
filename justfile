@@ -47,8 +47,7 @@ fmt: rust-fmt
 
 # Checks rust code, fails on warnings on CI
 rust-check:
-    cargo clippy --all-targets --locked; \
-    cargo clippy --all-targets --features ET-3837 --locked
+    cargo clippy --all-targets --locked
 
 # Checks all code, fails if there are any issues on CI
 check: rust-check

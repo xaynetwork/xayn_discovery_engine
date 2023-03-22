@@ -43,16 +43,6 @@ pub(super) struct Args {
     /// Print the config and exist instead of running the server
     #[arg(long)]
     pub(super) print_config: bool,
-
-    #[cfg(feature = "ET-3837")]
-    /// Number of documents to migrate per time interval.
-    #[arg(short)]
-    n: Option<u16>,
-
-    #[cfg(feature = "ET-3837")]
-    /// Migration time interval in seconds.
-    #[arg(short)]
-    t: Option<u64>,
 }
 
 impl Args {
@@ -64,11 +54,6 @@ impl Args {
         if let Some(log_file) = &self.log_file {
             map.insert(String::from("logging"), json!({ "file": log_file }));
         }
-
-        #[cfg(feature = "ET-3837")]
-        map.insert("n".to_string(), json!(self.n.unwrap_or(10).max(1)));
-        #[cfg(feature = "ET-3837")]
-        map.insert("t".to_string(), json!(self.t.unwrap_or(1).max(1)));
 
         Value::Object(map)
     }
