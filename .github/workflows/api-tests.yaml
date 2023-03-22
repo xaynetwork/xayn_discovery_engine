@@ -55,6 +55,10 @@ jobs:
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./assets/vocab.txt
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/model.onnx ./assets/model.onnx
 
+      - name: Compile binaries
+        run: |
+          cargo build -p xayn-web-api
+
       - name: Setup ES index
         run: |
           ./web-api/elastic-search/create_es_index.sh "$XAYN_WEB_API__STORAGE__ELASTIC__URL/$XAYN_WEB_API__STORAGE__ELASTIC__INDEX_NAME"
@@ -64,12 +68,10 @@ jobs:
           cargo run --release --bin ingestion -- &
           .github/scripts/wait_for_it.sh $XAYN_INGESTION__NET__BIND_TO -t 60 -- echo "Ingestion service is up and running"
 
-
       - name: Build Personalization
         run: |
           cargo run --release --bin personalization &
           .github/scripts/wait_for_it.sh $XAYN_PERSONALIZATION__NET__BIND_TO -t 60 -- echo "Personalization service is up and running"
-
 
 #      - name: Run pytest
 #        run: |
