@@ -5,7 +5,7 @@ on:
     branches: [ ET-3848-integrate-tests ]
 
 jobs:
-  Integration-test:
+  integration-test:
     runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v11
