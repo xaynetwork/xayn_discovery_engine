@@ -12,8 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
+#[cfg(not(feature = "ET-4089"))]
+use std::collections::HashSet;
 
+#[cfg(not(feature = "ET-4089"))]
 use async_trait::async_trait;
 use itertools::Itertools;
 use reqwest::{
@@ -28,6 +31,8 @@ use serde_json::{json, Value};
 use tracing::error;
 use xayn_ai_bert::NormalizedEmbedding;
 
+#[cfg(not(feature = "ET-4089"))]
+use crate::storage::{self, Storage};
 use crate::{
     app::SetupError,
     error::common::InternalError,
@@ -39,7 +44,7 @@ use crate::{
         DocumentPropertyId,
         DocumentTag,
     },
-    storage::{self, DeletionError, InsertionError, KnnSearchParams, Storage},
+    storage::{KnnSearchParams, Warning},
     utils::{serialize_redacted, serialize_to_ndjson},
     Error,
 };
@@ -109,10 +114,46 @@ struct BulkItemResponse {
     error: Value,
 }
 
+impl BulkItemResponse {
+    fn is_success_status(&self, allow_not_found: bool) -> bool {
+        StatusCode::from_u16(self.status)
+            .map(|status| {
+                (status == StatusCode::NOT_FOUND && allow_not_found) || status.is_success()
+            })
+            .unwrap_or_default()
+    }
+}
+
 #[derive(Debug, Deserialize)]
 struct BulkResponse {
     errors: bool,
     items: Vec<HashMap<String, BulkItemResponse>>,
+}
+
+impl BulkResponse {
+    fn failed_documents(self, operation: &'static str, allow_not_found: bool) -> Vec<DocumentId> {
+        self.errors.then(|| {
+            self
+                .items
+                .into_iter()
+                .filter_map(|mut response| {
+                    if let Some(response) = response.remove(operation) {
+                        if !response.is_success_status(allow_not_found) {
+                            error!(
+                                document_id=%response.id,
+                                error=%response.error,
+                                "Elastic failed to {operation} document.",
+                            );
+                            return Some(response.id);
+                        }
+                    } else {
+                        error!("Bulk {operation} request contains non {operation} responses: {response:?}");
+                    }
+                    None
+                })
+                .collect()
+        }).unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -217,6 +258,130 @@ impl Client {
             .transpose()?;
 
         self.query_with_bytes(url, post_data).await
+    }
+
+    pub(super) async fn get_by_embedding<'a>(
+        &self,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        let time = params.time.to_rfc3339();
+        // the existing documents are not filtered in the query to avoid too much work for a cold
+        // path, filtering them afterwards can occasionally lead to less than k results though
+        let excluded_ids = json!({
+            "values": params.excluded.into_iter().collect_vec()
+        });
+        let filter = if let Some(published_after) = params.published_after {
+            // published_after != null && published_after <= publication_date <= time
+            json!({
+                "bool": {
+                    "filter": {
+                        "range": {
+                            "properties.publication_date": {
+                                "gte": published_after.to_rfc3339(),
+                                "lte": time
+                            }
+                        }
+                    },
+                    "must_not": {
+                        "ids": excluded_ids
+                    }
+                }
+            })
+        } else {
+            // published_after == null || published_after <= time
+            json!({
+                "bool": {
+                    "must_not": [
+                        {
+                            "ids": excluded_ids
+                        },
+                        {
+                            "range": {
+                                "properties.publication_date": {
+                                    "gt": time
+                                }
+                            }
+                        }
+                    ]
+                }
+            })
+        };
+
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
+        let mut body = json!({
+            "knn": {
+                "field": "embedding",
+                "query_vector": params.embedding,
+                "k": params.k_neighbors,
+                "num_candidates": params.num_candidates,
+                "filter": filter
+            },
+            "size": params.k_neighbors,
+            "_source": false
+        });
+        if let Some(min_similarity) = params.min_similarity {
+            body.as_object_mut()
+                .unwrap(/* we just created it as object */)
+                .insert("min_score".into(), min_similarity.into());
+        }
+
+        Ok(self
+            .query_with_json::<_, SearchResponse<NoSource>>(
+                self.create_resource_path(["_search"], None),
+                Some(body),
+            )
+            .await?
+            .map(|response| {
+                response
+                    .hits
+                    .hits
+                    .into_iter()
+                    .map(|hit| (hit.id, hit.score))
+                    .collect::<HashMap<_, _>>()
+            })
+            .unwrap_or_default())
+    }
+
+    pub(super) async fn insert_documents(
+        &self,
+        documents: impl IntoIterator<
+            IntoIter = impl ExactSizeIterator<Item = &models::IngestedDocument>,
+        >,
+    ) -> Result<Warning<DocumentId>, Error> {
+        let documents = documents.into_iter();
+        if documents.len() == 0 {
+            return Ok(Warning::default());
+        }
+
+        self.bulk_request(documents.flat_map(|document| {
+            [
+                serde_json::to_value(BulkInstruction::Index { id: &document.id })
+                    .map_err(Into::into),
+                serde_json::to_value(IngestedDocument {
+                    snippet: &document.snippet,
+                    properties: &document.properties,
+                    embedding: &document.embedding,
+                    tags: &document.tags,
+                })
+                .map_err(Into::into),
+            ]
+        }))
+        .await
+        .map(|response| response.failed_documents("index", false).into())
+    }
+
+    pub(super) async fn delete_documents(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        let ids = ids.into_iter();
+        if ids.len() == 0 {
+            return Ok(Warning::default());
+        }
+
+        self.bulk_request(ids.map(|id| Ok(BulkInstruction::Delete { id })))
+            .await
+            .map(|response| response.failed_documents("delete", true).into())
     }
 
     pub(super) async fn insert_document_properties(
@@ -354,12 +519,7 @@ struct IngestedDocument<'a> {
     tags: &'a [DocumentTag],
 }
 
-fn is_success_status(status: u16, allow_not_found: bool) -> bool {
-    StatusCode::from_u16(status)
-        .map(|status| (status == StatusCode::NOT_FOUND && allow_not_found) || status.is_success())
-        .unwrap_or(false)
-}
-
+#[cfg(not(feature = "ET-4089"))]
 #[async_trait(?Send)]
 impl storage::Document for Storage {
     async fn get_interacted(
@@ -384,195 +544,36 @@ impl storage::Document for Storage {
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<Vec<models::PersonalizedDocument>, Error> {
-        // the existing documents are not filtered in the elastic query to avoid too much work for a
-        // cold path, filtering them afterwards can occasionally lead to less than k results though
-        let excluded_ids = json!({
-            "values": params.excluded.into_iter().collect_vec()
-        });
-        let time = params.time.to_rfc3339();
-        let filter = if let Some(published_after) = params.published_after {
-            // published_after != null && published_after <= publication_date <= time
-            json!({
-                "bool": {
-                    "filter": {
-                        "range": {
-                            "properties.publication_date": {
-                                "gte": published_after.to_rfc3339(),
-                                "lte": time
-                            }
-                        }
-                    },
-                    "must_not": {
-                        "ids": excluded_ids
-                    }
-                }
-            })
-        } else {
-            // published_after == null || published_after <= time
-            json!({
-                "bool": {
-                    "must_not": [
-                        {
-                            "ids": excluded_ids
-                        },
-                        {
-                            "range": {
-                                "properties.publication_date": {
-                                    "gt": time
-                                }
-                            }
-                        }
-                    ]
-                }
-            })
-        };
-
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
-        let mut body = json!({
-            "knn": {
-                "field": "embedding",
-                "query_vector": params.embedding,
-                "k": params.k_neighbors,
-                "num_candidates": params.num_candidates,
-                "filter": filter
-            },
-            "size": params.k_neighbors,
-            "_source": false
-        });
-        if let Some(min_similarity) = params.min_similarity {
-            body.as_object_mut()
-                .unwrap(/* we just created it as object */)
-                .insert("min_score".into(), min_similarity.into());
-        }
-
-        let scores = self
-            .elastic
-            .query_with_json::<_, SearchResponse<NoSource>>(
-                self.elastic.create_resource_path(["_search"], None),
-                Some(body),
-            )
-            .await?
-            .map(|response| {
-                response
-                    .hits
-                    .hits
-                    .into_iter()
-                    .map(|hit| (hit.id, hit.score))
-                    .collect::<HashMap<_, _>>()
-            })
-            .unwrap_or_default();
-
+        let scores = self.elastic.get_by_embedding(params).await?;
         self.get_personalized(scores.keys(), |id| scores.get(id).copied())
             .await
     }
 
     async fn insert(
         &self,
-        documents: Vec<(models::IngestedDocument, NormalizedEmbedding)>,
-    ) -> Result<(), InsertionError> {
-        if documents.is_empty() {
-            return Ok(());
-        }
-
-        let mut ids = documents
-            .iter()
-            .map(|(document, _)| document.id.clone())
-            .collect::<HashSet<_>>();
-
-        let response = self
-            .elastic
-            .bulk_request(documents.iter().flat_map(|(document, embedding)| {
-                [
-                    serde_json::to_value(BulkInstruction::Index { id: &document.id })
-                        .map_err(Into::into),
-                    serde_json::to_value(IngestedDocument {
-                        snippet: &document.snippet,
-                        properties: &document.properties,
-                        embedding,
-                        tags: &document.tags,
-                    })
-                    .map_err(Into::into),
-                ]
-            }))
-            .await?;
-        let failed_documents = response.errors.then(|| {
-            response
-                .items
-                .into_iter()
-                .filter_map(|mut response| {
-                    if let Some(response) = response.remove("index") {
-                        if !is_success_status(response.status, false) {
-                            error!(
-                                document_id=%response.id,
-                                error=%response.error,
-                                "Elastic failed to ingest document.",
-                            );
-                            ids.remove(&response.id);
-                            return Some(response.id.into());
-                        }
-                    } else {
-                        error!("Bulk index request contains non index responses: {response:?}");
-                    }
-                    None
-                })
-                .collect_vec()
-        });
-
+        documents: Vec<models::IngestedDocument>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        let failed_documents = self.elastic.insert_documents(&documents).await?;
+        let ids = failed_documents.iter().cloned().collect::<HashSet<_>>();
         self.postgres
             .insert_documents(
                 documents
                     .iter()
-                    .filter(|(document, _)| ids.contains(&document.id)),
+                    .filter(|document| !ids.contains(&document.id)),
             )
             .await?;
 
-        if let Some(failed_documents) = failed_documents {
-            Err(failed_documents.into())
-        } else {
-            Ok(())
-        }
+        Ok(failed_documents)
     }
 
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<(), DeletionError> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let ids = ids.into_iter();
-        if ids.len() == 0 {
-            return Ok(());
-        }
+        let mut failed_documents = self.postgres.delete_documents(ids.clone()).await?;
+        failed_documents.extend(self.elastic.delete_documents(ids).await?);
 
-        let mut failed_documents = match self.postgres.delete_documents(ids.clone()).await {
-            Ok(()) => Vec::new(),
-            Err(DeletionError::PartialFailure { errors }) => errors,
-            Err(error) => return Err(error),
-        };
-
-        let response = self
-            .elastic
-            .bulk_request(ids.map(|id| Ok(BulkInstruction::Delete { id })))
-            .await?;
-        if response.errors {
-            for mut response in response.items {
-                if let Some(response) = response.remove("delete") {
-                    if !is_success_status(response.status, true) {
-                        error!(
-                            document_id=%response.id,
-                            error=%response.error,
-                            "Elastic failed to delete document.",
-                        );
-                        failed_documents.push(response.id.into());
-                    }
-                } else {
-                    error!("Bulk delete request contains non delete responses: {response:?}");
-                }
-            }
-        }
-
-        if failed_documents.is_empty() {
-            Ok(())
-        } else {
-            Err(failed_documents.into())
-        }
+        Ok(failed_documents)
     }
 }

@@ -54,13 +54,15 @@ use crate::{
         UserId,
         UserInteractionType,
     },
-    storage::{self, DeletionError, InsertionError, KnnSearchParams},
+    storage::{self, KnnSearchParams, Warning},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
     properties: DocumentProperties,
     tags: Vec<DocumentTag>,
+    #[cfg(feature = "ET-4089")]
+    is_candidate: bool,
 }
 
 #[derive(AsRef, Clone, Debug, Deref, Deserialize, Serialize)]
@@ -323,48 +325,50 @@ impl storage::Document for Storage {
 
     async fn insert(
         &self,
-        documents_embeddings: Vec<(IngestedDocument, NormalizedEmbedding)>,
-    ) -> Result<(), InsertionError> {
-        if documents_embeddings.is_empty() {
-            return Ok(());
+        new_documents: Vec<IngestedDocument>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        if new_documents.is_empty() {
+            return Ok(Warning::default());
         }
 
         let mut documents = self.documents.write().await;
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
-        documents.0.reserve(documents_embeddings.len());
-        for (document, embedding) in documents_embeddings {
+        documents.0.reserve(new_documents.len());
+        for document in new_documents {
             documents.0.insert(
                 document.id.clone(),
                 Document {
                     properties: document.properties,
                     tags: document.tags,
+                    #[cfg(feature = "ET-4089")]
+                    is_candidate: document.is_candidate,
                 },
             );
-            embeddings.insert(document.id, embedding);
+            embeddings.insert(document.id, document.embedding);
         }
         documents.1 = Embeddings::borrowed(embeddings);
 
-        Ok(())
+        Ok(Warning::default())
     }
 
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<(), DeletionError> {
+    ) -> Result<Warning<DocumentId>, Error> {
         let mut documents = self.documents.write().await;
         let mut interactions = self.interactions.write().await;
 
-        let ids = ids.into_iter().collect::<HashSet<_>>();
-        documents.0.retain(|id, _| !ids.contains(id));
-        let mut embeddings = mem::take(&mut documents.1).into_heads().map;
-        embeddings.retain(|id, _| !ids.contains(id));
-        documents.1 = Embeddings::borrowed(embeddings);
+        let mut ids = ids.into_iter().collect::<HashSet<_>>();
         interactions.retain(|_, interactions| {
             interactions.retain(|(id, _)| !ids.contains(id));
             !interactions.is_empty()
         });
+        documents.0.retain(|id, _| !ids.contains(id));
+        let mut embeddings = mem::take(&mut documents.1).into_heads().map;
+        embeddings.retain(|id, _| !ids.remove(id));
+        documents.1 = Embeddings::borrowed(embeddings);
 
-        Ok(())
+        Ok(ids.into_iter().cloned().collect())
     }
 }
 
@@ -608,27 +612,28 @@ mod tests {
         let ids = (0..3)
             .map(|id| DocumentId::new(id.to_string()).unwrap())
             .collect_vec();
-        let documents = ids
-            .iter()
-            .map(|id| IngestedDocument {
-                id: id.clone(),
-                snippet: String::new(),
-                properties: DocumentProperties::default(),
-                tags: Vec::new(),
-            })
-            .collect_vec();
         let embeddings = [
             [1., 0., 0.].try_into().unwrap(),
             [1., 1., 0.].try_into().unwrap(),
             [1., 1., 1.].try_into().unwrap(),
         ];
+        let documents = ids
+            .iter()
+            .zip(embeddings)
+            .map(|(id, embedding)| IngestedDocument {
+                id: id.clone(),
+                snippet: String::new(),
+                properties: DocumentProperties::default(),
+                tags: Vec::new(),
+                embedding,
+                #[cfg(feature = "ET-4089")]
+                is_candidate: true,
+            })
+            .collect_vec();
         let storage = Storage::default();
-        storage::Document::insert(
-            &storage,
-            documents.iter().cloned().zip(embeddings).collect_vec(),
-        )
-        .await
-        .unwrap();
+        storage::Document::insert(&storage, documents)
+            .await
+            .unwrap();
 
         let embedding = &[0., 1., 1.].try_into().unwrap();
         let documents = storage::Document::get_by_embedding(
@@ -681,15 +686,15 @@ mod tests {
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
-            vec![(
-                IngestedDocument {
-                    id: document.0.clone(),
-                    snippet: "snippet".into(),
-                    properties: DocumentProperties::default(),
-                    tags: tags.clone(),
-                },
-                embedding.clone(),
-            )],
+            vec![IngestedDocument {
+                id: document.0.clone(),
+                snippet: "snippet".into(),
+                properties: DocumentProperties::default(),
+                tags: tags.clone(),
+                embedding: embedding.clone(),
+                #[cfg(feature = "ET-4089")]
+                is_candidate: true,
+            }],
         )
         .await
         .unwrap();

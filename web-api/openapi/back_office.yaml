@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Back Office API
-  version: 1.0.0-rc10
+  version: 1.0.0-rc11
   description: |-
     # Back Office
     The back office is typically used within server-side apps.
@@ -263,6 +263,10 @@ components:
           maxItems: 10
           items:
             $ref: './schemas/document.yml#/DocumentTag'
+        is_candidate:
+          description: Indicates if the document is considered for recommendations.
+          type: boolean
+          default: true
     IngestionRequest:
       type: object
       required: [documents]

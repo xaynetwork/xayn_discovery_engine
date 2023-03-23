@@ -22,15 +22,13 @@ use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use derive_more::From;
+use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
 
 use crate::{
     app::SetupError,
-    error::common::DocumentIdAsObject,
     models::{
         self,
         DocumentId,
@@ -56,22 +54,28 @@ pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) time: DateTime<Utc>,
 }
 
-#[derive(Debug, Error, From)]
-pub(crate) enum InsertionError {
-    #[error("{0}")]
-    General(Error),
-    #[error("{failed_documents:?}")]
-    PartialFailure {
-        failed_documents: Vec<DocumentIdAsObject>,
-    },
+#[derive(Debug, Deref, DerefMut, From)]
+pub(crate) struct Warning<T>(Vec<T>);
+
+impl<T> Default for Warning<T> {
+    fn default() -> Self {
+        Vec::default().into()
+    }
 }
 
-#[derive(Debug, From)]
-pub(crate) enum DeletionError {
-    #[from(types(sqlx::Error))]
-    General(Error),
-    #[from]
-    PartialFailure { errors: Vec<DocumentIdAsObject> },
+impl<T> IntoIterator for Warning<T> {
+    type Item = <Vec<T> as IntoIterator>::Item;
+    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<T> FromIterator<T> for Warning<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Vec::from_iter(iter).into()
+    }
 }
 
 #[async_trait(?Send)]
@@ -93,15 +97,14 @@ pub(crate) trait Document {
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
-    async fn insert(
-        &self,
-        documents: Vec<(IngestedDocument, NormalizedEmbedding)>,
-    ) -> Result<(), InsertionError>;
+    /// Inserts the documents and reports failed ids.
+    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Warning<DocumentId>, Error>;
 
+    /// Deletes the documents and reports failed ids.
     async fn delete(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<(), DeletionError>;
+    ) -> Result<Warning<DocumentId>, Error>;
 }
 
 #[async_trait]
