@@ -107,7 +107,6 @@ pub(crate) trait Document {
     ) -> Result<Warning<DocumentId>, Error>;
 }
 
-#[cfg(feature = "ET-4089")]
 #[async_trait(?Send)]
 pub(crate) trait DocumentCandidate {
     /// Gets the document candidates.

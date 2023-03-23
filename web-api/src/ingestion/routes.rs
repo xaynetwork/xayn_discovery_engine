@@ -25,8 +25,6 @@ use tokio::time::Instant;
 use tracing::{error, info, instrument};
 
 use super::AppState;
-#[cfg(feature = "ET-4089")]
-use crate::{error::common::FailedToSetSomeDocumentCandidates, models::DocumentId};
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -35,27 +33,27 @@ use crate::{
             DocumentNotFound,
             DocumentPropertyNotFound,
             FailedToDeleteSomeDocuments,
+            FailedToSetSomeDocumentCandidates,
             IngestingDocumentsFailed,
         },
     },
-    models::{self, DocumentProperties, DocumentProperty},
+    models::{self, DocumentId, DocumentProperties, DocumentProperty},
     storage,
     Error,
 };
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
-    config.service(
-        web::resource("/documents")
-            .route(web::post().to(new_documents.error_with_request_id()))
-            .route(web::delete().to(delete_documents.error_with_request_id())),
-    );
-    #[cfg(feature = "ET-4089")]
-    config.service(
-        web::resource("/documents/candidates")
-            .route(web::get().to(get_document_candidates.error_with_request_id()))
-            .route(web::put().to(set_document_candidates.error_with_request_id())),
-    );
     config
+        .service(
+            web::resource("/documents")
+                .route(web::post().to(new_documents.error_with_request_id()))
+                .route(web::delete().to(delete_documents.error_with_request_id())),
+        )
+        .service(
+            web::resource("/documents/candidates")
+                .route(web::get().to(get_document_candidates.error_with_request_id()))
+                .route(web::put().to(set_document_candidates.error_with_request_id())),
+        )
         .service(
             web::resource("/documents/{document_id}")
                 .route(web::delete().to(delete_document.error_with_request_id())),
@@ -88,7 +86,6 @@ where
     }
 }
 
-#[cfg(feature = "ET-4089")]
 const fn default_is_candidate() -> bool {
     true
 }
@@ -102,7 +99,6 @@ struct IngestedDocument {
     properties: HashMap<String, DocumentProperty>,
     #[serde(default)]
     tags: Vec<String>,
-    #[cfg(feature = "ET-4089")]
     #[serde(default = "default_is_candidate")]
     is_candidate: bool,
 }
@@ -157,7 +153,6 @@ async fn new_documents(
                     properties,
                     tags,
                     embedding,
-                    #[cfg(feature = "ET-4089")]
                     is_candidate: document.is_candidate,
                 })
             };
@@ -233,32 +228,27 @@ struct BatchDeleteRequest {
     documents: Vec<String>,
 }
 
-#[cfg(feature = "ET-4089")]
 #[derive(Debug, Serialize)]
 struct DocumentCandidatesResponse {
     documents: Vec<DocumentId>,
 }
 
-#[cfg(feature = "ET-4089")]
 async fn get_document_candidates(state: Data<AppState>) -> Result<impl Responder, Error> {
     let documents = storage::DocumentCandidate::get(&state.storage).await?;
 
     Ok(Json(DocumentCandidatesResponse { documents }))
 }
 
-#[cfg(feature = "ET-4089")]
 #[derive(Debug, Deserialize)]
 struct DocumentCandidate {
     id: String,
 }
 
-#[cfg(feature = "ET-4089")]
 #[derive(Debug, Deserialize)]
 struct DocumentCandidatesRequest {
     documents: Vec<DocumentCandidate>,
 }
 
-#[cfg(feature = "ET-4089")]
 async fn set_document_candidates(
     state: Data<AppState>,
     Json(body): Json<DocumentCandidatesRequest>,

@@ -184,7 +184,6 @@ pub(crate) struct IngestedDocument {
     /// Embedding from smbert.
     pub(crate) embedding: NormalizedEmbedding,
 
-    #[cfg(feature = "ET-4089")]
     /// Indicates if the document is considered for recommendations.
     pub(crate) is_candidate: bool,
 }

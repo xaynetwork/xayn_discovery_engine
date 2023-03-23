@@ -95,14 +95,12 @@ pub(crate) struct IngestingDocumentsFailed {
 
 impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
 
-#[cfg(feature = "ET-4089")]
 /// Failed to set some document candidates.
 #[derive(Debug, Display, Error, Serialize)]
 pub(crate) struct FailedToSetSomeDocumentCandidates {
     pub(crate) documents: Vec<DocumentIdAsObject>,
 }
 
-#[cfg(feature = "ET-4089")]
 impl_application_error!(FailedToSetSomeDocumentCandidates => BAD_REQUEST);
 
 /// The requested document was not found.
