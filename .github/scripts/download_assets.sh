@@ -1,46 +1,39 @@
 #!/bin/bash
 set -eu -o pipefail
 
-realpath() {
-    [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
-}
-
-# path to the directory where this file is
-SELF_DIR_PATH="$(dirname "$0")"
-
-# a parameter for the destination of the assets can be passed.
-# the default is the directory assets, we assume the script is in .github/scripts/
-DATA_DIR="${1:-$SELF_DIR_PATH/../../assets}"
-DATA_DIR=`realpath $DATA_DIR`
-
+DATA_DIR="$PWD/../../assets"
 CHECKSUM_FILE="sha256sums"
+BASE_URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert"
 
 download()
 {
-  NAME="$1"
-  VERSION="$2"
-  ARCHIVE_BASENAME="${NAME}_$VERSION"
-  ARCHIVE_NAME="$ARCHIVE_BASENAME.tgz"
-  TMP_ARCHIVE_NAME="$ARCHIVE_NAME.tmp"
-  URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
+    ARCHIVE_BASENAME="$1_$2"
+    ARCHIVE_NAME="$ARCHIVE_BASENAME.tgz"
+    TMP_ARCHIVE_NAME="$ARCHIVE_NAME.tmp"
 
-  if [  -f "$DATA_DIR/$ARCHIVE_NAME" ]; then
-    echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
-  else
+    if [ -f "$DATA_DIR/$ARCHIVE_NAME" ]; then
+        echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
+    else
+        curl "$BASE_URL/$NAME/$ARCHIVE_NAME" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
+        mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$DATA_DIR/$ARCHIVE_NAME"
 
-    curl "$URL" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
-    mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$DATA_DIR/$ARCHIVE_NAME"
+        cd "$DATA_DIR"
+        tar -zxf "$ARCHIVE_NAME"
 
-    cd "$DATA_DIR"
-    tar -zxf "$ARCHIVE_NAME"
-
-    # check content
-    cd "$ARCHIVE_BASENAME"
-    shasum -c "$CHECKSUM_FILE"
-  fi
+        # check content
+        cd "$ARCHIVE_BASENAME"
+        shasum -c "$CHECKSUM_FILE"
+    fi
 }
 
-download smbert v0003
-download smbert_mocked v0003
-download sjbert v0003
-download smroberta_tokenizer v0000
+if [ $# -gt 0 ]; then
+    while [ $# -ge 2 ]; do
+        download $1 $2
+        shift 2
+    done
+else
+    download smbert v0003
+    download smbert_mocked v0003
+    download sjbert v0003
+    download smroberta_tokenizer v0000
+fi

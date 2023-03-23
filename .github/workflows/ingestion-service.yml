@@ -5,25 +5,36 @@ on:
     inputs:
       tag:
         required: false
-        description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_ingestion_service:$TAG)
+        type: string
+        default: ""
+        description: a tag for image identification (xaynetci/xayn_discovery_ingestion_service:$TAG)
       features:
         required: false
         type: string
         default: ""
-        description: a comma-separated list of features that will be used to compile this version with
+        description: a comma-separated list of library features for compilation
+      target:
+        required: true
+        type: choice
+        options:
+          - default
+          - aarch64-unknown-linux-gnu
+        default: default
+        description: a rust target triple for compilation
 
 permissions:
   contents: read
 
 env:
   DENY_WARNINGS: false
+  CROSS_CONTAINER_IN_CONTAINER: true
 
 jobs:
   rust-build:
     runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v11
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
@@ -31,11 +42,15 @@ jobs:
       - name: Setup job
         uses: ./.github/actions/setup-job-docker
 
+      - name: Install cross
+        if: ${{ github.event.inputs.target }} != "default"
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
       - name: Build artifacts
-        run: just build-ingestion-service ${{ github.event.inputs.features }}
+        run: just build-service ingestion ${{ github.event.inputs.features }} ${{ github.event.inputs.target }}
 
       - name: Download assets
-        run: just download-assets
+        run: just download-assets smbert v0003
 
       - name: Prepare temp directory
         working-directory: ${{ runner.temp }}

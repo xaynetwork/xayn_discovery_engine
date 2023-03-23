@@ -104,21 +104,20 @@ _pre-push: deps fmt check test
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
-download-assets:
+download-assets *args:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd {{justfile_directory()}}/.github/scripts
-    ./download_assets.sh
+    ./download_assets.sh {{args}}
 
-build-web-service features="":
-    #!/usr/bin/env bash
-    set -eux -o pipefail
-    cargo build --release --bin personalization --features "{{features}}"
-
-build-ingestion-service features="":
+build-service name features="" target="default":
     #!/usr/bin/env -S bash -eux -o pipefail
     set -eux -o pipefail
-    cargo build --release --bin ingestion --features "{{features}}"
+    if [[ "{{target}}" == "default" ]]; then
+        cargo build --release --bin "{{name}}" --features "{{features}}"
+    else
+        cross build --release --bin "{{name}}" --features "{{features}}" --target "{{target}}"
+    fi
 
 web-dev-up:
     #!/usr/bin/env -S bash -eu -o pipefail
