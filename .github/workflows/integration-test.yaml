@@ -83,5 +83,4 @@ jobs:
           PYTHONPATH: cd discovery_engine_api_tests
         run: |
           cd discovery_engine_api_tests/tests
-          cd tests
           pytest
