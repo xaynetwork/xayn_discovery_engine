@@ -38,18 +38,22 @@ jobs:
       - name: Setup job
         uses: ./.github/actions/setup-job-docker
 
-      - name: Setup Docker Buildx
-        if: ${{ github.event.inputs.target != 'default' }}
-        uses: docker/setup-buildx-action@4b4e9c3e2d4531116a6f8ba8e71fc6e2cb6e6c8c # v2.5.0
+      - name: Build default artifacts
+        if: ${{ github.event.inputs.target == 'default' }}
+        run: just build-service ingestion "${{ github.event.inputs.features }}"
 
-      - name: Install cross
+      - name: Get cross args
+        id: cross_args
         if: ${{ github.event.inputs.target != 'default' }}
-        run: cargo install cross --git https://github.com/cross-rs/cross
+        run: echo "cross_args=$(just build-service-args ingestion ${{ github.event.inputs.target }} ${{ github.event.inputs.features }})" >> $GITHUB_OUTPUT
 
-      - name: Build artifacts
-        run: |
-          docker run -v /var/run/docker.sock:/var/run/docker.sock xaynetci/yellow:v11 \
-            just build-service ingestion "${{ github.event.inputs.features }}" ${{ github.event.inputs.target }}
+      - name: Build cross artifacts
+        if: ${{ github.event.inputs.target != 'default' }}
+        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
+        with:
+          use-cross: true
+          command: build
+          args: steps.cross_args.outputs.cross_args
 
       - name: Download assets
         run: just download-assets smbert v0003

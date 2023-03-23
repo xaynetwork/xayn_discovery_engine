@@ -110,13 +110,27 @@ download-assets *args:
     cd {{justfile_directory()}}/.github/scripts
     ./download_assets.sh {{args}}
 
-build-service name features="" target="default":
+build-service-args name target="default" features="":
     #!/usr/bin/env -S bash -eux -o pipefail
-    set -eux -o pipefail
-    if [[ "{{target}}" == "default" ]]; then
-        cargo build --release --bin "{{name}}" --features "{{features}}"
+    if [[ -z "{{features}}" ]]; then
+        features=""
     else
-        cross build --release --bin "{{name}}" --features "{{features}}" --target "{{target}}"
+        features="--features {{features}}"
+    fi
+    if [[ "{{target}}" == "default" ]]; then
+        target=""
+    else
+        target="--target {{target}}"
+    fi
+    echo "--release --bin {{name}} $target $features"
+
+build-service name target="default" features="":
+    #!/usr/bin/env -S bash -eux -o pipefail
+    args=$(just build-service-args {{name}} {{target}} {{features}})
+    if [[ "{{target}}" == "default" ]]; then
+        cargo build $args
+    else
+        cross build $args
     fi
 
 web-dev-up:
