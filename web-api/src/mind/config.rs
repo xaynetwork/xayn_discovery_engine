@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_coi::CoiConfig;
 use xayn_test_utils::error::Panic;
 
-use crate::personalization::PersonalizationConfig;
+use crate::personalization::{routes::PersonalizeBy, PersonalizationConfig};
 
 #[derive(Debug, Serialize)]
 pub(super) struct StateConfig {
@@ -129,6 +129,16 @@ impl Default for SaturationConfig {
             click_probability: 0.2,
             ndocuments: 30,
             iterations: 10,
+        }
+    }
+}
+
+impl PersonalizeBy<'_> {
+    pub(super) fn knn_search(count: usize) -> Self {
+        Self::KnnSearch {
+            count,
+            published_after: None,
+            query: None,
         }
     }
 }

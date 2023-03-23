@@ -28,17 +28,18 @@ use crate::{
 };
 
 /// KNN search based on Centers of Interest.
-pub(super) struct CoiSearch<I, J> {
+pub(super) struct CoiSearch<'a, I, J> {
     pub(super) interests: I,
     pub(super) excluded: J,
     pub(super) horizon: Duration,
     pub(super) max_cois: usize,
     pub(super) count: usize,
     pub(super) published_after: Option<DateTime<Utc>>,
+    pub(super) query: Option<&'a str>,
     pub(super) time: DateTime<Utc>,
 }
 
-impl<'a, I, J> CoiSearch<I, J>
+impl<'a, I, J> CoiSearch<'a, I, J>
 where
     I: IntoIterator,
     <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a PositiveCoi>,
@@ -90,7 +91,7 @@ where
                             num_candidates: self.count,
                             published_after: self.published_after,
                             min_similarity: None,
-                            query: None,
+                            query: self.query,
                             time: self.time,
                         },
                     )
@@ -156,6 +157,7 @@ mod tests {
             max_cois: PersonalizationConfig::default().max_cois_for_knn,
             count: 10,
             published_after: None,
+            query: None,
             time: Utc::now(),
         }
         .run_on(&storage)
