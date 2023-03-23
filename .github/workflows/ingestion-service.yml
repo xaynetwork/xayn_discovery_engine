@@ -38,6 +38,10 @@ jobs:
       - name: Setup job
         uses: ./.github/actions/setup-job-docker
 
+      - name: Setup Docker Buildx
+        if: ${{ github.event.inputs.target != 'default' }}
+        uses: docker/setup-buildx-action@4b4e9c3e2d4531116a6f8ba8e71fc6e2cb6e6c8c # v2.5.0
+
       - name: Install cross
         if: ${{ github.event.inputs.target != 'default' }}
         run: cargo install cross --git https://github.com/cross-rs/cross
