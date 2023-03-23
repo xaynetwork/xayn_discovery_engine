@@ -384,6 +384,30 @@ impl Client {
             .map(|response| response.failed_documents("delete", true).into())
     }
 
+    #[cfg(feature = "ET-4089")]
+    pub(super) async fn retain_documents(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<(), Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
+        let url = self.create_resource_path(["_delete_by_query"], [("refresh", None)]);
+        let body = json!({
+            "query": {
+                "bool": {
+                    "must_not": {
+                        "ids": {
+                            "values": ids.into_iter().collect_vec()
+                        }
+                    }
+                }
+            }
+        });
+        self.query_with_json::<_, IgnoredResponse>(url, Some(body))
+            .await?;
+
+        Ok(())
+    }
+
     pub(super) async fn insert_document_properties(
         &self,
         id: &DocumentId,

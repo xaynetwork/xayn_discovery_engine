@@ -25,6 +25,8 @@ use tokio::time::Instant;
 use tracing::{error, info, instrument};
 
 use super::AppState;
+#[cfg(feature = "ET-4089")]
+use crate::error::common::FailedToSetSomeDocumentCandidates;
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -42,12 +44,17 @@ use crate::{
 };
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
+    config.service(
+        web::resource("/documents")
+            .route(web::post().to(new_documents.error_with_request_id()))
+            .route(web::delete().to(delete_documents.error_with_request_id())),
+    );
+    #[cfg(feature = "ET-4089")]
+    config.service(
+        web::resource("/documents/candidates")
+            .route(web::put().to(set_document_candidates.error_with_request_id())),
+    );
     config
-        .service(
-            web::resource("/documents")
-                .route(web::post().to(new_documents.error_with_request_id()))
-                .route(web::delete().to(delete_documents.error_with_request_id())),
-        )
         .service(
             web::resource("/documents/{document_id}")
                 .route(web::delete().to(delete_document.error_with_request_id())),
@@ -223,6 +230,40 @@ async fn delete_documents(
 #[derive(Debug, Deserialize)]
 struct BatchDeleteRequest {
     documents: Vec<String>,
+}
+
+#[cfg(feature = "ET-4089")]
+#[derive(Debug, Deserialize)]
+struct DocumentCandidate {
+    id: String,
+}
+
+#[cfg(feature = "ET-4089")]
+#[derive(Debug, Deserialize)]
+struct DocumentCandidatesRequest {
+    documents: Vec<DocumentCandidate>,
+}
+
+#[cfg(feature = "ET-4089")]
+async fn set_document_candidates(
+    state: Data<AppState>,
+    Json(body): Json<DocumentCandidatesRequest>,
+) -> Result<impl Responder, Error> {
+    let documents = body
+        .documents
+        .into_iter()
+        .map(|document| document.id.try_into())
+        .try_collect::<_, Vec<_>, _>()?;
+    let failed_documents = storage::DocumentCandidate::set(&state.storage, &documents).await?;
+
+    if failed_documents.is_empty() {
+        Ok(HttpResponse::NoContent())
+    } else {
+        Err(FailedToSetSomeDocumentCandidates {
+            documents: failed_documents.into_iter().map(Into::into).collect(),
+        }
+        .into())
+    }
 }
 
 #[derive(Debug, Serialize)]

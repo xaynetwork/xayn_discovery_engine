@@ -372,6 +372,24 @@ impl storage::Document for Storage {
     }
 }
 
+#[cfg(feature = "ET-4089")]
+#[async_trait(?Send)]
+impl storage::DocumentCandidate for Storage {
+    async fn set(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        let mut ids = ids.into_iter().collect::<HashSet<_>>();
+        for (id, document) in &mut self.documents.write().await.0 {
+            if ids.remove(id) ^ document.is_candidate {
+                document.is_candidate = !document.is_candidate;
+            }
+        }
+
+        Ok(ids.into_iter().cloned().collect())
+    }
+}
+
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {

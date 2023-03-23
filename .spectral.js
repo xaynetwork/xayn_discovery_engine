@@ -14,9 +14,9 @@ module.exports = {
       then: {
         function: enumCaseConvention,
         functionOptions: {
-          type: 'pascal'
-        }
-      }
+          type: 'pascal',
+        },
+      },
     },
     'operation-id-case-convention': {
       description: 'Operation ids must be pascal case',
@@ -27,9 +27,9 @@ module.exports = {
       then: {
         function: enumCaseConvention,
         functionOptions: {
-          type: 'pascal'
-        }
-      }
+          type: 'pascal',
+        },
+      },
     },
     'major-version-in-path': 'off',
     'schema-description': 'off',
@@ -39,8 +39,18 @@ module.exports = {
     'delete-body': 'off',
     'prohibit-summary-sentence-style': 'off',
     'collection-array-property': 'off',
-    // the rule set wants to enforce a specific erorr schema
+    // the rule set wants to enforce a specific error schema
     'response-error-response-schema': 'off',
     'patch-request-content-type': 'off',
-  }
+  },
+  overrides: [
+    {
+      files: [
+        "web-api/openapi/back_office.yaml#/components/schemas/DocumentCandidatesRequest",
+      ],
+      rules: {
+        "array-boundary": "off",
+      },
+    },
+  ],
 };
