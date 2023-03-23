@@ -1,11 +1,11 @@
-name: Api Tests
+name: Integration Tests
 
 on:
   push:
     branches: [ ET-3848-integrate-tests ]
 
 jobs:
-  cargo-test:
+  Integration-test:
     runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v11
@@ -73,32 +73,18 @@ jobs:
           cargo run --release --bin personalization &
           .github/scripts/wait_for_it.sh $XAYN_PERSONALIZATION__NET__BIND_TO -t 60 -- echo "Personalization service is up and running"
 
-#      - name: Run pytest
-#        run: |
-#          python3.9 --version
-#      - uses: actions/checkout@ac593985615ec2ede58e132d2e21d2b1cbd6127c # v3.3.0
-#      - name: Set up Python
-#        uses: actions/setup-python@v4
-#        with:
-#          python-version: 3.8
-#
-#      - name: Install Python dependencies
-#        uses: py-actions/py-dependency-install@v4
-#        with:
-#            path: "discovery_engine_api_tests/requirements.txt"
+     - name: Set up Python/ Pip cache
+       uses: actions/setup-python@v4
+       with:
+         python-version: 3.9
+         cache: 'pip'
+     - name: Install dependencies
+       run: pip install -r "discovery_engine_api_tests/requirements.txt"
 
-#      - name: Install dependencies
-#        run: |
-#          cd discovery_engine_api_tests
-#          python -m pip install --upgrade pip
-#          pip install -r requirements.txt
-
-#      - name: Run pytest
-#        env:
-#          PYTHONPATH: cd discovery_engine_api_tests
-#        run: |
-#          cd discovery_engine_api_tests
-#          export PYTHONPATH=$(pwd)
-#          cd tests
-#          echo $PYTHONPATH
-#          pytest
+     - name: Run pytest
+       env:
+         PYTHONPATH: cd discovery_engine_api_tests
+       run: |
+         cd discovery_engine_api_tests/tests
+         cd tests
+         pytest
