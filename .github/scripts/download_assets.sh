@@ -14,7 +14,7 @@ download()
     if [ -f "$DATA_DIR/$ARCHIVE_NAME" ]; then
         echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
     else
-        curl "$BASE_URL/$NAME/$ARCHIVE_NAME" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
+        curl "$BASE_URL/$1/$ARCHIVE_NAME" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
         mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$DATA_DIR/$ARCHIVE_NAME"
 
         cd "$DATA_DIR"
