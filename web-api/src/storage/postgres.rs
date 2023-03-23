@@ -826,6 +826,13 @@ impl storage::Document for Storage {
 #[cfg(feature = "ET-4089")]
 #[async_trait(?Send)]
 impl storage::DocumentCandidate for Storage {
+    async fn get(&self) -> Result<Vec<DocumentId>, Error> {
+        sqlx::query_as("SELECT document_id FROM document WHERE is_candidate;")
+            .fetch_all(&self.postgres.pool)
+            .await
+            .map_err(Into::into)
+    }
+
     async fn set(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,

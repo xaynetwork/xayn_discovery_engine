@@ -26,7 +26,7 @@ use tracing::{error, info, instrument};
 
 use super::AppState;
 #[cfg(feature = "ET-4089")]
-use crate::error::common::FailedToSetSomeDocumentCandidates;
+use crate::{error::common::FailedToSetSomeDocumentCandidates, models::DocumentId};
 use crate::{
     error::{
         application::WithRequestIdExt,
@@ -52,6 +52,7 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
     #[cfg(feature = "ET-4089")]
     config.service(
         web::resource("/documents/candidates")
+            .route(web::get().to(get_document_candidates.error_with_request_id()))
             .route(web::put().to(set_document_candidates.error_with_request_id())),
     );
     config
@@ -230,6 +231,19 @@ async fn delete_documents(
 #[derive(Debug, Deserialize)]
 struct BatchDeleteRequest {
     documents: Vec<String>,
+}
+
+#[cfg(feature = "ET-4089")]
+#[derive(Debug, Serialize)]
+struct DocumentCandidatesResponse {
+    documents: Vec<DocumentId>,
+}
+
+#[cfg(feature = "ET-4089")]
+async fn get_document_candidates(state: Data<AppState>) -> Result<impl Responder, Error> {
+    let documents = storage::DocumentCandidate::get(&state.storage).await?;
+
+    Ok(Json(DocumentCandidatesResponse { documents }))
 }
 
 #[cfg(feature = "ET-4089")]

@@ -94,6 +94,21 @@ paths:
           $ref: './responses/generic.yml#/BadRequest'
 
   /documents/candidates:
+    get:
+      tags:
+        - back office
+      summary: Get the documents considered for recommendations.
+      description: Get the documents considered for recommendations.
+      operationId: listDocumentCandidates
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentCandidatesResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
     put:
       tags:
         - back office
@@ -341,3 +356,15 @@ components:
           minItems: 0
           items:
             $ref: '#/components/schemas/DocumentCandidate'
+    DocumentCandidatesResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 0
+          items:
+            $ref: './schemas/document.yml#/DocumentId'
+      example:
+        documents:
+          - 'document_id0'

@@ -47,6 +47,7 @@ module.exports = {
     {
       files: [
         "web-api/openapi/back_office.yaml#/components/schemas/DocumentCandidatesRequest",
+        "web-api/openapi/back_office.yaml#/components/schemas/DocumentCandidatesResponse",
       ],
       rules: {
         "array-boundary": "off",
