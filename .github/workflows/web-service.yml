@@ -4,17 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        required: false
         type: string
-        default: ""
+        default: ''
         description: a tag for image identification (xaynetci/xayn_discovery_ingestion_service:$TAG)
       features:
-        required: false
         type: string
-        default: ""
+        default: ''
         description: a comma-separated list of library features for compilation
       target:
-        required: true
         type: choice
         options:
           - default
@@ -43,7 +40,7 @@ jobs:
         uses: ./.github/actions/setup-job-docker
 
       - name: Install cross
-        if: ${{ github.event.inputs.target != "default" }}
+        if: ${{ github.event.inputs.target != 'default' }}
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build artifacts
