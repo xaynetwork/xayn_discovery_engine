@@ -73,18 +73,19 @@ jobs:
           cargo run --release --bin personalization &
           .github/scripts/wait_for_it.sh $XAYN_PERSONALIZATION__NET__BIND_TO -t 60 -- echo "Personalization service is up and running"
 
-     - name: Set up Python/ Pip cache
-       uses: actions/setup-python@v4
-       with:
-         python-version: 3.9
-         cache: 'pip'
-     - name: Install dependencies
-       run: pip install -r "discovery_engine_api_tests/requirements.txt"
+      - name: Set up Python/ Pip cache
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+          cache: 'pip'
 
-     - name: Run pytest
-       env:
-         PYTHONPATH: cd discovery_engine_api_tests
-       run: |
-         cd discovery_engine_api_tests/tests
-         cd tests
-         pytest
+      - name: Install dependencies
+        run: pip install -r "discovery_engine_api_tests/requirements.txt"
+
+      - name: Run pytest
+        env:
+          PYTHONPATH: cd discovery_engine_api_tests
+        run: |
+          cd discovery_engine_api_tests/tests
+          cd tests
+          pytest
