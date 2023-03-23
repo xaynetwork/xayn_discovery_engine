@@ -24,7 +24,6 @@ permissions:
 
 env:
   DENY_WARNINGS: false
-  CROSS_CONTAINER_IN_CONTAINER: true
 
 jobs:
   rust-build:
@@ -44,7 +43,9 @@ jobs:
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build artifacts
-        run: just build-service ingestion "${{ github.event.inputs.features }}" ${{ github.event.inputs.target }}
+        run: |
+          docker run -v /var/run/docker.sock:/var/run/docker.sock xaynetci/yellow:v11 \
+            just build-service ingestion "${{ github.event.inputs.features }}" ${{ github.event.inputs.target }}
 
       - name: Download assets
         run: just download-assets smbert v0003
