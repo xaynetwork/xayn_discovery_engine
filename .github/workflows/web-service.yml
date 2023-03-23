@@ -43,11 +43,11 @@ jobs:
         uses: ./.github/actions/setup-job-docker
 
       - name: Install cross
-        if: ${{ github.event.inputs.target }} != "default"
+        if: ${{ github.event.inputs.target != "default" }}
         run: cargo install cross --git https://github.com/cross-rs/cross
 
       - name: Build artifacts
-        run: just build-service personalization ${{ github.event.inputs.features }}
+        run: just build-service personalization "${{ github.event.inputs.features }}" ${{ github.event.inputs.target }}
 
       - name: Download assets
         run: just download-assets smbert v0003
