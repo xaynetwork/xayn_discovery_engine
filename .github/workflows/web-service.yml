@@ -40,20 +40,22 @@ jobs:
 
       - name: Build default artifacts
         if: ${{ github.event.inputs.target == 'default' }}
-        run: just build-service ingestion "${{ github.event.inputs.features }}"
+        run: just build-service personalization "${{ github.event.inputs.features }}"
 
-      - name: Get cross args
-        id: cross_args
+      - name: Build aarch64 artifacts
         if: ${{ github.event.inputs.target != 'default' }}
-        run: echo "cross_args=$(just build-service-args personalization ${{ github.event.inputs.target }} ${{ github.event.inputs.features }})" >> $GITHUB_OUTPUT
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+        run: |
+          apt update -y && apt upgrade -y
+          apt install -y g++-aarch64-linux-gnu libc6-dev-arm64-cross
 
-      - name: Build cross artifacts
-        if: ${{ github.event.inputs.target != 'default' }}
-        uses: actions-rs/cargo@844f36862e911db73fe0815f00a4a2602c279505 # v1.0.3
-        with:
-          use-cross: true
-          command: build
-          args: steps.cross_args.outputs.cross_args
+          rustup target add aarch64-unknown-linux-gnu
+          rustup toolchain install stable-aarch64-unknown-linux-gnu
+
+          cargo build --release --bin personalization --target aarch64-unknown-linux-gnu
 
       - name: Download assets
         run: just download-assets smbert v0003
@@ -65,10 +67,19 @@ jobs:
           mkdir web-service
           mkdir -p web-service/assets
 
-      - name: Create archive
+      - if: ${{ github.event.inputs.target != 'default' }}
+        working-directory: ${{ runner.temp }}
+        run: |
+          cp ${GITHUB_WORKSPACE}/target/aarch64-unknown-linux-gnu/release/personalization ./web-service/server.bin
+
+      - if: ${{ github.event.inputs.target == 'default' }}
         working-directory: ${{ runner.temp }}
         run: |
           cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/server.bin
+
+      - name: Create archive
+        working-directory: ${{ runner.temp }}
+        run: |
           cp ${GITHUB_WORKSPACE}/web-api/Dockerfile ./web-service/Dockerfile
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/config.toml ./web-service/assets/config.toml
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./web-service/assets/vocab.txt
