@@ -80,7 +80,7 @@ jobs:
 
       - name: Run pytest
         env:
-          PYTHONPATH: cd discovery_engine_api_tests
+          PYTHONPATH: ${{ github.workspace }}/discovery_engine_api_tests
         run: |
           cd discovery_engine_api_tests/tests
           pytest
