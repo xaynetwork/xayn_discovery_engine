@@ -64,18 +64,15 @@ jobs:
         working-directory: ${{ runner.temp }}
         run: |
           rm -rf ./web-service
-          mkdir web-service
           mkdir -p web-service/assets
-
-      - if: ${{ github.event.inputs.target != 'default' }}
-        working-directory: ${{ runner.temp }}
-        run: |
-          cp ${GITHUB_WORKSPACE}/target/aarch64-unknown-linux-gnu/release/personalization ./web-service/server.bin
 
       - if: ${{ github.event.inputs.target == 'default' }}
         working-directory: ${{ runner.temp }}
-        run: |
-          cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/server.bin
+        run: cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/server.bin
+
+      - if: ${{ github.event.inputs.target != 'default' }}
+        working-directory: ${{ runner.temp }}
+        run: cp ${GITHUB_WORKSPACE}/target/aarch64-unknown-linux-gnu/release/personalization ./web-service/server.bin
 
       - name: Create archive
         working-directory: ${{ runner.temp }}
@@ -102,6 +99,12 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
+      - name: Set up QEMU
+        if: ${{ github.event.inputs.target != 'default' }}
+        uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
+        with:
+          platforms: 'arm64'
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@4b4e9c3e2d4531116a6f8ba8e71fc6e2cb6e6c8c # v2.5.0
 
@@ -123,9 +126,16 @@ jobs:
             fi
           fi
           IMAGE_NAME="xaynetci/xayn_discovery_web_service:$TAG"
-          docker build -t "${IMAGE_NAME}" .
-          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
-          echo "TAG=${TAG}" >> $GITHUB_ENV
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
+      - if: ${{ github.event.inputs.target == 'default' }}
+        working-directory: web-service
+        run: docker build -t "$IMAGE_NAME" .
+
+      - if: ${{ github.event.inputs.target != 'default' }}
+        working-directory: web-service
+        run: docker build --platform linux/arm64 -t "$IMAGE_NAME" .
 
       - name: Login to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
@@ -134,5 +144,4 @@ jobs:
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
 
       - name: docker push
-        id: docker-push
-        run: docker push "${IMAGE_NAME}"
+        run: docker push "$IMAGE_NAME"
