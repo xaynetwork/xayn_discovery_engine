@@ -16,12 +16,13 @@ mod state;
 
 use std::{env::current_dir, path::PathBuf, sync::Arc};
 
-use actix_web::web::ServiceConfig;
+use actix_web::{web::ServiceConfig, App};
 use async_trait::async_trait;
+use futures_util::FutureExt;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::info;
 
-pub(crate) use self::state::AppState;
+pub(crate) use self::state::{AppState, TenantState};
 use crate::{
     logging,
     logging::init_tracing,
@@ -31,7 +32,7 @@ use crate::{
 };
 
 #[async_trait]
-pub trait Application {
+pub trait Application: 'static {
     const NAME: &'static str;
 
     type Config: AsRef<logging::Config>
@@ -44,7 +45,6 @@ pub trait Application {
         + Sync
         + 'static;
     type Extension: Send + Sync + 'static;
-    type Storage: Send + Sync + 'static;
 
     /// Configures the actix service(s) used by this application.
     ///
@@ -57,10 +57,6 @@ pub trait Application {
     //             to `Extension` but using this helper method is simpler
     //             and it is also easier to add async if needed (using #[async-trait]).
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError>;
-
-    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError>;
-
-    async fn close_storage(state: &Self::Storage);
 }
 
 pub type SetupError = anyhow::Error;
@@ -77,9 +73,17 @@ where
     let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
     info!(pwd=?pwd);
 
+    let net_config = net::Config::clone(config.as_ref());
+    let tenants_config = tenants::Config::clone(config.as_ref());
     let app_state = Arc::new(AppState::<A>::create(config).await?);
+    let mk_base_app = {
+        let app_state = app_state.clone();
+        // This clone below is to make sure this is a `Fn` instead of an `FnOnce`.
+        move || app_state.clone().attach_to(App::new())
+    };
+    let shutdown = Box::new(move || async { app_state.close().await }.boxed());
 
-    net::start_actix_server(app_state, AppState::<A>::close, A::configure_service)
+    net::start_actix_server(net_config, tenants_config, mk_base_app, shutdown)
 }
 
 /// Generate application names/env prefixes for the given application.

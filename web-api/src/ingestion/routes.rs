@@ -27,6 +27,7 @@ use tracing::{error, info, instrument};
 
 use super::AppState;
 use crate::{
+    app::TenantState,
     error::{
         application::WithRequestIdExt,
         common::{
@@ -209,6 +210,7 @@ struct IngestionRequestBody {
 async fn upsert_documents(
     state: Data<AppState>,
     Json(body): Json<IngestionRequestBody>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     if body.documents.is_empty() {
         return Ok(HttpResponse::NoContent());
@@ -229,14 +231,12 @@ async fn upsert_documents(
         .map(UnvalidatedIngestedDocument::validate)
         .partition_result::<Vec<_>, Vec<_>, _, _>();
 
-    let existing_data = storage::Document::get_excerpted(
-        &state.storage,
-        documents.iter().map(|document| &document.id),
-    )
-    .await?
-    .into_iter()
-    .map(|document| (document.id, (document.snippet, document.is_candidate)))
-    .collect::<HashMap<_, _>>();
+    let existing_data =
+        storage::Document::get_excerpted(&storage, documents.iter().map(|document| &document.id))
+            .await?
+            .into_iter()
+            .map(|document| (document.id, (document.snippet, document.is_candidate)))
+            .collect::<HashMap<_, _>>();
 
     // Hint: Documents which have a changed snippet are also in `new_documents`.
     let (changed_documents, new_documents) = documents
@@ -257,7 +257,7 @@ async fn upsert_documents(
         .partition::<Vec<_>, _>(|(_, _, unchanged_snippet)| *unchanged_snippet);
 
     storage::DocumentCandidate::remove(
-        &state.storage,
+        &storage,
         changed_documents
             .iter()
             .filter_map(|(document, new_is_candidate, _)| {
@@ -269,13 +269,12 @@ async fn upsert_documents(
     .await?;
 
     for (document, _, _) in &changed_documents {
-        storage::DocumentProperties::put(&state.storage, &document.id, &document.properties)
-            .await?;
-        storage::Tag::put(&state.storage, &document.id, &document.tags).await?;
+        storage::DocumentProperties::put(&storage, &document.id, &document.properties).await?;
+        storage::Tag::put(&storage, &document.id, &document.tags).await?;
     }
 
     storage::DocumentCandidate::add(
-        &state.storage,
+        &storage,
         changed_documents
             .iter()
             .filter_map(|(document, new_is_candidate, _)| {
@@ -318,7 +317,7 @@ async fn upsert_documents(
         changed_documents.len(),
     );
     failed_documents.extend(
-        storage::Document::insert(&state.storage, new_documents)
+        storage::Document::insert(&storage, new_documents)
             .await?
             .into_iter()
             .map(Into::into),
@@ -334,12 +333,12 @@ async fn upsert_documents(
     }
 }
 
-async fn delete_document(state: Data<AppState>, id: Path<String>) -> Result<impl Responder, Error> {
+async fn delete_document(id: Path<String>, state: TenantState) -> Result<impl Responder, Error> {
     delete_documents(
-        state,
         Json(BatchDeleteRequest {
             documents: vec![id.into_inner()],
         }),
+        state,
     )
     .await?;
 
@@ -347,15 +346,15 @@ async fn delete_document(state: Data<AppState>, id: Path<String>) -> Result<impl
 }
 
 async fn delete_documents(
-    state: Data<AppState>,
     Json(documents): Json<BatchDeleteRequest>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let documents = documents
         .documents
         .into_iter()
         .map(TryInto::try_into)
         .try_collect::<_, Vec<_>, _>()?;
-    let failed_documents = storage::Document::delete(&state.storage, &documents).await?;
+    let failed_documents = storage::Document::delete(&storage, &documents).await?;
 
     if failed_documents.is_empty() {
         Ok(HttpResponse::NoContent())
@@ -377,8 +376,10 @@ struct DocumentCandidatesResponse {
     documents: Vec<DocumentId>,
 }
 
-async fn get_document_candidates(state: Data<AppState>) -> Result<impl Responder, Error> {
-    let documents = storage::DocumentCandidate::get(&state.storage).await?;
+async fn get_document_candidates(
+    TenantState(storage): TenantState,
+) -> Result<impl Responder, Error> {
+    let documents = storage::DocumentCandidate::get(&storage).await?;
 
     Ok(Json(DocumentCandidatesResponse { documents }))
 }
@@ -394,15 +395,15 @@ struct DocumentCandidatesRequest {
 }
 
 async fn set_document_candidates(
-    state: Data<AppState>,
     Json(body): Json<DocumentCandidatesRequest>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let documents = body
         .documents
         .into_iter()
         .map(|document| document.id.try_into())
         .try_collect::<_, Vec<_>, _>()?;
-    let failed_documents = storage::DocumentCandidate::set(&state.storage, &documents).await?;
+    let failed_documents = storage::DocumentCandidate::set(&storage, &documents).await?;
 
     if failed_documents.is_empty() {
         Ok(HttpResponse::NoContent())
@@ -419,13 +420,13 @@ struct DocumentPropertiesResponse {
     properties: DocumentProperties,
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(storage))]
 pub(crate) async fn get_document_properties(
-    state: Data<AppState>,
     document_id: Path<String>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
-    let properties = storage::DocumentProperties::get(&state.storage, &document_id)
+    let properties = storage::DocumentProperties::get(&storage, &document_id)
         .await?
         .ok_or(DocumentNotFound)?;
 
@@ -437,11 +438,11 @@ struct DocumentPropertiesRequest {
     properties: HashMap<String, DocumentProperty>,
 }
 
-#[instrument(skip(state, properties))]
+#[instrument(skip(properties, storage))]
 async fn put_document_properties(
-    state: Data<AppState>,
     document_id: Path<String>,
     Json(properties): Json<DocumentPropertiesRequest>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
     let properties = properties
@@ -449,20 +450,20 @@ async fn put_document_properties(
         .into_iter()
         .map(|(id, property)| id.try_into().map(|id| (id, property)))
         .try_collect()?;
-    storage::DocumentProperties::put(&state.storage, &document_id, &properties)
+    storage::DocumentProperties::put(&storage, &document_id, &properties)
         .await?
         .ok_or(DocumentNotFound)?;
 
     Ok(HttpResponse::NoContent())
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(storage))]
 async fn delete_document_properties(
-    state: Data<AppState>,
     document_id: Path<String>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
-    storage::DocumentProperties::delete(&state.storage, &document_id)
+    storage::DocumentProperties::delete(&storage, &document_id)
         .await?
         .ok_or(DocumentNotFound)?;
 
@@ -474,15 +475,15 @@ struct DocumentPropertyResponse {
     property: DocumentProperty,
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(storage))]
 async fn get_document_property(
-    state: Data<AppState>,
     ids: Path<(String, String)>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
     let property_id = property_id.try_into()?;
-    let property = storage::DocumentProperty::get(&state.storage, &document_id, &property_id)
+    let property = storage::DocumentProperty::get(&storage, &document_id, &property_id)
         .await?
         .ok_or(DocumentNotFound)?
         .ok_or(DocumentPropertyNotFound)?;
@@ -495,31 +496,31 @@ struct DocumentPropertyRequest {
     property: DocumentProperty,
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(storage))]
 async fn put_document_property(
-    state: Data<AppState>,
     ids: Path<(String, String)>,
     Json(body): Json<DocumentPropertyRequest>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
     let property_id = property_id.try_into()?;
-    storage::DocumentProperty::put(&state.storage, &document_id, &property_id, &body.property)
+    storage::DocumentProperty::put(&storage, &document_id, &property_id, &body.property)
         .await?
         .ok_or(DocumentNotFound)?;
 
     Ok(HttpResponse::NoContent())
 }
 
-#[instrument(skip(state))]
+#[instrument(skip(storage))]
 async fn delete_document_property(
-    state: Data<AppState>,
     ids: Path<(String, String)>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
     let property_id = property_id.try_into()?;
-    storage::DocumentProperty::delete(&state.storage, &document_id, &property_id)
+    storage::DocumentProperty::delete(&storage, &document_id, &property_id)
         .await?
         .ok_or(DocumentNotFound)?
         .ok_or(DocumentPropertyNotFound)?;

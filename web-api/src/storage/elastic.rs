@@ -64,26 +64,27 @@ impl Default for Config {
     }
 }
 
-impl Config {
-    pub(crate) fn setup_client(&self) -> Result<Client, SetupError> {
-        let mut url_to_index = self.url.parse::<Url>()?;
-        url_to_index
-            .path_segments_mut()
-            .map_err(|()| anyhow::anyhow!("non segmentable url in config"))?
-            .push(&self.index_name);
-
-        Ok(Client {
-            config: self.clone(),
-            url_to_index,
-            client: reqwest::Client::new(),
-        })
-    }
-}
-
+#[derive(Clone)]
 pub(crate) struct Client {
     config: Config,
     url_to_index: Url,
     client: reqwest::Client,
+}
+
+impl Client {
+    pub(crate) fn new(config: &Config) -> Result<Self, SetupError> {
+        let mut url_to_index = config.url.parse::<Url>()?;
+        url_to_index
+            .path_segments_mut()
+            .map_err(|()| anyhow::anyhow!("non segmentable url in config"))?
+            .push(&config.index_name);
+
+        Ok(Self {
+            config: config.clone(),
+            url_to_index,
+            client: reqwest::Client::new(),
+        })
+    }
 }
 
 #[derive(Debug, Serialize)]

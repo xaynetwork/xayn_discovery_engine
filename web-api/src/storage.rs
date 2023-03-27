@@ -18,7 +18,7 @@ pub(crate) mod memory;
 pub(crate) mod postgres;
 mod utils;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -29,6 +29,7 @@ use xayn_ai_coi::{PositiveCoi, UserInterests};
 
 use crate::{
     app::SetupError,
+    middleware::request_context::TenantId,
     models::{
         self,
         DocumentId,
@@ -228,22 +229,38 @@ pub struct Config {
     postgres: postgres::Config,
 }
 
-impl Config {
-    pub(crate) async fn setup(&self) -> Result<Storage, SetupError> {
-        let elastic = self.elastic.setup_client()?;
-        let postgres = self.postgres.setup_database().await?;
-
-        Ok(Storage { elastic, postgres })
-    }
-}
-
-pub struct Storage {
-    elastic: elastic::Client,
+pub(crate) struct Storage {
+    elastic: Arc<elastic::Client>,
     postgres: postgres::Database,
 }
 
 impl Storage {
-    pub async fn close(&self) {
+    pub(crate) async fn builder(
+        config: &Config,
+        enable_legacy_tenant: bool,
+    ) -> Result<StorageBuilder, SetupError> {
+        Ok(StorageBuilder {
+            elastic: Arc::new(elastic::Client::new(&config.elastic)?),
+            postgres: postgres::Database::builder(&config.postgres, enable_legacy_tenant).await?,
+        })
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct StorageBuilder {
+    elastic: Arc<elastic::Client>,
+    postgres: postgres::DatabaseBuilder,
+}
+
+impl StorageBuilder {
+    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Result<Storage, Error> {
+        Ok(Storage {
+            elastic: self.elastic.clone(),
+            postgres: self.postgres.build_for(tenant_id)?,
+        })
+    }
+
+    pub(crate) async fn close(&self) {
         self.postgres.close().await;
     }
 }

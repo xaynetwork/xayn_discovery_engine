@@ -17,7 +17,6 @@ use std::{future::Future, str, sync::Arc};
 use actix_web::{
     body::BoxBody,
     dev::{Service, ServiceRequest, ServiceResponse},
-    web::Data,
     HttpMessage,
     HttpRequest,
 };
@@ -135,17 +134,16 @@ impl RequestId {
 /// This makes the `RequestId` and `TenantId` available as extensions and sets up tracing for all calls.
 ///
 /// The `TenantId` is required.
-pub(crate) fn setup_request_context<A, S>(
+pub(crate) fn setup_request_context<S>(
+    config: &tenants::Config,
     request: ServiceRequest,
     service: &S,
 ) -> impl Future<Output = Result<ServiceResponse<BoxBody>, actix_web::Error>> + 'static
 where
-    A: AsRef<tenants::Config> + 'static,
     S: Service<ServiceRequest, Response = ServiceResponse<BoxBody>, Error = actix_web::Error>,
     S::Future: 'static,
 {
     let request_id = RequestId::generate();
-    let config = request.app_data::<Data<A>>().unwrap().get_ref().as_ref();
 
     let tenant_id = match extract_tenant_id(config, &request) {
         Ok(id) => id,

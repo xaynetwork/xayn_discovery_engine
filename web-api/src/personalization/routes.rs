@@ -40,6 +40,7 @@ use super::{
     SemanticSearchConfig,
 };
 use crate::{
+    app::TenantState,
     error::{
         application::WithRequestIdExt,
         common::{BadRequest, DocumentNotFound},
@@ -84,6 +85,7 @@ async fn interactions(
     state: Data<AppState>,
     user_id: Path<String>,
     Json(interactions): Json<UpdateInteractions>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
     let interactions = interactions
@@ -96,7 +98,7 @@ async fn interactions(
         })
         .try_collect::<_, Vec<_>, _>()?;
     update_interactions(
-        &state.storage,
+        &storage,
         &state.coi,
         &user_id,
         &interactions,
@@ -171,9 +173,10 @@ async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<String>,
     params: Query<PersonalizedDocumentsQuery>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     personalize_documents_by(
-        &state.storage,
+        &storage,
         &state.coi,
         &user_id.into_inner().try_into()?,
         &state.config.personalization,
@@ -465,6 +468,7 @@ struct SemanticSearchResponse {
 async fn semantic_search(
     state: Data<AppState>,
     Json(query): Json<UnvalidatedSemanticSearchQuery>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let mut warnings = Vec::new();
 
@@ -477,13 +481,13 @@ async fn semantic_search(
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
-        personalized_exclusions(&state.storage, state.config.as_ref(), personalize).await?
+        personalized_exclusions(&storage, state.config.as_ref(), personalize).await?
     } else {
         Vec::new()
     };
     let (embedding, query) = match document {
         InputDocument::Ref(id) => {
-            let embedding = storage::Document::get_embedding(&state.storage, &id)
+            let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
             excluded.push(id);
@@ -496,7 +500,7 @@ async fn semantic_search(
     };
 
     let mut documents = storage::Document::get_by_embedding(
-        &state.storage,
+        &storage,
         KnnSearchParams {
             excluded: &excluded,
             embedding: &embedding,
@@ -512,7 +516,7 @@ async fn semantic_search(
 
     if let Some(personalize) = personalize {
         personalize_knn_search_result(
-            &state.storage,
+            &storage,
             &state.config,
             &state.coi,
             personalize,

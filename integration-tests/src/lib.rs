@@ -218,8 +218,8 @@ where
         [embedding]
         directory = "../assets/smbert_v0003"
 
-        [request_context]
-        disable_legacy_tenant = false
+        [tenants]
+        enable_legacy_tenant = true
     };
 
     configure(&mut config);
@@ -281,7 +281,7 @@ async fn setup_web_dev_test_context(
         id,
         postgres: postgres.unwrap(),
         elastic_search: elastic_search.unwrap(),
-        tenant_id: Uuid::new_v4().to_string(),
+        tenant_id: Uuid::nil().to_string(),
     };
 
     Ok(guard_on_success(uris, move |uris| {
