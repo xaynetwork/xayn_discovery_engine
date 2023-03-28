@@ -262,12 +262,14 @@ impl Client {
         // the existing documents are not filtered in the query to avoid too much work for a cold
         // path, filtering them afterwards can occasionally lead to less than k results though
         let excluded_ids = json!({
-            "values": params.excluded.into_iter().collect_vec()
+            "ids": {
+                "values": params.excluded.into_iter().collect_vec()
+            }
         });
-        let filter = if let Some(published_after) = params.published_after {
-            // published_after != null && published_after <= publication_date <= time
-            json!({
-                "bool": {
+        let Value::Object(mut filter) = (
+            if let Some(published_after) = params.published_after {
+                // published_after != null && published_after <= publication_date <= time
+                json!({
                     "filter": {
                         "range": {
                             "properties.publication_date": {
@@ -276,19 +278,13 @@ impl Client {
                             }
                         }
                     },
-                    "must_not": {
-                        "ids": excluded_ids
-                    }
-                }
-            })
-        } else {
-            // published_after == null || published_after <= time
-            json!({
-                "bool": {
+                    "must_not": excluded_ids
+                })
+            } else {
+                // published_after == null || published_after <= time
+                json!({
                     "must_not": [
-                        {
-                            "ids": excluded_ids
-                        },
+                        excluded_ids,
                         {
                             "range": {
                                 "properties.publication_date": {
@@ -297,26 +293,34 @@ impl Client {
                             }
                         }
                     ]
-                }
-            })
+                })
+            }
+        ) else {
+            unreachable!(/* filter is a json object */);
         };
 
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
-        let mut body = json!({
+        let Value::Object(mut body) = json!({
             "knn": {
                 "field": "embedding",
                 "query_vector": params.embedding,
-                "k": params.k_neighbors,
+                "k": params.count,
                 "num_candidates": params.num_candidates,
-                "filter": filter
+                "filter": {
+                    "bool": filter
+                }
             },
-            "size": params.k_neighbors,
+            "size": params.count,
             "_source": false
-        });
+        }) else {
+            unreachable!(/* body is a json object */);
+        };
         if let Some(min_similarity) = params.min_similarity {
-            body.as_object_mut()
-                .unwrap(/* we just created it as object */)
-                .insert("min_score".into(), min_similarity.into());
+            body.insert("min_score".to_string(), json!(min_similarity));
+        }
+        if let Some(query) = params.query {
+            filter.insert("must".to_string(), json!({ "match": { "snippet": query }}));
+            body.insert("query".to_string(), json!({ "bool": filter }));
         }
 
         Ok(self

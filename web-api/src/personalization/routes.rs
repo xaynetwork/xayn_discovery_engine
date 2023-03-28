@@ -67,17 +67,17 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
 }
 
 /// Represents user interaction request body.
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct UpdateInteractions {
     documents: Vec<UserInteractionData>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Debug, Deserialize)]
 struct UserInteractionData {
     #[serde(rename = "id")]
-    pub(crate) document_id: String,
+    document_id: String,
     #[serde(rename = "type")]
-    pub(crate) interaction_type: UserInteractionType,
+    interaction_type: UserInteractionType,
 }
 
 async fn interactions(
@@ -148,11 +148,13 @@ pub(crate) async fn update_interactions(
 
     Ok(())
 }
+
 /// Represents personalized documents query params.
-#[derive(Debug, Clone, Deserialize)]
-pub(crate) struct PersonalizedDocumentsQuery {
-    pub(crate) count: Option<usize>,
-    pub(crate) published_after: Option<DateTime<Utc>>,
+#[derive(Debug, Deserialize)]
+struct PersonalizedDocumentsQuery {
+    count: Option<usize>,
+    published_after: Option<DateTime<Utc>>,
+    query: Option<String>,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -168,7 +170,7 @@ impl PersonalizedDocumentsQuery {
 async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<String>,
-    options: Query<PersonalizedDocumentsQuery>,
+    params: Query<PersonalizedDocumentsQuery>,
 ) -> Result<impl Responder, Error> {
     personalize_documents_by(
         &state.storage,
@@ -176,8 +178,9 @@ async fn personalized_documents(
         &user_id.into_inner().try_into()?,
         &state.config.personalization,
         PersonalizeBy::KnnSearch {
-            count: options.document_count(state.config.as_ref())?,
-            published_after: options.published_after,
+            count: params.document_count(state.config.as_ref())?,
+            published_after: params.published_after,
+            query: params.query.as_deref(),
         },
         Utc::now(),
     )
@@ -223,7 +226,7 @@ struct PersonalizedDocumentsResponse {
 
 #[derive(Debug, Serialize)]
 #[serde(tag = "kind")]
-pub(crate) enum PersonalizedDocumentsError {
+enum PersonalizedDocumentsError {
     NotEnoughInteractions,
 }
 
@@ -231,8 +234,9 @@ pub(crate) enum PersonalizeBy<'a> {
     KnnSearch {
         count: usize,
         published_after: Option<DateTime<Utc>>,
+        query: Option<&'a str>,
     },
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     Documents(&'a [&'a DocumentId]),
 }
 
@@ -262,6 +266,7 @@ pub(crate) async fn personalize_documents_by(
         PersonalizeBy::KnnSearch {
             count,
             published_after,
+            query,
         } => {
             knn::CoiSearch {
                 interests: &interests.positive,
@@ -270,11 +275,13 @@ pub(crate) async fn personalize_documents_by(
                 max_cois: personalization.max_cois_for_knn,
                 count,
                 published_after,
+                query,
                 time,
             }
             .run_on(storage)
             .await?
         }
+        #[cfg(test)]
         PersonalizeBy::Documents(documents) => {
             storage::Document::get_personalized(storage, documents.iter().copied()).await?
         }
@@ -291,6 +298,7 @@ pub(crate) async fn personalize_documents_by(
         time,
     );
 
+    #[cfg_attr(not(test), allow(irrefutable_let_patterns))]
     if let PersonalizeBy::KnnSearch { count, .. } = by {
         // due to ceil-ing the number of documents we fetch per COI
         // we might end up with more documents then we want
@@ -300,8 +308,7 @@ pub(crate) async fn personalize_documents_by(
     Ok(Some(documents))
 }
 
-#[derive(Default, Deserialize)]
-#[serde(default)]
+#[derive(Debug, Deserialize)]
 struct UnvalidatedInputUser {
     id: Option<String>,
     history: Option<Vec<UnvalidatedHistoryEntry>>,
@@ -333,16 +340,12 @@ impl UnvalidatedInputUser {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct UnvalidatedSemanticSearchQuery {
     document: UnvalidatedInputDocument,
-    #[serde(default)]
     count: Option<usize>,
-    #[serde(default)]
     min_similarity: Option<f32>,
-    #[serde(default)]
     published_after: Option<DateTime<Utc>>,
-    #[serde(default)]
     personalize: Option<UnvalidatedPersonalize>,
 }
 
@@ -376,7 +379,7 @@ impl UnvalidatedSemanticSearchQuery {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct UnvalidatedInputDocument {
     id: Option<String>,
     query: Option<String>,
@@ -398,7 +401,7 @@ impl UnvalidatedInputDocument {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct UnvalidatedPersonalize {
     #[serde(default = "true_fn")]
     exclude_seen: bool,
@@ -473,38 +476,35 @@ async fn semantic_search(
         published_after,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
-    let (embedding, document_id) = match document {
+    let mut excluded = if let Some(personalize) = &personalize {
+        personalized_exclusions(&state.storage, state.config.as_ref(), personalize).await?
+    } else {
+        Vec::new()
+    };
+    let (embedding, query) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&state.storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
-            (embedding, Some(id))
+            excluded.push(id);
+            (embedding, None)
         }
         InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
-            (embedding, None)
+            (embedding, Some(query))
         }
     };
-
-    let mut excluded = if let Some(personalize) = &personalize {
-        personalized_exclusions(&state.storage, state.config.as_ref(), personalize).await?
-    } else {
-        Vec::with_capacity(1)
-    };
-
-    if let Some(document_id) = document_id {
-        excluded.push(document_id);
-    }
 
     let mut documents = storage::Document::get_by_embedding(
         &state.storage,
         KnnSearchParams {
             excluded: &excluded,
             embedding: &embedding,
-            k_neighbors: count,
+            count,
             num_candidates: count,
             published_after,
             min_similarity,
+            query: query.as_deref(),
             time: Utc::now(),
         },
     )

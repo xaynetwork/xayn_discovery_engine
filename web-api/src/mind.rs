@@ -77,10 +77,7 @@ async fn run_persona_benchmark() -> Result<(), Panic> {
             let personalised_documents = state
                 .personalize(
                     user_id,
-                    PersonalizeBy::KnnSearch {
-                        count: benchmark_config.ndocuments,
-                        published_after: None,
-                    },
+                    PersonalizeBy::knn_search(benchmark_config.ndocuments),
                     state.time,
                 )
                 .await?
@@ -233,10 +230,7 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
             let personalised_documents = state
                 .personalize(
                     &user_id,
-                    PersonalizeBy::KnnSearch {
-                        count: benchmark_config.ndocuments,
-                        published_after: None,
-                    },
+                    PersonalizeBy::knn_search(benchmark_config.ndocuments),
                     state.time,
                 )
                 .await?
@@ -329,10 +323,7 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
             let personalised_documents = state
                 .personalize(
                     user_id,
-                    PersonalizeBy::KnnSearch {
-                        count: benchmark_config.ndocuments,
-                        published_after: None,
-                    },
+                    PersonalizeBy::knn_search(benchmark_config.ndocuments),
                     state.time,
                 )
                 .await?
@@ -405,10 +396,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
                 let personalised_documents = state
                     .personalize(
                         user_id,
-                        PersonalizeBy::KnnSearch {
-                            count: grid_search_config.ndocuments,
-                            published_after: None,
-                        },
+                        PersonalizeBy::knn_search(grid_search_config.ndocuments),
                         state.time,
                     )
                     .await?

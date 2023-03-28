@@ -28,7 +28,7 @@ use crate::{
     Error,
 };
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub(super) struct UnvalidatedHistoryEntry {
     id: String,
     #[serde(default)]

@@ -46,11 +46,14 @@ use crate::{
 pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) excluded: I,
     pub(crate) embedding: &'a NormalizedEmbedding,
-    pub(crate) k_neighbors: usize,
-    // must be >= k_neighbors
+    /// The number of documents which will be returned if there are enough fitting documents.
+    pub(crate) count: usize,
+    // must be >= count
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(crate) min_similarity: Option<f32>,
+    /// An additional query which will be run in parallel with the KNN search.
+    pub(super) query: Option<&'a str>,
     pub(crate) time: DateTime<Utc>,
 }
 

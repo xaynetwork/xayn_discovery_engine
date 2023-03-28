@@ -90,6 +90,7 @@ async fn personalize(
     ingestion_url: &Url,
     personalization_url: &Url,
     published_after: Option<&str>,
+    query: Option<&str>,
 ) -> Result<Vec<PersonalizedDocumentData>, Panic> {
     ingest(client, ingestion_url).await?;
 
@@ -98,6 +99,9 @@ async fn personalize(
         .query(&[("count", "5")]);
     if let Some(published_after) = published_after {
         request = request.query(&[("published_after", published_after)]);
+    }
+    if let Some(query) = query {
+        request = request.query(&[("query", query)]);
     }
     let request = request.build()?;
 
@@ -134,7 +138,7 @@ async fn test_personalization_all_dates() {
         unchanged_config,
         |client, ingestion_url, personalization_url, _| async move {
             let documents =
-                personalize(&client, &ingestion_url, &personalization_url, None).await?;
+                personalize(&client, &ingestion_url, &personalization_url, None, None).await?;
             assert_eq!(
                 documents
                     .iter()
@@ -160,6 +164,7 @@ async fn test_personalization_limited_dates() {
                 &ingestion_url,
                 &personalization_url,
                 Some("2022-01-01T00:00:00Z"),
+                None,
             )
             .await?;
             assert_eq!(
@@ -168,6 +173,34 @@ async fn test_personalization_limited_dates() {
                     .map(|document| document.id.as_str())
                     .collect::<HashSet<_>>(),
                 ["d1", "d3"].into(),
+            );
+
+            Ok(())
+        },
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_personalization_with_query() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        unchanged_config,
+        unchanged_config,
+        |client, ingestion_url, personalization_url, _| async move {
+            let documents = personalize(
+                &client,
+                &ingestion_url,
+                &personalization_url,
+                None,
+                Some("Robot Technology Chicken"),
+            )
+            .await?;
+            assert_eq!(
+                documents
+                    .iter()
+                    .map(|document| document.id.as_str())
+                    .collect::<HashSet<_>>(),
+                ["d1", "d6", "d7", "d8"].into(),
             );
 
             Ok(())

@@ -316,7 +316,7 @@ impl storage::Document for Storage {
                     })
                 }
             })
-            .take(params.k_neighbors)
+            .take(params.count)
             .collect();
 
         Ok(documents)
@@ -668,10 +668,11 @@ mod tests {
             KnnSearchParams {
                 excluded: [],
                 embedding,
-                k_neighbors: 2,
+                count: 2,
                 num_candidates: 2,
                 published_after: None,
                 min_similarity: None,
+                query: None,
                 time: Utc::now(),
             },
         )
@@ -687,10 +688,11 @@ mod tests {
             KnnSearchParams {
                 excluded: [&ids[1]],
                 embedding,
-                k_neighbors: 3,
+                count: 3,
                 num_candidates: 3,
                 published_after: None,
                 min_similarity: None,
+                query: None,
                 time: Utc::now(),
             },
         )
