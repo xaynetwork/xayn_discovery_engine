@@ -318,7 +318,12 @@ impl Client {
         if let Some(min_similarity) = params.min_similarity {
             body.insert("min_score".to_string(), json!(min_similarity));
         }
+        // This need to account for each (sub)query contributing to
+        // the score corrected by boost. (this includes multiple score
+        // contributing sub-queries under "query")
+        let mut multi_search_correction_factor = 1.0;
         if let Some(query) = params.query {
+            multi_search_correction_factor += 1.0;
             filter.insert("must".to_string(), json!({ "match": { "snippet": query }}));
             body.insert("query".to_string(), json!({ "bool": filter }));
         }
@@ -334,7 +339,7 @@ impl Client {
                     .hits
                     .hits
                     .into_iter()
-                    .map(|hit| (hit.id, hit.score))
+                    .map(|hit| (hit.id, hit.score / multi_search_correction_factor))
                     .collect::<HashMap<_, _>>()
             })
             .unwrap_or_default())
