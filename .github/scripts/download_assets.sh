@@ -22,21 +22,24 @@ download()
   ARCHIVE_BASENAME="${NAME}_$VERSION"
   ARCHIVE_NAME="$ARCHIVE_BASENAME.tgz"
   TMP_ARCHIVE_NAME="$ARCHIVE_NAME.tmp"
+  TMP_DIR=$(mktemp -d)
   URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
 
-  if [  -f "$DATA_DIR/$ARCHIVE_NAME" ]; then
+  if [ -d "$DATA_DIR/$ARCHIVE_BASENAME" ]; then
     echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
   else
 
     curl "$URL" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
-    mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$DATA_DIR/$ARCHIVE_NAME"
+    mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$TMP_DIR/$ARCHIVE_NAME"
 
-    cd "$DATA_DIR"
+    cd "$TMP_DIR"
     tar -zxf "$ARCHIVE_NAME"
 
     # check content
     cd "$ARCHIVE_BASENAME"
     shasum -c "$CHECKSUM_FILE"
+
+    mv "$TMP_DIR/$ARCHIVE_BASENAME" "$DATA_DIR/"
   fi
 }
 
