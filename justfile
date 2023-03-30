@@ -233,7 +233,7 @@ _test-generate-id:
 
 _test-create-dbs test_id:
     #!/usr/bin/env -S bash -eu -o pipefail
-    if [[ "${CI:-false}" == "true" ]]; then
+    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
         PG_HOST="postgres:5432"
         ES_HOST="elasticsearch:9200"
     else
@@ -251,7 +251,7 @@ _test-create-dbs test_id:
 
 _test-drop-dbs test_id:
     #!/usr/bin/env -S bash -eu -o pipefail
-    if [[ "${CI:-false}" == "true" ]]; then
+    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
         PG_HOST="postgres:5432"
         ES_HOST="elasticsearch:9200"
     else
