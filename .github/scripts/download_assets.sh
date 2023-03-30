@@ -8,9 +8,8 @@ realpath() {
 # path to the directory where this file is
 SELF_DIR_PATH="$(dirname "$0")"
 
-# a parameter for the destination of the assets can be passed.
-# the default is the directory assets, we assume the script is in .github/scripts/
-DATA_DIR="${1:-$SELF_DIR_PATH/../../assets}"
+# the assets are always downloaded in the top lovel /assets directoy
+DATA_DIR="$SELF_DIR_PATH/../../assets"
 DATA_DIR=`realpath $DATA_DIR`
 
 CHECKSUM_FILE="sha256sums"
@@ -40,7 +39,14 @@ download()
   fi
 }
 
-download smbert v0003
-download smbert_mocked v0003
-download sjbert v0003
-download smroberta_tokenizer v0000
+if [ $# -gt 0 ]; then
+    while [ $# -ge 2 ]; do
+        download $1 $2
+        shift 2
+    done
+else
+    download smbert v0003
+    download smbert_mocked v0003
+    download sjbert v0003
+    download smroberta_tokenizer v0000
+fi

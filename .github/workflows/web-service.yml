@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        required: false
-        description: a tag that will be used for identifying this version (xaynetci/xayn_discovery_web_service:$TAG)
-      features:
-        required: false
         type: string
-        default: ""
-        description: a comma-separated list of features that will be used to compile this version with
+        default: ''
+        description: a tag for image identification (xaynetci/xayn_discovery_ingestion_service:$TAG)
+      features:
+        type: string
+        default: ''
+        description: a comma-separated list of library features for compilation
 
 permissions:
   contents: read
@@ -23,7 +23,7 @@ jobs:
     runs-on: hetzner-pm
     container:
       image: xaynetci/yellow:v11
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Checkout repository
         uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
@@ -31,23 +31,30 @@ jobs:
       - name: Setup job
         uses: ./.github/actions/setup-job-docker
 
-      - name: Build artifacts
-        run: just build-web-service ${{ github.event.inputs.features }}
+      - name: Build aarch64 artifacts
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
+        run: |
+          apt update -y && apt upgrade -y
+          apt install -y g++-aarch64-linux-gnu libc6-dev-arm64-cross
+
+          rustup target add aarch64-unknown-linux-gnu
+          rustup toolchain install stable-aarch64-unknown-linux-gnu
+
+          cargo build --release --bin personalization --target aarch64-unknown-linux-gnu
 
       - name: Download assets
-        run: just download-assets
-
-      - name: Prepare temp directory
-        working-directory: ${{ runner.temp }}
-        run: |
-          rm -rf ./web-service
-          mkdir web-service
-          mkdir -p web-service/assets
+        run: just download-assets smbert v0003
 
       - name: Create archive
         working-directory: ${{ runner.temp }}
         run: |
-          cp ${GITHUB_WORKSPACE}/target/release/personalization ./web-service/server.bin
+          rm -rf ./web-service
+          mkdir -p web-service/assets
+
+          cp ${GITHUB_WORKSPACE}/target/aarch64-unknown-linux-gnu/release/personalization ./web-service/server.bin
           cp ${GITHUB_WORKSPACE}/web-api/Dockerfile ./web-service/Dockerfile
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/config.toml ./web-service/assets/config.toml
           cp ${GITHUB_WORKSPACE}/assets/smbert_v0003/vocab.txt ./web-service/assets/vocab.txt
@@ -70,6 +77,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@e81a89b1732b9c48d79cd809d8d81d79c4647a18 # v2.1.0
+        with:
+          platforms: 'arm64'
+
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@4b4e9c3e2d4531116a6f8ba8e71fc6e2cb6e6c8c # v2.5.0
 
@@ -91,9 +103,9 @@ jobs:
             fi
           fi
           IMAGE_NAME="xaynetci/xayn_discovery_web_service:$TAG"
-          docker build -t "${IMAGE_NAME}" .
-          echo "IMAGE_NAME=${IMAGE_NAME}" >> $GITHUB_ENV
-          echo "TAG=${TAG}" >> $GITHUB_ENV
+          docker build --platform linux/arm64 -t "$IMAGE_NAME" .
+          echo "IMAGE_NAME=$IMAGE_NAME" >> $GITHUB_ENV
+          echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Login to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
@@ -102,5 +114,4 @@ jobs:
           password: "${{ secrets.DOCKERHUB_TOKEN }}"
 
       - name: docker push
-        id: docker-push
-        run: docker push "${IMAGE_NAME}"
+        run: docker push "$IMAGE_NAME"
