@@ -1,0 +1,12 @@
+[package]
+name = "web-api-db-ctrl"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+futures-util = { workspace = true }
+once_cell = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+xayn-web-api-shared = { path = "../web-api-shared" }

@@ -33,6 +33,7 @@ use thiserror::Error;
 use tokio::{task::futures::TaskLocalFuture, task_local};
 use tracing::{error_span, instrument, trace, Instrument};
 use uuid::Uuid;
+use xayn_web_api_shared::request::TenantId;
 
 use crate::{error::early_failure::middleware_failure, tenants};
 
@@ -64,56 +65,6 @@ impl RequestContext {
 #[error("Failed to access expected context value in: {method}")]
 pub(crate) struct AccessError {
     method: &'static str,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    derive_more::Display,
-    derive_more::From,
-    PartialEq,
-    Eq,
-    Hash,
-    Deserialize,
-    Serialize,
-    Type,
-)]
-#[serde(transparent)]
-#[sqlx(transparent)]
-pub(crate) struct TenantId(Arc<str>);
-
-#[derive(Debug, Error)]
-#[error("TenantId is not valid: {hint:?}")]
-pub(crate) struct InvalidTenantId {
-    hint: String,
-}
-
-impl TenantId {
-    pub(crate) fn missing() -> Self {
-        static MISSING: Lazy<Arc<str>> = Lazy::new(|| "missing".into());
-        Self(MISSING.clone())
-    }
-
-    #[allow(dead_code)]
-    fn random_legacy_tenant_id() -> Self {
-        let random_id: u64 = rand::random();
-        Self(format!("legacy.{random_id:0>16x}").as_str().into())
-    }
-
-    fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
-        static RE: Lazy<bytes::Regex> =
-            Lazy::new(|| bytes::Regex::new(r"^[a-zA-Z0-9_:@.-]{1,50}$").unwrap());
-
-        if RE.is_match(ascii) {
-            Ok(Self(
-                str::from_utf8(ascii).unwrap(/*regex guarantees valid utf-8*/).into(),
-            ))
-        } else {
-            Err(InvalidTenantId {
-                hint: String::from_utf8_lossy(ascii).into_owned(),
-            })
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, derive_more::Display, Serialize)]

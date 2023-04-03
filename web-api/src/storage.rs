@@ -26,10 +26,10 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
+use xayn_web_api_shared::request::TenantId;
 
 use crate::{
     app::SetupError,
-    middleware::request_context::TenantId,
     models::{
         self,
         DocumentId,
@@ -253,11 +253,11 @@ pub(crate) struct StorageBuilder {
 }
 
 impl StorageBuilder {
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Result<Storage, Error> {
-        Ok(Storage {
-            elastic: self.elastic.build(),
-            postgres: self.postgres.build_for(tenant_id)?,
-        })
+    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Storage {
+        Storage {
+            elastic: self.elastic.clone(),
+            postgres: self.postgres.build_for(tenant_id),
+        }
     }
 
     pub(crate) async fn close(&self) {

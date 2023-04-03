@@ -21,6 +21,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
 use xayn_ai_bert::NormalizedEmbedding;
+use xayn_web_api_shared::serde::serialize_redacted;
 
 use self::client::BulkInstruction;
 use crate::{
@@ -33,6 +34,7 @@ use crate::{
         DocumentTag,
     },
     storage::{KnnSearchParams, Warning},
+    utils::serialize_to_ndjson,
     Error,
 };
 

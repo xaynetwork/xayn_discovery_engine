@@ -29,15 +29,13 @@ use sqlx::{
     Transaction,
 };
 use tracing::{info, instrument};
-
-use super::utils::{InvalidQuotedIdentifier, QuotedIdentifier};
-use crate::{
-    error::common::InternalError,
-    middleware::request_context::TenantId,
-    utils::serialize_redacted,
-    Error,
-    SetupError,
+use xayn_web_api_shared::{
+    postgres::QuotedIdentifier,
+    request::TenantId,
+    serde::serialize_redacted,
 };
+
+use crate::SetupError;
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -102,17 +100,11 @@ impl DatabaseBuilder {
     }
 
     pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Result<Database, Error> {
-        Ok(Database {
+        Database {
             pool: self.pool.clone(),
-            tenant_db_name: db_name_for_tenant_id(tenant_id).map_err(InternalError::from_std)?,
-        })
+            tenant_db_name: QuotedIdentifier::db_name_for_tenant_id(tenant_id),
+        }
     }
-}
-
-fn db_name_for_tenant_id(
-    tenant_id: &TenantId,
-) -> Result<QuotedIdentifier, InvalidQuotedIdentifier> {
-    format!("t:{tenant_id}").try_into()
 }
 
 #[derive(Debug)]
@@ -143,7 +135,8 @@ impl Database {
             .await?;
 
         if !config.skip_migrations {
-            sqlx::migrate!().run(&pool).await?;
+            todo!();
+            // sqlx::migrate!().run(&pool).await?;
 
             //FIXME handle legacy tenant here (in follow up PR)
             let _ = enable_legacy_tenant;

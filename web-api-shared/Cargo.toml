@@ -1,0 +1,15 @@
+[package]
+name = "xayn-web-api-shared"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+derive_more = { workspace = true }
+once_cell = { workspace = true }
+rand = { workspace = true }
+regex = { workspace = true }
+secrecy = { workspace = true }
+serde = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
