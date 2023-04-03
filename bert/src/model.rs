@@ -103,7 +103,9 @@ impl Model {
         Ok(Model {
             model,
             token_size: config.token_size,
-            embedding_size: config.extract("model.output.0.shape.2")?,
+            embedding_size: config
+                .extract("model.output.0.shape.2")
+                .or_else(|_| config.extract("model.output.0.shape.1"))?,
         })
     }
 

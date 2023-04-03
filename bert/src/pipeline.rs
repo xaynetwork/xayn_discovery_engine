@@ -24,6 +24,7 @@ use crate::{
     AveragePooler,
     FirstPooler,
     NonePooler,
+    NonePooler1D,
 };
 
 /// A pipeline can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.
@@ -56,6 +57,18 @@ where
         let encoding = self.tokenizer.encode(sequence)?;
         let prediction = self.model.predict(encoding)?;
         NonePooler::pool(&prediction).map_err(Into::into)
+    }
+}
+
+impl<T> Pipeline<T, NonePooler1D>
+where
+    T: Tokenize,
+{
+    /// Computes the embedding of the sequence.
+    pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
+        let encoding = self.tokenizer.encode(sequence)?;
+        let prediction = self.model.predict(encoding)?;
+        NonePooler1D::pool(&prediction).map_err(Into::into)
     }
 }
 

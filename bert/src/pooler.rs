@@ -229,6 +229,22 @@ impl NonePooler {
     }
 }
 
+/// An inert pooling strategy for one dimensional arrays.
+///
+/// The prediction is just passed through.
+pub struct NonePooler1D;
+
+impl NonePooler1D {
+    /// Passes through the prediction.
+    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, TractError> {
+        Ok(prediction
+            .to_array_view()?
+            .slice(s![0, ..])
+            .to_owned()
+            .into())
+    }
+}
+
 /// A first token pooling strategy.
 ///
 /// The prediction is pooled over its first tokens (`[CLS]`).
