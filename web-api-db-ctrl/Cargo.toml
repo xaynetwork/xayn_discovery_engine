@@ -1,5 +1,5 @@
 [package]
-name = "web-api-db-ctrl"
+name = "xayn-web-api-db-ctrl"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,6 +9,7 @@ futures-util = { workspace = true }
 itertools = { workspace = true }
 once_cell = { workspace = true }
 sqlx = { workspace = true }
+tokio = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 xayn-web-api-shared = { path = "../web-api-shared" }

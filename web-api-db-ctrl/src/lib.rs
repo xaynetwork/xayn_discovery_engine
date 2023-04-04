@@ -19,24 +19,21 @@ use futures_util::{
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use sqlx::{migrate::Migrator, Acquire, Executor, Postgres, Transaction};
+use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
 use tracing::error;
 use uuid::Uuid;
 use xayn_web_api_shared::{
-    elastic,
     postgres::{self, lock_id_until_end_of_transaction, QuotedIdentifier},
     request::TenantId,
 };
 
 pub struct Config {
-    postgres: postgres::Config,
-    elastic: elastic::Config,
-    is_legacy: bool,
+    pub postgres: postgres::Config,
 }
 
+#[derive(Clone)]
 pub struct Silo {
     postgres: postgres::Client,
-    // elastic: elastic::Client,
 }
 
 static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwrap());
@@ -56,7 +53,20 @@ static TENANT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
     migrator
 });
 
+// WARNING: Hardcoding this id to 0 is only okay because know exactly
+//          which ids are used when. For e.g. sqlx doing so would be a
+//          no-go hence why they derive the id from the db name.
+const MIGRATION_LOCK_ID: i64 = 0;
+
 impl Silo {
+    pub async fn build(config: Config) -> Result<Self, Error> {
+        let postgres = PoolOptions::new()
+            .connect_with(config.postgres.to_connection_options()?)
+            .await?;
+
+        Ok(Self { postgres })
+    }
+
     /// Initializes the DB for multi-tenant usage.
     ///
     /// 1. If there is a legacy tenant in public the public schema will
@@ -75,31 +85,19 @@ impl Silo {
         //          Transactions still help with scoping locks and temp.
         //          session settings.
         let mut tx = conn.begin().await?;
-        // WARNING: Hardcoding this id to 0 is only okay because know exactly
-        //          which ids are used when. For e.g. sqlx doing so would be a
-        //          no-go hence why they derive the id from the db name.
-        lock_id_until_end_of_transaction(&mut tx, 0).await?;
 
-        let has_public_schema_tables = sqlx::query_as::<_, (i64,)>(
-            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';",
-        )
-        .fetch_one(&mut tx)
-        .await?
-        .0 > 0;
+        lock_id_until_end_of_transaction(&mut tx, MIGRATION_LOCK_ID).await?;
 
-        if has_public_schema_tables {
-            let has_migrated_legacy_schema = sqlx::query_as::<_, (i64,)>(
-                "SELECT count(*)  FROM information_schema.schemata WHERE schema_name = $1;",
-            )
-            .fetch_one(&mut tx)
-            .await?
-            .0 > 0;
+        MANAGEMENT_SCHEMA_MIGRATOR.run(&mut tx).await?;
 
-            if has_migrated_legacy_schema {
+        if does_table_exist(&mut tx, "public", "documents").await? {
+            let legacy_tenant_id = TenantId::default();
+            let tenant = QuotedIdentifier::db_name_for_tenant_id(legacy_tenant_id);
+
+            if does_schema_exist(&mut tx, tenant.unquoted_str()).await? {
                 bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
             }
 
-            let tenant = QuotedIdentifier::db_name_for_tenant_id(TenantId::default());
             let query = format!(
                 "ALTER SCHEMA public RENAME TO {tenant};
                 -- create a new public schema, wo do not grant rights to PUBLIC
@@ -113,10 +111,8 @@ impl Silo {
                 .try_for_each(|_| future::ready(Ok(())))
                 .await?;
 
-            create_tenant(&mut tx, TenantId::default(), true).await?;
+            create_tenant(&mut tx, legacy_tenant_id).await?;
         }
-
-        MANAGEMENT_SCHEMA_MIGRATOR.run(&mut tx).await?;
 
         // We run this _before_ we release the lock but it will
         // run on concurrently on  multiple different connections.
@@ -124,20 +120,35 @@ impl Silo {
         // For this we can have the same guarantees with multi tenant as we
         // currently have with single tenant.
         //FIXME: There is a limit to how well this scales.
-        let (success, failures) = self.run_all_db_migrations().await?;
+        let (_, failures) = self.run_all_db_migrations().await?;
 
         //TODO we need to decide how to handle partial failure
         if !failures.is_empty() {
             for (tenant_id, error) in failures {
                 error!({ %tenant_id, %error }, "migration failed");
             }
-            if success.is_empty() {
-                bail!("all tenant migrations failed");
-            }
+            bail!("all tenant migrations failed");
         }
 
         tx.commit().await?;
 
+        Ok(())
+    }
+
+    /// Allows using the admin user as `web-api-mt` user.
+    //FIXME: Remove once we have properly separate users.
+    pub async fn admin_as_mt_user_hack(&self) -> Result<(), Error> {
+        let mt_user = &*MT_USER;
+        let mut tx = self.postgres.begin().await?;
+
+        lock_id_until_end_of_transaction(&mut tx, MIGRATION_LOCK_ID).await?;
+
+        create_role_if_not_exists(&mut tx, mt_user).await?;
+
+        let query = format!(r#"GRANT {mt_user} TO CURRENT_USER;"#);
+        tx.execute(query.as_str()).await?;
+
+        tx.commit().await?;
         Ok(())
     }
 
@@ -180,7 +191,7 @@ impl Silo {
     pub async fn create_tenant(&self) -> Result<TenantId, Error> {
         let new_id = TenantId::from(Uuid::new_v4());
         let mut tx = self.postgres.begin().await?;
-        create_tenant(&mut tx, new_id, false).await?;
+        create_tenant(&mut tx, new_id).await?;
         tx.commit().await?;
         Ok(new_id)
     }
@@ -256,17 +267,26 @@ impl Silo {
 
 /// Setups up a new tenant with given id.
 ///
-/// If `allow_existing_schema` is `true` it will
-/// not fail if the schema already exists. Through
-/// even if it already exist it will still setup
-/// the permissions.
+/// This will fail if the tenant role or schema
+/// already exist.
+///
+/// If the tenant_id is equal to the legacy/default
+/// tenant id then this will _not_ fail if the role
+/// or schema already exist.
 async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: TenantId,
-    allow_existing_schema: bool,
 ) -> Result<(), Error> {
+    let is_legacy_tenant = tenant_id == TenantId::default();
     let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
-    let schema_if_not_exist = if allow_existing_schema {
+
+    if is_legacy_tenant {
+        create_role_if_not_exists(tx, &tenant).await?;
+    } else {
+        create_role(tx, &tenant).await?;
+    };
+
+    let schema_if_not_exist = if is_legacy_tenant {
         "IF NOT EXISTS"
     } else {
         ""
@@ -275,7 +295,6 @@ async fn create_tenant(
     //Hint: $ binds won't work for identifiers (e.g. schema names)
     let query = format!(
         r##"
-            CREATE ROLE {tenant};
             -- as the search_path is based on the login user this won't matter
             -- for now, but if we ever add login capabilities not having it would
             -- be a problem
@@ -323,4 +342,66 @@ async fn create_tenant(
         .await?;
 
     Ok(())
+}
+
+async fn create_role_if_not_exists(
+    tx: &mut Transaction<'_, Postgres>,
+    role: &QuotedIdentifier,
+) -> Result<(), Error> {
+    if !does_role_exist(tx, role).await? {
+        create_role(tx, role).await?;
+    }
+    Ok(())
+}
+
+async fn create_role(
+    tx: &mut Transaction<'_, Postgres>,
+    role: &QuotedIdentifier,
+) -> Result<(), Error> {
+    let query = format!("CREATE ROLE {role} NOINHERIT;");
+    tx.execute(query.as_str()).await?;
+    Ok(())
+}
+
+async fn does_role_exist(
+    tx: &mut Transaction<'_, Postgres>,
+    role: &QuotedIdentifier,
+) -> Result<bool, Error> {
+    Ok(
+        sqlx::query_as::<_, (i64,)>(
+            "SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname  = $1;",
+        )
+        .bind(role)
+        .fetch_one(tx)
+        .await?
+        .0 > 0,
+    )
+}
+
+async fn does_table_exist(
+    tx: &mut Transaction<'_, Postgres>,
+    schema: &str,
+    table: &str,
+) -> Result<bool, Error> {
+    Ok(sqlx::query_as::<_, (i64,)>(
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2;",
+    )
+    .bind(schema)
+    .bind(table)
+    .fetch_one(tx)
+    .await?
+    .0 > 0)
+}
+
+async fn does_schema_exist(
+    tx: &mut Transaction<'_, Postgres>,
+    schema: &str,
+) -> Result<bool, Error> {
+    Ok(sqlx::query_as::<_, (i64,)>(
+        "SELECT count(*)  FROM information_schema.schemata WHERE schema_name = $1;",
+    )
+    .bind(schema)
+    .fetch_one(tx)
+    .await?
+    .0 > 0)
 }

@@ -25,10 +25,9 @@ use crate::{request::TenantId, serde::serialize_redacted};
 
 pub type Client = Pool<Postgres>;
 
-/// Configuration for connection to postgres
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
-pub struct Config {
+pub(crate) struct Config {
     /// The default base url.
     ///
     /// Passwords in the URL will be ignored, do not set the
@@ -53,6 +52,9 @@ pub struct Config {
 
     /// If true skips running db migrations on start up.
     skip_migrations: bool,
+
+    /// Number of connections in the pool.
+    min_pool_size: u8,
 }
 
 impl Default for Config {
@@ -63,13 +65,13 @@ impl Default for Config {
             user: None,
             password: String::from("pw").into(),
             db: None,
-            //TODO check how this might be used, the default we set here
-            //     before didn't really work but might have been used
-            application_name: None,
+            application_name: option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}")),
             skip_migrations: false,
+            min_pool_size: 25,
         }
     }
 }
+
 
 impl Config {
     pub fn to_connection_options(&self) -> Result<PgConnectOptions, sqlx::Error> {
@@ -80,7 +82,7 @@ impl Config {
             password,
             db,
             application_name,
-            skip_migrations: _,
+            ..
         } = self;
 
         let mut options = base_url

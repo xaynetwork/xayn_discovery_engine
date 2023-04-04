@@ -26,7 +26,7 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
-use xayn_web_api_shared::request::TenantId;
+use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 
 use crate::{
     app::SetupError,
@@ -226,7 +226,7 @@ pub(crate) trait Tag {
 #[serde(default)]
 pub struct Config {
     elastic: elastic::Config,
-    postgres: postgres::Config,
+    postgres: postgres_shared::Config,
 }
 
 pub(crate) struct Storage {
