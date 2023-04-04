@@ -12,20 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 use futures_util::{
     future::{self, join_all},
     TryStreamExt,
 };
+use itertools::Itertools;
 use once_cell::sync::Lazy;
-use sqlx::{
-    migrate::{Migrate, Migrator},
-    Executor,
-    Postgres,
-    Transaction,
-};
+use sqlx::{migrate::Migrator, Acquire, Executor, Postgres, Transaction};
+use tracing::error;
 use uuid::Uuid;
 use xayn_web_api_shared::{
     elastic,
@@ -41,9 +36,7 @@ pub struct Config {
 
 pub struct Silo {
     postgres: postgres::Client,
-    //FIXME merge above
-    elastic: elastic::Client,
-    is_legacy: bool,
+    // elastic: elastic::Client,
 }
 
 static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwrap());
@@ -74,10 +67,14 @@ impl Silo {
     /// 3. In concurrently for each tenant a migration of their
     ///    schema will be run (if needed).
     pub async fn initialize(&self) -> Result<(), Error> {
+        // Move out to make sure that a pool with a limit of 1 conn doesn't
+        // lead to a dead lock when running tenant migrations.
+        let mut conn = self.postgres.acquire().await?.detach();
+
         // WARNING: Many operations here might not be fully transactional.
         //          Transactions still help with scoping locks and temp.
         //          session settings.
-        let mut tx = self.postgres.begin().await?;
+        let mut tx = conn.begin().await?;
         // WARNING: Hardcoding this id to 0 is only okay because know exactly
         //          which ids are used when. For e.g. sqlx doing so would be a
         //          no-go hence why they derive the id from the db name.
@@ -102,16 +99,42 @@ impl Silo {
                 bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
             }
 
-            todo!(/* rename schema public, fix revoke public permissions from public */);
-            //ALTER SCHEMA name OWNER TO { new_owner | CURRENT_ROLE | CURRENT_USER | SESSION_USER }
-            todo!(/* create new schema public */);
+            let tenant = QuotedIdentifier::db_name_for_tenant_id(TenantId::default());
+            let query = format!(
+                "ALTER SCHEMA public RENAME TO {tenant};
+                -- create a new public schema, wo do not grant rights to PUBLIC
+                CREATE SCHEMA public;
+                -- revoke privileges from public
+                REVOKE ALL ON SCHEMA {tenant} FROM PUBLIC;
+                -- probably unneeded but make sure it's owned by the admin user
+                ALTER SCHEMA {tenant} OWNER TO CURRENT_USER;"
+            );
+            tx.execute_many(query.as_str())
+                .try_for_each(|_| future::ready(Ok(())))
+                .await?;
+
             create_tenant(&mut tx, TenantId::default(), true).await?;
         }
 
         MANAGEMENT_SCHEMA_MIGRATOR.run(&mut tx).await?;
 
-        //for now this is DURING the lock
-        let todo_handle_results = self.run_all_db_migrations().await?;
+        // We run this _before_ we release the lock but it will
+        // run on concurrently on  multiple different connections.
+        //
+        // For this we can have the same guarantees with multi tenant as we
+        // currently have with single tenant.
+        //FIXME: There is a limit to how well this scales.
+        let (success, failures) = self.run_all_db_migrations().await?;
+
+        //TODO we need to decide how to handle partial failure
+        if !failures.is_empty() {
+            for (tenant_id, error) in failures {
+                error!({ %tenant_id, %error }, "migration failed");
+            }
+            if success.is_empty() {
+                bail!("all tenant migrations failed");
+            }
+        }
 
         tx.commit().await?;
 
@@ -210,9 +233,9 @@ impl Silo {
 
     pub async fn run_all_db_migrations(
         &self,
-    ) -> Result<HashMap<TenantId, Result<(), Error>>, Error> {
-        //FIXME max parallel limit etc.
+    ) -> Result<(Vec<TenantId>, Vec<(TenantId, Error)>), Error> {
         let tenants = self.list_tenants().await?;
+        // Hint: Parallelism is implicitly limited by the connection pool.
         let results = join_all(
             tenants
                 .iter()
@@ -220,7 +243,14 @@ impl Silo {
         )
         .await;
 
-        Ok(tenants.into_iter().zip(results.into_iter()).collect())
+        Ok(tenants
+            .into_iter()
+            .zip(results.into_iter())
+            .map(|(tenant, result)| match result {
+                Ok(()) => Ok(tenant),
+                Err(error) => Err((tenant, error)),
+            })
+            .partition_result())
     }
 }
 

@@ -4040,8 +4040,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "futures-util",
+ "itertools 0.10.5",
  "once_cell",
  "sqlx",
+ "tracing",
  "uuid",
  "xayn-web-api-shared",
 ]

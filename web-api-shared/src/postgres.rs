@@ -18,7 +18,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgConnectOptions, Encode, Pool, Postgres, Transaction, Type};
+use sqlx::{postgres::PgConnectOptions, Pool, Postgres, Transaction, Type};
 use thiserror::Error;
 
 use crate::{request::TenantId, serde::serialize_redacted};
