@@ -45,6 +45,11 @@ use crate::{
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     config
         .service(
+            web::resource("/candidates")
+                .route(web::get().to(get_document_candidates.error_with_request_id()))
+                .route(web::put().to(set_document_candidates.error_with_request_id())),
+        )
+        .service(
             web::resource("/documents")
                 .route(web::post().to(new_documents.error_with_request_id()))
                 .route(web::delete().to(delete_documents.error_with_request_id())),
