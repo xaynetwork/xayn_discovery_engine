@@ -98,6 +98,7 @@ paths:
       tags:
         - back office
       deprecated: true
+      operationId: listDocumentCandidatesDeprecated
       summary: Get the documents considered for recommendations.
       description: Get the documents considered for recommendations.
       responses:
@@ -113,6 +114,7 @@ paths:
       tags:
         - back office
       deprecated: true
+      operationId: replaceDocumentCandidatesDeprecated
       summary: Set the documents considered for recommendations.
       description: Set the documents considered for recommendations.
       requestBody:
