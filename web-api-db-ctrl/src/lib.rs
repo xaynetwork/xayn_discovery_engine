@@ -20,17 +20,21 @@ use futures_util::{
     TryStreamExt,
 };
 use once_cell::sync::Lazy;
-use sqlx::{migrate::Migrate, Executor};
+use sqlx::{
+    migrate::{Migrate, Migrator},
+    Executor,
+    Postgres,
+    Transaction,
+};
 use uuid::Uuid;
 use xayn_web_api_shared::{
     elastic,
-    postgres::{self, QuotedIdentifier},
+    postgres::{self, lock_id_until_end_of_transaction, QuotedIdentifier},
     request::TenantId,
 };
 
 pub struct Config {
     postgres: postgres::Config,
-    postgres_mt_user: String,
     elastic: elastic::Config,
     is_legacy: bool,
 }
@@ -47,89 +51,88 @@ static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwra
 //TODO
 type Error = anyhow::Error;
 
+static MANAGEMENT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
+    let mut migrator = sqlx::migrate!("migrations/management");
+    migrator.locking = false;
+    migrator
+});
+
+static TENANT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
+    let mut migrator = sqlx::migrate!("migrations/tenant");
+    migrator.locking = false;
+    migrator
+});
+
 impl Silo {
     /// Initializes the DB for multi-tenant usage.
+    ///
+    /// 1. If there is a legacy tenant in public the public schema will
+    ///    be renamed (and re-owned) to the `TenantId::default()` tenant.
+    ///
+    /// 2. Migrations to the management schema will be run (if needed).
+    ///
+    /// 3. In concurrently for each tenant a migration of their
+    ///    schema will be run (if needed).
     pub async fn initialize(&self) -> Result<(), Error> {
-        if self.is_legacy {
-            sqlx::migrate!("migrations/tenant")
-                .run(&self.postgres)
-                .await?;
-            return Ok(());
-        } else {
-            sqlx::migrate!("migrations/management")
-                .run(&self.postgres)
-                .await?;
+        // WARNING: Many operations here might not be fully transactional.
+        //          Transactions still help with scoping locks and temp.
+        //          session settings.
+        let mut tx = self.postgres.begin().await?;
+        // WARNING: Hardcoding this id to 0 is only okay because know exactly
+        //          which ids are used when. For e.g. sqlx doing so would be a
+        //          no-go hence why they derive the id from the db name.
+        lock_id_until_end_of_transaction(&mut tx, 0).await?;
+
+        let has_public_schema_tables = sqlx::query_as::<_, (i64,)>(
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';",
+        )
+        .fetch_one(&mut tx)
+        .await?
+        .0 > 0;
+
+        if has_public_schema_tables {
+            let has_migrated_legacy_schema = sqlx::query_as::<_, (i64,)>(
+                "SELECT count(*)  FROM information_schema.schemata WHERE schema_name = $1;",
+            )
+            .fetch_one(&mut tx)
+            .await?
+            .0 > 0;
+
+            if has_migrated_legacy_schema {
+                bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
+            }
+
+            todo!(/* rename schema public, fix revoke public permissions from public */);
+            //ALTER SCHEMA name OWNER TO { new_owner | CURRENT_ROLE | CURRENT_USER | SESSION_USER }
+            todo!(/* create new schema public */);
+            create_tenant(&mut tx, TenantId::default(), true).await?;
         }
+
+        MANAGEMENT_SCHEMA_MIGRATOR.run(&mut tx).await?;
+
+        //for now this is DURING the lock
+        let todo_handle_results = self.run_all_db_migrations().await?;
+
+        tx.commit().await?;
 
         Ok(())
     }
 
-    pub async fn list_tenants(&self) -> Result<Vec<TenantId>, Error> {
-        if self.is_legacy {
-            Ok(vec![TenantId::default()])
-        } else {
-            Ok(
-                sqlx::query_as::<_, (TenantId,)>("SELECT tenant_id FROM management.tenants")
-                    .fetch_all(&self.postgres)
-                    .await?
-                    .into_iter()
-                    .map(|(id,)| id)
-                    .collect(),
-            )
-        }
-    }
-
-    pub async fn create_tenant(&self) -> Result<TenantId, Error> {
-        if self.is_legacy {
-            bail!("can not create tenant in legacy db")
-        }
-
-        let new_id = TenantId::from(Uuid::new_v4());
-        let tenant = QuotedIdentifier::db_name_for_tenant_id(new_id);
+    pub async fn rename_tenant(&self, tenant_id: TenantId, new_id: TenantId) -> Result<(), Error> {
+        let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
+        let new_name = QuotedIdentifier::db_name_for_tenant_id(new_id);
 
         let mut tx = self.postgres.begin().await?;
 
-        sqlx::query("INSERT INTO management.tenants(tenant_id) VALUES (?);")
+        sqlx::query("UPDATE management.tenant SET tenant_id = $1 WHERE tenant_id = $2;")
             .bind(new_id)
+            .bind(tenant_id)
             .execute(&mut tx)
             .await?;
 
-        let mt_user = &*MT_USER;
-        //Hint: $ binds won't work for identifiers (e.g. schema names)
         let query = format!(
-            r##"
-            CREATE ROLE {tenant};
-            -- do not use the AUTHORIZATION option, the tenant uses that schema but
-            -- doesn't own it (tenants only own their data, not the structure it's stored in)
-            GRANT {tenant} TO {mt_user};
-
-            CREATE SCHEMA {tenant};
-            GRANT USAGE ON SCHEMA {tenant} TO {tenant};
-
-            -- make sure all object we create can be used by tenant
-            -- Note:
-            --   This sets the default privileges for objects created by the user running this
-            --   command, this will not effect the privileges of objects created by other users.
-            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT SELECT, INSERT, UPDATE, DELETE
-                ON TABLES
-                TO {tenant};
-
-            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT USAGE
-                ON SEQUENCES
-                TO {tenant};
-
-            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT EXECUTE
-                ON ROUTINES
-                TO {tenant};
-
-            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT USAGE
-                ON TYPES
-                TO {tenant};
-        "##
+            "ALTER SCHEMA {tenant} RENAME TO {new_name};
+            ALTER ROLE {tenant} RENAME TO {new_name};"
         );
 
         tx.execute_many(query.as_str())
@@ -137,16 +140,29 @@ impl Silo {
             .await?;
 
         tx.commit().await?;
+        Ok(())
+    }
 
+    pub async fn list_tenants(&self) -> Result<Vec<TenantId>, Error> {
+        Ok(
+            sqlx::query_as::<_, (TenantId,)>("SELECT tenant_id FROM management.tenant")
+                .fetch_all(&self.postgres)
+                .await?
+                .into_iter()
+                .map(|(id,)| id)
+                .collect(),
+        )
+    }
+
+    pub async fn create_tenant(&self) -> Result<TenantId, Error> {
+        let new_id = TenantId::from(Uuid::new_v4());
+        let mut tx = self.postgres.begin().await?;
+        create_tenant(&mut tx, new_id, false).await?;
+        tx.commit().await?;
         Ok(new_id)
     }
 
     pub async fn delete_tenant(&self, tenant_id: TenantId) -> Result<(), Error> {
-        if self.is_legacy {
-            //FIXME error type/variant for "not multi tenant"
-            bail!("can not delete tenant in legacy db")
-        }
-
         let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
         let mut tx = self.postgres.begin().await?;
 
@@ -182,23 +198,11 @@ impl Silo {
         let query = format!("SET LOCAL search_path TO {tenant};");
         tx.execute(query.as_str()).await?;
 
-        // WARNING: Don't assume the migration runs transactional.
-        //          The reason we use a transaction is to make sure
-        //          that we can use SET LOCAL and use locks which automatically
-        //          unlock at the end of the transaction.
-        let mut migrator = sqlx::migrate!("migrations/tenant");
-
-        // Hint: Disable using the single global lock.
-        migrator.set_locking(false);
-
         // Hint: Lock Id is a bigint i.e. i64, so we will have some collisions but that's okay.
         let lock_id: i64 = Uuid::from(tenant_id).as_u64_pair().1 as i64;
-        sqlx::query("SELECT pg_advisory_xact_lock($1)")
-            .bind(lock_id)
-            .execute(&mut tx)
-            .await?;
+        lock_id_until_end_of_transaction(&mut tx, lock_id).await?;
 
-        migrator.run(&mut tx).await?;
+        TENANT_SCHEMA_MIGRATOR.run(&mut tx).await?;
 
         tx.commit().await?;
         Ok(())
@@ -218,4 +222,75 @@ impl Silo {
 
         Ok(tenants.into_iter().zip(results.into_iter()).collect())
     }
+}
+
+/// Setups up a new tenant with given id.
+///
+/// If `allow_existing_schema` is `true` it will
+/// not fail if the schema already exists. Through
+/// even if it already exist it will still setup
+/// the permissions.
+async fn create_tenant(
+    tx: &mut Transaction<'_, Postgres>,
+    tenant_id: TenantId,
+    allow_existing_schema: bool,
+) -> Result<(), Error> {
+    let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
+    let schema_if_not_exist = if allow_existing_schema {
+        "IF NOT EXISTS"
+    } else {
+        ""
+    };
+    let mt_user = &*MT_USER;
+    //Hint: $ binds won't work for identifiers (e.g. schema names)
+    let query = format!(
+        r##"
+            CREATE ROLE {tenant};
+            -- as the search_path is based on the login user this won't matter
+            -- for now, but if we ever add login capabilities not having it would
+            -- be a problem
+            ALTER ROLE {tenant} SET search_path TO "$user";
+            GRANT {tenant} TO {mt_user};
+
+            -- do not use the AUTHORIZATION option, the tenant uses that schema but
+            -- doesn't own it (tenants only own their data, not the structure it's stored in)
+            CREATE SCHEMA {schema_if_not_exist} {tenant};
+            GRANT USAGE ON SCHEMA {tenant} TO {tenant};
+
+            -- make sure all object we create can be used by tenant
+            -- Note:
+            --   This sets the default privileges for objects created by the user running this
+            --   command, this will not effect the privileges of objects created by other users.
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
+                GRANT SELECT, INSERT, UPDATE, DELETE
+                ON TABLES
+                TO {tenant};
+
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
+                GRANT USAGE
+                ON SEQUENCES
+                TO {tenant};
+
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
+                GRANT EXECUTE
+                ON ROUTINES
+                TO {tenant};
+
+            ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
+                GRANT USAGE
+                ON TYPES
+                TO {tenant};
+        "##
+    );
+
+    tx.execute_many(query.as_str())
+        .try_for_each(|_| future::ready(Ok(())))
+        .await?;
+
+    sqlx::query("INSERT INTO management.tenants(tenant_id) VALUES (?);")
+        .bind(tenant_id)
+        .execute(tx)
+        .await?;
+
+    Ok(())
 }

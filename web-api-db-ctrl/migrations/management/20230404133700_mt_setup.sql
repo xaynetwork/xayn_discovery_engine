@@ -24,6 +24,6 @@ CREATE SCHEMA management;
 
 -- This table is mainly used for being able to list tenants, which
 -- is mainly needed to run transactions on all tenant schemas.
-CREATE TABLE management.tenants (
+CREATE TABLE management.tenant (
     tenant_id UUID PRIMARY KEY NOT NULL
 );

@@ -18,7 +18,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgConnectOptions, Pool, Postgres};
+use sqlx::{postgres::PgConnectOptions, Encode, Pool, Postgres, Transaction, Type};
 use thiserror::Error;
 
 use crate::{request::TenantId, serde::serialize_redacted};
@@ -106,6 +106,8 @@ impl Config {
 
 /// A quoted postgres identifier.
 ///
+/// If displayed (e.g. `.to_string()`) quotes (`"`) will be included.
+///
 /// This can be used for cases where a SQL query is build
 /// dynamically and is parameterized over an identifier in
 /// a position where postgres doesn't allow `$` bindings.
@@ -114,7 +116,8 @@ impl Config {
 ///
 /// Be aware that quoted identifiers are case-sensitive and limited to 63 bytes.
 /// Moreover, we only allow printable us-ascii characters excluding `"`; this is stricter than [postgres](https://www.postgresql.org/docs/15/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS).
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Type)]
+#[sqlx(transparent)]
 pub struct QuotedIdentifier(String);
 
 impl QuotedIdentifier {
@@ -162,6 +165,25 @@ impl Display for QuotedIdentifier {
 #[error("String is not a supported quoted identifier: {identifier:?}")]
 pub struct InvalidQuotedIdentifier {
     identifier: String,
+}
+
+/// Use a xact lock on given `id`.
+///
+/// # Warning
+///
+/// The lock id namespace is per-database global
+/// and 64bit. This means this lock functions
+/// shares the id-space with any other transaction
+/// lock space.
+pub async fn lock_id_until_end_of_transaction(
+    tx: &'_ mut Transaction<'_, Postgres>,
+    lock_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(lock_id)
+        .execute(tx)
+        .await?;
+    Ok(())
 }
 
 #[cfg(test)]
