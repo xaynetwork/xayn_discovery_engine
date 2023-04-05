@@ -20,7 +20,7 @@ use futures_util::{
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
-use tracing::error;
+use tracing::{error, info};
 use uuid::Uuid;
 use xayn_web_api_shared::{
     postgres::{self, lock_id_until_end_of_transaction, QuotedIdentifier},
@@ -59,7 +59,7 @@ static TENANT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
 const MIGRATION_LOCK_ID: i64 = 0;
 
 impl Silo {
-    pub async fn build(config: Config) -> Result<Self, Error> {
+    pub async fn builder(config: Config) -> Result<Self, Error> {
         let postgres = PoolOptions::new()
             .connect_with(config.postgres.to_connection_options()?)
             .await?;
@@ -88,6 +88,8 @@ impl Silo {
 
         lock_id_until_end_of_transaction(&mut tx, MIGRATION_LOCK_ID).await?;
 
+        info!("running management schema migration");
+
         MANAGEMENT_SCHEMA_MIGRATOR.run(&mut tx).await?;
 
         if does_table_exist(&mut tx, "public", "documents").await? {
@@ -97,6 +99,8 @@ impl Silo {
             if does_schema_exist(&mut tx, tenant.unquoted_str()).await? {
                 bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
             }
+
+            info!("moving legacy tenant from public schema to {tenant}");
 
             let query = format!(
                 "ALTER SCHEMA public RENAME TO {tenant};
@@ -120,6 +124,7 @@ impl Silo {
         // For this we can have the same guarantees with multi tenant as we
         // currently have with single tenant.
         //FIXME: There is a limit to how well this scales.
+        info!("start tenant db schema migrations");
         let (_, failures) = self.run_all_db_migrations().await?;
 
         //TODO we need to decide how to handle partial failure
@@ -201,7 +206,7 @@ impl Silo {
         let mut tx = self.postgres.begin().await?;
 
         let tenant_does_not_exist =
-            sqlx::query("DELETE FROM management.tenants WHERE tenant_id = $1")
+            sqlx::query("DELETE FROM management.tenant WHERE tenant_id = $1")
                 .bind(tenant_id)
                 .execute(&mut tx)
                 .await?
@@ -236,6 +241,7 @@ impl Silo {
         let lock_id: i64 = Uuid::from(tenant_id).as_u64_pair().1 as i64;
         lock_id_until_end_of_transaction(&mut tx, lock_id).await?;
 
+        info!("migrate tenant {tenant}");
         TENANT_SCHEMA_MIGRATOR.run(&mut tx).await?;
 
         tx.commit().await?;
@@ -336,7 +342,7 @@ async fn create_tenant(
         .try_for_each(|_| future::ready(Ok(())))
         .await?;
 
-    sqlx::query("INSERT INTO management.tenants(tenant_id) VALUES (?);")
+    sqlx::query("INSERT INTO management.tenant(tenant_id) VALUES (?);")
         .bind(tenant_id)
         .execute(tx)
         .await?;

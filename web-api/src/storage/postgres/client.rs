@@ -61,12 +61,12 @@ pub(crate) struct Database {
 }
 
 impl Database {
-    #[instrument]
+    #[instrument(skip(config))]
     pub(crate) async fn builder(
         config: &Config,
         enable_legacy_tenant: bool,
     ) -> Result<DatabaseBuilder, SetupError> {
-        let silo = Silo::build(xayn_web_api_db_ctrl::Config {
+        let silo = Silo::builder(xayn_web_api_db_ctrl::Config {
             postgres: config.clone(),
         })
         .await?;
