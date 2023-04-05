@@ -19,6 +19,7 @@ runs:
         # and if multiple cargo build jobs run at max parallelism it ends up
         # slowing all builds down.
         echo "CARGO_BUILD_JOBS=6" >> $GITHUB_ENV
+        echo "CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse" >> $GITHUB_ENV
 
     # This action uses env vars for hash used in the key, therefore we keep it as last.
     - uses: Swatinem/rust-cache@6fd3edff6979b79f87531400ad694fb7f2c84b1f # v2.2.1
