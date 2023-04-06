@@ -27,18 +27,13 @@ use tracing::{error, info, instrument};
 
 use super::AppState;
 use crate::{
-    app::TenantState,
-    error::{
-        application::WithRequestIdExt,
-        common::{
-            BadRequest,
-            DocumentIdAsObject,
-            DocumentNotFound,
-            DocumentPropertyNotFound,
-            FailedToDeleteSomeDocuments,
-            FailedToSetSomeDocumentCandidates,
-            IngestingDocumentsFailed,
-        },
+    error::common::{
+        BadRequest,
+        DocumentNotFound,
+        DocumentPropertyNotFound,
+        FailedToDeleteSomeDocuments,
+        FailedToSetSomeDocumentCandidates,
+        IngestingDocumentsFailed,
     },
     models::{self, DocumentId, DocumentProperties, DocumentProperty, DocumentTag},
     storage,
@@ -49,34 +44,31 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
     config
         .service(
             web::resource("/candidates")
-                .route(web::get().to(get_document_candidates.error_with_request_id()))
-                .route(web::put().to(set_document_candidates.error_with_request_id())),
+                .route(web::get().to(get_document_candidates))
+                .route(web::put().to(set_document_candidates)),
         )
         .service(
             web::resource("/documents")
-                .route(web::post().to(upsert_documents.error_with_request_id()))
-                .route(web::delete().to(delete_documents.error_with_request_id())),
+                .route(web::post().to(upsert_documents))
+                .route(web::delete().to(delete_documents)),
         )
         .service(
             web::resource("/documents/candidates")
-                .route(web::get().to(get_document_candidates.error_with_request_id()))
-                .route(web::put().to(set_document_candidates.error_with_request_id())),
+                .route(web::get().to(get_document_candidates))
+                .route(web::put().to(set_document_candidates)),
         )
-        .service(
-            web::resource("/documents/{document_id}")
-                .route(web::delete().to(delete_document.error_with_request_id())),
-        )
+        .service(web::resource("/documents/{document_id}").route(web::delete().to(delete_document)))
         .service(
             web::resource("/documents/{document_id}/properties")
-                .route(web::get().to(get_document_properties.error_with_request_id()))
-                .route(web::put().to(put_document_properties.error_with_request_id()))
-                .route(web::delete().to(delete_document_properties.error_with_request_id())),
+                .route(web::get().to(get_document_properties))
+                .route(web::put().to(put_document_properties))
+                .route(web::delete().to(delete_document_properties)),
         )
         .service(
             web::resource("/documents/{document_id}/properties/{property_id}")
-                .route(web::get().to(get_document_property.error_with_request_id()))
-                .route(web::put().to(put_document_property.error_with_request_id()))
-                .route(web::delete().to(delete_document_property.error_with_request_id())),
+                .route(web::get().to(get_document_property))
+                .route(web::put().to(put_document_property))
+                .route(web::delete().to(delete_document_property)),
         );
 }
 
