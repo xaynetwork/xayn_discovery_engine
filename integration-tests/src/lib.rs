@@ -165,12 +165,13 @@ pub async fn test_two_apps<A1, A2, F>(
     res2.expect("second application to not fail during shutdown");
 }
 
-fn build_client(services: &Services) -> Arc<Client> {
-    let mut default_headers = HeaderMap::default();
-    default_headers.insert(
-        "X-Tenant-Id",
-        services.tenant_id.as_str().try_into().unwrap(),
-    );
+fn build_client(_services: &Services) -> Arc<Client> {
+    let default_headers = HeaderMap::default();
+    //FIXME test tool doesn't yet setup tenants
+    // default_headers.insert(
+    //     "X-Tenant-Id",
+    //     services.tenant_id.as_str().try_into().unwrap(),
+    // );
     Arc::new(
         Client::builder()
             .default_headers(default_headers)

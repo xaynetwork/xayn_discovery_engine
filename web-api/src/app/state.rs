@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{convert::identity, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{
     dev::{Payload, ServiceFactory, ServiceRequest},
@@ -60,10 +60,7 @@ where
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
-        let enable_legacy_tenant =
-            identity::<&tenants::Config>(config.as_ref()).enable_legacy_tenant;
-        let storage_builder =
-            Arc::new(Storage::builder(config.as_ref(), enable_legacy_tenant).await?);
+        let storage_builder = Arc::new(Storage::builder(config.as_ref()).await?);
         Ok(Self {
             config,
             extension,

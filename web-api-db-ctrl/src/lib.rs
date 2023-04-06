@@ -20,7 +20,7 @@ use futures_util::{
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 use uuid::Uuid;
 use xayn_web_api_shared::{
     postgres::{self, QuotedIdentifier},
@@ -103,8 +103,8 @@ impl Silo {
         )
         .await?;
 
+        let legacy_tenant_id = TenantId::default();
         if does_table_exist(&mut tx, "public", "documents").await? {
-            let legacy_tenant_id = TenantId::default();
             let tenant = QuotedIdentifier::db_name_for_tenant_id(legacy_tenant_id);
 
             if does_schema_exist(&mut tx, tenant.unquoted_str()).await? {
@@ -125,9 +125,9 @@ impl Silo {
             tx.execute_many(query.as_str())
                 .try_for_each(|_| future::ready(Ok(())))
                 .await?;
-
-            create_tenant(&mut tx, legacy_tenant_id).await?;
         }
+        // for now we always create the legacy tenant
+        create_tenant(&mut tx, legacy_tenant_id).await?;
 
         info!("running public schema migration");
         run_migration_in_schema_switch_search_path(
@@ -146,7 +146,7 @@ impl Silo {
         // currently have with single tenant.
         //FIXME: There is a limit to how well this scales.
         info!("start tenant db schema migrations");
-        let (_, failures) = self.run_all_db_migrations().await?;
+        let (_, failures) = self.run_all_db_migrations(false).await?;
 
         unlock_lock_id(&mut conn, MIGRATION_LOCK_ID).await?;
 
@@ -249,7 +249,7 @@ impl Silo {
         Ok(())
     }
 
-    pub async fn run_db_migration_for(&self, tenant_id: TenantId) -> Result<(), Error> {
+    async fn run_db_migration_for(&self, tenant_id: TenantId, lock_db: bool) -> Result<(), Error> {
         let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
         let mut tx = self.postgres.begin().await?;
 
@@ -258,9 +258,14 @@ impl Silo {
         let query = format!("SET LOCAL search_path TO {tenant};");
         tx.execute(query.as_str()).await?;
 
-        // Hint: Lock Id is a bigint i.e. i64, so we will have some collisions but that's okay.
-        let lock_id: i64 = Uuid::from(tenant_id).as_u64_pair().1 as i64;
-        lock_id_until_end_of_transaction(&mut tx, lock_id).await?;
+        if lock_db {
+            // Hint: Lock Id is a bigint i.e. i64, so we will have some collisions but that's okay.
+            let mut lock_id: i64 = Uuid::from(tenant_id).as_u64_pair().1 as i64;
+            if lock_id == MIGRATION_LOCK_ID {
+                lock_id += 1;
+            }
+            lock_id_until_end_of_transaction(&mut tx, lock_id).await?;
+        }
 
         info!("migrate tenant {tenant}");
         TENANT_SCHEMA_MIGRATOR.run(&mut tx).await?;
@@ -269,15 +274,16 @@ impl Silo {
         Ok(())
     }
 
-    pub async fn run_all_db_migrations(
+    async fn run_all_db_migrations(
         &self,
+        lock_db: bool,
     ) -> Result<(Vec<TenantId>, Vec<(TenantId, Error)>), Error> {
         let tenants = self.list_tenants().await?;
         // Hint: Parallelism is implicitly limited by the connection pool.
         let results = join_all(
             tenants
                 .iter()
-                .map(|tenant| self.run_db_migration_for(*tenant)),
+                .map(|tenant| self.run_db_migration_for(*tenant, lock_db)),
         )
         .await;
 
@@ -300,6 +306,7 @@ impl Silo {
 /// If the tenant_id is equal to the legacy/default
 /// tenant id then this will _not_ fail if the role
 /// or schema already exist.
+#[instrument(err)]
 async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: TenantId,
@@ -363,7 +370,7 @@ async fn create_tenant(
         .try_for_each(|_| future::ready(Ok(())))
         .await?;
 
-    sqlx::query("INSERT INTO management.tenant(tenant_id) VALUES (?);")
+    sqlx::query("INSERT INTO management.tenant (tenant_id) VALUES ($1);")
         .bind(tenant_id)
         .execute(tx)
         .await?;
@@ -371,6 +378,7 @@ async fn create_tenant(
     Ok(())
 }
 
+#[instrument(err)]
 async fn create_role_if_not_exists(
     tx: &mut Transaction<'_, Postgres>,
     role: &QuotedIdentifier,
@@ -381,6 +389,7 @@ async fn create_role_if_not_exists(
     Ok(())
 }
 
+#[instrument(err)]
 async fn create_role(
     tx: &mut Transaction<'_, Postgres>,
     role: &QuotedIdentifier,
@@ -390,6 +399,7 @@ async fn create_role(
     Ok(())
 }
 
+#[instrument(err)]
 async fn does_role_exist(
     tx: &mut Transaction<'_, Postgres>,
     role: &QuotedIdentifier,
@@ -405,6 +415,7 @@ async fn does_role_exist(
     )
 }
 
+#[instrument(err)]
 async fn does_table_exist(
     tx: &mut Transaction<'_, Postgres>,
     schema: &str,
@@ -420,6 +431,7 @@ async fn does_table_exist(
     .0 > 0)
 }
 
+#[instrument(err)]
 async fn does_schema_exist(
     tx: &mut Transaction<'_, Postgres>,
     schema: &str,
@@ -433,6 +445,7 @@ async fn does_schema_exist(
     .0 > 0)
 }
 
+#[instrument(skip(migrations), err)]
 async fn run_migration_in_schema_switch_search_path(
     tx: &mut Transaction<'_, Postgres>,
     schema: &QuotedIdentifier,

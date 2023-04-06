@@ -235,13 +235,10 @@ pub(crate) struct Storage {
 }
 
 impl Storage {
-    pub(crate) async fn builder(
-        config: &Config,
-        enable_legacy_tenant: bool,
-    ) -> Result<StorageBuilder, SetupError> {
+    pub(crate) async fn builder(config: &Config) -> Result<StorageBuilder, SetupError> {
         Ok(StorageBuilder {
             elastic: elastic::Client::builder(&config.elastic)?,
-            postgres: postgres::Database::builder(&config.postgres, enable_legacy_tenant).await?,
+            postgres: postgres::Database::builder(&config.postgres).await?,
         })
     }
 }
