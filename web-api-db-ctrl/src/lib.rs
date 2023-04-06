@@ -23,7 +23,7 @@ use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Tr
 use tracing::{error, info};
 use uuid::Uuid;
 use xayn_web_api_shared::{
-    postgres::{self, lock_id_until_end_of_transaction, QuotedIdentifier},
+    postgres::{self, QuotedIdentifier},
     request::TenantId,
 };
 
@@ -40,6 +40,12 @@ static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwra
 
 //TODO
 type Error = anyhow::Error;
+
+static PUBLIC_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
+    let mut migrator = sqlx::migrate!("migrations/public");
+    migrator.locking = false;
+    migrator
+});
 
 static MANAGEMENT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
     let mut migrator = sqlx::migrate!("migrations/management");
@@ -78,19 +84,24 @@ impl Silo {
     ///    schema will be run (if needed).
     pub async fn initialize(&self) -> Result<(), Error> {
         // Move out to make sure that a pool with a limit of 1 conn doesn't
-        // lead to a dead lock when running tenant migrations.
+        // lead to a dead lock when running tenant migrations. And that we
+        // do release the lock in case of an error.
         let mut conn = self.postgres.acquire().await?.detach();
+
+        lock_id_until_unlock(&mut conn, MIGRATION_LOCK_ID).await?;
 
         // WARNING: Many operations here might not be fully transactional.
         //          Transactions still help with scoping locks and temp.
         //          session settings.
         let mut tx = conn.begin().await?;
 
-        lock_id_until_end_of_transaction(&mut tx, MIGRATION_LOCK_ID).await?;
-
         info!("running management schema migration");
-
-        MANAGEMENT_SCHEMA_MIGRATOR.run(&mut tx).await?;
+        run_migration_in_schema_switch_search_path(
+            &mut tx,
+            &"management".parse()?,
+            &MANAGEMENT_SCHEMA_MIGRATOR,
+        )
+        .await?;
 
         if does_table_exist(&mut tx, "public", "documents").await? {
             let legacy_tenant_id = TenantId::default();
@@ -118,6 +129,16 @@ impl Silo {
             create_tenant(&mut tx, legacy_tenant_id).await?;
         }
 
+        info!("running public schema migration");
+        run_migration_in_schema_switch_search_path(
+            &mut tx,
+            &"public".parse()?,
+            &PUBLIC_SCHEMA_MIGRATOR,
+        )
+        .await?;
+
+        tx.commit().await?;
+
         // We run this _before_ we release the lock but it will
         // run on concurrently on  multiple different connections.
         //
@@ -127,6 +148,8 @@ impl Silo {
         info!("start tenant db schema migrations");
         let (_, failures) = self.run_all_db_migrations().await?;
 
+        unlock_lock_id(&mut conn, MIGRATION_LOCK_ID).await?;
+
         //TODO we need to decide how to handle partial failure
         if !failures.is_empty() {
             for (tenant_id, error) in failures {
@@ -134,8 +157,6 @@ impl Silo {
             }
             bail!("all tenant migrations failed");
         }
-
-        tx.commit().await?;
 
         Ok(())
     }
@@ -410,4 +431,66 @@ async fn does_schema_exist(
     .fetch_one(tx)
     .await?
     .0 > 0)
+}
+
+async fn run_migration_in_schema_switch_search_path(
+    tx: &mut Transaction<'_, Postgres>,
+    schema: &QuotedIdentifier,
+    migrations: &Migrator,
+) -> Result<(), Error> {
+    let query = format!(
+        "CREATE SCHEMA IF NOT EXISTS {schema};
+        SET LOCAL search_path TO {schema};"
+    );
+    tx.execute_many(query.as_str())
+        .try_for_each(|_| future::ready(Ok(())))
+        .await?;
+
+    migrations.run(&mut *tx).await?;
+    Ok(())
+}
+
+/// Use a xact lock on given `id`.
+///
+/// # Warning
+///
+/// The lock id namespace is per-database global
+/// and 64bit. This means this lock functions
+/// shares the id-space with any other transaction
+/// lock space.
+async fn lock_id_until_end_of_transaction(
+    tx: &'_ mut Transaction<'_, Postgres>,
+    lock_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1)")
+        .bind(lock_id)
+        .execute(tx)
+        .await?;
+    Ok(())
+}
+
+/// Locks the id until it's unlocked or the pg session ends (i.e. connection dropped).
+async fn lock_id_until_unlock(
+    tx: impl Executor<'_, Database = Postgres>,
+    lock_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_advisory_lock($1)")
+        .bind(lock_id)
+        .execute(tx)
+        .await?;
+    Ok(())
+}
+
+/// Unlocks an id locked with [`lock_id_until_unlock()`].
+///
+/// This *can not* be used to unlock ids locked with [`lock_id_until_end_of_transaction()`].
+async fn unlock_lock_id(
+    tx: impl Executor<'_, Database = Postgres>,
+    lock_id: i64,
+) -> Result<(), sqlx::Error> {
+    sqlx::query("SELECT pg_advisory_unlock($1)")
+        .bind(lock_id)
+        .execute(tx)
+        .await?;
+    Ok(())
 }

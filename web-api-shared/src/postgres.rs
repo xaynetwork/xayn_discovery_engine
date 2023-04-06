@@ -18,7 +18,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
-use sqlx::{postgres::PgConnectOptions, Pool, Postgres, Transaction, Type};
+use sqlx::{postgres::PgConnectOptions, Pool, Postgres, Type};
 use thiserror::Error;
 
 use crate::{request::TenantId, serde::serialize_redacted};
@@ -167,25 +167,6 @@ impl Display for QuotedIdentifier {
 #[error("String is not a supported quoted identifier: {identifier:?}")]
 pub struct InvalidQuotedIdentifier {
     identifier: String,
-}
-
-/// Use a xact lock on given `id`.
-///
-/// # Warning
-///
-/// The lock id namespace is per-database global
-/// and 64bit. This means this lock functions
-/// shares the id-space with any other transaction
-/// lock space.
-pub async fn lock_id_until_end_of_transaction(
-    tx: &'_ mut Transaction<'_, Postgres>,
-    lock_id: i64,
-) -> Result<(), sqlx::Error> {
-    sqlx::query("SELECT pg_advisory_xact_lock($1)")
-        .bind(lock_id)
-        .execute(tx)
-        .await?;
-    Ok(())
 }
 
 #[cfg(test)]
