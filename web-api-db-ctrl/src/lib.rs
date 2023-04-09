@@ -215,9 +215,10 @@ impl Silo {
     }
 
     pub async fn create_tenant(&self) -> Result<TenantId, Error> {
-        let new_id = TenantId::from(Uuid::new_v4());
+        let new_id = TenantId::random();
         let mut tx = self.postgres.begin().await?;
         create_tenant(&mut tx, new_id).await?;
+        self.run_db_migration_for(new_id, true).await?;
         tx.commit().await?;
         Ok(new_id)
     }

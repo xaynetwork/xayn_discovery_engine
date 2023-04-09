@@ -54,6 +54,10 @@ impl TenantId {
         Self(format!("legacy.{random_id:0>16x}").as_str().into())
     }
 
+    pub fn random() -> Self {
+        TenantId(Uuid::new_v4())
+    }
+
     pub fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
         static RE: Lazy<bytes::Regex> =
             Lazy::new(|| bytes::Regex::new(r"^[a-zA-Z0-9_:@.-]{1,50}$").unwrap());
