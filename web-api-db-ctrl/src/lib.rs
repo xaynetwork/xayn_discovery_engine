@@ -20,6 +20,7 @@ use futures_util::{
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
+use tokio::sync::Mutex;
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 use xayn_web_api_shared::{
@@ -377,11 +378,14 @@ async fn create_tenant(
     Ok(())
 }
 
+/// Creates a DB role if it doesn't exist.
 #[instrument(err)]
 async fn create_role_if_not_exists(
     tx: &mut Transaction<'_, Postgres>,
     role: &QuotedIdentifier,
 ) -> Result<(), Error> {
+    static CONCURRENCY_GUARD: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
+    let _guard = CONCURRENCY_GUARD.lock().await;
     if !does_role_exist(tx, role).await? {
         create_role(tx, role).await?;
     }
