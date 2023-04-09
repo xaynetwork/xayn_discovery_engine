@@ -162,7 +162,6 @@ impl Silo {
     }
 
     /// Allows using the admin user as `web-api-mt` user.
-    //FIXME: Remove once we have properly separate users.
     pub async fn admin_as_mt_user_hack(&self) -> Result<(), Error> {
         let mt_user = &*MT_USER;
         let mut tx = self.postgres.begin().await?;

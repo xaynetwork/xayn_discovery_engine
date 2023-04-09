@@ -68,10 +68,14 @@ impl Database {
         })
         .await?;
 
-        // FIXME: remove
+        // FIXME: remove this once we have a proper separation between
+        //        a admin pg user owning the db structure and a web-api-mt
+        //        user which can only use tables but nothing more.
         silo.admin_as_mt_user_hack().await?;
 
-        // FIXME: decoupled migrations
+        // FIXME: long term this should be run by the control plane,
+        //        in a different binary/lambda or similar before we
+        //        start updating the instances.
         silo.initialize().await?;
 
         let options = config.to_connection_options()?;
