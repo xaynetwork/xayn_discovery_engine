@@ -103,7 +103,7 @@ impl Silo {
         )
         .await?;
 
-        let legacy_tenant_id = TenantId::default();
+        let legacy_tenant_id = TenantId::missing();
         if does_table_exist(&mut tx, "public", "documents").await? {
             let tenant = QuotedIdentifier::db_name_for_tenant_id(legacy_tenant_id);
 
@@ -311,7 +311,7 @@ async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: TenantId,
 ) -> Result<(), Error> {
-    let is_legacy_tenant = tenant_id == TenantId::default();
+    let is_legacy_tenant = tenant_id == TenantId::missing();
     let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
 
     if is_legacy_tenant {

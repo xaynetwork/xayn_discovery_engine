@@ -29,7 +29,6 @@ use crate::{
     error::common::InternalError,
     middleware::request_context::RequestContext,
     storage::{Storage, StorageBuilder},
-    tenants,
     Error,
 };
 
