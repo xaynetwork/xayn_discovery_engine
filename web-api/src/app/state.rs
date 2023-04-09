@@ -23,6 +23,7 @@ use actix_web::{
 };
 use derive_more::{AsRef, Deref};
 use futures_util::future::{ready, Ready};
+use xayn_web_api_shared::request::TenantId;
 
 use crate::{
     app::{Application, SetupError},
@@ -59,7 +60,7 @@ where
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
-        let storage_builder = Arc::new(Storage::builder(config.as_ref()).await?);
+        let storage_builder = Arc::new(Storage::builder(config.as_ref(), config.as_ref()).await?);
         Ok(Self {
             config,
             extension,
@@ -69,6 +70,10 @@ where
 
     pub(super) async fn close(self: Arc<Self>) {
         self.storage_builder.close().await;
+    }
+
+    pub(crate) fn legacy_tenant(&self) -> Option<TenantId> {
+        self.storage_builder.legacy_tenant()
     }
 }
 

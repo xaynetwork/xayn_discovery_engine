@@ -15,7 +15,6 @@
 use std::{
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
-    sync::Arc,
     time::Duration,
 };
 
@@ -33,11 +32,9 @@ use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::{task::JoinHandle, time::timeout};
 use tracing::info;
+use xayn_web_api_shared::request::TenantId;
 
-use crate::{
-    middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context},
-    tenants,
-};
+use crate::middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context};
 
 mod serde_duration_as_seconds {
     use std::time::Duration;
@@ -88,7 +85,7 @@ impl Default for Config {
 
 pub(crate) fn start_actix_server<T>(
     net_config: Config,
-    context_config: tenants::Config,
+    legacy_tenant: Option<TenantId>,
     mk_base_app: impl Fn() -> App<T> + Send + Clone + 'static,
     on_shutdown: Box<dyn FnOnce() -> BoxFuture<'static, ()>>,
 ) -> Result<AppHandle, anyhow::Error>
@@ -103,17 +100,12 @@ where
 {
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
-    let context_config = Arc::new(context_config);
-
     let server = HttpServer::new(move || {
         mk_base_app()
             .app_data(json_config.clone())
             .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
             .wrap_fn(wrap_non_json_errors)
-            .wrap_fn({
-                let context_config = context_config.clone();
-                move |r, s| setup_request_context(&context_config, r, s)
-            })
+            .wrap_fn(move |r, s| setup_request_context(legacy_tenant, r, s))
             .wrap(middleware::Compress::default())
             .wrap(Cors::permissive())
     })

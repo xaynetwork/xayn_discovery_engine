@@ -42,6 +42,7 @@ use crate::{
         UserId,
         UserInteractionType,
     },
+    tenants,
     Error,
 };
 
@@ -235,10 +236,13 @@ pub(crate) struct Storage {
 }
 
 impl Storage {
-    pub(crate) async fn builder(config: &Config) -> Result<StorageBuilder, SetupError> {
+    pub(crate) async fn builder(
+        config: &Config,
+        tenant_config: &tenants::Config,
+    ) -> Result<StorageBuilder, SetupError> {
         Ok(StorageBuilder {
             elastic: elastic::Client::builder(&config.elastic)?,
-            postgres: postgres::Database::builder(&config.postgres).await?,
+            postgres: postgres::Database::builder(&config.postgres, tenant_config).await?,
         })
     }
 }
@@ -259,5 +263,9 @@ impl StorageBuilder {
 
     pub(crate) async fn close(&self) {
         self.postgres.close().await;
+    }
+
+    pub(crate) fn legacy_tenant(&self) -> Option<TenantId> {
+        self.postgres.legacy_tenant()
     }
 }

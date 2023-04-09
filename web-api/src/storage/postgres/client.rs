@@ -33,11 +33,12 @@ use xayn_web_api_shared::{
     request::TenantId,
 };
 
-use crate::SetupError;
+use crate::{tenants, SetupError};
 
 #[derive(Clone)]
 pub(crate) struct DatabaseBuilder {
     pool: Pool<Postgres>,
+    legacy_tenant: Option<TenantId>,
 }
 
 impl DatabaseBuilder {
@@ -51,6 +52,10 @@ impl DatabaseBuilder {
             tenant_db_name: QuotedIdentifier::db_name_for_tenant_id(tenant_id),
         }
     }
+
+    pub(crate) fn legacy_tenant(&self) -> Option<TenantId> {
+        self.legacy_tenant
+    }
 }
 
 #[derive(Debug)]
@@ -62,9 +67,13 @@ pub(crate) struct Database {
 
 impl Database {
     #[instrument(skip(config))]
-    pub(crate) async fn builder(config: &Config) -> Result<DatabaseBuilder, SetupError> {
+    pub(crate) async fn builder(
+        config: &Config,
+        tenants: &tenants::Config,
+    ) -> Result<DatabaseBuilder, SetupError> {
         let silo = Silo::builder(xayn_web_api_db_ctrl::Config {
             postgres: config.clone(),
+            enable_legacy_tenant: tenants.enable_legacy_tenant,
         })
         .await?;
 
@@ -76,7 +85,7 @@ impl Database {
         // FIXME: long term this should be run by the control plane,
         //        in a different binary/lambda or similar before we
         //        start updating the instances.
-        silo.initialize().await?;
+        let legacy_tenant = silo.initialize().await?;
 
         let options = config.to_connection_options()?;
         info!("starting postgres setup");
@@ -92,7 +101,10 @@ impl Database {
             .connect_with(options)
             .await?;
 
-        Ok(DatabaseBuilder { pool })
+        Ok(DatabaseBuilder {
+            pool,
+            legacy_tenant,
+        })
     }
 
     async fn set_role(

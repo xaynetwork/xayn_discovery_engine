@@ -30,11 +30,13 @@ use xayn_web_api_shared::{
 
 pub struct Config {
     pub postgres: postgres::Config,
+    pub enable_legacy_tenant: bool,
 }
 
 #[derive(Clone)]
 pub struct Silo {
     postgres: postgres::Client,
+    enable_legacy_tenant: bool,
 }
 
 static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwrap());
@@ -71,7 +73,10 @@ impl Silo {
             .connect_with(config.postgres.to_connection_options()?)
             .await?;
 
-        Ok(Self { postgres })
+        Ok(Self {
+            postgres,
+            enable_legacy_tenant: config.enable_legacy_tenant,
+        })
     }
 
     /// Initializes the DB for multi-tenant usage.
@@ -83,7 +88,7 @@ impl Silo {
     ///
     /// 3. In concurrently for each tenant a migration of their
     ///    schema will be run (if needed).
-    pub async fn initialize(&self) -> Result<(), Error> {
+    pub async fn initialize(&self) -> Result<Option<TenantId>, Error> {
         // Move out to make sure that a pool with a limit of 1 conn doesn't
         // lead to a dead lock when running tenant migrations. And that we
         // do release the lock in case of an error.
@@ -104,31 +109,11 @@ impl Silo {
         )
         .await?;
 
-        let legacy_tenant_id = TenantId::missing();
-        if does_table_exist(&mut tx, "public", "documents").await? {
-            let tenant = QuotedIdentifier::db_name_for_tenant_id(legacy_tenant_id);
-
-            if does_schema_exist(&mut tx, tenant.unquoted_str()).await? {
-                bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
-            }
-
-            info!("moving legacy tenant from public schema to {tenant}");
-
-            let query = format!(
-                "ALTER SCHEMA public RENAME TO {tenant};
-                -- create a new public schema, wo do not grant rights to PUBLIC
-                CREATE SCHEMA public;
-                -- revoke privileges from public
-                REVOKE ALL ON SCHEMA {tenant} FROM PUBLIC;
-                -- probably unneeded but make sure it's owned by the admin user
-                ALTER SCHEMA {tenant} OWNER TO CURRENT_USER;"
-            );
-            tx.execute_many(query.as_str())
-                .try_for_each(|_| future::ready(Ok(())))
-                .await?;
-        }
-        // for now we always create the legacy tenant
-        create_tenant(&mut tx, legacy_tenant_id).await?;
+        let legacy_tenant_id = if self.enable_legacy_tenant {
+            Some(self.initialize_legacy(&mut tx).await?)
+        } else {
+            None
+        };
 
         info!("running public schema migration");
         run_migration_in_schema_switch_search_path(
@@ -159,7 +144,54 @@ impl Silo {
             bail!("all tenant migrations failed");
         }
 
-        Ok(())
+        Ok(legacy_tenant_id)
+    }
+
+    async fn initialize_legacy(
+        &self,
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> Result<TenantId, Error> {
+        let legacy_tenant_id = sqlx::query_as::<_, (TenantId,)>(
+            "SELECT tenant_id FROM tenant WHERE is_legacy_tenant FOR UPDATE;",
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let legacy_tenant_id = if let Some((legacy_tenant_id,)) = legacy_tenant_id {
+            legacy_tenant_id
+        } else {
+            let new_id = TenantId::random();
+            sqlx::query("INSERT INTO tenants(tenant_id) VALUES ($1);")
+                .bind(new_id)
+                .execute(&mut *tx)
+                .await?;
+            create_tenant_with_empty_schema(tx, new_id).await?;
+            new_id
+        };
+
+        if does_table_exist(&mut *tx, "public", "documents").await? {
+            let tenant = QuotedIdentifier::db_name_for_tenant_id(legacy_tenant_id);
+
+            if does_schema_exist(&mut *tx, tenant.unquoted_str()).await? {
+                bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
+            }
+
+            info!("moving legacy tenant from public schema to {tenant}");
+
+            let query = format!(
+                "ALTER SCHEMA public RENAME TO {tenant};
+                -- create a new public schema, wo do not grant rights to PUBLIC
+                CREATE SCHEMA public;
+                -- revoke privileges from public
+                REVOKE ALL ON SCHEMA {tenant} FROM PUBLIC;
+                -- probably unneeded but make sure it's owned by the admin user
+                ALTER SCHEMA {tenant} OWNER TO CURRENT_USER;"
+            );
+            tx.execute_many(query.as_str())
+                .try_for_each(|_| future::ready(Ok(())))
+                .await?;
+        }
+        Ok(legacy_tenant_id)
     }
 
     /// Allows using the admin user as `web-api-mt` user.
@@ -173,31 +205,6 @@ impl Silo {
 
         let query = format!(r#"GRANT {mt_user} TO CURRENT_USER;"#);
         tx.execute(query.as_str()).await?;
-
-        tx.commit().await?;
-        Ok(())
-    }
-
-    pub async fn rename_tenant(&self, tenant_id: TenantId, new_id: TenantId) -> Result<(), Error> {
-        let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
-        let new_name = QuotedIdentifier::db_name_for_tenant_id(new_id);
-
-        let mut tx = self.postgres.begin().await?;
-
-        sqlx::query("UPDATE management.tenant SET tenant_id = $1 WHERE tenant_id = $2;")
-            .bind(new_id)
-            .bind(tenant_id)
-            .execute(&mut tx)
-            .await?;
-
-        let query = format!(
-            "ALTER SCHEMA {tenant} RENAME TO {new_name};
-            ALTER ROLE {tenant} RENAME TO {new_name};"
-        );
-
-        tx.execute_many(query.as_str())
-            .try_for_each(|_| future::ready(Ok(())))
-            .await?;
 
         tx.commit().await?;
         Ok(())
@@ -217,7 +224,7 @@ impl Silo {
     pub async fn create_tenant(&self) -> Result<TenantId, Error> {
         let new_id = TenantId::random();
         let mut tx = self.postgres.begin().await?;
-        create_tenant(&mut tx, new_id).await?;
+        create_tenant_with_empty_schema(&mut tx, new_id).await?;
         self.run_db_migration_for(new_id, true).await?;
         tx.commit().await?;
         Ok(new_id)
@@ -308,24 +315,14 @@ impl Silo {
 /// tenant id then this will _not_ fail if the role
 /// or schema already exist.
 #[instrument(err)]
-async fn create_tenant(
+async fn create_tenant_with_empty_schema(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: TenantId,
 ) -> Result<(), Error> {
-    let is_legacy_tenant = tenant_id == TenantId::missing();
     let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
 
-    if is_legacy_tenant {
-        create_role_if_not_exists(tx, &tenant).await?;
-    } else {
-        create_role(tx, &tenant).await?;
-    };
+    create_role(tx, &tenant).await?;
 
-    let schema_if_not_exist = if is_legacy_tenant {
-        "IF NOT EXISTS"
-    } else {
-        ""
-    };
     let mt_user = &*MT_USER;
     //Hint: $ binds won't work for identifiers (e.g. schema names)
     let query = format!(
@@ -338,7 +335,7 @@ async fn create_tenant(
 
             -- do not use the AUTHORIZATION option, the tenant uses that schema but
             -- doesn't own it (tenants only own their data, not the structure it's stored in)
-            CREATE SCHEMA {schema_if_not_exist} {tenant};
+            CREATE SCHEMA IF NOT EXISTS {tenant};
             GRANT USAGE ON SCHEMA {tenant} TO {tenant};
 
             -- make sure all object we create can be used by tenant
