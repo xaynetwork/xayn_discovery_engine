@@ -161,7 +161,7 @@ impl Silo {
             legacy_tenant_id
         } else {
             let new_id = TenantId::random();
-            sqlx::query("INSERT INTO tenants(tenant_id) VALUES ($1);")
+            sqlx::query("INSERT INTO management.tenants(tenant_id) VALUES ($1);")
                 .bind(new_id)
                 .execute(&mut *tx)
                 .await?;
