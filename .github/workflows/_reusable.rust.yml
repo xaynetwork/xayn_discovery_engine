@@ -69,6 +69,14 @@ jobs:
 
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
+      
+      - name: Setup AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pip
+          pip3 install --upgrade --user awscli
+          export PATH=$PATH:/root/.local/bin
+          aws --version
 
       - name: Download test assets
         run: just download-assets
