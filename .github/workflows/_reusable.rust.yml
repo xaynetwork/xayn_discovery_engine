@@ -72,10 +72,7 @@ jobs:
       
       - name: Setup AWS CLI
         run: |
-          apt-get update
-          apt-get install -y python3-pip
           pip3 install --upgrade --user awscli
-          export PATH=$PATH:/root/.local/bin
           aws --version
 
       - name: Download test assets
