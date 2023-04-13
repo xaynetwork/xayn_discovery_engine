@@ -98,7 +98,8 @@ where
         client_request_timeout,
     } = (*app_state).as_ref();
 
-    let json_config = JsonConfig::default();
+    // limits are handled by the infrastructure
+    let json_config = JsonConfig::default().limit(u32::MAX as usize);
     let web_app_state = web::Data::from(app_state.clone());
 
     let server = HttpServer::new(move || {
