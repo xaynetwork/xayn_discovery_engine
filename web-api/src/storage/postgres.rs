@@ -413,23 +413,22 @@ impl Database {
         let mut tx = self.pool.begin().await?;
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
-        let unchanged = sqlx::query_as::<_, DocumentId>(
-            "UPDATE document
-            SET is_candidate = FALSE
-            WHERE is_candidate
-            RETURNING document_id;",
+        let (unchanged, removed) = sqlx::query_as::<_, DocumentId>(
+            "SELECT document_id
+            FROM document
+            WHERE is_candidate;",
         )
         .fetch_all(&mut tx)
         .await?
         .into_iter()
-        .filter_map(|id| ingestable.remove(&id).then_some(id))
-        .collect_vec();
+        .partition::<Vec<_>, _>(|id| ingestable.remove(id));
+
         let mut builder = QueryBuilder::new(
             "UPDATE document
-                SET is_candidate = TRUE
-                WHERE document_id IN ",
+            SET is_candidate = FALSE
+            WHERE document_id IN ",
         );
-        for ids in unchanged.chunks(Self::BIND_LIMIT) {
+        for ids in removed.chunks(Self::BIND_LIMIT) {
             builder
                 .reset()
                 .push_tuple(ids)
