@@ -12,12 +12,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashSet;
+
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use xayn_integration_tests::{send_assert, send_assert_json, test_app, unchanged_config};
+use xayn_integration_tests::{
+    send_assert,
+    send_assert_json,
+    test_app,
+    test_two_apps,
+    unchanged_config,
+};
 use xayn_test_utils::error::Panic;
-use xayn_web_api::Ingestion;
+use xayn_web_api::{Ingestion, Personalization};
 
 async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
     send_assert(
@@ -110,5 +118,93 @@ async fn test_deletion() {
         );
         Ok(())
     })
+    .await;
+}
+
+#[derive(Deserialize)]
+struct PersonalizedDocumentData {
+    id: String,
+}
+
+#[derive(Deserialize)]
+struct SemanticSearchResponse {
+    documents: Vec<PersonalizedDocumentData>,
+}
+
+#[tokio::test]
+async fn test_reingestion() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        unchanged_config,
+        unchanged_config,
+        |client, ingestion_url, personalization_url, _| async move {
+            send_assert(
+                &client,
+                client
+                    .post(ingestion_url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                            { "id": "d2", "snippet": "snippet 2", "is_candidate": true },
+                            { "id": "d3", "snippet": "snippet 3", "is_candidate": false },
+                            { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::CREATED,
+            )
+            .await;
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "snippet" } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(
+                documents
+                    .iter()
+                    .map(|document| document.id.as_str())
+                    .collect::<HashSet<_>>(),
+                ["d1", "d2"].into(),
+            );
+
+            send_assert(
+                &client,
+                client
+                    .post(ingestion_url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                            { "id": "d2", "snippet": "snippet 2", "is_candidate": false },
+                            { "id": "d3", "snippet": "snippet 3", "is_candidate": true },
+                            { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::CREATED,
+            )
+            .await;
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "snippet" } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(
+                documents
+                    .iter()
+                    .map(|document| document.id.as_str())
+                    .collect::<HashSet<_>>(),
+                ["d1", "d3"].into(),
+            );
+
+            Ok(())
+        },
+    )
     .await;
 }

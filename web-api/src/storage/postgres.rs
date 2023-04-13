@@ -19,7 +19,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -708,13 +708,21 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
-    async fn insert(
-        &self,
-        mut documents: Vec<IngestedDocument>,
-    ) -> Result<Warning<DocumentId>, Error> {
+    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Warning<DocumentId>, Error> {
         self.postgres.insert_documents(&documents).await?;
-        documents.retain(|document| document.is_candidate);
-        self.elastic.insert_documents(&documents).await
+        let (candidates, noncandidates) = documents
+            .into_iter()
+            .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
+                if document.is_candidate {
+                    Either::Left(document)
+                } else {
+                    Either::Right(document.id)
+                }
+            });
+        let mut failed_documents = self.elastic.insert_documents(&candidates).await?;
+        failed_documents.extend(self.elastic.delete_documents(&noncandidates).await?);
+
+        Ok(failed_documents)
     }
 
     async fn delete(
