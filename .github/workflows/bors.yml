@@ -15,7 +15,12 @@ permissions:
 
 jobs:
   rust-checks:
+    permissions:
+      id-token: write
+      contents: read
     uses: ./.github/workflows/_reusable.rust.yml
+    secrets:
+      AWS_OIDC_ROLE: ${{ secrets.AWS_OIDC_ROLE }}
 
   ci-ok:
     needs: rust-checks

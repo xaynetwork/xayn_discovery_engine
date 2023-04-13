@@ -13,8 +13,13 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
       ca-certificates wget curl git zstd gcc libc6-dev \ 
-      nodejs npm postgresql-client python3.9 python3-pip; \
+      nodejs npm postgresql-client python3.9 python3-pip \
+      unzip; \
     rm -rf /var/lib/apt/lists/*;
+
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+	./aws/install
 
 # Begin: Rust base
 # Taken from https://github.com/rust-lang/docker-rust/blob/f558c4c660fd925e278da432640342de993f2bc7/1.68.0/bullseye/slim/Dockerfile

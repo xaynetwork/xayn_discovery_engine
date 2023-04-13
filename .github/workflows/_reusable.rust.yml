@@ -2,12 +2,15 @@ name: Rust checks
 
 on:
   workflow_call:
+    secrets:
+      AWS_OIDC_ROLE:
+        required: true
 
 jobs:
   cargo-format:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v11
+      image: xaynetci/yellow:f619f62
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
@@ -21,7 +24,7 @@ jobs:
   cargo-clippy:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v11
+      image: xaynetci/yellow:f619f62
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
@@ -35,7 +38,7 @@ jobs:
   cargo-test:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v11
+      image: xaynetci/yellow:f619f62
     timeout-minutes: 20
     env:
       XAYN_INGESTION__NET__BIND_TO: "127.0.0.1:3030"
@@ -67,6 +70,12 @@ jobs:
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE }}
+          aws-region: eu-central-1
+
       - name: Setup the rust CI.
         uses: ./.github/actions/setup-job-docker
 
@@ -79,7 +88,7 @@ jobs:
   cargo-doc:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v11
+      image: xaynetci/yellow:f619f62
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
