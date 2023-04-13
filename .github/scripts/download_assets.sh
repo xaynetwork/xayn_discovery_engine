@@ -27,7 +27,7 @@ download()
   if [ -d "$DATA_DIR/$ARCHIVE_BASENAME" ]; then
     echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
   else
-    aws s3 cp $URL $DATA_DIR/$TMP_ARCHIVE_NAME
+    /usr/local/bin/aws s3 cp $URL $DATA_DIR/$TMP_ARCHIVE_NAME
     mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$TMP_DIR/$ARCHIVE_NAME"
 
     cd "$TMP_DIR"
