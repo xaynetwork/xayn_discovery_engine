@@ -20,7 +20,7 @@ use actix_web::{
 };
 use futures_util::FutureExt;
 use serde::Serialize;
-use tracing::{info_span, trace, Instrument};
+use tracing::{error_span, trace, Instrument};
 use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, derive_more::Display, Serialize)]
@@ -46,7 +46,9 @@ where
     S::Future: 'static,
 {
     let request_id = RequestId::generate();
-    let span = info_span!(
+    // the request span must have the lowest level, otherwise it will not be added to the logs if a
+    // subscriber with a lower level filter than the span level is used
+    let span = error_span!(
         "request",
         path = %request.request().path(),
         method = %request.request().method(),
