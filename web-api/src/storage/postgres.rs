@@ -415,8 +415,8 @@ impl Database {
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
         let (unchanged, removed) = sqlx::query_as::<_, DocumentId>(
             "SELECT document_id
-                FROM document
-                WHERE is_candidate;",
+            FROM document
+            WHERE is_candidate;",
         )
         .fetch_all(&mut tx)
         .await?
@@ -425,8 +425,8 @@ impl Database {
 
         let mut builder = QueryBuilder::new(
             "UPDATE document
-                SET is_candidate = FALSE
-                WHERE document_id IN ",
+            SET is_candidate = FALSE
+            WHERE document_id IN ",
         );
         for ids in removed.chunks(Self::BIND_LIMIT) {
             builder
