@@ -44,7 +44,7 @@ jobs:
       PERSONALIZATION_URI: "http://127.0.0.1:3031"
     services:
       elasticsearch:
-        image: elasticsearch:8.6.1
+        image: elasticsearch:8.7.0
         env:
           "discovery.type": "single-node"
           "xpack.security.enabled": "false"
