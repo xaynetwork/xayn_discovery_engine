@@ -32,8 +32,7 @@ enum Error {
     DocumentPropertyNotFound,
 }
 
-#[tokio::test]
-async fn test_document_properties() {
+async fn document_properties(is_candidate: bool) {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         send_assert(
             &client,
@@ -41,7 +40,7 @@ async fn test_document_properties() {
                 .post(url.join("/documents")?)
                 .json(&json!({
                     "documents": [
-                        { "id": "d1", "snippet": "snippet one" }
+                        { "id": "d1", "snippet": "snippet one", "is_candidate": is_candidate }
                     ]
                 }))
                 .build()?,
@@ -128,13 +127,22 @@ async fn test_document_properties() {
     .await;
 }
 
+#[tokio::test]
+async fn test_document_properties_candidate() {
+    document_properties(true).await;
+}
+
+#[tokio::test]
+async fn test_document_properties_noncandidate() {
+    document_properties(false).await;
+}
+
 #[derive(Debug, Deserialize)]
 struct DocumentPropertyResponse {
     property: Value,
 }
 
-#[tokio::test]
-async fn test_document_property() {
+async fn document_property(is_candidate: bool) {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         send_assert(
             &client,
@@ -142,7 +150,7 @@ async fn test_document_property() {
                 .post(url.join("/documents")?)
                 .json(&json!({
                     "documents": [
-                        { "id": "d1", "snippet": "snippet one" }
+                        { "id": "d1", "snippet": "snippet one", "is_candidate": is_candidate }
                     ]
                 }))
                 .build()?,
@@ -227,4 +235,14 @@ async fn test_document_property() {
         Ok(())
     })
     .await;
+}
+
+#[tokio::test]
+async fn test_document_property_candidate() {
+    document_property(true).await;
+}
+
+#[tokio::test]
+async fn test_document_property_noncandidate() {
+    document_property(false).await;
 }

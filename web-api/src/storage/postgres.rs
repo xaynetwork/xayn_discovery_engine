@@ -757,15 +757,12 @@ impl storage::DocumentCandidate for Storage {
     }
 }
 
-#[derive(FromRow)]
-struct QueriedDocumentProperties(Json<DocumentProperties>);
-
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let properties = sqlx::query_as::<_, QueriedDocumentProperties>(
+        let properties = sqlx::query_as::<_, (Json<DocumentProperties>,)>(
             "SELECT properties
             FROM document
             WHERE document_id = $1;",
@@ -787,7 +784,7 @@ impl storage::DocumentProperties for Storage {
     ) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let inserted = sqlx::query(
+        let inserted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
             SET properties = $1
             WHERE document_id = (
@@ -795,17 +792,21 @@ impl storage::DocumentProperties for Storage {
                 FROM document
                 WHERE document_id = $2
                 FOR UPDATE
-            );",
+            )
+            RETURNING is_candidate;",
         )
         .bind(Json(properties))
         .bind(id)
-        .execute(&mut tx)
-        .await?
-        .rows_affected();
-        let inserted = if inserted > 0 {
-            self.elastic
-                .insert_document_properties(id, properties)
-                .await?
+        .fetch_optional(&mut tx)
+        .await?;
+        let inserted = if let Some((is_candidate,)) = inserted {
+            if is_candidate {
+                self.elastic
+                    .insert_document_properties(id, properties)
+                    .await?
+            } else {
+                Some(())
+            }
         } else {
             None
         };
@@ -818,7 +819,7 @@ impl storage::DocumentProperties for Storage {
     async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let deleted = sqlx::query(
+        let deleted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
             SET properties = DEFAULT
             WHERE document_id = (
@@ -826,14 +827,18 @@ impl storage::DocumentProperties for Storage {
                 FROM document
                 WHERE document_id = $1
                 FOR UPDATE
-            );",
+            )
+            RETURNING is_candidate;",
         )
         .bind(id)
-        .execute(&mut tx)
-        .await?
-        .rows_affected();
-        let deleted = if deleted > 0 {
-            self.elastic.delete_document_properties(id).await?
+        .fetch_optional(&mut tx)
+        .await?;
+        let deleted = if let Some((is_candidate,)) = deleted {
+            if is_candidate {
+                self.elastic.delete_document_properties(id).await?
+            } else {
+                Some(())
+            }
         } else {
             None
         };
@@ -844,9 +849,6 @@ impl storage::DocumentProperties for Storage {
     }
 }
 
-#[derive(FromRow)]
-struct QueriedDocumentProperty(Json<DocumentProperty>);
-
 #[async_trait]
 impl storage::DocumentProperty for Storage {
     async fn get(
@@ -856,7 +858,7 @@ impl storage::DocumentProperty for Storage {
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let property = sqlx::query_as::<_, QueriedDocumentProperty>(
+        let property = sqlx::query_as::<_, (Json<DocumentProperty>,)>(
             "SELECT properties -> $1
             FROM document
             WHERE document_id = $2 AND properties ? $1;",
@@ -886,7 +888,7 @@ impl storage::DocumentProperty for Storage {
     ) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let inserted = sqlx::query(
+        let inserted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
             SET properties = jsonb_set(properties, $1, $2)
             WHERE document_id = (
@@ -894,18 +896,22 @@ impl storage::DocumentProperty for Storage {
                 FROM document
                 WHERE document_id = $3
                 FOR UPDATE
-            );",
+            )
+            RETURNING is_candidate;",
         )
         .bind(slice::from_ref(property_id))
         .bind(Json(property))
         .bind(document_id)
-        .execute(&mut tx)
-        .await?
-        .rows_affected();
-        let inserted = if inserted > 0 {
-            self.elastic
-                .insert_document_property(document_id, property_id, property)
-                .await?
+        .fetch_optional(&mut tx)
+        .await?;
+        let inserted = if let Some((is_candidate,)) = inserted {
+            if is_candidate {
+                self.elastic
+                    .insert_document_property(document_id, property_id, property)
+                    .await?
+            } else {
+                Some(())
+            }
         } else {
             None
         };
@@ -922,7 +928,7 @@ impl storage::DocumentProperty for Storage {
     ) -> Result<Option<Option<()>>, Error> {
         let mut tx = self.postgres.pool.begin().await?;
 
-        let deleted = sqlx::query(
+        let deleted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
             SET properties = properties - $1
             WHERE document_id = (
@@ -930,17 +936,21 @@ impl storage::DocumentProperty for Storage {
                 FROM document
                 WHERE document_id = $2
                 FOR UPDATE
-            ) AND properties ? $1;",
+            ) AND properties ? $1
+            RETURNING is_candidate;",
         )
         .bind(property_id)
         .bind(document_id)
-        .execute(&mut tx)
-        .await?
-        .rows_affected();
-        let deleted = if deleted > 0 {
-            self.elastic
-                .delete_document_property(document_id, property_id)
-                .await?
+        .fetch_optional(&mut tx)
+        .await?;
+        let deleted = if let Some((is_candidate,)) = deleted {
+            if is_candidate {
+                self.elastic
+                    .delete_document_property(document_id, property_id)
+                    .await?
+            } else {
+                Some(Some(()))
+            }
         } else {
             Database::document_exists(&mut tx, document_id)
                 .await?
