@@ -64,9 +64,6 @@ pub struct Config {
     /// Address to which the server should bind.
     pub(crate) bind_to: SocketAddr,
 
-    /// Max body size limit which should be applied to all endpoints
-    pub(crate) max_body_size: usize,
-
     /// Keep alive timeout in seconds
     #[serde(with = "serde_duration_as_seconds")]
     pub(crate) keep_alive: Duration,
@@ -80,7 +77,6 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             bind_to: SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 4252).into(),
-            max_body_size: 524_288,
             keep_alive: Duration::from_secs(61),
             client_request_timeout: Duration::from_secs(0),
         }
@@ -98,12 +94,11 @@ where
 {
     let &Config {
         bind_to,
-        max_body_size,
         keep_alive,
         client_request_timeout,
     } = (*app_state).as_ref();
 
-    let json_config = JsonConfig::default().limit(max_body_size);
+    let json_config = JsonConfig::default();
     let web_app_state = web::Data::from(app_state.clone());
 
     let server = HttpServer::new(move || {

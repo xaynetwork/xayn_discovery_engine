@@ -10,7 +10,6 @@ stdout = """
   },
   "net": {
     "bind_to": "127.0.1.1:3040",
-    "max_body_size": 64,
     "keep_alive": 61,
     "client_request_timeout": 0
   },

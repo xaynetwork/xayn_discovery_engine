@@ -3,7 +3,6 @@ file = "foo/bar.log"
 
 [net]
 bind_to = "127.0.1.1:3040"
-max_body_size = 64
 
 [storage.elastic]
 url = "http://localhost:3219"
