@@ -17,7 +17,6 @@
 use std::{fs::OpenOptions, sync::Once};
 
 use serde::{Deserialize, Serialize};
-use tracing::Level;
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     layer::SubscriberExt,

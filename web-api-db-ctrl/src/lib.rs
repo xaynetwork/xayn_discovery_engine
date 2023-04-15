@@ -161,11 +161,8 @@ impl Silo {
             legacy_tenant_id
         } else {
             let new_id = TenantId::random();
-            sqlx::query("INSERT INTO management.tenants(tenant_id) VALUES ($1);")
-                .bind(new_id)
-                .execute(&mut *tx)
-                .await?;
-            create_tenant_with_empty_schema(tx, new_id).await?;
+            create_tenant_with_empty_schema(tx, new_id, true).await?;
+            info!({tenant_id = %new_id}, "created new legacy tenant");
             new_id
         };
 
@@ -196,6 +193,7 @@ impl Silo {
 
     /// Allows using the admin user as `web-api-mt` user.
     pub async fn admin_as_mt_user_hack(&self) -> Result<(), Error> {
+        info!("using the admin as mt user");
         let mt_user = &*MT_USER;
         let mut tx = self.postgres.begin().await?;
 
@@ -203,7 +201,12 @@ impl Silo {
 
         create_role_if_not_exists(&mut tx, mt_user).await?;
 
-        let query = format!(r#"GRANT {mt_user} TO CURRENT_USER;"#);
+        let query = format!(
+            r#"
+            ALTER USER {mt_user} SET search_path TO "$user";
+            GRANT {mt_user} TO CURRENT_USER;
+        "#
+        );
         tx.execute(query.as_str()).await?;
 
         tx.commit().await?;
@@ -224,7 +227,7 @@ impl Silo {
     pub async fn create_tenant(&self) -> Result<TenantId, Error> {
         let new_id = TenantId::random();
         let mut tx = self.postgres.begin().await?;
-        create_tenant_with_empty_schema(&mut tx, new_id).await?;
+        create_tenant_with_empty_schema(&mut tx, new_id, false).await?;
         self.run_db_migration_for(new_id, true).await?;
         tx.commit().await?;
         Ok(new_id)
@@ -318,6 +321,7 @@ impl Silo {
 async fn create_tenant_with_empty_schema(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: TenantId,
+    is_legacy_tenant: bool,
 ) -> Result<(), Error> {
     let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
 
@@ -368,8 +372,9 @@ async fn create_tenant_with_empty_schema(
         .try_for_each(|_| future::ready(Ok(())))
         .await?;
 
-    sqlx::query("INSERT INTO management.tenant (tenant_id) VALUES ($1);")
+    sqlx::query("INSERT INTO management.tenant (tenant_id, is_legacy_tenant) VALUES ($1, $2);")
         .bind(tenant_id)
+        .bind(is_legacy_tenant)
         .execute(tx)
         .await?;
 
