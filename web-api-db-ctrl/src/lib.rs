@@ -170,7 +170,7 @@ impl Silo {
         if does_table_exist(&mut *tx, "public", "documents").await? {
             let tenant = QuotedIdentifier::db_name_for_tenant_id(legacy_tenant_id);
 
-            if does_schema_exist(&mut *tx, tenant.unquoted_str()).await? {
+            if does_schema_exist(&mut *tx, tenant.as_unquoted_str()).await? {
                 bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
             }
 
