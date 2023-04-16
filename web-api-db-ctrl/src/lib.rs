@@ -20,7 +20,6 @@ use futures_util::{
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
-use tokio::sync::Mutex;
 use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 use xayn_web_api_shared::{
@@ -391,13 +390,21 @@ async fn create_role_if_not_exists(
     tx: &mut Transaction<'_, Postgres>,
     role: &QuotedIdentifier,
 ) -> Result<bool, Error> {
-    static CONCURRENCY_GUARD: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
-    let _guard = CONCURRENCY_GUARD.lock().await;
-    if !does_role_exist(tx, role).await? {
-        create_role(tx, role).await?;
-        Ok(true)
-    } else {
-        Ok(false)
+    let mut count = 10;
+    loop {
+        return if !does_role_exist(tx, role).await? {
+            if let Err(err) = create_role(tx, role).await {
+                count -= 1;
+                if err.to_string().contains("tuple concurrently updated") && count > 0 {
+                    continue;
+                } else {
+                    return Err(err);
+                }
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        };
     }
 }
 
