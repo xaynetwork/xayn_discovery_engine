@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::time::Duration;
+
 use anyhow::bail;
 use futures_util::{
     future::{self, join_all},
@@ -20,6 +22,7 @@ use futures_util::{
 use itertools::Itertools;
 use once_cell::sync::Lazy;
 use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
+use tokio::time::sleep;
 use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 use xayn_web_api_shared::{
@@ -390,12 +393,13 @@ async fn create_role_if_not_exists(
     tx: &mut Transaction<'_, Postgres>,
     role: &QuotedIdentifier,
 ) -> Result<bool, Error> {
-    let mut count = 10;
+    let mut count = 3;
     loop {
         return if !does_role_exist(tx, role).await? {
             if let Err(err) = create_role(tx, role).await {
                 count -= 1;
-                if err.to_string().contains("tuple concurrently updated") && count > 0 {
+                if count > 0 {
+                    sleep(Duration::from_millis(100)).await;
                     continue;
                 } else {
                     return Err(err);
