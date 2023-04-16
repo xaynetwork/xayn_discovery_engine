@@ -66,7 +66,7 @@ pub(crate) struct Database {
 }
 
 impl Database {
-    #[instrument(skip(config))]
+    #[instrument(skip(config), err)]
     pub(crate) async fn builder(
         config: &Config,
         tenants: &tenants::Config,

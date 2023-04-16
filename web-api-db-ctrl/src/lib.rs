@@ -21,7 +21,7 @@ use itertools::Itertools;
 use once_cell::sync::Lazy;
 use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
 use tokio::sync::Mutex;
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 use xayn_web_api_shared::{
     postgres::{self, QuotedIdentifier},
@@ -88,6 +88,7 @@ impl Silo {
     ///
     /// 3. In concurrently for each tenant a migration of their
     ///    schema will be run (if needed).
+    #[instrument(skip(self), err)]
     pub async fn initialize(&self) -> Result<Option<TenantId>, Error> {
         // Move out to make sure that a pool with a limit of 1 conn doesn't
         // lead to a dead lock when running tenant migrations. And that we
@@ -192,6 +193,7 @@ impl Silo {
     }
 
     /// Allows using the admin user as `web-api-mt` user.
+    #[instrument(skip(self), err)]
     pub async fn admin_as_mt_user_hack(&self) -> Result<(), Error> {
         info!("using the admin as mt user");
         let mt_user = &*MT_USER;
@@ -213,6 +215,7 @@ impl Silo {
         Ok(())
     }
 
+    #[instrument(skip(self), err)]
     pub async fn list_tenants(&self) -> Result<Vec<TenantId>, Error> {
         Ok(
             sqlx::query_as::<_, (TenantId,)>("SELECT tenant_id FROM management.tenant")
@@ -224,6 +227,7 @@ impl Silo {
         )
     }
 
+    #[instrument(skip(self), err)]
     pub async fn create_tenant(&self) -> Result<TenantId, Error> {
         let new_id = TenantId::random();
         let mut tx = self.postgres.begin().await?;
@@ -233,6 +237,7 @@ impl Silo {
         Ok(new_id)
     }
 
+    #[instrument(skip(self), err)]
     pub async fn delete_tenant(&self, tenant_id: TenantId) -> Result<(), Error> {
         let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
         let mut tx = self.postgres.begin().await?;
@@ -260,6 +265,7 @@ impl Silo {
         Ok(())
     }
 
+    #[instrument(skip(self), err)]
     async fn run_db_migration_for(&self, tenant_id: TenantId, lock_db: bool) -> Result<(), Error> {
         let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
         let mut tx = self.postgres.begin().await?;
@@ -285,6 +291,7 @@ impl Silo {
         Ok(())
     }
 
+    #[instrument(skip(self), err)]
     async fn run_all_db_migrations(
         &self,
         lock_db: bool,
@@ -481,6 +488,7 @@ async fn lock_id_until_end_of_transaction(
     tx: &'_ mut Transaction<'_, Postgres>,
     lock_id: i64,
 ) -> Result<(), sqlx::Error> {
+    debug!({ lock_id }, "pg_advisory_xact_lock");
     sqlx::query("SELECT pg_advisory_xact_lock($1)")
         .bind(lock_id)
         .execute(tx)
@@ -493,6 +501,7 @@ async fn lock_id_until_unlock(
     tx: impl Executor<'_, Database = Postgres>,
     lock_id: i64,
 ) -> Result<(), sqlx::Error> {
+    debug!({ lock_id }, "pg_advisory_lock");
     sqlx::query("SELECT pg_advisory_lock($1)")
         .bind(lock_id)
         .execute(tx)
@@ -507,6 +516,7 @@ async fn unlock_lock_id(
     tx: impl Executor<'_, Database = Postgres>,
     lock_id: i64,
 ) -> Result<(), sqlx::Error> {
+    debug!({ lock_id }, "pg_advisory_unlock");
     sqlx::query("SELECT pg_advisory_unlock($1)")
         .bind(lock_id)
         .execute(tx)
