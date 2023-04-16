@@ -166,29 +166,6 @@ impl Silo {
             info!({tenant_id = %new_id}, "created new legacy tenant");
             new_id
         };
-
-        if does_table_exist(&mut *tx, "public", "documents").await? {
-            let tenant = QuotedIdentifier::db_name_for_tenant_id(legacy_tenant_id);
-
-            if does_schema_exist(&mut *tx, tenant.as_unquoted_str()).await? {
-                bail!("database has both public legacy schemas and a migrated schema, this should be impossible");
-            }
-
-            info!("moving legacy tenant from public schema to {tenant}");
-
-            let query = format!(
-                "ALTER SCHEMA public RENAME TO {tenant};
-                -- create a new public schema, wo do not grant rights to PUBLIC
-                CREATE SCHEMA public;
-                -- revoke privileges from public
-                REVOKE ALL ON SCHEMA {tenant} FROM PUBLIC;
-                -- probably unneeded but make sure it's owned by the admin user
-                ALTER SCHEMA {tenant} OWNER TO CURRENT_USER;"
-            );
-            tx.execute_many(query.as_str())
-                .try_for_each(|_| future::ready(Ok(())))
-                .await?;
-        }
         Ok(legacy_tenant_id)
     }
 
@@ -331,16 +308,42 @@ async fn create_tenant(
     let mt_user = &*MT_USER;
     //Hint: $ binds won't work for identifiers (e.g. schema names)
     let query = format!(
-        r##"
-            -- as the search_path is based on the login user this won't matter
+        r##"-- as the search_path is based on the login user this won't matter
             -- for now, but if we ever add login capabilities not having it would
             -- be a problem
             ALTER ROLE {tenant} SET search_path TO "$user";
-            GRANT {tenant} TO {mt_user};
+            GRANT {tenant} TO {mt_user};"##,
+    );
 
-            -- do not use the AUTHORIZATION option, the tenant uses that schema but
-            -- doesn't own it (tenants only own their data, not the structure it's stored in)
-            CREATE SCHEMA IF NOT EXISTS {tenant};
+    tx.execute_many(query.as_str())
+        .try_for_each(|_| future::ready(Ok(())))
+        .await?;
+
+    let query = if is_legacy_tenant {
+        info!("moving legacy tenant from public schema to {tenant}");
+        format!(
+            r##"ALTER SCHEMA public RENAME TO {tenant};
+                -- revoke privileges from public
+                REVOKE ALL ON SCHEMA {tenant} FROM PUBLIC;
+                -- probably unneeded but make sure it's owned by the admin user
+                ALTER SCHEMA {tenant} OWNER TO CURRENT_USER;
+                -- create a new public schema, wo do not grant rights to PUBLIC
+                CREATE SCHEMA public;"##
+        )
+    } else {
+        format!(
+            r##"-- do not use the AUTHORIZATION option, the tenant uses that schema but
+                -- doesn't own it (tenants only own their data, not the structure it's stored in)
+                CREATE SCHEMA IF NOT EXISTS {tenant};"##
+        )
+    };
+
+    tx.execute_many(query.as_str())
+        .try_for_each(|_| future::ready(Ok(())))
+        .await?;
+
+    let query = format!(
+        r##"-- tenant is only allowed to use the schema, they don't own it
             GRANT USAGE ON SCHEMA {tenant} TO {tenant};
 
             -- make sure all object we create can be used by tenant
