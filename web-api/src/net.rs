@@ -31,7 +31,7 @@ use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::{task::JoinHandle, time::timeout};
-use tracing::info;
+use tracing::{info, info_span, Instrument, Span};
 use xayn_web_api_shared::request::TenantId;
 
 use crate::middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context};
@@ -124,7 +124,9 @@ where
     // `spawn` it on the tokio runtime. This hands off the responsibility to poll the server to
     // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
     // stop and get it's return value (we don't have to await `term_handle`).
-    let term_handle = tokio::spawn(server);
+    let span = info_span!(parent: None, "web-api");
+    span.follows_from(Span::current());
+    let term_handle = tokio::spawn(server.instrument(span));
     Ok(AppHandle {
         on_shutdown,
         server_handle,

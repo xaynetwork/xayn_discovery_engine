@@ -201,15 +201,15 @@ impl Silo {
 
         lock_id_until_end_of_transaction(&mut tx, MIGRATION_LOCK_ID).await?;
 
-        create_role_if_not_exists(&mut tx, mt_user).await?;
-
-        let query = format!(
-            r#"
-            ALTER USER {mt_user} SET search_path TO "$user";
-            GRANT {mt_user} TO CURRENT_USER;
-        "#
-        );
-        tx.execute(query.as_str()).await?;
+        if create_role_if_not_exists(&mut tx, mt_user).await? {
+            let query = format!(
+                r#"
+                ALTER USER {mt_user} SET search_path TO "$user";
+                GRANT {mt_user} TO CURRENT_USER;
+            "#
+            );
+            tx.execute(query.as_str()).await?;
+        }
 
         tx.commit().await?;
         Ok(())
@@ -393,13 +393,15 @@ async fn create_tenant_with_empty_schema(
 async fn create_role_if_not_exists(
     tx: &mut Transaction<'_, Postgres>,
     role: &QuotedIdentifier,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
     static CONCURRENCY_GUARD: Lazy<Mutex<()>> = Lazy::new(|| Mutex::new(()));
     let _guard = CONCURRENCY_GUARD.lock().await;
     if !does_role_exist(tx, role).await? {
         create_role(tx, role).await?;
+        Ok(true)
+    } else {
+        Ok(false)
     }
-    Ok(())
 }
 
 #[instrument(err)]

@@ -35,6 +35,7 @@ use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
 use toml::{toml, Table, Value};
+use tracing::{info_span, Instrument};
 use uuid::Uuid;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
@@ -235,7 +236,10 @@ where
 
     let config = config::load_with_args([0u8; 0], args);
 
-    start::<A>(config).await.unwrap()
+    start::<A>(config)
+        .instrument(info_span!("test", test_id = %services.id))
+        .await
+        .unwrap()
 }
 
 /// Generates an ID for the test.
