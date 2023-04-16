@@ -162,7 +162,7 @@ impl Silo {
             legacy_tenant_id
         } else {
             let new_id = TenantId::random();
-            create_tenant_with_empty_schema(tx, new_id, true).await?;
+            create_tenant(tx, new_id, true).await?;
             info!({tenant_id = %new_id}, "created new legacy tenant");
             new_id
         };
@@ -231,7 +231,7 @@ impl Silo {
     pub async fn create_tenant(&self) -> Result<TenantId, Error> {
         let new_id = TenantId::random();
         let mut tx = self.postgres.begin().await?;
-        create_tenant_with_empty_schema(&mut tx, new_id, false).await?;
+        create_tenant(&mut tx, new_id, false).await?;
         self.run_db_migration_for(new_id, true).await?;
         tx.commit().await?;
         Ok(new_id)
@@ -315,14 +315,11 @@ impl Silo {
 
 /// Setups up a new tenant with given id.
 ///
-/// This will fail if the tenant role or schema
-/// already exist.
+/// This will fail if the tenant role already exist.
 ///
-/// If the tenant_id is equal to the legacy/default
-/// tenant id then this will _not_ fail if the role
-/// or schema already exist.
+/// This will **not** run migrations in the new tenant.
 #[instrument(err)]
-async fn create_tenant_with_empty_schema(
+async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: TenantId,
     is_legacy_tenant: bool,
