@@ -133,7 +133,7 @@ impl Silo {
         // currently have with single tenant.
         //FIXME: There is a limit to how well this scales.
         info!("start tenant db schema migrations");
-        let (_, failures) = self.run_all_db_migrations(false).await?;
+        let failures = self.run_all_db_migrations(false).await?;
 
         unlock_lock_id(&mut conn, MIGRATION_LOCK_ID).await?;
 
@@ -292,10 +292,7 @@ impl Silo {
     }
 
     #[instrument(skip(self), err)]
-    async fn run_all_db_migrations(
-        &self,
-        lock_db: bool,
-    ) -> Result<(Vec<TenantId>, Vec<(TenantId, Error)>), Error> {
+    async fn run_all_db_migrations(&self, lock_db: bool) -> Result<Vec<(TenantId, Error)>, Error> {
         let tenants = self.list_tenants().await?;
         // Hint: Parallelism is implicitly limited by the connection pool.
         let results = join_all(
@@ -308,11 +305,11 @@ impl Silo {
         Ok(tenants
             .into_iter()
             .zip(results.into_iter())
-            .map(|(tenant, result)| match result {
-                Ok(()) => Ok(tenant),
-                Err(error) => Err((tenant, error)),
+            .filter_map(|(tenant, result)| match result {
+                Ok(()) => None,
+                Err(error) => Some((tenant, error)),
             })
-            .partition_result())
+            .collect_vec())
     }
 }
 
