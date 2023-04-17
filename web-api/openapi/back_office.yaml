@@ -350,7 +350,7 @@ components:
             Behaves like `is_candidate` but will not overwrite any existing `is_candidate`
             value already stored in the database for this document.
 
-            Setting both this field and the `default_is_candidate` field will fail the request.
+            Setting both this field and the `is_candidate` field will fail the request.
           type: boolean
 
     IngestionRequest:
