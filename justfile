@@ -22,6 +22,8 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
     env_var_or_default("RUSTDOCFLAGS", "")
 }
 
+
+
 # Runs just --list
 default:
     @{{just_executable()}} --list
@@ -224,6 +226,7 @@ mind-benchmark kind:
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
 aws-login:
+    export AWS_PROFILE="S3BucketsDeveloperAccess-690046978283" && \
     aws sso login
 
 _test-project-root:
