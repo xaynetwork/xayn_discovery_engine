@@ -334,9 +334,25 @@ components:
           items:
             $ref: './schemas/document.yml#/DocumentTag'
         is_candidate:
-          description: Indicates if the document is considered for recommendations.
+          description: |
+            Indicates if the document is considered for recommendations.
+
+            Always overwrite any existing `is_candidate` value from a previous ingestion.
+
+            Setting both this field and `default_is_candidate` will fail the request.
+
+            Setting neither will default to `is_candidate` being set to it's default value.
           type: boolean
           default: true
+
+        default_is_candidate:
+          description: |
+            Behaves like `is_candidate` but will not overwrite any existing `is_candidate`
+            value already stored in the database for this document.
+
+            Setting both this field and `default_is_candidate` will fail the request.
+          type: boolean
+
     IngestionRequest:
       type: object
       required: [documents]
