@@ -1,6 +1,5 @@
 #!/bin/bash
 set -eu -o pipefail
-set -o xtrace
 
 realpath() {
     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
@@ -24,12 +23,10 @@ download()
   TMP_ARCHIVE_NAME="$ARCHIVE_NAME.tmp"
   TMP_DIR=$(mktemp -d)
   URL="s3://xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
-  # URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
 
   if [ -d "$DATA_DIR/$ARCHIVE_BASENAME" ]; then
     echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
   else
-    # curl "$URL" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
     aws s3 cp "$URL" "$DATA_DIR/$TMP_ARCHIVE_NAME" 
 
     mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$TMP_DIR/$ARCHIVE_NAME"
@@ -42,9 +39,7 @@ download()
     shasum -c "$CHECKSUM_FILE"
 
     mv "$TMP_DIR/$ARCHIVE_BASENAME" "$DATA_DIR/"
-    
     cd "$DATA_DIR"
-
   fi
 }
 
@@ -54,8 +49,8 @@ if [ $# -gt 0 ]; then
         shift 2
     done
 else
-    download sjbert v0003
     download smbert v0003
     download smbert_mocked v0003
+    download sjbert v0003
     download smroberta_tokenizer v0000
 fi

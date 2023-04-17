@@ -223,6 +223,9 @@ mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
+aws-login:
+    aws sso login
+
 _test-project-root:
     #!/usr/bin/env -S bash -eu -o pipefail
     echo -n {{justfile_directory()}}
