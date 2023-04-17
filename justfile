@@ -24,7 +24,9 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
 
 export AWS_PROFILE := if env_var_or_default("CI", "false") == "false" { 
     env_var_or_default("AWS_PROFILE", "S3BucketsDeveloperAccess-690046978283")
- } else {}
+ } else {
+    env_var_or_default("AWS_PROFILE", $AWS_PROFILE)
+ }
 
 # Runs just --list
 default:
