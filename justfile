@@ -22,8 +22,6 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
     env_var_or_default("RUSTDOCFLAGS", "")
 }
 
-
-
 # Runs just --list
 default:
     @{{just_executable()}} --list
