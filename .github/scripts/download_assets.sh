@@ -27,6 +27,8 @@ download()
   if [ -d "$DATA_DIR/$ARCHIVE_BASENAME" ]; then
     echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
   else
+
+    cd "$DATA_DIR"
     aws s3 cp "$URL" "$DATA_DIR/$TMP_ARCHIVE_NAME" 
 
     mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$TMP_DIR/$ARCHIVE_NAME"
@@ -39,7 +41,6 @@ download()
     shasum -c "$CHECKSUM_FILE"
 
     mv "$TMP_DIR/$ARCHIVE_BASENAME" "$DATA_DIR/"
-    cd "$DATA_DIR"
   fi
 }
 
