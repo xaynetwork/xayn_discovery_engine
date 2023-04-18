@@ -48,6 +48,7 @@ use crate::{
         DocumentProperty,
         DocumentPropertyId,
         DocumentTag,
+        ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
@@ -59,6 +60,7 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
+    snippet: String,
     properties: DocumentProperties,
     tags: Vec<DocumentTag>,
     is_candidate: bool,
@@ -281,6 +283,24 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
+    async fn get_excerpted(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<ExcerptedDocument>, Error> {
+        let documents = self.documents.read().await;
+        let documents = ids
+            .into_iter()
+            .filter_map(|id| {
+                documents.0.get(id).map(|document| ExcerptedDocument {
+                    id: id.clone(),
+                    snippet: document.snippet.clone(),
+                })
+            })
+            .collect();
+
+        Ok(documents)
+    }
+
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
         Ok(self.documents.read().await.1.borrow_map().get(id).cloned())
     }
@@ -337,6 +357,7 @@ impl storage::Document for Storage {
             documents.0.insert(
                 document.id.clone(),
                 Document {
+                    snippet: document.snippet,
                     properties: document.properties,
                     tags: document.tags,
                     is_candidate: document.is_candidate,
@@ -387,7 +408,7 @@ impl storage::DocumentCandidate for Storage {
 
     async fn set(
         &self,
-        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<Warning<DocumentId>, Error> {
         let mut ids = ids.into_iter().collect::<HashSet<_>>();
         for (id, document) in &mut self.documents.write().await.0 {
@@ -397,6 +418,40 @@ impl storage::DocumentCandidate for Storage {
         }
 
         Ok(ids.into_iter().cloned().collect())
+    }
+
+    async fn add(
+        &self,
+        ids: impl IntoIterator<Item = &DocumentId>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        let documents = &mut self.documents.write().await.0;
+        let mut failed = Warning::default();
+        for id in ids {
+            if let Some(document) = documents.get_mut(id) {
+                document.is_candidate = true;
+            } else {
+                failed.push(id.clone());
+            }
+        }
+
+        Ok(failed)
+    }
+
+    async fn remove(
+        &self,
+        ids: impl IntoIterator<Item = &DocumentId>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        let documents = &mut self.documents.write().await.0;
+        let mut failed = Warning::default();
+        for id in ids {
+            if let Some(document) = documents.get_mut(id) {
+                document.is_candidate = false;
+            } else {
+                failed.push(id.clone());
+            }
+        }
+
+        Ok(failed)
     }
 }
 
@@ -603,6 +658,19 @@ impl storage::Tag for Storage {
     async fn get(&self, id: &UserId) -> Result<TagWeights, Error> {
         Ok(self.tags.read().await.get(id).cloned().unwrap_or_default())
     }
+
+    async fn put(
+        &self,
+        document_id: &DocumentId,
+        tags: &[DocumentTag],
+    ) -> Result<Option<()>, Error> {
+        if let Some(document) = self.documents.write().await.0.get_mut(document_id) {
+            document.tags = tags.to_vec();
+            Ok(Some(()))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 impl Storage {
@@ -748,9 +816,16 @@ mod tests {
         .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
+        let documents = storage::Document::get_excerpted(&storage, [&document.0])
+            .await
+            .unwrap();
+        assert_eq!(documents.len(), 1);
+        assert_eq!(documents[0].id, document.0);
+        assert_eq!(documents[0].snippet, "snippet");
         let documents = storage::Document::get_personalized(&storage, [&document.0])
             .await
             .unwrap();
+        assert_eq!(documents.len(), 1);
         assert_eq!(documents[0].id, document.0);
         assert_approx_eq!(f32, documents[0].embedding, embedding);
         assert!(documents[0].properties.is_empty());

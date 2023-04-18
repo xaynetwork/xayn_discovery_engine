@@ -132,7 +132,7 @@ struct SemanticSearchResponse {
 }
 
 #[tokio::test]
-async fn test_reingestion() {
+async fn test_reingestion_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
         unchanged_config,
@@ -206,5 +206,49 @@ async fn test_reingestion() {
             Ok(())
         },
     )
+    .await;
+}
+
+// currently there is no endpoint to actually check the changed snippets/embeddings, but we can at
+// least run the test to see if something crashes and manually check with log level `info` how many
+// new and changed documents have been logged and manually check the databases
+#[tokio::test]
+async fn test_reingestion_snippets() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                        { "id": "d2", "snippet": "snippet 2", "is_candidate": true },
+                        { "id": "d3", "snippet": "snippet 3", "is_candidate": false },
+                        { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                        { "id": "d2", "snippet": "snippet X", "is_candidate": true },
+                        { "id": "d3", "snippet": "snippet 3", "is_candidate": false },
+                        { "id": "d4", "snippet": "snippet Y", "is_candidate": false }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
+
+        Ok(())
+    })
     .await;
 }

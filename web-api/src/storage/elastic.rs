@@ -497,6 +497,29 @@ impl Client {
             .await?
             .map(|_| Some(())))
     }
+
+    pub(super) async fn insert_document_tags(
+        &self,
+        id: &DocumentId,
+        tags: &[DocumentTag],
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let body = Some(json!({
+            "script": {
+                "source": "ctx._source.tags = params.tags",
+                "params": {
+                    "tags": tags
+                }
+            },
+            "_source": false
+        }));
+
+        Ok(self
+            .query_with_json::<_, IgnoredResponse>(url, body)
+            .await?
+            .map(|_| ()))
+    }
 }
 
 #[derive(Debug, Deserialize)]

@@ -30,6 +30,7 @@ use crate::{
         application::WithRequestIdExt,
         common::{
             BadRequest,
+            DocumentIdAsObject,
             DocumentNotFound,
             DocumentPropertyNotFound,
             FailedToDeleteSomeDocuments,
@@ -37,7 +38,7 @@ use crate::{
             IngestingDocumentsFailed,
         },
     },
-    models::{self, DocumentId, DocumentProperties, DocumentProperty},
+    models::{self, DocumentId, DocumentProperties, DocumentProperty, DocumentTag},
     storage,
     Error,
 };
@@ -51,7 +52,7 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
         )
         .service(
             web::resource("/documents")
-                .route(web::post().to(new_documents.error_with_request_id()))
+                .route(web::post().to(upsert_documents.error_with_request_id()))
                 .route(web::delete().to(delete_documents.error_with_request_id())),
         )
         .service(
@@ -96,7 +97,7 @@ const fn default_is_candidate() -> bool {
 }
 
 #[derive(Debug, Deserialize)]
-struct IngestedDocument {
+struct UnvalidatedIngestedDocument {
     id: String,
     #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_bytes")]
     snippet: String,
@@ -108,14 +109,53 @@ struct IngestedDocument {
     is_candidate: bool,
 }
 
+#[derive(Debug)]
+struct IngestedDocument {
+    id: DocumentId,
+    snippet: String,
+    properties: DocumentProperties,
+    tags: Vec<DocumentTag>,
+    is_candidate: bool,
+}
+
+impl UnvalidatedIngestedDocument {
+    fn validate(self) -> Result<IngestedDocument, DocumentIdAsObject> {
+        let validate = || -> anyhow::Result<_> {
+            let id = self.id.as_str().try_into()?;
+            let properties = self
+                .properties
+                .into_iter()
+                .map(|(id, property)| id.try_into().map(|id| (id, property)))
+                .try_collect()?;
+            let tags = self.tags.into_iter().map(TryInto::try_into).try_collect()?;
+
+            Ok(IngestedDocument {
+                id,
+                snippet: self.snippet,
+                properties,
+                tags,
+                is_candidate: self.is_candidate,
+            })
+        };
+
+        validate().map_err(|error| {
+            error!(
+                "Document with id '{}' caused a PipelineError: {:#?}",
+                self.id, error,
+            );
+            self.id.into()
+        })
+    }
+}
+
 /// Represents body of a POST documents request.
 #[derive(Debug, Deserialize)]
 struct IngestionRequestBody {
-    documents: Vec<IngestedDocument>,
+    documents: Vec<UnvalidatedIngestedDocument>,
 }
 
 #[instrument(skip_all)]
-async fn new_documents(
+async fn upsert_documents(
     state: Data<AppState>,
     Json(body): Json<IngestionRequestBody>,
 ) -> Result<impl Responder, Error> {
@@ -132,54 +172,80 @@ async fn new_documents(
         .into());
     }
 
-    let start = Instant::now();
-
     let (documents, mut failed_documents) = body
         .documents
         .into_iter()
-        .map(|document| {
-            let map_document = || -> anyhow::Result<_> {
-                let id = document.id.as_str().try_into()?;
-                let properties = document
-                    .properties
-                    .into_iter()
-                    .map(|(id, property)| id.try_into().map(|id| (id, property)))
-                    .try_collect()?;
-                let tags = document
-                    .tags
-                    .into_iter()
-                    .map(TryInto::try_into)
-                    .try_collect()?;
-                let embedding = state.embedder.run(&document.snippet)?;
+        .map(UnvalidatedIngestedDocument::validate)
+        .partition_result::<Vec<_>, Vec<_>, _, _>();
+    let snippets = storage::Document::get_excerpted(
+        &state.storage,
+        documents.iter().map(|document| &document.id),
+    )
+    .await?
+    .into_iter()
+    .map(|document| (document.id, document.snippet))
+    .collect::<HashMap<_, _>>();
 
-                Ok(models::IngestedDocument {
-                    id,
-                    snippet: document.snippet,
-                    properties,
-                    tags,
-                    embedding,
-                    is_candidate: document.is_candidate,
-                })
-            };
+    let (changed_documents, new_documents) =
+        documents.into_iter().partition::<Vec<_>, _>(|document| {
+            snippets
+                .get(&document.id)
+                .map(|snippet| document.snippet == *snippet)
+                .unwrap_or_default()
+        });
 
-            map_document().map_err(|error| {
+    // checked above that all changed documents exist, hence no extended failed documents
+    storage::DocumentCandidate::remove(
+        &state.storage,
+        changed_documents
+            .iter()
+            .filter_map(|document| (!document.is_candidate).then_some(&document.id)),
+    )
+    .await?;
+    for document in &changed_documents {
+        storage::DocumentProperties::put(&state.storage, &document.id, &document.properties)
+            .await?;
+        storage::Tag::put(&state.storage, &document.id, &document.tags).await?;
+    }
+    storage::DocumentCandidate::add(
+        &state.storage,
+        changed_documents
+            .iter()
+            .filter_map(|document| document.is_candidate.then_some(&document.id)),
+    )
+    .await?;
+
+    let start = Instant::now();
+    let new_documents = new_documents
+        .into_iter()
+        .filter_map(|document| match state.embedder.run(&document.snippet) {
+            Ok(embedding) => Some(models::IngestedDocument {
+                id: document.id,
+                snippet: document.snippet,
+                properties: document.properties,
+                tags: document.tags,
+                embedding,
+                is_candidate: document.is_candidate,
+            }),
+            Err(error) => {
                 error!(
                     "Document with id '{}' caused a PipelineError: {:#?}",
                     document.id, error,
                 );
-                document.id.into()
-            })
+                failed_documents.push(document.id.into());
+                None
+            }
         })
-        .partition_result::<Vec<_>, Vec<_>, _, _>();
+        .collect_vec();
 
     info!(
-        "{} embeddings calculated in {} sec",
-        documents.len(),
+        "{} new embeddings calculated in {} seconds and {} unchanged embeddings skipped",
+        new_documents.len(),
         start.elapsed().as_secs(),
+        changed_documents.len(),
     );
-
     failed_documents.extend(
-        storage::Document::insert(&state.storage, documents)
+        storage::Document::insert(&state.storage, new_documents)
             .await?
             .into_iter()
             .map(Into::into),
