@@ -34,6 +34,7 @@ use crate::{
         DocumentId,
         DocumentPropertyId,
         DocumentTag,
+        ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
@@ -93,6 +94,11 @@ pub(crate) trait Document {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
+    async fn get_excerpted(
+        &self,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+    ) -> Result<Vec<ExcerptedDocument>, Error>;
+
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
 
     async fn get_by_embedding<'a>(
@@ -118,7 +124,19 @@ pub(crate) trait DocumentCandidate {
     /// Sets the document candidates and reports failed ids.
     async fn set(
         &self,
-        ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<Item = &DocumentId>,
+    ) -> Result<Warning<DocumentId>, Error>;
+
+    /// Adds the document candidates and reports failed ids.
+    async fn add(
+        &self,
+        ids: impl IntoIterator<Item = &DocumentId>,
+    ) -> Result<Warning<DocumentId>, Error>;
+
+    /// Removes the document candidates and reports failed ids.
+    async fn remove(
+        &self,
+        ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<Warning<DocumentId>, Error>;
 }
 
@@ -192,7 +210,15 @@ pub(crate) type TagWeights = HashMap<DocumentTag, usize>;
 
 #[async_trait]
 pub(crate) trait Tag {
+    /// Gets the weighted tags for a user.
     async fn get(&self, user_id: &UserId) -> Result<TagWeights, Error>;
+
+    /// Sets the document tags if the document exists.
+    async fn put(
+        &self,
+        document_id: &DocumentId,
+        tags: &[DocumentTag],
+    ) -> Result<Option<()>, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

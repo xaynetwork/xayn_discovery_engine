@@ -188,6 +188,12 @@ pub(crate) struct IngestedDocument {
     pub(crate) is_candidate: bool,
 }
 
+#[derive(Debug)]
+pub(crate) struct ExcerptedDocument {
+    pub(crate) id: DocumentId,
+    pub(crate) snippet: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
