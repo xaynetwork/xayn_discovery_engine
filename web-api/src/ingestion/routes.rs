@@ -185,6 +185,7 @@ async fn upsert_documents(
     .into_iter()
     .map(|document| (document.id, document.snippet))
     .collect::<HashMap<_, _>>();
+
     let (changed_documents, new_documents) =
         documents.into_iter().partition::<Vec<_>, _>(|document| {
             snippets
@@ -236,6 +237,7 @@ async fn upsert_documents(
             }
         })
         .collect_vec();
+
     info!(
         "{} new embeddings calculated in {} seconds and {} unchanged embeddings skipped",
         new_documents.len(),

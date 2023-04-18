@@ -24,7 +24,7 @@ use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use sqlx::{
     pool::PoolOptions,
-    postgres::{PgConnectOptions, PgRow},
+    postgres::PgConnectOptions,
     types::{
         chrono::{DateTime, Utc},
         Json,
@@ -34,7 +34,6 @@ use sqlx::{
     Pool,
     Postgres,
     QueryBuilder,
-    Row,
     Transaction,
 };
 use tracing::{info, instrument, warn};
@@ -405,11 +404,9 @@ impl Database {
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
-                    .try_map(|row: PgRow| {
-                        Ok(ExcerptedDocument {
-                            id: row.try_get(0)?,
-                            snippet: row.try_get(1)?,
-                        })
+                    .try_map(|row| {
+                        let (id, snippet) = FromRow::from_row(&row)?;
+                        Ok(ExcerptedDocument { id, snippet })
                     })
                     .fetch_all(&mut *tx)
                     .await?,
@@ -475,13 +472,15 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .push(" RETURNING document_id, snippet, properties, tags, embedding;")
                     .build()
-                    .try_map(|row: PgRow| {
+                    .try_map(|row| {
+                        let (id, snippet, Json(properties), tags, embedding) =
+                            FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
-                            id: row.try_get(0)?,
-                            snippet: row.try_get(1)?,
-                            properties: row.try_get::<Json<_>, _>(2)?.0,
-                            tags: row.try_get(3)?,
-                            embedding: row.try_get(4)?,
+                            id,
+                            snippet,
+                            properties,
+                            tags,
+                            embedding,
                             is_candidate: true,
                         })
                     })
@@ -547,13 +546,15 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .push(" RETURNING document_id, snippet, properties, tags, embedding;")
                     .build()
-                    .try_map(|row: PgRow| {
+                    .try_map(|row| {
+                        let (id, snippet, Json(properties), tags, embedding) =
+                            FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
-                            id: row.try_get(0)?,
-                            snippet: row.try_get(1)?,
-                            properties: row.try_get::<Json<_>, _>(2)?.0,
-                            tags: row.try_get(3)?,
-                            embedding: row.try_get(4)?,
+                            id,
+                            snippet,
+                            properties,
+                            tags,
+                            embedding,
                             is_candidate: true,
                         })
                     })
