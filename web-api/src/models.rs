@@ -192,6 +192,7 @@ pub(crate) struct IngestedDocument {
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
     pub(crate) snippet: String,
+    pub(crate) is_candidate: bool,
 }
 
 #[cfg(test)]

@@ -19,6 +19,7 @@ use actix_web::{
     HttpResponse,
     Responder,
 };
+use anyhow::bail;
 use itertools::Itertools;
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
@@ -92,10 +93,6 @@ where
     }
 }
 
-const fn default_is_candidate() -> bool {
-    true
-}
-
 #[derive(Debug, Deserialize)]
 struct UnvalidatedIngestedDocument {
     id: String,
@@ -105,8 +102,10 @@ struct UnvalidatedIngestedDocument {
     properties: HashMap<String, DocumentProperty>,
     #[serde(default)]
     tags: Vec<String>,
-    #[serde(default = "default_is_candidate")]
-    is_candidate: bool,
+    #[serde(default)]
+    is_candidate: Option<bool>,
+    #[serde(default)]
+    default_is_candidate: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -115,7 +114,48 @@ struct IngestedDocument {
     snippet: String,
     properties: DocumentProperties,
     tags: Vec<DocumentTag>,
-    is_candidate: bool,
+    is_candidate_op: IsCandidateOp,
+}
+
+#[derive(Clone, Debug, Copy)]
+enum IsCandidateOp {
+    SetTo(bool),
+    DefaultTo(bool),
+}
+
+impl IsCandidateOp {
+    /// Returns the new value and `has_existing && is_changed_value`
+    fn resolve(self, existing: Option<bool>) -> NewIsCandidate {
+        match self {
+            IsCandidateOp::SetTo(new) => NewIsCandidate {
+                value: new,
+                existing_and_has_changed: existing
+                    .map(|previous| previous != new)
+                    .unwrap_or_default(),
+            },
+            IsCandidateOp::DefaultTo(default) => NewIsCandidate {
+                value: existing.unwrap_or(default),
+                existing_and_has_changed: false,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+#[cfg_attr(test, derive(PartialEq, Debug))]
+struct NewIsCandidate {
+    value: bool,
+    existing_and_has_changed: bool,
+}
+
+impl NewIsCandidate {
+    fn has_changed_to_false(self) -> bool {
+        self.existing_and_has_changed && !self.value
+    }
+
+    fn has_changed_to_true(self) -> bool {
+        self.existing_and_has_changed && self.value
+    }
 }
 
 impl UnvalidatedIngestedDocument {
@@ -129,12 +169,21 @@ impl UnvalidatedIngestedDocument {
                 .try_collect()?;
             let tags = self.tags.into_iter().map(TryInto::try_into).try_collect()?;
 
+            let is_candidate_op = match (self.is_candidate, self.default_is_candidate) {
+                (Some(_), Some(_)) => {
+                    bail!("You can only use either of is_candidate or default_is_candidate")
+                }
+                (Some(value), None) => IsCandidateOp::SetTo(value),
+                (None, Some(value)) => IsCandidateOp::DefaultTo(value),
+                (None, None) => IsCandidateOp::SetTo(true),
+            };
+
             Ok(IngestedDocument {
                 id,
                 snippet: self.snippet,
                 properties,
                 tags,
-                is_candidate: self.is_candidate,
+                is_candidate_op,
             })
         };
 
@@ -177,65 +226,87 @@ async fn upsert_documents(
         .into_iter()
         .map(UnvalidatedIngestedDocument::validate)
         .partition_result::<Vec<_>, Vec<_>, _, _>();
-    let snippets = storage::Document::get_excerpted(
+
+    let existing_data = storage::Document::get_excerpted(
         &state.storage,
         documents.iter().map(|document| &document.id),
     )
     .await?
     .into_iter()
-    .map(|document| (document.id, document.snippet))
+    .map(|document| (document.id, (document.snippet, document.is_candidate)))
     .collect::<HashMap<_, _>>();
 
-    let (changed_documents, new_documents) =
-        documents.into_iter().partition::<Vec<_>, _>(|document| {
-            snippets
+    // Hint: Documents which have a changed snippet are also in `new_documents`.
+    let (changed_documents, new_documents) = documents
+        .into_iter()
+        .map(|document| {
+            let (snippet, is_candidate) = existing_data
                 .get(&document.id)
-                .map(|snippet| document.snippet == *snippet)
-                .unwrap_or_default()
-        });
+                .map(|(s, c)| (s, *c))
+                .unzip();
 
-    // checked above that all changed documents exist, hence no extended failed documents
+            let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
+            let unchanged_snippet = snippet
+                .map(|snippet| snippet == &document.snippet)
+                .unwrap_or_default();
+
+            (document, new_is_candidate, unchanged_snippet)
+        })
+        .partition::<Vec<_>, _>(|(_, _, unchanged_snippet)| *unchanged_snippet);
+
     storage::DocumentCandidate::remove(
         &state.storage,
         changed_documents
             .iter()
-            .filter_map(|document| (!document.is_candidate).then_some(&document.id)),
+            .filter_map(|(document, new_is_candidate, _)| {
+                new_is_candidate
+                    .has_changed_to_false()
+                    .then_some(&document.id)
+            }),
     )
     .await?;
-    for document in &changed_documents {
+
+    for (document, _, _) in &changed_documents {
         storage::DocumentProperties::put(&state.storage, &document.id, &document.properties)
             .await?;
         storage::Tag::put(&state.storage, &document.id, &document.tags).await?;
     }
+
     storage::DocumentCandidate::add(
         &state.storage,
         changed_documents
             .iter()
-            .filter_map(|document| document.is_candidate.then_some(&document.id)),
+            .filter_map(|(document, new_is_candidate, _)| {
+                new_is_candidate
+                    .has_changed_to_true()
+                    .then_some(&document.id)
+            }),
     )
     .await?;
 
     let start = Instant::now();
     let new_documents = new_documents
         .into_iter()
-        .filter_map(|document| match state.embedder.run(&document.snippet) {
-            Ok(embedding) => Some(models::IngestedDocument {
-                id: document.id,
-                snippet: document.snippet,
-                properties: document.properties,
-                tags: document.tags,
-                embedding,
-                is_candidate: document.is_candidate,
-            }),
-            Err(error) => {
-                error!(
-                    "Document with id '{}' caused a PipelineError: {:#?}",
-                    document.id, error,
-                );
-                failed_documents.push(document.id.into());
-                None
-            }
-        })
+        .filter_map(
+            |(document, new_is_candidate, _)| match state.embedder.run(&document.snippet) {
+                Ok(embedding) => Some(models::IngestedDocument {
+                    id: document.id,
+                    snippet: document.snippet,
+                    properties: document.properties,
+                    tags: document.tags,
+                    embedding,
+                    is_candidate: new_is_candidate.value,
+                }),
+                Err(error) => {
+                    error!(
+                        "Document with id '{}' caused a PipelineError: {:#?}",
+                        document.id, error,
+                    );
+                    failed_documents.push(document.id.into());
+                    None
+                }
+            },
+        )
         .collect_vec();
 
     info!(
@@ -452,4 +523,35 @@ async fn delete_document_property(
         .ok_or(DocumentPropertyNotFound)?;
 
     Ok(HttpResponse::NoContent())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_is_candidate_op() {
+        for (op, existing, (value, existing_and_has_changed)) in [
+            (IsCandidateOp::SetTo(true), None, (true, false)),
+            (IsCandidateOp::SetTo(true), Some(false), (true, true)),
+            (IsCandidateOp::SetTo(true), Some(true), (true, false)),
+            (IsCandidateOp::SetTo(false), None, (false, false)),
+            (IsCandidateOp::SetTo(false), Some(false), (false, false)),
+            (IsCandidateOp::SetTo(false), Some(true), (false, true)),
+            (IsCandidateOp::DefaultTo(true), None, (true, false)),
+            (IsCandidateOp::DefaultTo(true), Some(false), (false, false)),
+            (IsCandidateOp::DefaultTo(true), Some(true), (true, false)),
+            (IsCandidateOp::DefaultTo(false), None, (false, false)),
+            (IsCandidateOp::DefaultTo(false), Some(false), (false, false)),
+            (IsCandidateOp::DefaultTo(false), Some(true), (true, false)),
+        ] {
+            assert_eq!(
+                op.resolve(existing),
+                NewIsCandidate {
+                    value,
+                    existing_and_has_changed
+                }
+            );
+        }
+    }
 }
