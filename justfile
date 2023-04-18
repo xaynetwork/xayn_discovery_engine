@@ -225,6 +225,8 @@ mind-benchmark kind:
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
 aws-login:
+    #!/usr/bin/env bash
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"AdministratorAccess-690046978283\"" } else { "" } }}
     aws sso login
 
 _test-project-root:
