@@ -226,7 +226,7 @@ mind-benchmark kind:
 
 aws-login:
     #!/usr/bin/env bash
-    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"AdministratorAccess-690046978283\"" } else { "" } }}
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"" } else { "" } }}
     aws sso login
 
 _test-project-root:
