@@ -22,7 +22,7 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
     env_var_or_default("RUSTDOCFLAGS", "")
 }
 
-export AWS_PROFILE := if env_var_or_default("CI", "false") == "false" {
+export AWS_PROFILE := if env_var_or_default("CI", "false") == "true" {
     env_var_or_default("AWS_PROFILE", "S3BucketsDeveloperAccess-690046978283")
 } else {
     ""
