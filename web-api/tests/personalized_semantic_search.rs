@@ -73,7 +73,6 @@ async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Pani
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocumentData {
     id: String,
-    #[allow(dead_code)]
     score: f32,
     #[allow(dead_code)]
     #[serde(default)]
@@ -133,6 +132,10 @@ async fn test_full_personalization() {
                 "unexpected not enough interactions documents: {:?}",
                 not_enough_interactions.documents,
             );
+            assert!(not_enough_interactions
+                .documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             interact(&client, &personalization_url).await?;
 
@@ -154,6 +157,10 @@ async fn test_full_personalization() {
                 "unexpected not personalized documents: {:?}",
                 not_personalized.documents,
             );
+            assert!(not_personalized
+                .documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             let fully_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
@@ -178,6 +185,10 @@ async fn test_full_personalization() {
                 "unexpected fully personalized documents: {:?}",
                 fully_personalized.documents,
             );
+            assert!(fully_personalized
+                .documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },
@@ -225,6 +236,10 @@ async fn test_subtle_personalization() {
                 "unexpected subtle personalized documents: {:?}",
                 subtle_personalized.documents,
             );
+            assert!(subtle_personalized
+                .documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },
@@ -271,6 +286,10 @@ async fn test_full_personalization_with_inline_history() {
                 "unexpected not enough interactions documents: {:?}",
                 not_enough_interactions.documents,
             );
+            assert!(not_enough_interactions
+                .documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             let not_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
@@ -290,6 +309,10 @@ async fn test_full_personalization_with_inline_history() {
                 "unexpected not personalized documents: {:?}",
                 not_personalized.documents,
             );
+            assert!(not_personalized
+                .documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             let fully_personalized = send_assert_json::<SemanticSearchResponse>(
                 &client,
@@ -317,6 +340,10 @@ async fn test_full_personalization_with_inline_history() {
                 "unexpected fully personalized documents: {:?}",
                 fully_personalized.documents,
             );
+            assert!(fully_personalized
+                .documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },

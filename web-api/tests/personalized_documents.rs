@@ -146,6 +146,9 @@ async fn test_personalization_all_dates() {
                     .collect::<HashSet<_>>(),
                 ["d1", "d3", "d6", "d7", "d8"].into(),
             );
+            assert!(documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },
@@ -174,6 +177,9 @@ async fn test_personalization_limited_dates() {
                     .collect::<HashSet<_>>(),
                 ["d1", "d3"].into(),
             );
+            assert!(documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },
@@ -202,6 +208,9 @@ async fn test_personalization_with_query() {
                     .collect::<HashSet<_>>(),
                 ["d1", "d6", "d7", "d8"].into(),
             );
+            assert!(documents
+                .iter()
+                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },

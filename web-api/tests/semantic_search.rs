@@ -102,6 +102,9 @@ async fn test_semantic_search() {
                 assert_eq!(first.id, "d3");
                 assert_eq!(second.id, "d2");
                 assert!(first.score > second.score);
+                assert!((0.0..first.score).contains(&second.score));
+                assert!((second.score..=1.0).contains(&first.score));
+                assert!((0.0..=1.0).contains(&second.score));
                 assert!(first.properties.is_null());
                 assert_eq!(second.properties, json!({ "dodo": 4 }))
             } else {
@@ -158,7 +161,7 @@ async fn test_semantic_search_min_similarity() {
 
             if let [first] = &documents[..] {
                 assert_eq!(first.id, "d3");
-                assert!(first.score >= 0.6);
+                assert!((0.6..=1.0).contains(&first.score));
             } else {
                 panic!("Unexpected number of documents: {documents:?}");
             }
@@ -214,8 +217,9 @@ async fn test_semantic_search_with_query() {
                 assert_eq!(first.id, "d1");
                 assert_eq!(second.id, "d3");
                 assert_eq!(third.id, "d2");
-                assert!(first.score > second.score);
-                assert!(second.score > third.score);
+                assert!((0.0..second.score).contains(&third.score));
+                assert!((third.score..first.score).contains(&second.score));
+                assert!((second.score..=1.0).contains(&first.score));
                 assert!(first.properties.is_null());
                 assert!(second.properties.is_null());
                 assert_eq!(third.properties, json!({ "dodo": 4 }))
