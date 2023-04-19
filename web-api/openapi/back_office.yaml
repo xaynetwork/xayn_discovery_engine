@@ -352,6 +352,15 @@ components:
 
             Setting both this field and the `is_candidate` field will fail the request.
           type: boolean
+      example:
+        id: document_1
+        snippet: lorem ipsum delores
+        properties:
+          is_blue: true
+        tags:
+          - news
+          - tech
+        is_candidate: true
 
     IngestionRequest:
       type: object
@@ -363,6 +372,21 @@ components:
           maxItems: 100
           items:
             $ref: '#/components/schemas/IngestedDocument'
+      example:
+        documents:
+          - id: document_1
+            snippet: lorem ipsum delores
+            properties:
+              is_blue: true
+            tags:
+              - news
+              - tech
+            is_candidate: false
+          - id: document_2
+            snippet: more lorem less ipsum
+            tags:
+              - exclusive
+            default_is_candidate: false
     IngestionError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
