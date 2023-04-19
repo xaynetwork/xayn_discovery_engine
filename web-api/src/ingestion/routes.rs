@@ -124,7 +124,7 @@ enum IsCandidateOp {
 }
 
 impl IsCandidateOp {
-    /// Returns the new value and `has_existing && is_changed_value`
+    /// Returns a `NewIsCandidate` instance.
     fn resolve(self, existing: Option<bool>) -> NewIsCandidate {
         match self {
             IsCandidateOp::SetTo(new) => NewIsCandidate {
@@ -144,7 +144,9 @@ impl IsCandidateOp {
 #[derive(Clone, Copy)]
 #[cfg_attr(test, derive(PartialEq, Debug))]
 struct NewIsCandidate {
+    /// The new value of `is_candidate`.
     value: bool,
+    /// `true` if there had been an existing value for `is_candidate` and it differs from the new value
     existing_and_has_changed: bool,
 }
 
