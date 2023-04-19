@@ -181,3 +181,50 @@ async fn test_candidates_warning() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn test_candidates_reingestion() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        assert!(get(&client, &url).await?.ids().is_empty());
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "once in a spring" },
+                        { "id": "d2", "snippet": "there was a fall" },
+                        { "id": "d3", "snippet": "fall in a once", "is_candidate": false },
+                        { "id": "d4", "snippet": "once in a fall", "is_candidate": false }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
+        assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2"].into());
+
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "once in a spring", "default_is_candidate": false },
+                        { "id": "d2", "snippet": "there was a fall", "is_candidate": false },
+                        { "id": "d3", "snippet": "fall in a once", "default_is_candidate": true },
+                        { "id": "d4", "snippet": "once in a fall", "is_candidate": true },
+                        { "id": "d5", "snippet": "another sentence", "default_is_candidate": false },
+                        { "id": "d6", "snippet": "more sentence", "default_is_candidate": true },
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
+        assert_eq!(get(&client, &url).await?.ids(), ["d1", "d4", "d6"].into());
+
+        Ok(())
+    })
+    .await;
+}
