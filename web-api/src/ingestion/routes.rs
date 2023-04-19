@@ -242,7 +242,7 @@ async fn upsert_documents(
         .map(|document| {
             let (snippet, is_candidate) = existing_data
                 .get(&document.id)
-                .map(|(s, c)| (s, *c))
+                .map(|(snippet, is_candidate)| (snippet, *is_candidate))
                 .unzip();
 
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
