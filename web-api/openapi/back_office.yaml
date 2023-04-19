@@ -341,9 +341,8 @@ components:
 
             Setting both this field and the `default_is_candidate` field will fail the request.
 
-            Setting neither will default to `is_candidate` being set to it's default value.
+            Setting neither will default to `is_candidate = true`.
           type: boolean
-          default: true
 
         default_is_candidate:
           description: |
