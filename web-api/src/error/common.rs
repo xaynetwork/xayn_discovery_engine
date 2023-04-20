@@ -103,7 +103,7 @@ pub(crate) struct FailedToSetSomeDocumentCandidates {
 
 impl_application_error!(FailedToSetSomeDocumentCandidates => BAD_REQUEST);
 
-/// The requested document was not found.
+/// The history does not contains enough information.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct HistoryTooSmall;
 
