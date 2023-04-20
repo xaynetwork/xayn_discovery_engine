@@ -22,13 +22,15 @@ download()
   ARCHIVE_NAME="$ARCHIVE_BASENAME.tgz"
   TMP_ARCHIVE_NAME="$ARCHIVE_NAME.tmp"
   TMP_DIR=$(mktemp -d)
-  URL="http://s3-de-central.profitbricks.com/xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
+  URL="s3://xayn-yellow-bert/$NAME/$ARCHIVE_NAME"
+
+  cd "$DATA_DIR"
 
   if [ -d "$DATA_DIR/$ARCHIVE_BASENAME" ]; then
     echo "skip downloading $DATA_DIR/$ARCHIVE_NAME"
   else
 
-    curl "$URL" -o "$DATA_DIR/$TMP_ARCHIVE_NAME" -C -
+    aws s3 cp "$URL" "$DATA_DIR/$TMP_ARCHIVE_NAME" 
     mv "$DATA_DIR/$TMP_ARCHIVE_NAME" "$TMP_DIR/$ARCHIVE_NAME"
 
     cd "$TMP_DIR"

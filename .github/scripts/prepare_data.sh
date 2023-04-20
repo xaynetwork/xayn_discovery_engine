@@ -54,6 +54,6 @@ tar czf "$ARCHIVE_NAME" --exclude ".DS_Store" -C "$TMP_DIR" "$ARCHIVE_BASENAME"
 rm -rf "$TMP_DIR"
 
 if [ "$UPLOAD" = true ]; then
-  s3cmd put --acl-public --guess-mime-type "$ARCHIVE_NAME" "$URL"
+  aws s3 cp "$ARCHIVE_NAME" "$URL"
 fi
 

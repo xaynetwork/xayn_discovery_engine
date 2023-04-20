@@ -108,6 +108,7 @@ download-assets *args:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cd {{justfile_directory()}}/.github/scripts
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"" } else { "" } }}
     ./download_assets.sh {{args}}
 
 build-service-args name target="default" features="":
@@ -222,6 +223,11 @@ print-just-env:
 mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
+
+aws-login:
+    #!/usr/bin/env bash
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"" } else { "" } }}
+    aws sso login
 
 _test-project-root:
     #!/usr/bin/env -S bash -eu -o pipefail
