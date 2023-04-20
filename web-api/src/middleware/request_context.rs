@@ -26,8 +26,11 @@ use futures_util::{
     future::{self, Either},
     FutureExt,
 };
+use once_cell::sync::Lazy;
+use regex::bytes;
 use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
+use sqlx::Type;
 use thiserror::Error;
 use tracing::{error_span, instrument, trace, Instrument};
 use uuid::Uuid;
@@ -64,30 +67,53 @@ pub(crate) struct AccessError {
     method: &'static str,
 }
 
-#[derive(Clone, Copy, Debug, derive_more::Display, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Clone,
+    Debug,
+    derive_more::Display,
+    derive_more::From,
+    PartialEq,
+    Eq,
+    Hash,
+    Deserialize,
+    Serialize,
+    Type,
+)]
 #[serde(transparent)]
-pub(crate) struct TenantId(Uuid);
+#[sqlx(transparent)]
+pub struct TenantId(Arc<str>);
 
-impl TenantId {
-    pub(crate) fn missing() -> Self {
-        TenantId(Uuid::nil())
-    }
+#[derive(Debug, Error)]
+#[error("TenantId is not valid: {hint:?}")]
+pub struct InvalidTenantId {
+    hint: String,
 }
 
-impl TryFrom<&'_ HeaderValue> for TenantId {
-    type Error = anyhow::Error;
+impl TenantId {
+    pub fn missing() -> Self {
+        static MISSING: Lazy<Arc<str>> = Lazy::new(|| "missing".into());
+        TenantId(MISSING.clone())
+    }
 
-    fn try_from(value: &HeaderValue) -> Result<Self, Self::Error> {
-        let header = value.to_str().map_err(|_| {
-            anyhow!(
-                "Non Utf-8 compatible {TENANT_ID_HEADER} header: {:?}",
-                String::from_utf8_lossy(value.as_bytes()),
-            )
-        })?;
-        header
-            .parse::<Uuid>()
-            .map_err(|_| anyhow!("Non UUID {TENANT_ID_HEADER} header: {header}"))
-            .map(TenantId)
+    pub fn random_legacy_tenant_id() -> Self {
+        let random_id: u64 = rand::random();
+        TenantId(format!("legacy.{random_id}").into_boxed_str().into())
+    }
+
+    pub fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
+        static RE: Lazy<bytes::Regex> = Lazy::new(|| {
+            // printable us-ascii excluding `"`
+            bytes::Regex::new(r#"^[[:print:]&&[^"]]{1,63}$"#).unwrap()
+        });
+
+        ascii.trim_ascii();
+
+        match Uuid::try_parse_ascii(ascii) {
+            Ok(id) => Ok(Self(id)),
+            Err(_) => Err(InvalidTenantId {
+                hint: String::from_utf8_lossy(ascii).into_owned(),
+            }),
+        }
     }
 }
 
