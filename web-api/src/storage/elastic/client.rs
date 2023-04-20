@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, fmt::Debug, sync::Arc};
+use std::{collections::HashMap, fmt::Debug, str::FromStr, sync::Arc};
 
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
@@ -62,11 +62,9 @@ pub(crate) struct Client {
 
 impl Client {
     pub(crate) fn builder(config: &Config) -> Result<ClientBuilder, SetupError> {
-        let mut base_url = config.url.parse::<SegmentableUrl>()?;
-
         Ok(ClientBuilder {
             config: Arc::new(config.clone()),
-            base_url: Arc::new(base_url),
+            base_url: Arc::new(config.url.parse::<SegmentableUrl>()?),
             client: reqwest::Client::new(),
         })
     }
@@ -83,7 +81,10 @@ impl ClientBuilder {
     pub(crate) fn build(&self) -> Client {
         Client {
             config: self.config.clone(),
-            url_to_index: self.base_url.with_segments([&self.config.index_name]),
+            url_to_index: self
+                .base_url
+                .with_segments([&self.config.index_name])
+                .into(),
             client: self.client.clone(),
         }
     }
@@ -258,5 +259,39 @@ impl Client {
             .transpose()?;
 
         self.query_with_bytes(url, post_data).await
+    }
+}
+
+#[derive(derive_more::Into, Clone)]
+struct SegmentableUrl(Url);
+
+impl SegmentableUrl {
+    fn with_segments(&self, segments: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        let mut new_url = self.0.clone();
+        let mut segments_mut = new_url.path_segments_mut()
+            .unwrap(/* we made sure this can't happen */);
+        for segment in segments {
+            segments_mut.push(segment.as_ref());
+        }
+        drop(segments_mut);
+        Self(new_url)
+    }
+}
+
+impl TryFrom<Url> for SegmentableUrl {
+    type Error = anyhow::Error;
+
+    fn try_from(mut url: Url) -> Result<Self, Self::Error> {
+        url.path_segments_mut()
+            .map_err(|()| anyhow::anyhow!("non segmentable url"))?;
+        Ok(Self(url))
+    }
+}
+
+impl FromStr for SegmentableUrl {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse::<Url>()?.try_into()
     }
 }
