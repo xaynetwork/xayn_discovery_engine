@@ -25,7 +25,7 @@ use thiserror::Error;
 use xayn_ai_bert::InvalidEmbedding;
 
 use super::application::ApplicationError;
-use crate::{impl_application_error, models::DocumentId, Error};
+use crate::{impl_application_error, models::DocumentId, storage::elastic::ElasticError, Error};
 
 impl_application_error!(InvalidEmbedding => BAD_REQUEST);
 
@@ -130,6 +130,12 @@ impl From<String> for BadRequest {
         Self {
             message: Cow::Owned(message),
         }
+    }
+}
+
+impl From<ElasticError> for Error {
+    fn from(error: ElasticError) -> Self {
+        InternalError::from_std(error).into()
     }
 }
 

@@ -19,6 +19,7 @@ use std::{
     sync::Arc,
 };
 
+use derive_more::From;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
     Body,
@@ -28,13 +29,12 @@ use reqwest::{
 use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
+use thiserror::Error;
 use tracing::error;
 
 use crate::{
     app::SetupError,
-    error::common::InternalError,
     utils::{serialize_redacted, serialize_to_ndjson},
-    Error,
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -136,7 +136,7 @@ pub(super) struct BulkResponse<D> {
 impl<D> BulkResponse<D> {
     pub(super) fn failed_documents(self, operation: &'static str, allow_not_found: bool) -> Vec<D>
     where
-        D: Display,
+        D: Display + Debug,
     {
         self.errors.then(|| {
             self
@@ -186,7 +186,7 @@ impl Client {
 
     pub(super) async fn bulk_request<D>(
         &self,
-        requests: impl IntoIterator<Item = Result<impl Serialize, Error>>,
+        requests: impl IntoIterator<Item = Result<impl Serialize, serde_json::Error>>,
     ) -> Result<BulkResponse<D>, Error>
     where
         D: DeserializeOwned,
@@ -203,7 +203,7 @@ impl Client {
 
         self.query_with_bytes::<_, BulkResponse<D>>(url, Some((headers, body)))
             .await?
-            .ok_or_else(|| InternalError::from_message("_bulk endpoint not found").into())
+            .ok_or_else(|| Error::EndpointNotFound("_bulk"))
     }
 
     pub(super) async fn query_with_bytes<B, T>(
@@ -235,11 +235,8 @@ impl Client {
         } else if !status.is_success() {
             let url = response.url().clone();
             let body = response.bytes().await?;
-            let err_msg = String::from_utf8_lossy(&body);
-            Err(InternalError::from_message(format!(
-                "Elastic Search failed, status={status}, url={url}, \nbody={err_msg}"
-            ))
-            .into())
+            let error = String::from_utf8_lossy(&body).into_owned();
+            Err(Error::Status { status, url, error })
         } else {
             Ok(Some(response.json().await?))
         }
@@ -265,6 +262,22 @@ impl Client {
 
         self.query_with_bytes(url, post_data).await
     }
+}
+
+#[derive(Debug, Error, displaydoc::Display, From)]
+pub(crate) enum Error {
+    /// Transmitting a request or receiving the response failed: {0}
+    Transport(reqwest::Error),
+    /// Elastic Search failed, status={status}, url={url}, \nbody={error}
+    Status {
+        status: StatusCode,
+        url: Url,
+        error: String,
+    },
+    /// Failed to serialize a requests or deserialize a response.
+    Serialization(serde_json::Error),
+    /// Given endpoint was not found: {0}
+    EndpointNotFound(&'static str),
 }
 
 #[derive(derive_more::Into, Clone)]

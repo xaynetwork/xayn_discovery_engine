@@ -16,8 +16,6 @@ use figment::value::magic::RelativePathBuf as FigmentRelativePathBuf;
 use secrecy::Secret;
 use serde::{Deserialize, Serialize, Serializer};
 
-use crate::Error;
-
 #[derive(Serialize, Deserialize, Debug, Deref)]
 #[serde(transparent)]
 pub(crate) struct RelativePathBuf {
@@ -46,8 +44,8 @@ where
 
 /// Serialize a sequence of serializable items into ndjson.
 pub(crate) fn serialize_to_ndjson(
-    items: impl IntoIterator<Item = Result<impl Serialize, Error>>,
-) -> Result<Vec<u8>, Error> {
+    items: impl IntoIterator<Item = Result<impl Serialize, serde_json::Error>>,
+) -> Result<Vec<u8>, serde_json::Error> {
     let mut body = Vec::new();
     for item in items {
         serde_json::to_writer(&mut body, &item?)?;

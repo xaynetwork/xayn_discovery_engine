@@ -16,7 +16,7 @@ mod client;
 
 use std::collections::HashMap;
 
-pub(crate) use client::{Client, ClientBuilder, Config};
+pub(crate) use client::{Client, ClientBuilder, Config, Error as ElasticError};
 use itertools::Itertools;
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::{json, Value};
@@ -195,21 +195,22 @@ impl Client {
             return Ok(Warning::default());
         }
 
-        self.bulk_request(documents.flat_map(|document| {
-            [
-                serde_json::to_value(BulkInstruction::Index { id: &document.id })
+        let response = self
+            .bulk_request(documents.flat_map(|document| {
+                [
+                    serde_json::to_value(BulkInstruction::Index { id: &document.id })
+                        .map_err(Into::into),
+                    serde_json::to_value(IngestedDocument {
+                        snippet: &document.snippet,
+                        properties: &document.properties,
+                        embedding: &document.embedding,
+                        tags: &document.tags,
+                    })
                     .map_err(Into::into),
-                serde_json::to_value(IngestedDocument {
-                    snippet: &document.snippet,
-                    properties: &document.properties,
-                    embedding: &document.embedding,
-                    tags: &document.tags,
-                })
-                .map_err(Into::into),
-            ]
-        }))
-        .await
-        .map(|response| response.failed_documents("index", false).into())
+                ]
+            }))
+            .await?;
+        Ok(response.failed_documents("index", false).into())
     }
 
     pub(super) async fn delete_documents(
@@ -221,9 +222,10 @@ impl Client {
             return Ok(Warning::default());
         }
 
-        self.bulk_request(ids.map(|id| Ok(BulkInstruction::Delete { id })))
-            .await
-            .map(|response| response.failed_documents("delete", true).into())
+        let response = self
+            .bulk_request(ids.map(|id| Ok(BulkInstruction::Delete { id })))
+            .await?;
+        Ok(response.failed_documents("delete", true).into())
     }
 
     pub(super) async fn retain_documents(
