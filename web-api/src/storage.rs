@@ -230,7 +230,7 @@ pub struct Config {
 }
 
 pub(crate) struct Storage {
-    elastic: Arc<elastic::Client>,
+    elastic: elastic::Client,
     postgres: postgres::Database,
 }
 
@@ -240,7 +240,7 @@ impl Storage {
         enable_legacy_tenant: bool,
     ) -> Result<StorageBuilder, SetupError> {
         Ok(StorageBuilder {
-            elastic: Arc::new(elastic::Client::new(&config.elastic)?),
+            elastic: elastic::Client::builder(&config.elastic)?,
             postgres: postgres::Database::builder(&config.postgres, enable_legacy_tenant).await?,
         })
     }
@@ -248,14 +248,14 @@ impl Storage {
 
 #[derive(Clone)]
 pub(crate) struct StorageBuilder {
-    elastic: Arc<elastic::Client>,
+    elastic: elastic::ClientBuilder,
     postgres: postgres::DatabaseBuilder,
 }
 
 impl StorageBuilder {
     pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Result<Storage, Error> {
         Ok(Storage {
-            elastic: self.elastic.clone(),
+            elastic: self.elastic.build(),
             postgres: self.postgres.build_for(tenant_id)?,
         })
     }
