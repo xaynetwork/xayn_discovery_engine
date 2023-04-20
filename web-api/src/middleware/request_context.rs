@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{future::Future, sync::Arc};
+use std::{future::Future, str, sync::Arc};
 
 use actix_web::{
     body::BoxBody,
@@ -28,7 +28,6 @@ use futures_util::{
 };
 use once_cell::sync::Lazy;
 use regex::bytes;
-use reqwest::header::HeaderValue;
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
 use thiserror::Error;
@@ -81,38 +80,38 @@ pub(crate) struct AccessError {
 )]
 #[serde(transparent)]
 #[sqlx(transparent)]
-pub struct TenantId(Arc<str>);
+pub(crate) struct TenantId(Arc<str>);
 
 #[derive(Debug, Error)]
 #[error("TenantId is not valid: {hint:?}")]
-pub struct InvalidTenantId {
+pub(crate) struct InvalidTenantId {
     hint: String,
 }
 
 impl TenantId {
-    pub fn missing() -> Self {
+    pub(crate) fn missing() -> Self {
         static MISSING: Lazy<Arc<str>> = Lazy::new(|| "missing".into());
         TenantId(MISSING.clone())
     }
 
-    pub fn random_legacy_tenant_id() -> Self {
+    #[allow(dead_code)]
+    fn random_legacy_tenant_id() -> Self {
         let random_id: u64 = rand::random();
-        TenantId(format!("legacy.{random_id}").into_boxed_str().into())
+        TenantId(format!("legacy.{random_id:0>16x}").as_str().into())
     }
 
-    pub fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
-        static RE: Lazy<bytes::Regex> = Lazy::new(|| {
-            // printable us-ascii excluding `"`
-            bytes::Regex::new(r#"^[[:print:]&&[^"]]{1,63}$"#).unwrap()
-        });
+    fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
+        static RE: Lazy<bytes::Regex> =
+            Lazy::new(|| bytes::Regex::new(r"^[a-zA-Z0-9_:@.-]{1,50}$").unwrap());
 
-        ascii.trim_ascii();
-
-        match Uuid::try_parse_ascii(ascii) {
-            Ok(id) => Ok(Self(id)),
-            Err(_) => Err(InvalidTenantId {
+        if RE.is_match(ascii) {
+            Ok(Self(
+                str::from_utf8(ascii).unwrap(/*regex guarantees valid utf-8*/).into(),
+            ))
+        } else {
+            Err(InvalidTenantId {
                 hint: String::from_utf8_lossy(ascii).into_owned(),
-            }),
+            })
         }
     }
 }
@@ -198,7 +197,7 @@ fn extract_tenant_id(
     let header_value = request
         .headers()
         .get(TENANT_ID_HEADER)
-        .map(TenantId::try_from)
+        .map(|value| TenantId::try_parse_ascii(trim_ascii(value.as_bytes())))
         .transpose()?;
 
     match header_value {
@@ -207,5 +206,43 @@ fn extract_tenant_id(
         None if config.enable_legacy_tenant => Ok(TenantId::missing()),
         None => Err(anyhow!("{TENANT_ID_HEADER} header missing")),
         Some(passed_value) => Ok(passed_value),
+    }
+}
+
+//FIXME use <&[u8]>::trim_ascii() once stabilized
+//  https://github.com/rust-lang/rust/issues/94035
+fn trim_ascii(ascii: &[u8]) -> &[u8] {
+    let start = ascii
+        .iter()
+        .position(|byte| !byte.is_ascii_whitespace())
+        .unwrap_or_default();
+    let end = ascii
+        .iter()
+        .rposition(|byte| !byte.is_ascii_whitespace())
+        .unwrap_or(ascii.len());
+    &ascii[start..=end]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_trim_ascii() {
+        assert_eq!(trim_ascii(b"ab  cd"), b"ab  cd");
+        assert_eq!(trim_ascii(b"  ab  cd  "), b"ab  cd");
+        assert_eq!(trim_ascii(b" \n ab\t cd  \t"), b"ab\t cd");
+    }
+
+    #[test]
+    fn test_parsing_tenant_id_from_ascii() {
+        assert!(TenantId::try_parse_ascii(b"").is_err());
+        assert!(TenantId::try_parse_ascii(&[65u8; 50]).is_ok());
+        assert!(TenantId::try_parse_ascii(&[65u8; 51]).is_err());
+
+        TenantId::try_parse_ascii(b".:@_-").unwrap();
+        TenantId::try_parse_ascii(b"aA0.9bcd").unwrap();
+        TenantId::try_parse_ascii(b"abcdefghijklmnopqrstuvwxyz").unwrap();
+        TenantId::try_parse_ascii(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ").unwrap();
     }
 }
