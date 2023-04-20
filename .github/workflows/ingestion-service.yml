@@ -24,6 +24,8 @@ jobs:
     container:
       image: xaynetci/yellow:v12
     timeout-minutes: 30
+    permissions:
+      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
@@ -44,6 +46,12 @@ jobs:
           rustup toolchain install stable-aarch64-unknown-linux-gnu
 
           cargo build --release --bin ingestion --target aarch64-unknown-linux-gnu
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_OIDC_ROLE }}
+          aws-region: eu-central-1
 
       - name: Download assets
         run: just download-assets smbert v0003
