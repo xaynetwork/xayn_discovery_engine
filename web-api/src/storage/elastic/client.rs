@@ -12,7 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, fmt::Debug, str::FromStr, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+    str::FromStr,
+    sync::Arc,
+};
 
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
@@ -131,7 +136,7 @@ pub(super) struct BulkResponse<D> {
 impl<D> BulkResponse<D> {
     pub(super) fn failed_documents(self, operation: &'static str, allow_not_found: bool) -> Vec<D>
     where
-        D: Debug,
+        D: Display,
     {
         self.errors.then(|| {
             self
@@ -141,7 +146,7 @@ impl<D> BulkResponse<D> {
                     if let Some(response) = response.remove(operation) {
                         if !response.is_success_status(allow_not_found) {
                             error!(
-                                document_id=?response.id,
+                                document_id=%response.id,
                                 error=%response.error,
                                 "Elastic failed to {operation} document.",
                             );
