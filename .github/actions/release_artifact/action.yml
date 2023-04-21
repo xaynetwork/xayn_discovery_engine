@@ -1,0 +1,72 @@
+name: Build service and create artifact
+
+inputs:
+  platform:
+    description: Platform for which we build the image
+    required: true
+    type: choice
+    options:
+      - arm64
+      - amd64
+  bin_name:
+    description: Name of the archive to upload
+    required: true
+  archive_name:
+    description: Name of the archive to upload
+    type: string
+    required: true
+  model_full_name:
+    description: Name of the model name to use
+    type: string
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup env
+      shell: bash
+      run: |
+        if [[ "${{ inputs.platform }}" = "arm64" ]]; then 
+          export BUILD_TARGET="aarch64-unknown-linux-gnu";
+        elif [[ "${{ inputs.platform }}" = "amd64" ]]; then 
+          export BUILD_TARGET="x86_64-unknown-linux-gnu";
+        else 
+          echo "Unsupported platform ${{ inputs.platform }}"
+          exit 1
+        fi
+
+        echo "build_target=$BUILD_TARGET" >> $GITHUB_ENV
+
+    - name: Build service
+      shell: bash
+      run: |
+        cargo build --release --bin ${{ inputs.bin_name }} --target ${{ env.build_target }}
+
+    - name: Create artifact
+      shell: bash
+      run: |
+        set -eux
+
+        BIN_PATH="${GITHUB_WORKSPACE}/target/${{ env.build_target}}/release/${{ inputs.bin_name }}"
+        MODEL_PATH="${GITHUB_WORKSPACE}/assets/${{ inputs.model_full_name }}"
+        DOCKERFILE_PATH="${GITHUB_WORKSPACE}/web-api/Dockerfile"
+        ARCHIVE_NAME="${{ inputs.archive_name }}"
+
+        rm -rf "$ARCHIVE_NAME"
+        mkdir -p "$ARCHIVE_NAME"/assets
+
+        cp "$BIN_PATH" ./$ARCHIVE_NAME/server.bin
+        cp "$DOCKERFILE_PATH" ./$ARCHIVE_NAME/Dockerfile
+        cp "$MODEL_PATH/config.toml" ./$ARCHIVE_NAME/assets/config.toml
+        cp "$MODEL_PATH/vocab.txt" ./$ARCHIVE_NAME/assets/vocab.txt
+        cp "$MODEL_PATH/model.onnx" ./$ARCHIVE_NAME/assets/model.onnx
+        tar -cvf "$ARCHIVE_NAME.tar" ./$ARCHIVE_NAME
+
+    - name: Upload archive
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v3.1.2
+      with:
+        name: ${{ inputs.archive_name }}
+        retention-days: 1
+        if-no-files-found: error
+        path: ./${{ inputs.archive_name }}.tar
+
