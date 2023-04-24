@@ -17,11 +17,20 @@ use std::time::Duration;
 use anyhow::bail;
 use futures_util::{
     future::{self, join_all},
+    Future,
     TryStreamExt,
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use sqlx::{migrate::Migrator, pool::PoolOptions, Connection, Executor, Postgres, Transaction};
+use sqlx::{
+    migrate::Migrator,
+    pool::PoolOptions,
+    Connection,
+    Executor,
+    Pool,
+    Postgres,
+    Transaction,
+};
 use tokio::time::sleep;
 use tracing::{debug, error, info, instrument};
 use xayn_web_api_shared::{
@@ -63,7 +72,7 @@ static TENANT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
     migrator
 });
 
-// WARNING: Hardcoding this id to 0 is only okay because know exactly
+// WARNING: Hardcoding this id to 0 is only okay because we know exactly
 //          which ids are used when. For e.g. sqlx doing so would be a
 //          no-go hence why they derive the id from the db name.
 const MIGRATION_LOCK_ID: i64 = 0;
@@ -181,7 +190,7 @@ impl Silo {
 
         lock_id_until_end_of_transaction(&mut tx, MIGRATION_LOCK_ID).await?;
 
-        if create_role_if_not_exists(&mut tx, mt_user).await? {
+        create_role_if_not_exists(&self.postgres, mt_user, |mut tx| async move {
             let query = format!(
                 r#"
                 ALTER USER {mt_user} SET search_path TO "$user";
@@ -189,7 +198,9 @@ impl Silo {
             "#
             );
             tx.execute(query.as_str()).await?;
-        }
+            Ok(())
+        })
+        .await?;
 
         tx.commit().await?;
         Ok(())
@@ -389,23 +400,30 @@ async fn create_tenant(
 }
 
 /// Creates a DB role if it doesn't exist.
-#[instrument(err)]
-async fn create_role_if_not_exists(
-    tx: &mut Transaction<'_, Postgres>,
+#[instrument(skip(pg, followup), err)]
+async fn create_role_if_not_exists<F>(
+    pg: &Pool<Postgres>,
     role: &QuotedIdentifier,
-) -> Result<bool, Error> {
+    followup: impl FnOnce(Transaction<'static, Postgres>) -> F,
+) -> Result<bool, Error>
+where
+    F: Future<Output = Result<(), Error>>,
+{
     let mut count = 3;
     loop {
-        return if !does_role_exist(tx, role).await? {
-            if let Err(err) = create_role(tx, role).await {
+        let mut tx = pg.begin().await?;
+        return if !does_role_exist(&mut tx, role).await? {
+            if let Err(err) = create_role(&mut tx, role).await {
                 count -= 1;
                 if count > 0 {
+                    tx.rollback().await?;
                     sleep(Duration::from_millis(100)).await;
                     continue;
                 } else {
                     return Err(err);
                 }
             }
+            followup(tx).await?;
             Ok(true)
         } else {
             Ok(false)
