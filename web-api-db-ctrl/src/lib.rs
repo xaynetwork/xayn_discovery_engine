@@ -24,7 +24,6 @@ use once_cell::sync::Lazy;
 use sqlx::{migrate::Migrator, pool::PoolOptions, Acquire, Executor, Postgres, Transaction};
 use tokio::time::sleep;
 use tracing::{debug, error, info, instrument};
-use uuid::Uuid;
 use xayn_web_api_shared::{
     postgres::{self, QuotedIdentifier},
     request::TenantId,
@@ -163,8 +162,8 @@ impl Silo {
         let legacy_tenant_id = if let Some((legacy_tenant_id,)) = legacy_tenant_id {
             legacy_tenant_id
         } else {
-            let new_id = TenantId::random();
-            create_tenant(tx, new_id, true).await?;
+            let new_id = TenantId::random_legacy_tenant_id();
+            create_tenant(tx, &new_id, true).await?;
             info!({tenant_id = %new_id}, "created new legacy tenant");
             new_id
         };
@@ -256,7 +255,7 @@ impl Silo {
 
         if lock_db {
             // Hint: Lock Id is a bigint i.e. i64, so we will have some collisions but that's okay.
-            let mut lock_id: i64 = Uuid::from(tenant_id).as_u64_pair().1 as i64;
+            let mut lock_id: i64 = 0; //TODO Uuid::from(tenant_id).as_u64_pair().1 as i64;
             if lock_id == MIGRATION_LOCK_ID {
                 lock_id += 1;
             }

@@ -101,11 +101,12 @@ where
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
     let server = HttpServer::new(move || {
+        let legacy_tenant = legacy_tenant.clone();
         mk_base_app()
             .app_data(json_config.clone())
             .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
             .wrap_fn(wrap_non_json_errors)
-            .wrap_fn(move |r, s| setup_request_context(legacy_tenant, r, s))
+            .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
             .wrap(middleware::Compress::default())
             .wrap(Cors::permissive())
     })

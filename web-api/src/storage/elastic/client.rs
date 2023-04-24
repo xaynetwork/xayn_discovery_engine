@@ -31,11 +31,9 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 use tracing::error;
+use xayn_web_api_shared::serde::serialize_redacted;
 
-use crate::{
-    app::SetupError,
-    utils::{serialize_redacted, serialize_to_ndjson},
-};
+use crate::{app::SetupError, utils::serialize_to_ndjson};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]

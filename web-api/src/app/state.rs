@@ -72,7 +72,7 @@ where
         self.storage_builder.close().await;
     }
 
-    pub(crate) fn legacy_tenant(&self) -> Option<TenantId> {
+    pub(crate) fn legacy_tenant(&self) -> Option<&TenantId> {
         self.storage_builder.legacy_tenant()
     }
 }
@@ -97,7 +97,7 @@ fn extract_tenant_state(request: &HttpRequest) -> Result<TenantState, Error> {
         let storage = request
             .app_data::<Arc<StorageBuilder>>()
             .ok_or_else(|| InternalError::from_message("Arc<StorageBuilder> missing"))?
-            .build_for(&ctx.tenant_id)?;
+            .build_for(&ctx.tenant_id);
         Ok(TenantState(storage))
     })
     .map_err(InternalError::from_std)?

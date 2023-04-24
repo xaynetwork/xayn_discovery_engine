@@ -78,7 +78,7 @@ where
 
     let net_config = net::Config::clone(config.as_ref());
     let app_state = Arc::new(AppState::<A>::create(config).await?);
-    let legazy_tenant = app_state.legacy_tenant();
+    let legazy_tenant = app_state.legacy_tenant().cloned();
     let mk_base_app = {
         let app_state = app_state.clone();
         // This clone below is to make sure this is a `Fn` instead of an `FnOnce`.

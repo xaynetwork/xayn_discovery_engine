@@ -15,7 +15,7 @@
 -- This table is mainly used for being able to list tenants, which
 -- is mainly needed to run transactions on all tenant schemas.
 CREATE TABLE tenant (
-    tenant_id UUID PRIMARY KEY NOT NULL,
+    tenant_id TEXT PRIMARY KEY NOT NULL,
     is_legacy_tenant BOOLEAN NOT NULL DEFAULT false
 );
 

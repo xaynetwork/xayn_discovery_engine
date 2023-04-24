@@ -256,7 +256,7 @@ pub(crate) struct StorageBuilder {
 impl StorageBuilder {
     pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Storage {
         Storage {
-            elastic: self.elastic.clone(),
+            elastic: self.elastic.build(),
             postgres: self.postgres.build_for(tenant_id),
         }
     }
@@ -265,7 +265,7 @@ impl StorageBuilder {
         self.postgres.close().await;
     }
 
-    pub(crate) fn legacy_tenant(&self) -> Option<TenantId> {
+    pub(crate) fn legacy_tenant(&self) -> Option<&TenantId> {
         self.postgres.legacy_tenant()
     }
 }

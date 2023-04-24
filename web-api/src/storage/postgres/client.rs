@@ -53,8 +53,8 @@ impl DatabaseBuilder {
         }
     }
 
-    pub(crate) fn legacy_tenant(&self) -> Option<TenantId> {
-        self.legacy_tenant
+    pub(crate) fn legacy_tenant(&self) -> Option<&TenantId> {
+        self.legacy_tenant.as_ref()
     }
 }
 
@@ -109,18 +109,12 @@ impl Database {
 
     async fn set_role(
         &self,
-        _conn: impl Executor<'_, Database = Postgres>,
+        conn: impl Executor<'_, Database = Postgres>,
     ) -> Result<(), sqlx::Error> {
-        // prepare/bind doesn't work with `SET ROLE` so we need to do a bit
-        // of encoding/safety checking ourself
-        //FIXME to avoid problems this is commented out until follow up PRs
-        //      which properly setup the database
-        // sqlx::query(&format!("SET ROLE {};", self.tenant_db_name))
-        //     .execute(conn)
-        //     .await
-        //     .map(|_| ())
-        #![allow(clippy::unused_async)]
-        Ok(())
+        sqlx::query(&format!("SET ROLE {};", self.tenant_db_name))
+            .execute(conn)
+            .await
+            .map(|_| ())
     }
 
     pub(crate) async fn acquire(&self) -> Result<PoolConnection<Postgres>, sqlx::Error> {

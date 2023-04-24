@@ -25,10 +25,7 @@ use futures_util::{
     future::{self, Either},
     FutureExt,
 };
-use once_cell::sync::Lazy;
-use regex::bytes;
-use serde::{Deserialize, Serialize};
-use sqlx::Type;
+use serde::Serialize;
 use thiserror::Error;
 use tokio::{task::futures::TaskLocalFuture, task_local};
 use tracing::{error_span, instrument, trace, Instrument};
@@ -106,7 +103,7 @@ impl RequestId {
 ///
 /// The `TenantId` is required.
 pub(crate) fn setup_request_context<S>(
-    legacy_tenant: Option<TenantId>,
+    legacy_tenant: Option<&TenantId>,
     request: ServiceRequest,
     service: &S,
 ) -> impl Future<Output = Result<ServiceResponse<BoxBody>, actix_web::Error>> + 'static
@@ -162,7 +159,7 @@ where
 const TENANT_ID_HEADER: &str = "X-Tenant-Id";
 
 fn extract_tenant_id(
-    legacy_tenant: Option<TenantId>,
+    legacy_tenant: Option<&TenantId>,
     request: &ServiceRequest,
 ) -> Result<TenantId, anyhow::Error> {
     let header_value = request
@@ -174,7 +171,7 @@ fn extract_tenant_id(
     match (header_value, legacy_tenant) {
         //FIXME in follow up PR this ID will be fetched from the database
         //      during startup/storage initialization.
-        (None, Some(legacy_tenant)) => Ok(legacy_tenant),
+        (None, Some(legacy_tenant)) => Ok(legacy_tenant.clone()),
         (None, None) => Err(anyhow!("{TENANT_ID_HEADER} header missing")),
         (Some(passed_value), _) => Ok(passed_value),
     }
