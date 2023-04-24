@@ -1,7 +1,10 @@
 [package]
 name = "xayn-web-api-shared"
-version = "0.1.0"
-edition = "2021"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+description = "Parts shared between the web-api and the web-api-db-ctrl crate."
+license = "AGPL-3.0-only"
 
 [dependencies]
 derive_more = { workspace = true }
