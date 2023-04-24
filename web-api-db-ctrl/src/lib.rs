@@ -437,11 +437,11 @@ async fn does_role_exist(
     role: &QuotedIdentifier,
 ) -> Result<bool, Error> {
     Ok(
-        sqlx::query_as::<_, (i64,)>("SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname = $1;")
+        sqlx::query("SELECT FROM pg_catalog.pg_roles WHERE rolname = $1;")
             .bind(role)
-            .fetch_one(tx)
+            .execute(tx)
             .await?
-            .0
+            .rows_affected()
             > 0,
     )
 }
