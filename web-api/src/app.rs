@@ -78,7 +78,7 @@ where
 
     let net_config = net::Config::clone(config.as_ref());
     let app_state = Arc::new(AppState::<A>::create(config).await?);
-    let legazy_tenant = app_state.legacy_tenant().cloned();
+    let legacy_tenant = app_state.legacy_tenant().cloned();
     let mk_base_app = {
         let app_state = app_state.clone();
         // This clone below is to make sure this is a `Fn` instead of an `FnOnce`.
@@ -86,7 +86,7 @@ where
     };
     let shutdown = Box::new(move || async { app_state.close().await }.boxed());
 
-    net::start_actix_server(net_config, legazy_tenant, mk_base_app, shutdown)
+    net::start_actix_server(net_config, legacy_tenant, mk_base_app, shutdown)
 }
 
 /// Generate application names/env prefixes for the given application.

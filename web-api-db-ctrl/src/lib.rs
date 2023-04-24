@@ -83,11 +83,11 @@ impl Silo {
     /// Initializes the DB for multi-tenant usage.
     ///
     /// 1. If there is a legacy tenant in public the public schema will
-    ///    be renamed (and re-owned) to the `TenantId::default()` tenant.
+    ///    be renamed (and re-owned) to the [`TenantId::random_legacy_tenant_id()`] tenant.
     ///
     /// 2. Migrations to the management schema will be run (if needed).
     ///
-    /// 3. In concurrently for each tenant a migration of their
+    /// 3. Concurrently for each tenant a migration of their
     ///    schema will be run (if needed).
     #[instrument(skip(self), err)]
     pub async fn initialize(&self) -> Result<Option<TenantId>, Error> {
@@ -128,7 +128,7 @@ impl Silo {
         tx.commit().await?;
 
         // We run this _before_ we release the lock but it will
-        // run on concurrently on  multiple different connections.
+        // run concurrently on multiple different connections.
         //
         // For this we can have the same guarantees with multi tenant as we
         // currently have with single tenant.
@@ -282,7 +282,7 @@ impl Silo {
 
         Ok(tenants
             .into_iter()
-            .zip(results.into_iter())
+            .zip(results)
             .filter_map(|(tenant, result)| match result {
                 Ok(()) => None,
                 Err(error) => Some((tenant, error)),
@@ -291,7 +291,7 @@ impl Silo {
     }
 }
 
-/// Setups up a new tenant with given id.
+/// Sets up a new tenant with given id.
 ///
 /// This will fail if the tenant role already exist.
 ///
@@ -328,7 +328,7 @@ async fn create_tenant(
                 REVOKE ALL ON SCHEMA {tenant} FROM PUBLIC;
                 -- probably unneeded but make sure it's owned by the admin user
                 ALTER SCHEMA {tenant} OWNER TO CURRENT_USER;
-                -- create a new public schema, wo do not grant rights to PUBLIC
+                -- create a new public schema, we do not grant rights to PUBLIC
                 CREATE SCHEMA public;"##
         )
     } else {
@@ -350,7 +350,7 @@ async fn create_tenant(
             -- make sure all object we create can be used by tenant
             -- Note:
             --   This sets the default privileges for objects created by the user running this
-            --   command, this will not effect the privileges of objects created by other users.
+            --   command, this will not affect the privileges of objects created by other users.
             ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
                 GRANT SELECT, INSERT, UPDATE, DELETE
                 ON TABLES
@@ -427,44 +427,13 @@ async fn does_role_exist(
     role: &QuotedIdentifier,
 ) -> Result<bool, Error> {
     Ok(
-        sqlx::query_as::<_, (i64,)>(
-            "SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname  = $1;",
-        )
-        .bind(role)
-        .fetch_one(tx)
-        .await?
-        .0 > 0,
+        sqlx::query_as::<_, (i64,)>("SELECT count(*) FROM pg_catalog.pg_roles WHERE rolname = $1;")
+            .bind(role)
+            .fetch_one(tx)
+            .await?
+            .0
+            > 0,
     )
-}
-
-#[instrument(err)]
-async fn does_table_exist(
-    tx: &mut Transaction<'_, Postgres>,
-    schema: &str,
-    table: &str,
-) -> Result<bool, Error> {
-    Ok(sqlx::query_as::<_, (i64,)>(
-        "SELECT count(*) FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2;",
-    )
-    .bind(schema)
-    .bind(table)
-    .fetch_one(tx)
-    .await?
-    .0 > 0)
-}
-
-#[instrument(err)]
-async fn does_schema_exist(
-    tx: &mut Transaction<'_, Postgres>,
-    schema: &str,
-) -> Result<bool, Error> {
-    Ok(sqlx::query_as::<_, (i64,)>(
-        "SELECT count(*)  FROM information_schema.schemata WHERE schema_name = $1;",
-    )
-    .bind(schema)
-    .fetch_one(tx)
-    .await?
-    .0 > 0)
 }
 
 #[instrument(skip(migrations), err)]

@@ -21,5 +21,5 @@ CREATE TABLE tenant (
 
 
 CREATE UNIQUE INDEX only_one_legacy_tenant
-ON tenant (is_legacy_tenant)
-WHERE (is_legacy_tenant);
+    ON tenant (is_legacy_tenant)
+    WHERE (is_legacy_tenant);
