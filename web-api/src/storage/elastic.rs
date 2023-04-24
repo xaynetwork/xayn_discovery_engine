@@ -254,6 +254,7 @@ impl Client {
         self.query_with_bytes(url, post_data).await
     }
 
+    #[allow(clippy::too_many_lines)]
     pub(super) async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
@@ -321,23 +322,76 @@ impl Client {
         if let Some(query) = params.query {
             filter.insert("must".to_string(), json!({ "match": { "snippet": query }}));
             body.insert("query".to_string(), json!({ "bool": filter }));
+            body.insert("explain".to_string(), json!(true));
         }
 
-        Ok(self
+        let scores = self
             .query_with_json::<_, SearchResponse<NoSource>>(
                 self.create_resource_path(["_search"], None),
                 Some(body),
             )
             .await?
             .map(|response| {
-                response
-                    .hits
-                    .hits
-                    .into_iter()
-                    .map(|hit| (hit.id, hit.score))
-                    .collect::<HashMap<_, _>>()
+                if params.query.is_some() {
+                    // mixed knn and bm25 scores need to be normalized
+                    const KNN_DESCRIPTION: &str = "within top k documents";
+                    let mut max_bm25_score = None;
+                    let scores = response
+                        .hits
+                        .hits
+                        .into_iter()
+                        .map(|hit| {
+                            // details has exactly one or two elements: knn or bm25 or both
+                            let mut knn_score = None;
+                            let mut bm25_score = None;
+                            let detail = &hit.explanation.details[0];
+                            if detail.description == KNN_DESCRIPTION {
+                                knn_score = Some(detail.value);
+                            } else {
+                                bm25_score = Some(detail.value);
+                            }
+                            if let Some(detail) = hit.explanation.details.get(1) {
+                                if detail.description == KNN_DESCRIPTION {
+                                    knn_score = Some(detail.value);
+                                } else {
+                                    bm25_score = Some(detail.value);
+                                }
+                            }
+                            if bm25_score > max_bm25_score {
+                                max_bm25_score = bm25_score;
+                            }
+                            (hit.id, knn_score, bm25_score)
+                        })
+                        .collect_vec();
+
+                    let max_bm25_score = max_bm25_score.unwrap_or_default().max(1.0);
+                    scores
+                        .into_iter()
+                        .map(|(id, knn_score, bm25_score)| {
+                            let score = match (knn_score, bm25_score) {
+                                (Some(knn_score), Some(bm25_score)) => {
+                                    0.5 * knn_score + 0.5 * bm25_score / max_bm25_score
+                                }
+                                (Some(knn_score), None) => knn_score,
+                                (None, Some(bm25_score)) => bm25_score / max_bm25_score,
+                                (None, None) => unreachable!(),
+                            };
+                            (id, score)
+                        })
+                        .collect::<HashMap<_, _>>()
+                } else {
+                    // only knn scores are already normalized
+                    response
+                        .hits
+                        .hits
+                        .into_iter()
+                        .map(|hit| (hit.id, hit.score))
+                        .collect::<HashMap<_, _>>()
+                }
             })
-            .unwrap_or_default())
+            .unwrap_or_default();
+
+        Ok(scores)
     }
 
     pub(super) async fn insert_documents(
@@ -523,6 +577,17 @@ impl Client {
 }
 
 #[derive(Debug, Deserialize)]
+struct Detail {
+    description: String,
+    value: f32,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct Explanation {
+    details: Vec<Detail>,
+}
+
+#[derive(Debug, Deserialize)]
 struct Hit<T> {
     #[serde(rename = "_id")]
     id: DocumentId,
@@ -531,6 +596,9 @@ struct Hit<T> {
     source: T,
     #[serde(rename = "_score")]
     score: f32,
+    #[serde(default)]
+    #[serde(rename = "_explanation")]
+    explanation: Explanation,
 }
 
 #[derive(Debug, Deserialize)]
