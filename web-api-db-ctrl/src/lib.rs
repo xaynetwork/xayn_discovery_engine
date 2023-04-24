@@ -412,11 +412,11 @@ where
     let mut count = 3;
     loop {
         let mut tx = pg.begin().await?;
-        return if !does_role_exist(&mut tx, role).await? {
+        if !does_role_exist(&mut tx, role).await? {
             if let Err(err) = create_role(&mut tx, role).await {
+                tx.rollback().await?;
                 count -= 1;
                 if count > 0 {
-                    tx.rollback().await?;
                     sleep(Duration::from_millis(100)).await;
                     continue;
                 } else {
@@ -424,9 +424,9 @@ where
                 }
             }
             followup(tx).await?;
-            Ok(true)
+            return Ok(true);
         } else {
-            Ok(false)
+            return Ok(false);
         };
     }
 }
