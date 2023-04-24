@@ -17,7 +17,13 @@ use std::{str, sync::Arc};
 use once_cell::sync::Lazy;
 use regex::bytes;
 use serde::{Deserialize, Serialize};
-use sqlx::Type;
+use sqlx::{
+    postgres::{PgArgumentBuffer, PgHasArrayType, PgTypeInfo, PgValueRef},
+    Decode,
+    Encode,
+    Postgres,
+    Type,
+};
 use thiserror::Error;
 
 #[derive(
@@ -30,10 +36,8 @@ use thiserror::Error;
     Hash,
     Deserialize,
     Serialize,
-    Type,
 )]
 #[serde(transparent)]
-#[sqlx(transparent)]
 pub struct TenantId(Arc<str>);
 
 #[derive(Debug, Error)]
@@ -66,5 +70,44 @@ impl TenantId {
                 hint: String::from_utf8_lossy(ascii).into_owned(),
             })
         }
+    }
+}
+
+// ---- below are by hand implementations of derive(sqlx::Type) -------
+// this is needed as it doesn't work with Arc<str>
+
+impl<'q> Encode<'q, Postgres> for TenantId {
+    fn encode_by_ref(&self, buf: &mut PgArgumentBuffer) -> ::sqlx::encode::IsNull {
+        <&str as Encode<'q, Postgres>>::encode_by_ref(&&*self.0, buf)
+    }
+
+    fn produces(&self) -> Option<PgTypeInfo> {
+        <&str as Encode<'q, Postgres>>::produces(&&*self.0)
+    }
+    fn size_hint(&self) -> usize {
+        <&str as Encode<'q, Postgres>>::size_hint(&&*self.0)
+    }
+}
+
+impl<'r> Decode<'r, Postgres> for TenantId {
+    fn decode(
+        value: PgValueRef<'r>,
+    ) -> Result<Self, Box<dyn ::std::error::Error + 'static + Send + Sync>> {
+        Ok(Self::try_parse_ascii(value.as_bytes()?)?)
+    }
+}
+
+impl Type<Postgres> for TenantId {
+    fn type_info() -> PgTypeInfo {
+        <&str as Type<Postgres>>::type_info()
+    }
+    fn compatible(ty: &PgTypeInfo) -> bool {
+        <&str as Type<Postgres>>::compatible(ty)
+    }
+}
+
+impl PgHasArrayType for TenantId {
+    fn array_type_info() -> PgTypeInfo {
+        <&str as PgHasArrayType>::array_type_info()
     }
 }
