@@ -494,10 +494,17 @@ async fn unlock_lock_id(
     tx: impl Executor<'_, Database = Postgres>,
     lock_id: i64,
 ) -> Result<(), sqlx::Error> {
-    debug!({ lock_id }, "pg_advisory_unlock");
-    sqlx::query("SELECT pg_advisory_unlock($1)")
+    let (lock_was_held,) = sqlx::query_as::<_, (bool,)>("SELECT pg_advisory_unlock($1)")
         .bind(lock_id)
-        .execute(tx)
+        .fetch_one(tx)
         .await?;
+    if lock_was_held {
+        debug!({ lock_id }, "pg_advisory_unlock");
+    } else {
+        error!(
+            { lock_id },
+            "spurious pg_advisory_unlock which wasn't locket"
+        );
+    }
     Ok(())
 }
