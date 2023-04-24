@@ -21,15 +21,7 @@ use futures_util::{
 };
 use itertools::Itertools;
 use once_cell::sync::Lazy;
-use sqlx::{
-    migrate::Migrator,
-    pool::PoolOptions,
-    Acquire,
-    Connection,
-    Executor,
-    Postgres,
-    Transaction,
-};
+use sqlx::{migrate::Migrator, pool::PoolOptions, Connection, Executor, Postgres, Transaction};
 use tokio::time::sleep;
 use tracing::{debug, error, info, instrument};
 use xayn_web_api_shared::{
