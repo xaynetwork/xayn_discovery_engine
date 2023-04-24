@@ -36,19 +36,19 @@ use crate::Error;
 static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwrap());
 
 static PUBLIC_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
-    let mut migrator = sqlx::migrate!("migrations/public");
+    let mut migrator = sqlx::migrate!("postgres/public");
     migrator.locking = false;
     migrator
 });
 
 static MANAGEMENT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
-    let mut migrator = sqlx::migrate!("migrations/management");
+    let mut migrator = sqlx::migrate!("postgres/management");
     migrator.locking = false;
     migrator
 });
 
 static TENANT_SCHEMA_MIGRATOR: Lazy<Migrator> = Lazy::new(|| {
-    let mut migrator = sqlx::migrate!("migrations/tenant");
+    let mut migrator = sqlx::migrate!("postgres/tenant");
     migrator.locking = false;
     migrator
 });
@@ -67,11 +67,14 @@ const MIGRATION_LOCK_ID: i64 = 0;
 ///
 /// 3. Concurrently for each tenant a migration of their
 ///    schema will be run (if needed).
-#[instrument(skip(pool), err)]
-pub(super) async fn initialize(
+#[instrument(skip(pool, legacy_setup), err)] //TODO log enable_legacy_tenant = legacy_setup.is_some
+pub(super) async fn initialize<F>(
     pool: &Pool<Postgres>,
-    enable_legacy_tenant: bool,
-) -> Result<Option<TenantId>, Error> {
+    legacy_setup: Option<impl FnOnce(TenantId) -> F>,
+) -> Result<Option<TenantId>, Error>
+where
+    F: Future<Output = Result<(), Error>>,
+{
     // Move out to make sure that a pool with a limit of 1 conn doesn't
     // lead to a dead lock when running tenant migrations. And that we
     // do release the lock in case of an error.
@@ -92,8 +95,8 @@ pub(super) async fn initialize(
     )
     .await?;
 
-    let legacy_tenant_id = if enable_legacy_tenant {
-        Some(initialize_legacy(&mut tx).await?)
+    let legacy_tenant_id = if let Some(legacy_setup) = legacy_setup {
+        Some(initialize_legacy(&mut tx, legacy_setup).await?)
     } else {
         None
     };
@@ -133,7 +136,13 @@ pub(super) async fn initialize(
     }
 }
 
-async fn initialize_legacy(tx: &mut Transaction<'_, Postgres>) -> Result<TenantId, Error> {
+async fn initialize_legacy<F>(
+    tx: &mut Transaction<'_, Postgres>,
+    legacy_setup: impl FnOnce(TenantId) -> F,
+) -> Result<TenantId, Error>
+where
+    F: Future<Output = Result<(), Error>>,
+{
     let legacy_tenant_id = sqlx::query_as::<_, (TenantId,)>(
         "SELECT tenant_id FROM tenant WHERE is_legacy_tenant FOR UPDATE;",
     )
@@ -145,6 +154,7 @@ async fn initialize_legacy(tx: &mut Transaction<'_, Postgres>) -> Result<TenantI
     } else {
         let new_id = TenantId::random_legacy_tenant_id();
         create_tenant_role_and_schema(tx, &new_id, true).await?;
+        legacy_setup(new_id.clone()).await?;
         info!({tenant_id = %new_id}, "created new legacy tenant");
         new_id
     };

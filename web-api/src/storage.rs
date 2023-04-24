@@ -26,6 +26,7 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
+use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 
 use crate::{
@@ -240,10 +241,38 @@ impl Storage {
         config: &Config,
         tenant_config: &tenants::Config,
     ) -> Result<StorageBuilder, SetupError> {
+        let legacy_tenant = Self::initialize(config, tenant_config).await?;
+
         Ok(StorageBuilder {
-            elastic: elastic::Client::builder(&config.elastic)?,
-            postgres: postgres::Database::builder(&config.postgres, tenant_config).await?,
+            elastic: elastic::Client::builder(config.elastic.clone())?,
+            postgres: postgres::Database::builder(&config.postgres, legacy_tenant).await?,
         })
+    }
+
+    // FIXME: long term this should be run by the control plane,
+    //        in a different binary/lambda or similar before we
+    //        start updating the instances.
+    async fn initialize(
+        config: &Config,
+        tenant_config: &tenants::Config,
+    ) -> Result<Option<TenantId>, SetupError> {
+        let silo = Silo::new(
+            &config.postgres,
+            config.elastic.clone(),
+            tenant_config
+                .enable_legacy_tenant
+                .then(|| LegacyTenantInfo {
+                    es_index: config.elastic.index_name.clone(),
+                }),
+        )
+        .await?;
+
+        // FIXME: remove this once we have a proper separation between
+        //        a admin pg user owning the db structure and a web-api-mt
+        //        user which can only use tables but nothing more.
+        silo.admin_as_mt_user_hack().await?;
+
+        silo.initialize().await
     }
 }
 
@@ -256,7 +285,7 @@ pub(crate) struct StorageBuilder {
 impl StorageBuilder {
     pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Storage {
         Storage {
-            elastic: self.elastic.build(),
+            elastic: self.elastic.build_for(tenant_id),
             postgres: self.postgres.build_for(tenant_id),
         }
     }
