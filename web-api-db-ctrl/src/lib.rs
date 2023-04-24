@@ -208,16 +208,16 @@ impl Silo {
 
     #[instrument(skip(self), err)]
     pub async fn create_tenant(&self) -> Result<TenantId, Error> {
-        let new_id = TenantId::random();
+        let new_id = TenantId::random_legacy_tenant_id();
         let mut tx = self.postgres.begin().await?;
-        create_tenant(&mut tx, new_id, false).await?;
-        self.run_db_migration_for(new_id, true).await?;
+        create_tenant(&mut tx, &new_id, false).await?;
+        self.run_db_migration_for(&new_id, true).await?;
         tx.commit().await?;
         Ok(new_id)
     }
 
     #[instrument(skip(self), err)]
-    pub async fn delete_tenant(&self, tenant_id: TenantId) -> Result<(), Error> {
+    pub async fn delete_tenant(&self, tenant_id: &TenantId) -> Result<(), Error> {
         let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
         let mut tx = self.postgres.begin().await?;
 
@@ -245,7 +245,7 @@ impl Silo {
     }
 
     #[instrument(skip(self), err)]
-    async fn run_db_migration_for(&self, tenant_id: TenantId, lock_db: bool) -> Result<(), Error> {
+    async fn run_db_migration_for(&self, tenant_id: &TenantId, lock_db: bool) -> Result<(), Error> {
         let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
         let mut tx = self.postgres.begin().await?;
 
@@ -277,7 +277,7 @@ impl Silo {
         let results = join_all(
             tenants
                 .iter()
-                .map(|tenant| self.run_db_migration_for(*tenant, lock_db)),
+                .map(|tenant| self.run_db_migration_for(tenant, lock_db)),
         )
         .await;
 
@@ -300,7 +300,7 @@ impl Silo {
 #[instrument(err)]
 async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
-    tenant_id: TenantId,
+    tenant_id: &TenantId,
     is_legacy_tenant: bool,
 ) -> Result<(), Error> {
     let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);

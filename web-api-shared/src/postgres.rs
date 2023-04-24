@@ -127,7 +127,7 @@ impl QuotedIdentifier {
         &self.0
     }
 
-    pub fn db_name_for_tenant_id(tenant_id: TenantId) -> Self {
+    pub fn db_name_for_tenant_id(tenant_id: &TenantId) -> Self {
         format!("t:{tenant_id}").try_into()
             .unwrap(/* tenant ids are a subset of valid quoted identifiers */)
     }

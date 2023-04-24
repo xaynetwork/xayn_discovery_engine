@@ -48,7 +48,6 @@ impl TenantId {
         Self(MISSING.clone())
     }
 
-    #[allow(dead_code)]
     pub fn random_legacy_tenant_id() -> Self {
         let random_id: u64 = rand::random();
         Self(format!("legacy.{random_id:0>16x}").as_str().into())
