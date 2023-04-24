@@ -12,7 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    time::Duration,
+};
 
 use anyhow::bail;
 use futures_util::{
@@ -267,11 +271,7 @@ impl Silo {
         tx.execute(query.as_str()).await?;
 
         if lock_db {
-            // Hint: Lock Id is a bigint i.e. i64, so we will have some collisions but that's okay.
-            let mut lock_id: i64 = 0; //TODO Uuid::from(tenant_id).as_u64_pair().1 as i64;
-            if lock_id == MIGRATION_LOCK_ID {
-                lock_id += 1;
-            }
+            let lock_id = generate_tenant_lock_id(tenant_id);
             lock_id_until_end_of_transaction(&mut tx, lock_id).await?;
         }
 
@@ -527,4 +527,22 @@ async fn unlock_lock_id(
         );
     }
     Ok(())
+}
+
+/// Generate a `i64` postgres management lock id form a [`TenantId`].
+///
+/// **There can be collisions**, but less collisions are preferable.
+fn generate_tenant_lock_id(tenant_id: &TenantId) -> i64 {
+    let mut hasher = DefaultHasher::new();
+    tenant_id.hash(&mut hasher);
+    let id = hasher.finish() as i64;
+    if id == MIGRATION_LOCK_ID {
+        // Avoid accidentally colliding with the "general purpose migration
+        // lock". This could lead to a dead lock if we try to run per-tenant
+        // migrations in their own connection as part of code holding the
+        // "general purpose migration lock"
+        id + 1
+    } else {
+        id
+    }
 }
