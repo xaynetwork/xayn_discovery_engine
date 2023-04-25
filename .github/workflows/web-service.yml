@@ -143,6 +143,7 @@ jobs:
 
       - name: Push images
         run: |
-          echo "docker push ${{ env.frontoffice_image_name }}"
-          echo "docker push ${{ env.backoffice_image_name }}"
+          set -eux
+          docker push ${{ env.frontoffice_image_name }}
+          docker push ${{ env.backoffice_image_name }}
 
