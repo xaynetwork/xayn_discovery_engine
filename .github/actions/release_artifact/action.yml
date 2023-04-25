@@ -48,7 +48,7 @@ runs:
       run: |
         set -eux
 
-        BIN_PATH="${GITHUB_WORKSPACE}/target/${{ env.build_target}}/release/${{ inputs.bin_name }}"
+        BIN_PATH="${GITHUB_WORKSPACE}/target/${{ env.build_target }}/release/${{ inputs.bin_name }}"
         MODEL_PATH="${GITHUB_WORKSPACE}/assets/${{ inputs.model_full_name }}"
         DOCKERFILE_PATH="${GITHUB_WORKSPACE}/web-api/Dockerfile"
         ARCHIVE_NAME="${{ inputs.archive_name }}"
