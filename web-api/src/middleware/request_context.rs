@@ -91,13 +91,13 @@ pub(crate) struct InvalidTenantId {
 impl TenantId {
     pub(crate) fn missing() -> Self {
         static MISSING: Lazy<Arc<str>> = Lazy::new(|| "missing".into());
-        TenantId(MISSING.clone())
+        Self(MISSING.clone())
     }
 
     #[allow(dead_code)]
     fn random_legacy_tenant_id() -> Self {
         let random_id: u64 = rand::random();
-        TenantId(format!("legacy.{random_id:0>16x}").as_str().into())
+        Self(format!("legacy.{random_id:0>16x}").as_str().into())
     }
 
     fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
