@@ -218,19 +218,15 @@ fn trim_ascii(ascii: &[u8]) -> &[u8] {
 fn trim_ascii_start(ascii: &[u8]) -> &[u8] {
     ascii
         .iter()
-        .position(is_not_ascii_whitespace)
+        .position(|byte| !byte.is_ascii_whitespace())
         .map_or(&[], |new_first| &ascii[new_first..])
 }
 
 fn trim_ascii_end(ascii: &[u8]) -> &[u8] {
     ascii
         .iter()
-        .rposition(is_not_ascii_whitespace)
+        .rposition(|byte| !byte.is_ascii_whitespace())
         .map_or(&[], |new_last| &ascii[..=new_last])
-}
-
-fn is_not_ascii_whitespace(byte: &u8) -> bool {
-    !byte.is_ascii_whitespace()
 }
 
 #[cfg(test)]
