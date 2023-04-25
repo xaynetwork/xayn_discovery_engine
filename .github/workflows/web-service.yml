@@ -103,7 +103,7 @@ jobs:
         with:
           platforms: ${{ inputs.platform }}
 
-      - name: Images name
+      - name: Image names
         run: |
           TAG=${{ github.event.inputs.tag }}
           if [ -z "$TAG" ]; then
