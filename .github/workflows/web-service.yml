@@ -109,7 +109,6 @@ jobs:
           if [ -z "$TAG" ]; then
             TAG="$(git rev-parse --abbrev-ref HEAD)"
             TAG="$TAG-$(date +"%y%W%u%H%M%S")"
-            TAG="$TAG-$(git rev-parse --abbrev-ref HEAD)"
             TAG="$TAG-$(git rev-parse --short HEAD)"
             TAG="$TAG-${{ inputs.model_name}}_${{ inputs.model_version }}"
             TAG="$TAG-${{ inputs.platform }}"
