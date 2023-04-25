@@ -202,6 +202,7 @@ impl Silo {
             "#
             );
             tx.execute(query.as_str()).await?;
+            tx.commit().await?;
             Ok(())
         })
         .await?;
@@ -424,8 +425,10 @@ where
                 }
             }
             followup(tx).await?;
+            info!("role created");
             return Ok(true);
         } else {
+            tx.commit().await?;
             return Ok(false);
         };
     }
