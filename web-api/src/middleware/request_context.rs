@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{future::Future, sync::Arc};
+use std::{future::Future, str, sync::Arc};
 
 use actix_web::{
     body::BoxBody,
@@ -26,8 +26,10 @@ use futures_util::{
     future::{self, Either},
     FutureExt,
 };
-use reqwest::header::HeaderValue;
+use once_cell::sync::Lazy;
+use regex::bytes;
 use serde::{Deserialize, Serialize};
+use sqlx::Type;
 use thiserror::Error;
 use tracing::{error_span, instrument, trace, Instrument};
 use uuid::Uuid;
@@ -64,30 +66,53 @@ pub(crate) struct AccessError {
     method: &'static str,
 }
 
-#[derive(Clone, Copy, Debug, derive_more::Display, PartialEq, Deserialize, Serialize)]
+#[derive(
+    Clone,
+    Debug,
+    derive_more::Display,
+    derive_more::From,
+    PartialEq,
+    Eq,
+    Hash,
+    Deserialize,
+    Serialize,
+    Type,
+)]
 #[serde(transparent)]
-pub(crate) struct TenantId(Uuid);
+#[sqlx(transparent)]
+pub(crate) struct TenantId(Arc<str>);
+
+#[derive(Debug, Error)]
+#[error("TenantId is not valid: {hint:?}")]
+pub(crate) struct InvalidTenantId {
+    hint: String,
+}
 
 impl TenantId {
     pub(crate) fn missing() -> Self {
-        TenantId(Uuid::nil())
+        static MISSING: Lazy<Arc<str>> = Lazy::new(|| "missing".into());
+        Self(MISSING.clone())
     }
-}
 
-impl TryFrom<&'_ HeaderValue> for TenantId {
-    type Error = anyhow::Error;
+    #[allow(dead_code)]
+    fn random_legacy_tenant_id() -> Self {
+        let random_id: u64 = rand::random();
+        Self(format!("legacy.{random_id:0>16x}").as_str().into())
+    }
 
-    fn try_from(value: &HeaderValue) -> Result<Self, Self::Error> {
-        let header = value.to_str().map_err(|_| {
-            anyhow!(
-                "Non Utf-8 compatible {TENANT_ID_HEADER} header: {:?}",
-                String::from_utf8_lossy(value.as_bytes()),
-            )
-        })?;
-        header
-            .parse::<Uuid>()
-            .map_err(|_| anyhow!("Non UUID {TENANT_ID_HEADER} header: {header}"))
-            .map(TenantId)
+    fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
+        static RE: Lazy<bytes::Regex> =
+            Lazy::new(|| bytes::Regex::new(r"^[a-zA-Z0-9_:@.-]{1,50}$").unwrap());
+
+        if RE.is_match(ascii) {
+            Ok(Self(
+                str::from_utf8(ascii).unwrap(/*regex guarantees valid utf-8*/).into(),
+            ))
+        } else {
+            Err(InvalidTenantId {
+                hint: String::from_utf8_lossy(ascii).into_owned(),
+            })
+        }
     }
 }
 
@@ -172,7 +197,7 @@ fn extract_tenant_id(
     let header_value = request
         .headers()
         .get(TENANT_ID_HEADER)
-        .map(TenantId::try_from)
+        .map(|value| TenantId::try_parse_ascii(trim_ascii(value.as_bytes())))
         .transpose()?;
 
     match header_value {
@@ -181,5 +206,69 @@ fn extract_tenant_id(
         None if config.enable_legacy_tenant => Ok(TenantId::missing()),
         None => Err(anyhow!("{TENANT_ID_HEADER} header missing")),
         Some(passed_value) => Ok(passed_value),
+    }
+}
+
+//FIXME use <&[u8]>::trim_ascii() once stabilized
+//  https://github.com/rust-lang/rust/issues/94035
+fn trim_ascii(ascii: &[u8]) -> &[u8] {
+    trim_ascii_end(trim_ascii_start(ascii))
+}
+
+fn trim_ascii_start(ascii: &[u8]) -> &[u8] {
+    ascii
+        .iter()
+        .position(|byte| !byte.is_ascii_whitespace())
+        .map_or(&[], |new_first| &ascii[new_first..])
+}
+
+fn trim_ascii_end(ascii: &[u8]) -> &[u8] {
+    ascii
+        .iter()
+        .rposition(|byte| !byte.is_ascii_whitespace())
+        .map_or(&[], |new_last| &ascii[..=new_last])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_trim_ascii() {
+        assert_eq!(trim_ascii(b""), b"");
+        assert_eq!(trim_ascii(b" "), b"");
+        assert_eq!(trim_ascii(b"ab  cd"), b"ab  cd");
+        assert_eq!(trim_ascii(b"  ab  cd  "), b"ab  cd");
+        assert_eq!(trim_ascii(b" \n ab\t cd  \t"), b"ab\t cd");
+    }
+
+    #[test]
+    fn test_trim_ascii_start() {
+        assert_eq!(trim_ascii_start(b""), b"");
+        assert_eq!(trim_ascii_start(b" "), b"");
+        assert_eq!(trim_ascii_start(b"ab  cd"), b"ab  cd");
+        assert_eq!(trim_ascii_start(b"  ab  cd  "), b"ab  cd  ");
+        assert_eq!(trim_ascii_start(b" \n ab\t cd  \t"), b"ab\t cd  \t");
+    }
+
+    #[test]
+    fn test_trim_ascii_end() {
+        assert_eq!(trim_ascii_end(b""), b"");
+        assert_eq!(trim_ascii_end(b" "), b"");
+        assert_eq!(trim_ascii_end(b"ab  cd"), b"ab  cd");
+        assert_eq!(trim_ascii_end(b"  ab  cd  "), b"  ab  cd");
+        assert_eq!(trim_ascii_end(b" \n ab\t cd  \t"), b" \n ab\t cd");
+    }
+
+    #[test]
+    fn test_parsing_tenant_id_from_ascii() {
+        assert!(TenantId::try_parse_ascii(b"").is_err());
+        assert!(TenantId::try_parse_ascii(&[65u8; 50]).is_ok());
+        assert!(TenantId::try_parse_ascii(&[65u8; 51]).is_err());
+
+        TenantId::try_parse_ascii(b".:@_-").unwrap();
+        TenantId::try_parse_ascii(b"aA0.9bcd").unwrap();
+        TenantId::try_parse_ascii(b"abcdefghijklmnopqrstuvwxyz").unwrap();
+        TenantId::try_parse_ascii(b"ABCDEFGHIJKLMNOPQRSTUVWXYZ").unwrap();
     }
 }
