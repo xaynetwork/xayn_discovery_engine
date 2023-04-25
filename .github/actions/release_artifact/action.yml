@@ -3,13 +3,14 @@ name: Build service and create artifact
 inputs:
   platform:
     description: Platform for which we build the image
-    required: true
     type: choice
     options:
       - arm64
       - amd64
+    required: true
   bin_name:
-    description: Name of the archive to upload
+    description: Name of the binary to build
+    type: string
     required: true
   archive_name:
     description: Name of the archive to upload
