@@ -10,7 +10,7 @@ on:
       model_version:
         type: string
         default: 'v0003'
-        description: Name of the model version to use
+        description: Version of the model to use
       platform:
         description: Platform to build the image for (arm64 or amd64)
         type: choice
