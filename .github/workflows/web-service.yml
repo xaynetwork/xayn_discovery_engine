@@ -6,7 +6,7 @@ on:
       model_name:
         type: string
         default: 'smbert'
-        description: Name of the model name to use
+        description: Name of the model to use
       model_version:
         type: string
         default: 'v0003'
