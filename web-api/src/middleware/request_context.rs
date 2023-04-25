@@ -17,7 +17,8 @@ use std::{future::Future, str, sync::Arc};
 use actix_web::{
     body::BoxBody,
     dev::{Service, ServiceRequest, ServiceResponse},
-    HttpMessage, HttpRequest,
+    HttpMessage,
+    HttpRequest,
 };
 use anyhow::anyhow;
 use futures_util::{

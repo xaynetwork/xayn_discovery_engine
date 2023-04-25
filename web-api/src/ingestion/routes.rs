@@ -27,8 +27,10 @@ use tracing::{error, info, instrument};
 
 use super::AppState;
 use crate::{
+    app::TenantState,
     error::common::{
         BadRequest,
+        DocumentIdAsObject,
         DocumentNotFound,
         DocumentPropertyNotFound,
         FailedToDeleteSomeDocuments,
