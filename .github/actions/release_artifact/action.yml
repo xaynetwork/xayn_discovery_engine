@@ -28,9 +28,9 @@ runs:
       shell: bash
       run: |
         if [[ "${{ inputs.platform }}" = "arm64" ]]; then 
-          export BUILD_TARGET="aarch64-unknown-linux-gnu";
+          BUILD_TARGET="aarch64-unknown-linux-gnu";
         elif [[ "${{ inputs.platform }}" = "amd64" ]]; then 
-          export BUILD_TARGET="x86_64-unknown-linux-gnu";
+          BUILD_TARGET="x86_64-unknown-linux-gnu";
         else 
           echo "Unsupported platform ${{ inputs.platform }}"
           exit 1
