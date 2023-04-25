@@ -24,7 +24,7 @@ use crate::{
     embedding::{self, Embedder},
     logging,
     net,
-    storage::{self, Storage},
+    storage,
     tenants,
 };
 
@@ -36,7 +36,6 @@ impl Application for Ingestion {
 
     type Config = Config;
     type Extension = Extension;
-    type Storage = Storage;
 
     fn configure_service(config: &mut ServiceConfig) {
         routes::configure_service(config);
@@ -46,14 +45,6 @@ impl Application for Ingestion {
         Ok(Extension {
             embedder: Embedder::load(&config.embedding)?,
         })
-    }
-
-    async fn setup_storage(config: &storage::Config) -> Result<Self::Storage, SetupError> {
-        config.setup().await
-    }
-
-    async fn close_storage(storage: &Self::Storage) {
-        storage.close().await;
     }
 }
 

@@ -12,6 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod client;
+mod utils;
+
 use std::{
     collections::{HashMap, HashSet},
     slice,
@@ -19,24 +22,21 @@ use std::{
 };
 
 use async_trait::async_trait;
-use itertools::{Either, Itertools};
-use secrecy::{ExposeSecret, Secret};
-use serde::{Deserialize, Serialize};
+pub(crate) use client::{Config, Database, DatabaseBuilder};
+use either::Either;
+use itertools::Itertools;
 use sqlx::{
-    pool::PoolOptions,
-    postgres::PgConnectOptions,
     types::{
         chrono::{DateTime, Utc},
         Json,
     },
     Executor,
     FromRow,
-    Pool,
     Postgres,
     QueryBuilder,
     Transaction,
 };
-use tracing::{info, instrument, warn};
+use tracing::warn;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{
     nan_safe_f32_cmp_desc,
@@ -63,101 +63,8 @@ use crate::{
         UserInteractionType,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
-    utils::serialize_redacted,
     Error,
 };
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(default)]
-pub(crate) struct Config {
-    /// The default base url.
-    ///
-    /// Passwords in the URL will be ignored, do not set the
-    /// db password with the db url.
-    base_url: String,
-
-    /// Override port from base url.
-    port: Option<u16>,
-
-    /// Override user from base url.
-    user: Option<String>,
-
-    /// Sets the password.
-    #[serde(serialize_with = "serialize_redacted")]
-    password: Secret<String>,
-
-    /// Override db from base url.
-    db: Option<String>,
-
-    /// Override default application name from base url.
-    application_name: Option<String>,
-
-    /// If true skips running db migrations on start up.
-    skip_migrations: bool,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            base_url: "postgres://user:pw@localhost:5432/xayn".into(),
-            port: None,
-            user: None,
-            password: String::from("pw").into(),
-            db: None,
-            application_name: option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}")),
-            skip_migrations: false,
-        }
-    }
-}
-
-impl Config {
-    fn build_connection_options(&self) -> Result<PgConnectOptions, sqlx::Error> {
-        let Self {
-            base_url,
-            port,
-            user,
-            password,
-            db,
-            application_name,
-            skip_migrations: _,
-        } = &self;
-
-        let mut options = base_url
-            .parse::<PgConnectOptions>()?
-            .password(password.expose_secret());
-
-        if let Some(user) = user {
-            options = options.username(user);
-        }
-        if let Some(port) = port {
-            options = options.port(*port);
-        }
-        if let Some(db) = db {
-            options = options.database(db);
-        }
-        if let Some(application_name) = application_name {
-            options = options.application_name(application_name);
-        }
-
-        Ok(options)
-    }
-
-    #[instrument]
-    pub(crate) async fn setup_database(&self) -> Result<Database, sqlx::Error> {
-        let options = self.build_connection_options()?;
-        info!("starting postgres setup");
-        let pool = PoolOptions::new().connect_with(options).await?;
-        if !self.skip_migrations {
-            sqlx::migrate!().run(&pool).await?;
-        }
-
-        Ok(Database { pool })
-    }
-}
-
-pub(crate) struct Database {
-    pool: Pool<Postgres>,
-}
 
 #[derive(FromRow)]
 struct QueriedDeletedDocument {
@@ -196,15 +103,11 @@ impl Database {
     // https://docs.rs/sqlx/latest/sqlx/struct.QueryBuilder.html#note-database-specific-limits
     const BIND_LIMIT: usize = 65_535;
 
-    pub(super) async fn close(&self) {
-        self.pool.close().await;
-    }
-
     pub(super) async fn insert_documents(
         &self,
         documents: impl IntoIterator<Item = &IngestedDocument>,
     ) -> Result<(), Error> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.begin().await?;
 
         let mut builder = QueryBuilder::new(
             "INSERT INTO document (
@@ -255,7 +158,7 @@ impl Database {
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<(Vec<DocumentId>, Warning<DocumentId>), Error> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.begin().await?;
 
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
         let all = ids.into_iter();
@@ -435,7 +338,7 @@ impl Database {
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<(Vec<DocumentId>, Vec<IngestedDocument>, Warning<DocumentId>), Error> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.begin().await?;
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
         let (unchanged, removed) = sqlx::query_as::<_, DocumentId>(
@@ -511,7 +414,7 @@ impl Database {
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<(Vec<IngestedDocument>, Warning<DocumentId>), Error> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.begin().await?;
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
         let mut builder = QueryBuilder::new(
@@ -585,7 +488,7 @@ impl Database {
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<(Vec<DocumentId>, Warning<DocumentId>), Error> {
-        let mut tx = self.pool.begin().await?;
+        let mut tx = self.begin().await?;
 
         let mut removable = ids.into_iter().collect::<HashSet<_>>();
         let mut builder = QueryBuilder::new(
@@ -831,7 +734,7 @@ impl storage::Document for Storage {
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<InteractedDocument>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
         let documents = Database::get_interacted(&mut tx, ids).await?;
         tx.commit().await?;
 
@@ -842,7 +745,7 @@ impl storage::Document for Storage {
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
         let documents = Database::get_personalized(&mut tx, ids, |_| Some(1.0)).await?;
         tx.commit().await?;
 
@@ -853,7 +756,7 @@ impl storage::Document for Storage {
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<ExcerptedDocument>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
         let documents = Database::get_excerpted(&mut tx, ids).await?;
         tx.commit().await?;
 
@@ -861,7 +764,7 @@ impl storage::Document for Storage {
     }
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
         let embedding = Database::get_embedding(&mut tx, id).await?;
         tx.commit().await?;
 
@@ -872,7 +775,7 @@ impl storage::Document for Storage {
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
         let scores = self.elastic.get_by_embedding(params).await?;
         let documents =
             Database::get_personalized(&mut tx, scores.keys(), |id| scores.get(id).copied())
@@ -914,7 +817,7 @@ impl storage::Document for Storage {
 impl storage::DocumentCandidate for Storage {
     async fn get(&self) -> Result<Vec<DocumentId>, Error> {
         sqlx::query_as("SELECT document_id FROM document WHERE is_candidate;")
-            .fetch_all(&self.postgres.pool)
+            .fetch_all(&self.postgres)
             .await
             .map_err(Into::into)
     }
@@ -954,7 +857,7 @@ impl storage::DocumentCandidate for Storage {
 #[async_trait]
 impl storage::DocumentProperties for Storage {
     async fn get(&self, id: &DocumentId) -> Result<Option<DocumentProperties>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let properties = sqlx::query_as::<_, (Json<DocumentProperties>,)>(
             "SELECT properties
@@ -976,7 +879,7 @@ impl storage::DocumentProperties for Storage {
         id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let inserted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
@@ -1011,7 +914,7 @@ impl storage::DocumentProperties for Storage {
     }
 
     async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let deleted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
@@ -1050,7 +953,7 @@ impl storage::DocumentProperty for Storage {
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<DocumentProperty>>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let property = sqlx::query_as::<_, (Json<DocumentProperty>,)>(
             "SELECT properties -> $1
@@ -1080,7 +983,7 @@ impl storage::DocumentProperty for Storage {
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let inserted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
@@ -1120,7 +1023,7 @@ impl storage::DocumentProperty for Storage {
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<()>>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let deleted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document
@@ -1160,7 +1063,7 @@ impl storage::DocumentProperty for Storage {
 #[async_trait]
 impl storage::Interest for Storage {
     async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
-        Database::get_user_interests(&self.postgres.pool, user_id).await
+        Database::get_user_interests(&self.postgres, user_id).await
     }
 }
 
@@ -1179,7 +1082,7 @@ impl From<QueriedInteractedDocumentId> for DocumentId {
 #[async_trait(?Send)]
 impl storage::Interaction for Storage {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let documents = sqlx::query_as::<_, QueriedInteractedDocumentId>(
             "SELECT DISTINCT doc_id
@@ -1204,7 +1107,7 @@ impl storage::Interaction for Storage {
         )
         .bind(id)
         .bind(time)
-        .execute(&self.postgres.pool)
+        .execute(&self.postgres)
         .await?;
 
         Ok(())
@@ -1220,7 +1123,7 @@ impl storage::Interaction for Storage {
         time: DateTime<Utc>,
         mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi,
     ) -> Result<(), Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
         let interactions = interactions.into_iter();
@@ -1279,7 +1182,7 @@ struct QueriedWeightedTag {
 #[async_trait]
 impl storage::Tag for Storage {
     async fn get(&self, user_id: &UserId) -> Result<TagWeights, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let tags = sqlx::query_as::<_, QueriedWeightedTag>(
             "SELECT tag, weight
@@ -1306,7 +1209,7 @@ impl storage::Tag for Storage {
         document_id: &DocumentId,
         tags: &[DocumentTag],
     ) -> Result<Option<()>, Error> {
-        let mut tx = self.postgres.pool.begin().await?;
+        let mut tx = self.postgres.begin().await?;
 
         let inserted = sqlx::query_as::<_, (bool,)>(
             "UPDATE document

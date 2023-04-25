@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    future::Future,
     io,
     net::{Ipv4Addr, SocketAddr, SocketAddrV4},
     sync::Arc,
@@ -22,14 +21,14 @@ use std::{
 
 use actix_cors::Cors;
 use actix_web::{
-    dev::ServerHandle,
+    dev::{ServerHandle, ServiceFactory, ServiceRequest, ServiceResponse},
     middleware,
-    web::{self, JsonConfig, ServiceConfig},
+    web::{self, JsonConfig},
     App,
     HttpResponse,
     HttpServer,
 };
-use futures_util::{future::BoxFuture, FutureExt};
+use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::{task::JoinHandle, time::timeout};
@@ -61,7 +60,8 @@ mod serde_duration_as_seconds {
 }
 
 /// Configuration for roughly network/connection layer specific configurations.
-#[derive(Debug, Deserialize, Serialize)]
+// Hint: this value just happens to be copy, if needed the Copy trait can be removed
+#[derive(Copy, Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
     /// Address to which the server should bind.
@@ -86,39 +86,40 @@ impl Default for Config {
     }
 }
 
-pub(crate) fn start_actix_server<A, F>(
-    app_state: Arc<A>,
-    on_shutdown: impl Fn(Arc<A>) -> F + Send + 'static,
-    configure_services: impl Fn(&mut ServiceConfig) + Clone + Send + 'static,
+pub(crate) fn start_actix_server<T>(
+    net_config: Config,
+    context_config: tenants::Config,
+    mk_base_app: impl Fn() -> App<T> + Send + Clone + 'static,
+    on_shutdown: Box<dyn FnOnce() -> BoxFuture<'static, ()>>,
 ) -> Result<AppHandle, anyhow::Error>
 where
-    A: AsRef<Config> + AsRef<tenants::Config> + Send + Sync + 'static,
-    F: Future<Output = ()> + Send + 'static,
+    T: ServiceFactory<
+            ServiceRequest,
+            Response = ServiceResponse,
+            Config = (),
+            Error = actix_web::Error,
+            InitError = (),
+        > + 'static,
 {
-    let &Config {
-        bind_to,
-        keep_alive,
-        client_request_timeout,
-    } = (*app_state).as_ref();
-
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
-    let web_app_state = web::Data::from(app_state.clone());
+    let context_config = Arc::new(context_config);
 
     let server = HttpServer::new(move || {
-        App::new()
-            .app_data(web_app_state.clone())
+        mk_base_app()
             .app_data(json_config.clone())
             .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
-            .configure(&configure_services)
             .wrap_fn(wrap_non_json_errors)
-            .wrap_fn(setup_request_context::<A, _>)
+            .wrap_fn({
+                let context_config = context_config.clone();
+                move |r, s| setup_request_context(&context_config, r, s)
+            })
             .wrap(middleware::Compress::default())
             .wrap(Cors::permissive())
     })
-    .keep_alive(keep_alive)
-    .client_request_timeout(client_request_timeout)
-    .bind(bind_to)?;
+    .keep_alive(net_config.keep_alive)
+    .client_request_timeout(net_config.client_request_timeout)
+    .bind(net_config.bind_to)?;
 
     let addresses = server.addrs();
     for addr in &addresses {
@@ -133,7 +134,7 @@ where
     // stop and get it's return value (we don't have to await `term_handle`).
     let term_handle = tokio::spawn(server);
     Ok(AppHandle {
-        on_shutdown: Box::new(move || on_shutdown(app_state).boxed()),
+        on_shutdown,
         server_handle,
         addresses,
         term_handle,
