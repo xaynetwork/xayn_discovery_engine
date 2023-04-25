@@ -97,27 +97,27 @@ impl ClientBuilder {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub(super) enum BulkInstruction<'a, D> {
+pub(super) enum BulkInstruction<'a, I> {
     Index {
         #[serde(rename = "_id")]
-        id: &'a D,
+        id: &'a I,
     },
     Delete {
         #[serde(rename = "_id")]
-        id: &'a D,
+        id: &'a I,
     },
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct BulkItemResponse<D> {
+pub(super) struct BulkItemResponse<I> {
     #[serde(rename = "_id")]
-    pub(super) id: D,
+    pub(super) id: I,
     pub(super) status: u16,
     #[serde(default)]
     pub(super) error: Value,
 }
 
-impl<D> BulkItemResponse<D> {
+impl<I> BulkItemResponse<I> {
     fn is_success_status(&self, allow_not_found: bool) -> bool {
         StatusCode::from_u16(self.status)
             .map(|status| {
@@ -128,15 +128,15 @@ impl<D> BulkItemResponse<D> {
 }
 
 #[derive(Debug, Deserialize)]
-pub(super) struct BulkResponse<D> {
+pub(super) struct BulkResponse<I> {
     pub(super) errors: bool,
-    pub(super) items: Vec<HashMap<String, BulkItemResponse<D>>>,
+    pub(super) items: Vec<HashMap<String, BulkItemResponse<I>>>,
 }
 
-impl<D> BulkResponse<D> {
-    pub(super) fn failed_documents(self, operation: &'static str, allow_not_found: bool) -> Vec<D>
+impl<I> BulkResponse<I> {
+    pub(super) fn failed_documents(self, operation: &'static str, allow_not_found: bool) -> Vec<I>
     where
-        D: Display + Debug,
+        I: Display + Debug,
     {
         self.errors.then(|| {
             self
@@ -184,12 +184,12 @@ impl Client {
         url
     }
 
-    pub(super) async fn bulk_request<D>(
+    pub(super) async fn bulk_request<I>(
         &self,
         requests: impl IntoIterator<Item = Result<impl Serialize, serde_json::Error>>,
-    ) -> Result<BulkResponse<D>, Error>
+    ) -> Result<BulkResponse<I>, Error>
     where
-        D: DeserializeOwned,
+        I: DeserializeOwned,
     {
         let url = self.create_resource_path(["_bulk"], [("refresh", None)]);
 
@@ -201,7 +201,7 @@ impl Client {
 
         let body = serialize_to_ndjson(requests)?;
 
-        self.query_with_bytes::<_, BulkResponse<D>>(url, Some((headers, body)))
+        self.query_with_bytes::<_, BulkResponse<I>>(url, Some((headers, body)))
             .await?
             .ok_or_else(|| Error::EndpointNotFound("_bulk"))
     }
@@ -299,10 +299,12 @@ impl SegmentableUrl {
 impl TryFrom<Url> for SegmentableUrl {
     type Error = anyhow::Error;
 
-    fn try_from(mut url: Url) -> Result<Self, Self::Error> {
-        url.path_segments_mut()
-            .map_err(|()| anyhow::anyhow!("non segmentable url"))?;
-        Ok(Self(url))
+    fn try_from(url: Url) -> Result<Self, Self::Error> {
+        if url.cannot_be_a_base() {
+            Err(anyhow::anyhow!("non segmentable url"))
+        } else {
+            Ok(Self(url))
+        }
     }
 }
 
