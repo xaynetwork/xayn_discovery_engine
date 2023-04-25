@@ -44,6 +44,7 @@ mod models;
 mod net;
 mod personalization;
 mod storage;
+mod tenants;
 mod utils;
 
 pub use crate::{

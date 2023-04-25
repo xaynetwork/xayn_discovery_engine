@@ -35,7 +35,10 @@ use serde::{Deserialize, Serialize};
 use tokio::{task::JoinHandle, time::timeout};
 use tracing::info;
 
-use crate::middleware::{json_error::wrap_non_json_errors, tracing::tracing_log_request};
+use crate::{
+    middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context},
+    tenants,
+};
 
 mod serde_duration_as_seconds {
     use std::time::Duration;
@@ -89,7 +92,7 @@ pub(crate) fn start_actix_server<A, F>(
     configure_services: impl Fn(&mut ServiceConfig) + Clone + Send + 'static,
 ) -> Result<AppHandle, anyhow::Error>
 where
-    A: AsRef<Config> + Send + Sync + 'static,
+    A: AsRef<Config> + AsRef<tenants::Config> + Send + Sync + 'static,
     F: Future<Output = ()> + Send + 'static,
 {
     let &Config {
@@ -109,7 +112,7 @@ where
             .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
             .configure(&configure_services)
             .wrap_fn(wrap_non_json_errors)
-            .wrap_fn(tracing_log_request)
+            .wrap_fn(setup_request_context::<A, _>)
             .wrap(middleware::Compress::default())
             .wrap(Cors::permissive())
     })

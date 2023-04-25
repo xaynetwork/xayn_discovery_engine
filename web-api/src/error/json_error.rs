@@ -23,13 +23,18 @@ use actix_web::{
 use serde_json::{json, Value};
 use tracing::error;
 
-use crate::middleware::tracing::RequestId;
+use crate::middleware::request_context::RequestId;
 
 pub(crate) struct JsonErrorResponseBuilder {
     body: BoxBody,
 }
 
 impl JsonErrorResponseBuilder {
+    pub(crate) fn internal_server_error(request_id: RequestId) -> HttpResponse {
+        JsonErrorResponseBuilder::render("InternalServerError", request_id, &Value::Null)
+            .into_response(StatusCode::INTERNAL_SERVER_ERROR)
+    }
+
     pub(crate) fn render(kind: &str, request_id: RequestId, details: &Value) -> Self {
         match serde_json::to_vec(&json!({
             "kind": kind,

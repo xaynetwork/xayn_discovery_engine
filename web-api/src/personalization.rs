@@ -28,6 +28,7 @@ use crate::{
     logging,
     net,
     storage::{self, Storage},
+    tenants,
 };
 
 pub struct Personalization;
@@ -72,6 +73,7 @@ pub struct Config {
     pub(crate) embedding: embedding::Config,
     pub(crate) personalization: PersonalizationConfig,
     pub(crate) semantic_search: SemanticSearchConfig,
+    pub(crate) tenants: tenants::Config,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
