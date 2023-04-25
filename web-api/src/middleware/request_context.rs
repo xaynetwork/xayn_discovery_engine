@@ -212,15 +212,25 @@ fn extract_tenant_id(
 //FIXME use <&[u8]>::trim_ascii() once stabilized
 //  https://github.com/rust-lang/rust/issues/94035
 fn trim_ascii(ascii: &[u8]) -> &[u8] {
-    let start = ascii
+    trim_ascii_end(trim_ascii_start(ascii))
+}
+
+fn trim_ascii_start(ascii: &[u8]) -> &[u8] {
+    ascii
         .iter()
-        .position(|byte| !byte.is_ascii_whitespace())
-        .unwrap_or_default();
-    let end = ascii
+        .position(is_not_ascii_whitespace)
+        .map_or(&[], |new_first| &ascii[new_first..])
+}
+
+fn trim_ascii_end(ascii: &[u8]) -> &[u8] {
+    ascii
         .iter()
-        .rposition(|byte| !byte.is_ascii_whitespace())
-        .unwrap_or(ascii.len());
-    &ascii[start..=end]
+        .rposition(is_not_ascii_whitespace)
+        .map_or(&[], |new_last| &ascii[..=new_last])
+}
+
+fn is_not_ascii_whitespace(byte: &u8) -> bool {
+    !byte.is_ascii_whitespace()
 }
 
 #[cfg(test)]
@@ -229,9 +239,29 @@ mod tests {
 
     #[test]
     fn test_trim_ascii() {
+        assert_eq!(trim_ascii(b""), b"");
+        assert_eq!(trim_ascii(b" "), b"");
         assert_eq!(trim_ascii(b"ab  cd"), b"ab  cd");
         assert_eq!(trim_ascii(b"  ab  cd  "), b"ab  cd");
         assert_eq!(trim_ascii(b" \n ab\t cd  \t"), b"ab\t cd");
+    }
+
+    #[test]
+    fn test_trim_ascii_start() {
+        assert_eq!(trim_ascii_start(b""), b"");
+        assert_eq!(trim_ascii_start(b" "), b"");
+        assert_eq!(trim_ascii_start(b"ab  cd"), b"ab  cd");
+        assert_eq!(trim_ascii_start(b"  ab  cd  "), b"ab  cd  ");
+        assert_eq!(trim_ascii_start(b" \n ab\t cd  \t"), b"ab\t cd  \t");
+    }
+
+    #[test]
+    fn test_trim_ascii_end() {
+        assert_eq!(trim_ascii_end(b""), b"");
+        assert_eq!(trim_ascii_end(b" "), b"");
+        assert_eq!(trim_ascii_end(b"ab  cd"), b"ab  cd");
+        assert_eq!(trim_ascii_end(b"  ab  cd  "), b"  ab  cd");
+        assert_eq!(trim_ascii_end(b" \n ab\t cd  \t"), b" \n ab\t cd");
     }
 
     #[test]
