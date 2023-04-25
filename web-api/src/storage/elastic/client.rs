@@ -268,7 +268,7 @@ impl Client {
 pub(crate) enum Error {
     /// Transmitting a request or receiving the response failed: {0}
     Transport(reqwest::Error),
-    /// Elastic Search failed, status={status}, url={url}, \nbody={error}
+    /// Elastic Search failed, status={status}, url={url}, body={error}
     Status {
         status: StatusCode,
         url: Url,
