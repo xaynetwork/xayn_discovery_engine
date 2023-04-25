@@ -17,7 +17,7 @@ inputs:
     type: string
     required: true
   model_full_name:
-    description: Name of the model name to use
+    description: Name of the model to use
     type: string
     required: true
 
