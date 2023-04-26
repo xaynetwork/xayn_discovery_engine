@@ -3,6 +3,8 @@ name = "xayn-summarizer"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
+description = "Reduce long text to few relevant sentences"
+license = "AGPL-3.0-only"
 
 [dependencies]
 anyhow = { workspace = true }
