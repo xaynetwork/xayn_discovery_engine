@@ -76,7 +76,7 @@ impl<'a> Summariser<'a> {
         ngrams: bool,
         bias_strength: Option<f32>,
     ) -> Summariser<'a> {
-        let sentences: Arc<Mutex<HashMap<usize, Sentence>>> = Arc::new(Mutex::new(HashMap::new()));
+        let sentences = Arc::new(Mutex::new(HashMap::new()));
         let all_sentences = raw_text.split(separator).collect::<Vec<&str>>();
 
         for (i, sentence) in all_sentences.iter().enumerate() {
