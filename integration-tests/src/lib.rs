@@ -30,6 +30,7 @@ use std::{
 };
 
 use anyhow::bail;
+use chrono::Utc;
 use once_cell::sync::Lazy;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
@@ -257,8 +258,10 @@ where
 /// Generates an ID for the test.
 ///
 /// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
-fn generate_test_id() -> Result<String, anyhow::Error> {
-    just(&["_test-generate-id"])
+fn generate_test_id() -> String {
+    let date = Utc::now().format("%y%m%d_%H%M%S");
+    let random = rand::random::<u16>();
+    format!("t{date}_{random:0>4x}")
 }
 
 #[derive(Clone, Debug)]
@@ -281,7 +284,7 @@ async fn setup_web_dev_test_context(
     clear_env();
     start_test_service_containers().unwrap();
 
-    let id = generate_test_id()?;
+    let id = generate_test_id();
 
     let out = just(&["_test-create-dbs", &id])?;
     let mut postgres = None;
@@ -333,7 +336,7 @@ mod tests {
     fn test_random_id_generation_has_expected_format() -> Result<(), Panic> {
         let regex = Regex::new("^t[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
         for _ in 0..100 {
-            let id = generate_test_id().unwrap();
+            let id = generate_test_id();
             assert!(
                 regex.is_match(&id),
                 "id does not have expected format: {id:?}",

@@ -248,10 +248,6 @@ _test-project-root:
     #!/usr/bin/env -S bash -eu -o pipefail
     echo -n {{justfile_directory()}}
 
-_test-generate-id:
-    #!/usr/bin/env -S bash -eu -o pipefail
-    echo -n "t$(date +%y%m%d_%H%M%S)_$(printf "%04x" "$RANDOM")"
-
 _test-create-dbs test_id:
     #!/usr/bin/env -S bash -eu -o pipefail
     if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then

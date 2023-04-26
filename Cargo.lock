@@ -4261,7 +4261,9 @@ name = "xayn-integration-tests"
 version = "0.1.1"
 dependencies = [
  "anyhow",
+ "chrono",
  "once_cell",
+ "rand",
  "regex",
  "reqwest",
  "scopeguard",
