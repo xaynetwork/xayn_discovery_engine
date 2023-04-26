@@ -4278,7 +4278,6 @@ dependencies = [
 name = "xayn-summarizer"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "ndarray",
  "serde",
  "serde_json",

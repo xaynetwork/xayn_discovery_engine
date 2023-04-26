@@ -30,8 +30,6 @@
     clippy::must_use_candidate
 )]
 
-use anyhow::Result;
-
 mod summarizers;
 
 /// Summarizes a source to the amount of sentences specified in the `config`.
@@ -59,15 +57,14 @@ mod summarizers;
 ///     &Config::default(),
 /// );
 /// ```
-pub fn summarize(summarizer: &Summarizer, source: &Source, config: &Config) -> Result<String> {
+pub fn summarize(summarizer: &Summarizer, source: &Source, config: &Config) -> String {
     let text = source.to_readable_text();
-    let summary = match summarizer {
+    match summarizer {
         Summarizer::Naive => summarizers::naive::summarize(&text, config.num_sentences),
         Summarizer::RankBased => {
             summarizers::rank_based::summarize(&text, &[], config.num_sentences)
         }
-    };
-    Ok(summary)
+    }
 }
 
 /// Configures how many sentences should be kept, from the original source.

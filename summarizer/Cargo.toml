@@ -7,7 +7,6 @@ description = "Reduce long text to few relevant sentences"
 license = "AGPL-3.0-only"
 
 [dependencies]
-anyhow = { workspace = true }
 ndarray = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

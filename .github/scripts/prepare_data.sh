@@ -18,6 +18,7 @@ shift
 VERSION="$1"
 shift
 
+UPLOAD=false
 while [ $# -gt 0 ]; do
   opt="$1"
   shift
