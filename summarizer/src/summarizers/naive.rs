@@ -28,7 +28,7 @@ struct Sentence {
 }
 
 #[derive(Debug, Clone)]
-struct Summariser<'a> {
+struct Summarizer<'a> {
     sentences: HashMap<usize, Sentence>,
     matrix: Option<Vec<Vec<f32>>>,
     bias_list: HashSet<String>,
@@ -38,7 +38,7 @@ struct Summariser<'a> {
 
 pub(crate) fn summarize(text: &str, num_sentences: usize) -> String {
     let bias_strength = Some(2.0);
-    let mut summariser = Summariser::from_raw_text(text, ".", 50, 1500, false, bias_strength);
+    let mut summariser = Summarizer::from_raw_text(text, ".", 50, 1500, false, bias_strength);
     let mut summary = summariser.top_sentences(
         num_sentences,
         false,
@@ -67,7 +67,7 @@ pub(crate) fn summarize(text: &str, num_sentences: usize) -> String {
         })
 }
 
-impl<'a> Summariser<'a> {
+impl<'a> Summarizer<'a> {
     fn from_raw_text(
         raw_text: &str,
         separator: &str,
@@ -75,7 +75,7 @@ impl<'a> Summariser<'a> {
         max_length: usize,
         ngrams: bool,
         bias_strength: Option<f32>,
-    ) -> Summariser<'a> {
+    ) -> Summarizer<'a> {
         let sentences = Arc::new(Mutex::new(HashMap::new()));
         let all_sentences = raw_text.split(separator).collect::<Vec<&str>>();
 
@@ -112,7 +112,7 @@ impl<'a> Summariser<'a> {
         }
         let final_sentences = sentences.lock().unwrap().clone();
 
-        Summariser {
+        Summarizer {
             bias_strength,
             sentences: final_sentences,
             matrix: None,
@@ -121,8 +121,8 @@ impl<'a> Summariser<'a> {
         }
     }
 
-    fn from_sentences_direct(sentences: HashMap<usize, Sentence>) -> Summariser<'a> {
-        Summariser {
+    fn from_sentences_direct(sentences: HashMap<usize, Sentence>) -> Summarizer<'a> {
+        Summarizer {
             sentences,
             matrix: None,
             bias_list: HashSet::new(),
@@ -145,11 +145,11 @@ impl<'a> Summariser<'a> {
         bias_strength: Option<f32>,
     ) -> Vec<Sentence> {
         // If longer than 10,000, then divide it into portions of 5000 each. Instantiate new
-        // Summarisers and call Summariser::from_sentences_direct on each one, passing in the
+        // Summarizers and call Summarizer::from_sentences_direct on each one, passing in the
         // portion of the original sentences (convert the HashMap to a vec). Then call
-        // Summariser::top_sentences on each one, passing in the number of sentences to return.
+        // Summarizer::top_sentences on each one, passing in the number of sentences to return.
         // Collect the sentences, and pass them to a new instance of
-        // Summariser::from_sentences_direct. Then call Summariser::top_sentences on that
+        // Summarizer::from_sentences_direct. Then call Summarizer::top_sentences on that
         // instance, passing in the number of sentences to return. Return the result.
         if bias_list.is_some() {
             self.bias_list = bias_list.clone().unwrap();
@@ -176,9 +176,9 @@ impl<'a> Summariser<'a> {
                     for (initial, (_, sentence)) in chunk.iter().enumerate() {
                         new_sentences.insert(initial, sentence.clone());
                     }
-                    Summariser::from_sentences_direct(new_sentences)
+                    Summarizer::from_sentences_direct(new_sentences)
                 })
-                .collect::<Vec<Summariser<'a>>>();
+                .collect::<Vec<Summarizer<'a>>>();
             let collected_sentences = summarisers
                 .iter_mut()
                 .map(|summariser| {
@@ -213,7 +213,7 @@ impl<'a> Summariser<'a> {
                 .into_iter()
                 .flatten()
                 .collect::<Vec<Sentence>>();
-            let mut summariser = Summariser::from_sentences_direct(
+            let mut summariser = Summarizer::from_sentences_direct(
                 collected_sentences
                     .into_iter()
                     .enumerate()
