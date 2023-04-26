@@ -94,7 +94,7 @@ fn root_sum_square(vec: &[usize]) -> f64 {
 }
 
 fn dot_product(vec1: &[usize], vec2: &[usize]) -> usize {
-    std::iter::zip(vec1, vec2).map(|(a, b)| a * b).sum()
+    vec1.iter().zip(vec2).map(|(a, b)| a * b).sum()
 }
 
 fn sentence_similarity(s1: &[&str], s2: &[&str], stop_words: &[&str]) -> f64 {
