@@ -144,7 +144,13 @@ impl<'a> Summariser<'a> {
         bias_list: Option<HashSet<String>>,
         bias_strength: Option<f32>,
     ) -> Vec<Sentence> {
-        //If longer than 10,000, then divide it into portions of 5000 each. Instantiate new Summarisers and call Summariser::from_sentences_direct on each one, passing in the portion of the original sentences (convert the HashMap to a vec). Then call Summariser::top_sentences on each one, passing in the number of sentences to return. Collect the sentences, and pass them to a new instance of Summariser::from_sentences_direct. Then call Summariser::top_sentences on that instance, passing in the number of sentences to return. Return the result.
+        // If longer than 10,000, then divide it into portions of 5000 each. Instantiate new
+        // Summarisers and call Summariser::from_sentences_direct on each one, passing in the
+        // portion of the original sentences (convert the HashMap to a vec). Then call
+        // Summariser::top_sentences on each one, passing in the number of sentences to return.
+        // Collect the sentences, and pass them to a new instance of
+        // Summariser::from_sentences_direct. Then call Summariser::top_sentences on that
+        // instance, passing in the number of sentences to return. Return the result.
         if bias_list.is_some() {
             self.bias_list = bias_list.clone().unwrap();
         }
