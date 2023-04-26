@@ -48,16 +48,11 @@ pub(crate) fn summarize(text: &str, stop_words: &[&str], num_sentence: usize) ->
 }
 
 fn get_all_words_lc<'a>(sentence1: &[&'a str], sentence2: &[&'a str]) -> BTreeSet<String> {
-    let mut all_words: BTreeSet<String> = BTreeSet::new();
-
-    for w in sentence1.iter() {
-        all_words.insert(w.to_lowercase());
-    }
-
-    for w in sentence2.iter() {
-        all_words.insert(w.to_lowercase());
-    }
-    all_words
+    sentence1
+        .iter()
+        .chain(sentence2.iter())
+        .map(|w| w.to_lowercase())
+        .collect()
 }
 
 ///
@@ -187,10 +182,5 @@ fn calculate_sentence_rank(similarity_matrix: &Array2<f64>) -> Vec<f64> {
 }
 
 fn split_into_words(sentence: &str) -> Vec<&str> {
-    let mut result = vec![];
-    let words = sentence.unicode_words();
-    for word in words {
-        result.push(word);
-    }
-    result
+    sentence.unicode_words().collect()
 }
