@@ -101,12 +101,14 @@ struct UnvalidatedIngestedDocument {
     is_candidate: Option<bool>,
     #[serde(default)]
     default_is_candidate: Option<bool>,
+    #[serde(default)]
+    summarize: bool,
 }
 
 #[derive(Debug)]
 struct IngestedDocument {
     id: DocumentId,
-    snippet: String,
+    snippet: Snippet,
     properties: DocumentProperties,
     tags: Vec<DocumentTag>,
     is_candidate_op: IsCandidateOp,
@@ -116,6 +118,38 @@ struct IngestedDocument {
 enum IsCandidateOp {
     SetTo(bool),
     DefaultTo(bool),
+}
+
+#[derive(Clone, Debug)]
+enum Snippet {
+    /// The snippet needs to be summarized.
+    Raw(String),
+    /// The snippet is already summarized or needs no summarization.
+    Summarized(String),
+}
+
+impl Snippet {
+    fn summarized(&mut self) -> &str {
+        if let Self::Raw(snippet) = self {
+            // TODO: call summarizer
+            let snippet = snippet.clone();
+            *self = Self::Summarized(snippet);
+        }
+        match self {
+            Self::Raw(_) => unreachable!(),
+            Self::Summarized(snippet) => snippet,
+        }
+    }
+
+    fn into_summarized(self) -> String {
+        match self {
+            Self::Raw(snippet) => {
+                // TODO: call summarizer
+                snippet
+            }
+            Self::Summarized(snippet) => snippet,
+        }
+    }
 }
 
 impl IsCandidateOp {
@@ -159,6 +193,11 @@ impl UnvalidatedIngestedDocument {
     fn validate(self) -> Result<IngestedDocument, DocumentIdAsObject> {
         let validate = || -> anyhow::Result<_> {
             let id = self.id.as_str().try_into()?;
+            let snippet = if self.summarize {
+                Snippet::Raw(self.snippet)
+            } else {
+                Snippet::Summarized(self.snippet)
+            };
             let properties = self
                 .properties
                 .into_iter()
@@ -177,7 +216,7 @@ impl UnvalidatedIngestedDocument {
 
             Ok(IngestedDocument {
                 id,
-                snippet: self.snippet,
+                snippet,
                 properties,
                 tags,
                 is_candidate_op,
@@ -245,7 +284,7 @@ async fn upsert_documents(
     // Hint: Documents which have a changed snippet are also in `new_documents`.
     let (new_documents, changed_documents) = documents
         .into_iter()
-        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
+        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|mut document| {
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
                 .map(|(snippet, properties, tags, is_candidate)| {
@@ -253,7 +292,9 @@ async fn upsert_documents(
                 })
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(snippet, _, _)| snippet != &document.snippet);
+            let new_snippet = data.map_or(true, |(snippet, _, _)| {
+                snippet != document.snippet.summarized()
+            });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
 
             if new_snippet {
@@ -303,11 +344,11 @@ async fn upsert_documents(
     let start = Instant::now();
     let new_documents = new_documents
         .into_iter()
-        .filter_map(
-            |(document, new_is_candidate)| match state.embedder.run(&document.snippet) {
+        .filter_map(|(mut document, new_is_candidate)| {
+            match state.embedder.run(document.snippet.summarized()) {
                 Ok(embedding) => Some(models::IngestedDocument {
                     id: document.id,
-                    snippet: document.snippet,
+                    snippet: document.snippet.into_summarized(),
                     properties: document.properties,
                     tags: document.tags,
                     embedding,
@@ -321,8 +362,8 @@ async fn upsert_documents(
                     failed_documents.push(document.id.into());
                     None
                 }
-            },
-        )
+            }
+        })
         .collect_vec();
 
     info!(
