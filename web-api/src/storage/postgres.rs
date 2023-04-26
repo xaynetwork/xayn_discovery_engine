@@ -295,7 +295,7 @@ impl Database {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<ExcerptedDocument>, Error> {
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, snippet, is_candidate
+            "SELECT document_id, snippet, properties, tags, is_candidate
             FROM document
             WHERE document_id IN ",
         );
@@ -308,10 +308,13 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, is_candidate) = FromRow::from_row(&row)?;
+                        let (id, snippet, Json(properties), tags, is_candidate) =
+                            FromRow::from_row(&row)?;
                         Ok(ExcerptedDocument {
                             id,
                             snippet,
+                            properties,
+                            tags,
                             is_candidate,
                         })
                     })

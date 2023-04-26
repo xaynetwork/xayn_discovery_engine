@@ -110,7 +110,7 @@ id_wrapper! {
     pub(crate) DocumentTag, InvalidDocumentTag, is_valid_tag;
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(transparent)]
 pub(crate) struct DocumentProperty(serde_json::Value);
 
@@ -192,6 +192,8 @@ pub(crate) struct IngestedDocument {
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
     pub(crate) snippet: String,
+    pub(crate) properties: DocumentProperties,
+    pub(crate) tags: Vec<DocumentTag>,
     pub(crate) is_candidate: bool,
 }
 
