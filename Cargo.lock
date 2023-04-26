@@ -4297,6 +4297,7 @@ dependencies = [
  "bincode",
  "chrono",
  "clap 4.1.8",
+ "criterion",
  "csv",
  "derive_more",
  "displaydoc",

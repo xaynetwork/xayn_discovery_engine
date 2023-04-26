@@ -144,6 +144,23 @@ pub(super) fn derive_interests_and_tag_weights<'a>(
     (user_interests, tag_weights)
 }
 
+#[doc(hidden)]
+pub fn bench_derive_interests(
+    coi_system: &CoiSystem,
+    history: Vec<(DateTime<Utc>, NormalizedEmbedding)>,
+) {
+    // small allocation overhead, but we don't have to expose a lot of private items
+    let history = history
+        .into_iter()
+        .map(|(timestamp, embedding)| LoadedHistoryEntry {
+            timestamp,
+            embedding,
+            tags: Vec::new(),
+        })
+        .collect_vec();
+    derive_interests_and_tag_weights(coi_system, &history);
+}
+
 #[cfg(test)]
 mod tests {
     use chrono::{Duration, TimeZone};
