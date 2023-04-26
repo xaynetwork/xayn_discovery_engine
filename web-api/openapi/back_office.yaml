@@ -371,6 +371,10 @@ components:
           maxItems: 100
           items:
             $ref: '#/components/schemas/IngestedDocument'
+        summarize:
+          description: Summarizes the document snippets before further processing.
+          type: boolean
+          default: false
       example:
         documents:
           - id: document_1
@@ -386,6 +390,7 @@ components:
             tags:
               - exclusive
             default_is_candidate: false
+        summarize: true
     IngestionError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
