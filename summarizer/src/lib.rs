@@ -50,11 +50,11 @@ mod summarizers;
 /// use xayn_summarizer::{summarize, Config, Source, Summarizer};
 ///
 /// let summary = summarize(
-///     Summarizer::Naive,
-///     Source::PlainText {
+///     &Summarizer::Naive,
+///     &Source::PlainText {
 ///         text: "Lorem ispum dolor si amet...".to_string(),
 ///     },
-///     Config::default(),
+///     &Config::default(),
 /// );
 /// ```
 pub fn summarize(summarizer: &Summarizer, source: &Source, config: &Config) -> Result<String> {
