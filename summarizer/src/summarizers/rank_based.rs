@@ -55,7 +55,6 @@ fn get_all_words_lc<'a>(sentence1: &[&'a str], sentence2: &[&'a str]) -> BTreeSe
         .collect()
 }
 
-///
 /// Retrieve a sentence vector based on the frequency of words that appears in the `all_words_lc` set.
 /// `all_words_lc` should be a sorted set of lower cased words
 /// The size of the resulting vector is the same as the `all_words_lc` set
