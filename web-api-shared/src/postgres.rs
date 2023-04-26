@@ -32,26 +32,26 @@ pub struct Config {
     ///
     /// Passwords in the URL will be ignored, do not set the
     /// db password with the db url.
-    base_url: String,
+    pub base_url: String,
 
     /// Override port from base url.
-    port: Option<u16>,
+    pub port: Option<u16>,
 
     /// Override user from base url.
-    user: Option<String>,
+    pub user: Option<String>,
 
     /// Sets the password.
     #[serde(serialize_with = "serialize_redacted")]
-    password: Secret<String>,
+    pub password: Secret<String>,
 
     /// Override db from base url.
-    db: Option<String>,
+    pub db: Option<String>,
 
     /// Override default application name from base url.
-    application_name: Option<String>,
+    pub application_name: Option<String>,
 
     /// If true skips running db migrations on start up.
-    skip_migrations: bool,
+    pub skip_migrations: bool,
 
     /// Minimum number of connections in the pool.
     /// When the pool is built, this many connections will be automatically spun up.

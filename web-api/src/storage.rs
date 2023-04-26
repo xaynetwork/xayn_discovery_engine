@@ -257,7 +257,7 @@ impl Storage {
         tenant_config: &tenants::Config,
     ) -> Result<Option<TenantId>, SetupError> {
         let silo = Silo::new(
-            &config.postgres,
+            config.postgres.clone(),
             config.elastic.clone(),
             tenant_config
                 .enable_legacy_tenant

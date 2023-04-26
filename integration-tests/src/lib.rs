@@ -22,6 +22,7 @@
 //! integration testing.
 
 use std::{
+    env,
     future::Future,
     path::PathBuf,
     process::{Command, Output, Stdio},
@@ -29,22 +30,51 @@ use std::{
     time::Duration,
 };
 
-use anyhow::bail;
+use anyhow::{anyhow, bail, Error};
 use chrono::Utc;
 use once_cell::sync::Lazy;
+use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
-use serde::de::DeserializeOwned;
+use serde::{de::DeserializeOwned, Serialize};
+use sqlx::{Connection, Executor, PgConnection};
+use tokio::runtime::Handle;
 use toml::{toml, Table, Value};
-use tracing::{error_span, Instrument};
+use tracing::{error, error_span, Instrument};
 use tracing_subscriber::filter::LevelFilter;
-use uuid::Uuid;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, logging, start, AppHandle, Application};
+use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
+use xayn_web_api_shared::{
+    elastic,
+    postgres::{self, QuotedIdentifier},
+    request::TenantId,
+};
 
 /// Absolute path to the root of the project as determined by `just`.
 pub static PROJECT_ROOT: Lazy<PathBuf> =
     Lazy::new(|| just(&["_test-project-root"]).unwrap().into());
+
+/// `true` if it runs in a container (e.g. github action)
+///
+/// This is needed as in containers e.g. on github services
+/// will be provided externally while locally we will start them
+/// on the fly. Furthermore on github services are only reachable
+/// through their dns short name but locally they are only
+/// reachable through localhost. Lastly to allow multiple test
+/// environments ports locally may differ but in a container
+/// should not.
+pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
+    //FIXME more generic detection
+    env::var("GITHUB_ACTIONS") == Ok("true".into())
+});
+
+/// DB name used for the db we use to create other dbs.
+const MANAGEMENT_DB: &str = "xayn";
+
+const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
+
+const DEFAULT_TEST_ENABLE_LEGACY_TENANT: bool = false;
 
 /// Runs `just` with given arguments returning `stdout` as string.
 ///
@@ -101,8 +131,6 @@ where
     }
 }
 
-const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
-
 /// Initialize logging in tests.
 pub fn initialize_test_logging() {
     static ONCE: Once = Once::new();
@@ -137,9 +165,13 @@ pub async fn test_app<A, F>(
     A: Application + 'static,
 {
     initialize_test_logging();
-    let services = setup_web_dev_test_context().await.unwrap();
 
-    let handle = start_test_application::<A>(&services, configure).await;
+    let services = setup_web_dev_test_context(DEFAULT_TEST_ENABLE_LEGACY_TENANT)
+        .await
+        .unwrap();
+
+    let handle =
+        start_test_application::<A>(&services, DEFAULT_TEST_ENABLE_LEGACY_TENANT, configure).await;
 
     test(
         build_client(&services),
@@ -163,9 +195,22 @@ pub async fn test_two_apps<A1, A2, F>(
     A2: Application + 'static,
 {
     initialize_test_logging();
-    let services = setup_web_dev_test_context().await.unwrap();
-    let first_handle = start_test_application::<A1>(&services, configure_first).await;
-    let second_handle = start_test_application::<A2>(&services, configure_second).await;
+
+    let services = setup_web_dev_test_context(DEFAULT_TEST_ENABLE_LEGACY_TENANT)
+        .await
+        .unwrap();
+    let first_handle = start_test_application::<A1>(
+        &services,
+        DEFAULT_TEST_ENABLE_LEGACY_TENANT,
+        configure_first,
+    )
+    .await;
+    let second_handle = start_test_application::<A2>(
+        &services,
+        DEFAULT_TEST_ENABLE_LEGACY_TENANT,
+        configure_second,
+    )
+    .await;
     test(
         build_client(&services),
         Arc::new(first_handle.url()),
@@ -182,13 +227,9 @@ pub async fn test_two_apps<A1, A2, F>(
     res2.expect("second application to not fail during shutdown");
 }
 
-fn build_client(_services: &Services) -> Arc<Client> {
-    let default_headers = HeaderMap::default();
-    //FIXME test tool doesn't yet setup tenants
-    // default_headers.insert(
-    //     "X-Xayn-Tenant-Id",
-    //     services.tenant_id.as_str().try_into().unwrap(),
-    // );
+fn build_client(services: &Services) -> Arc<Client> {
+    let mut default_headers = HeaderMap::default();
+    default_headers.insert("X-Xayn-Tenant-Id", services.test_id.as_str().try_into().unwrap());
     Arc::new(
         Client::builder()
             .default_headers(default_headers)
@@ -214,30 +255,47 @@ pub fn extend_config(current: &mut Table, extension: Table) {
 
 pub async fn start_test_application<A>(
     services: &Services,
+    enable_legacy_tenant: bool,
     configure: impl FnOnce(&mut Table),
 ) -> AppHandle
 where
     A: Application + 'static,
 {
-    let (es_url, es_index) = services.elastic_search.as_str().rsplit_once('/').unwrap();
-    let pg_url = services.postgres.as_str();
+    let pg_config = to_toml_value(services.silo.postgres_config()).unwrap();
+    let es_config = to_toml_value(services.silo.elastic_config()).unwrap();
 
     let mut config = toml! {
-        [storage.postgres]
-        base_url = pg_url
-
-        [storage.elastic]
-        url = es_url
-        index_name = es_index
+        [storage]
+        postgres = pg_config
+        elastic = es_config
 
         [embedding]
         directory = "../assets/smbert_v0003"
 
         [tenants]
-        enable_legacy_tenant = true
+        enable_legacy_tenant = enable_legacy_tenant
     };
 
+    //the password was serialized as REDACTED in to_toml_value
+    extend_config(
+        &mut config,
+        toml! {
+            [storage.postgres]
+            password = "pw"
+        },
+    );
+
     configure(&mut config);
+
+    let configured_enable_legacy_tenant = config
+        .get("tenants")
+        .and_then(|config| config.get("enable_legacy_tenant"))
+        .and_then(|value| value.as_bool())
+        .unwrap_or(true);
+
+    if configured_enable_legacy_tenant != enable_legacy_tenant {
+        panic!("the configuration callback can not be used change tenants.enable_legacy_tenant");
+    }
 
     let args = &[
         "integration-test",
@@ -250,9 +308,17 @@ where
     let config = config::load_with_args([0u8; 0], args);
 
     start::<A>(config)
-        .instrument(error_span!("test", test_id = %services.id))
+        .instrument(error_span!("test", test_id = %services.test_id))
         .await
         .unwrap()
+}
+
+/// Workaround of limitations of the toml library.
+///
+/// Not very fast only use for testing.
+fn to_toml_value(value: &impl Serialize) -> Result<toml::Value, anyhow::Error> {
+    let str = toml::to_string(value)?;
+    toml::from_str(&str).map_err(Into::into)
 }
 
 /// Generates an ID for the test.
@@ -260,53 +326,129 @@ where
 /// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
 fn generate_test_id() -> String {
     let date = Utc::now().format("%y%m%d_%H%M%S");
-    let random = rand::random::<u16>();
+    let random = random::<u16>();
     format!("t{date}_{random:0>4x}")
 }
 
 #[derive(Clone, Debug)]
 pub struct Services {
     /// Id of the test.
-    pub id: String,
-    /// Uri to a postgres db for this test.
-    pub postgres: Url,
-    /// Uri to a elastic search db for this test.
-    pub elastic_search: Url,
+    pub test_id: String,
+    /// Silo management API
+    pub silo: Silo,
     /// Id of the auto generated tenant
-    pub tenant_id: String,
+    pub tenant_id: TenantId,
 }
 
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
 /// A uris usable for accessing the dbs are returned.
 async fn setup_web_dev_test_context(
+    enable_legacy_tenant: bool,
 ) -> Result<ScopeGuard<Services, impl FnOnce(Services), OnSuccess>, anyhow::Error> {
     clear_env();
     start_test_service_containers().unwrap();
 
-    let id = generate_test_id();
+    let test_id = generate_test_id();
+    let tenant_id = TenantId::try_parse_ascii(test_id.as_ref())?;
 
-    let out = just(&["_test-create-dbs", &id])?;
-    let mut postgres = None;
-    let mut elastic_search = None;
-    for line in out.lines() {
-        if let Some(url) = line.trim().strip_prefix("PG_URL=") {
-            postgres = Some(url.parse().unwrap());
-        } else if let Some(url) = line.trim().strip_prefix("ES_URL=") {
-            elastic_search = Some(url.parse().unwrap());
-        }
+    let mut pg_config = postgres::Config {
+        db: Some(test_id.clone()),
+        ..Default::default()
+    };
+    let mut es_config = elastic::Config::default();
+    if *RUNS_IN_CONTAINER {
+        pg_config.base_url = "postgres://user:pw@postgres:5432/".into();
+        es_config.url = "http://elasticsearch:9200".into();
+    } else {
+        pg_config.base_url = "postgres://user:pw@localhost:3054/xayn".into();
+        es_config.url = "http://localhost:3092".into();
     }
 
-    let uris = Services {
-        id,
-        postgres: postgres.unwrap(),
-        elastic_search: elastic_search.unwrap(),
-        tenant_id: Uuid::nil().to_string(),
+    crate_db(&pg_config, MANAGEMENT_DB).await?;
+
+    let default_es_index = es_config.index_name.clone();
+    let silo = Silo::new(
+        pg_config,
+        es_config,
+        enable_legacy_tenant.then_some(LegacyTenantInfo {
+            es_index: default_es_index,
+        }),
+    )
+    .await?;
+    silo.admin_as_mt_user_hack().await?;
+    silo.initialize().await?;
+    silo.create_tenant(&tenant_id).await?;
+
+    let services = Services {
+        test_id,
+        silo,
+        tenant_id,
     };
 
-    Ok(guard_on_success(uris, move |uris| {
-        just(&["_test-drop-dbs", &uris.id]).unwrap();
+    // current needs to be called in code guaranteed to be async executed
+    let handle = Handle::current();
+
+    Ok(guard_on_success(services, move |services| {
+        spawn_cleanup(handle, services.test_id.clone(), async move {
+            services.silo.delete_tenant(&services.tenant_id).await?;
+            delete_db(services.silo.postgres_config(), MANAGEMENT_DB).await?;
+            Ok(())
+        })
     }))
+}
+
+/// Similar to tokio::spawn but usable in drop destructors.
+///
+/// The problem with trying to do async code in drop's for tests is that:
+/// - calling the sync `block_on` (and similar) in drops in async code will panic
+/// - tokio::spawn in drops in sync code will panic, and futures might drop sync
+/// - failure handling is verbose
+///
+/// This functions will choose the appropriate spawn and will appropriately log
+/// errors, **be aware that errors are not propagated outwards**, but then test
+/// cleanup failure should normally not fail the test.
+pub fn spawn_cleanup(
+    handle: Handle,
+    test_id: String,
+    fut: impl Future<Output = Result<(), anyhow::Error>> + Send + 'static,
+) {
+    handle.spawn(
+        async move {
+            if let Err(error) = fut.await {
+                error!({%error}, "cleanup failed");
+            }
+        }
+        .instrument(error_span!("test", test_id = %test_id)),
+    );
+}
+
+async fn crate_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
+    let target_options = target.to_connection_options()?;
+    let target_db: QuotedIdentifier = target_options
+        .get_database()
+        .ok_or_else(|| anyhow!("database needs to be specified"))?
+        .parse()?;
+    let management_options = target_options.database(management_db);
+    let mut conn = PgConnection::connect_with(&management_options).await?;
+    let query = format!("CREATE DATABASE {target_db};");
+    conn.execute(query.as_str()).await?;
+    conn.close().await?;
+    Ok(())
+}
+
+async fn delete_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
+    let target_options = target.to_connection_options()?;
+    let target_db: QuotedIdentifier = target_options
+        .get_database()
+        .ok_or_else(|| anyhow!("database needs to be specified"))?
+        .parse()?;
+    let management_options = target_options.database(management_db);
+    let mut conn = PgConnection::connect_with(&management_options).await?;
+    let query = format!("DROP DATABASE {target_db};");
+    conn.execute(query.as_str()).await?;
+    conn.close().await?;
+    Ok(())
 }
 
 /// Start service containers.
