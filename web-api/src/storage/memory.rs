@@ -294,6 +294,8 @@ impl storage::Document for Storage {
                 documents.0.get(id).map(|document| ExcerptedDocument {
                     id: id.clone(),
                     snippet: document.snippet.clone(),
+                    properties: document.properties.clone(),
+                    tags: document.tags.clone(),
                     is_candidate: document.is_candidate,
                 })
             })

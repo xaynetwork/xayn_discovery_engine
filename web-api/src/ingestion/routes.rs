@@ -20,7 +20,7 @@ use actix_web::{
     Responder,
 };
 use anyhow::bail;
-use itertools::Itertools;
+use itertools::{Either, Itertools};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
@@ -231,36 +231,53 @@ async fn upsert_documents(
         .map(UnvalidatedIngestedDocument::validate)
         .partition_result::<Vec<_>, Vec<_>, _, _>();
 
-    let existing_data =
+    let existing_documents =
         storage::Document::get_excerpted(&storage, documents.iter().map(|document| &document.id))
             .await?
             .into_iter()
-            .map(|document| (document.id, (document.snippet, document.is_candidate)))
+            .map(|document| {
+                (
+                    document.id,
+                    (
+                        document.snippet,
+                        document.properties,
+                        document.tags,
+                        document.is_candidate,
+                    ),
+                )
+            })
             .collect::<HashMap<_, _>>();
 
     // Hint: Documents which have a changed snippet are also in `new_documents`.
-    let (changed_documents, new_documents) = documents
+    let (new_documents, changed_documents) = documents
         .into_iter()
-        .map(|document| {
-            let (snippet, is_candidate) = existing_data
+        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
+            let (data, is_candidate) = existing_documents
                 .get(&document.id)
-                .map(|(snippet, is_candidate)| (snippet, *is_candidate))
+                .map(|(snippet, properties, tags, is_candidate)| {
+                    ((snippet, properties, tags), *is_candidate)
+                })
                 .unzip();
 
+            let new_snippet = data.map_or(true, |(snippet, _, _)| snippet != &document.snippet);
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
-            let unchanged_snippet = snippet
-                .map(|snippet| snippet == &document.snippet)
-                .unwrap_or_default();
 
-            (document, new_is_candidate, unchanged_snippet)
-        })
-        .partition::<Vec<_>, _>(|(_, _, unchanged_snippet)| *unchanged_snippet);
+            if new_snippet {
+                Either::Left((document, new_is_candidate))
+            } else {
+                let new_properties = data.map_or(true, |(_, properties, _)| {
+                    properties != &document.properties
+                });
+                let new_tags = data.map_or(true, |(_, _, tags)| tags != &document.tags);
+                Either::Right((document, new_properties, new_tags, new_is_candidate))
+            }
+        });
 
     storage::DocumentCandidate::remove(
         &storage,
         changed_documents
             .iter()
-            .filter_map(|(document, new_is_candidate, _)| {
+            .filter_map(|(document, _, _, new_is_candidate)| {
                 new_is_candidate
                     .has_changed_to_false()
                     .then_some(&document.id)
@@ -268,16 +285,20 @@ async fn upsert_documents(
     )
     .await?;
 
-    for (document, _, _) in &changed_documents {
-        storage::DocumentProperties::put(&storage, &document.id, &document.properties).await?;
-        storage::Tag::put(&storage, &document.id, &document.tags).await?;
+    for (document, new_properties, new_tags, _) in &changed_documents {
+        if *new_properties {
+            storage::DocumentProperties::put(&storage, &document.id, &document.properties).await?;
+        }
+        if *new_tags {
+            storage::Tag::put(&storage, &document.id, &document.tags).await?;
+        }
     }
 
     storage::DocumentCandidate::add(
         &storage,
         changed_documents
             .iter()
-            .filter_map(|(document, new_is_candidate, _)| {
+            .filter_map(|(document, _, _, new_is_candidate)| {
                 new_is_candidate
                     .has_changed_to_true()
                     .then_some(&document.id)
@@ -289,7 +310,7 @@ async fn upsert_documents(
     let new_documents = new_documents
         .into_iter()
         .filter_map(
-            |(document, new_is_candidate, _)| match state.embedder.run(&document.snippet) {
+            |(document, new_is_candidate)| match state.embedder.run(&document.snippet) {
                 Ok(embedding) => Some(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
