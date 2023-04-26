@@ -279,6 +279,5 @@ fn number_of_word_connections(sentence: &Sentence, other: &Sentence) -> usize {
     sentence
         .words
         .intersection(&other.words)
-        .collect::<Vec<_>>()
-        .len()
+        .count()
 }
