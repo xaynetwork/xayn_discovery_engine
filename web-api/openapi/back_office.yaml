@@ -343,7 +343,6 @@ components:
 
             Setting neither will default to `is_candidate = true`.
           type: boolean
-
         default_is_candidate:
           description: |
             Behaves like `is_candidate` but will not overwrite any existing `is_candidate`
@@ -351,6 +350,10 @@ components:
 
             Setting both this field and the `is_candidate` field will fail the request.
           type: boolean
+        summarize:
+          description: Summarizes the document snippets before further processing.
+          type: boolean
+          default: false
       example:
         id: document_1
         snippet: lorem ipsum delores
@@ -360,6 +363,7 @@ components:
           - news
           - tech
         is_candidate: true
+        summarize: false
 
     IngestionRequest:
       type: object
@@ -386,6 +390,9 @@ components:
             tags:
               - exclusive
             default_is_candidate: false
+          - id: document_3
+            snippet: quite a lot of lines of lorem ipsum delores
+            summarize: true
     IngestionError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
