@@ -42,7 +42,6 @@ use super::{
 use crate::{
     app::TenantState,
     error::{
-        application::WithRequestIdExt,
         common::{BadRequest, DocumentNotFound},
         warning::Warning,
     },
@@ -53,16 +52,11 @@ use crate::{
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     let users = web::scope("/users/{user_id}")
+        .service(web::resource("interactions").route(web::patch().to(interactions)))
         .service(
-            web::resource("interactions")
-                .route(web::patch().to(interactions.error_with_request_id())),
-        )
-        .service(
-            web::resource("personalized_documents")
-                .route(web::get().to(personalized_documents.error_with_request_id())),
+            web::resource("personalized_documents").route(web::get().to(personalized_documents)),
         );
-    let semantic_search = web::resource("/semantic_search")
-        .route(web::post().to(semantic_search.error_with_request_id()));
+    let semantic_search = web::resource("/semantic_search").route(web::post().to(semantic_search));
 
     config.service(users).service(semantic_search);
 }

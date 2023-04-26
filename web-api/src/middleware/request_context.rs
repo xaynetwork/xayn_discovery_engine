@@ -30,6 +30,7 @@ use regex::bytes;
 use serde::{Deserialize, Serialize};
 use sqlx::Type;
 use thiserror::Error;
+use tokio::{task::futures::TaskLocalFuture, task_local};
 use tracing::{error_span, instrument, trace, Instrument};
 use uuid::Uuid;
 
@@ -119,6 +120,10 @@ impl TenantId {
 #[serde(transparent)]
 pub(crate) struct RequestId(Uuid);
 
+task_local! {
+    static CURRENT_REQUEST_ID: RequestId;
+}
+
 impl RequestId {
     pub(crate) fn generate() -> Self {
         Self(Uuid::new_v4())
@@ -126,6 +131,21 @@ impl RequestId {
 
     pub(crate) const fn missing() -> Self {
         Self(Uuid::nil())
+    }
+
+    pub(crate) fn wrap_future<F>(self, future: F) -> TaskLocalFuture<RequestId, F>
+    where
+        F: 'static + Future,
+    {
+        CURRENT_REQUEST_ID.scope(self, future)
+    }
+
+    pub(crate) fn extract_from_task_local_storage() -> Result<RequestId, AccessError> {
+        CURRENT_REQUEST_ID
+            .try_with(|id| *id)
+            .map_err(|_| AccessError {
+                method: "extract_from_task_local_storage",
+            })
     }
 }
 
@@ -179,10 +199,12 @@ where
     request.extensions_mut().insert(context);
 
     Either::Right(
-        service
-            .call(request)
-            .instrument(span.clone())
-            .inspect(|_| trace!(parent: span, "request processed")),
+        request_id.wrap_future(
+            service
+                .call(request)
+                .instrument(span.clone())
+                .inspect(|_| trace!(parent: span, "request processed")),
+        ),
     )
 }
 

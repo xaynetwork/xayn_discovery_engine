@@ -14,14 +14,14 @@
 
 //! The web engine & api.
 
-#![forbid(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(not(test), forbid(unsafe_code))]
 #![cfg_attr(test, deny(unsafe_code))]
 #![deny(
     clippy::pedantic,
     noop_method_call,
     rust_2018_idioms,
-    unused_qualifications
+    unused_qualifications,
+    unsafe_op_in_unsafe_fn
 )]
 #![warn(unreachable_pub, rustdoc::missing_crate_level_docs)]
 #![allow(
