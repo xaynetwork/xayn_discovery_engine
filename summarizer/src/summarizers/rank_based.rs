@@ -75,7 +75,6 @@ fn get_sentence_vector(
     vector
 }
 
-///
 /// Calculates the cosine distance between two vectors
 /// Refer to [`YouTube`](https://www.youtube.com/watch?v=3X0wLRwU_Ws)
 #[allow(clippy::cast_precision_loss)]
@@ -103,7 +102,6 @@ fn sentence_similarity(s1: &[&str], s2: &[&str], stop_words: &[&str]) -> f64 {
     1.0 - cosine_distance(&v1, &v2)
 }
 
-///
 /// Calculate a similarity matrix for the given sentences.
 /// Returns a 2-D array `M_i,j` such that for all 'j', sum(i, `M_i,j`) = 1
 /// We take a leap of faith here and assume that cosine similarity is similar to the probability
@@ -146,7 +144,6 @@ fn build_similarity_matrix(sentences: &Vec<Vec<&str>>, stop_words: &[&str]) -> A
     matrix
 }
 
-///
 /// Calculate a sentence rank similar to a page rank.
 /// Please refer to [`PageRank`](https://en.wikipedia.org/wiki/PageRank) for more details.
 fn calculate_sentence_rank(similarity_matrix: &Array2<f64>) -> Vec<f64> {
