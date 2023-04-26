@@ -81,13 +81,13 @@ fn get_sentence_vector(
 #[allow(clippy::cast_precision_loss)]
 fn cosine_distance(vec1: &[usize], vec2: &[usize]) -> f64 {
     let dot_product = dot_product(vec1, vec2);
-    let root_sum_square1 = root_sum_square(vec1);
-    let root_sum_square2 = root_sum_square(vec2);
+    let root_sum_square1 = l2_norm(vec1);
+    let root_sum_square2 = l2_norm(vec2);
     dot_product as f64 / (root_sum_square1 * root_sum_square2)
 }
 
 #[allow(clippy::cast_precision_loss)]
-fn root_sum_square(vec: &[usize]) -> f64 {
+fn l2_norm(vec: &[usize]) -> f64 {
     let sum_square = vec.iter().map(|x| x * x).sum::<usize>();
     (sum_square as f64).sqrt()
 }
