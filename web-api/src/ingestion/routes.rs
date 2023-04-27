@@ -24,6 +24,7 @@ use itertools::{Either, Itertools};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
+use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use super::AppState;
 use crate::{
@@ -162,8 +163,11 @@ impl UnvalidatedIngestedDocument {
         let validate = || -> anyhow::Result<_> {
             let id = self.id.as_str().try_into()?;
             let snippet = if self.summarize {
-                // TODO: call summarizer
-                self.snippet.clone()
+                summarize(
+                    &Summarizer::Naive,
+                    &Source::PlainText { text: self.snippet },
+                    &Config::default(),
+                )
             } else {
                 self.snippet
             };

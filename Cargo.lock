@@ -4342,6 +4342,7 @@ dependencies = [
  "xayn-ai-bert",
  "xayn-ai-coi",
  "xayn-integration-tests",
+ "xayn-summarizer",
  "xayn-test-utils",
 ]
 
