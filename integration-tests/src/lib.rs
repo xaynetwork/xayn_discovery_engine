@@ -70,7 +70,7 @@ pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
 });
 
 /// DB name used for the db we use to create other dbs.
-const MANAGEMENT_DB: &str = "xayn";
+pub const MANAGEMENT_DB: &str = "xayn";
 
 const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
 
@@ -322,7 +322,7 @@ fn to_toml_value(value: &impl Serialize) -> Result<toml::Value, anyhow::Error> {
 /// Generates an ID for the test.
 ///
 /// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
-fn generate_test_id() -> String {
+pub fn generate_test_id() -> String {
     let date = Utc::now().format("%y%m%d_%H%M%S");
     let random = random::<u16>();
     format!("t{date}_{random:0>4x}")
@@ -350,18 +350,7 @@ async fn setup_web_dev_test_context(
     let test_id = generate_test_id();
     let tenant_id = TenantId::try_parse_ascii(test_id.as_ref())?;
 
-    let mut pg_config = postgres::Config {
-        db: Some(test_id.clone()),
-        ..Default::default()
-    };
-    let mut es_config = elastic::Config::default();
-    if *RUNS_IN_CONTAINER {
-        pg_config.base_url = "postgres://user:pw@postgres:5432/".into();
-        es_config.url = "http://elasticsearch:9200".into();
-    } else {
-        pg_config.base_url = "postgres://user:pw@localhost:3054/xayn".into();
-        es_config.url = "http://localhost:3092".into();
-    }
+    let (pg_config, es_config) = db_configs_for_testing(&test_id);
 
     crate_db(&pg_config, MANAGEMENT_DB).await?;
 
@@ -396,6 +385,22 @@ async fn setup_web_dev_test_context(
     }))
 }
 
+pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Config) {
+    let mut pg_config = postgres::Config {
+        db: Some(test_id.to_owned()),
+        ..Default::default()
+    };
+    let mut es_config = elastic::Config::default();
+    if *RUNS_IN_CONTAINER {
+        pg_config.base_url = "postgres://user:pw@postgres:5432/".into();
+        es_config.url = "http://elasticsearch:9200".into();
+    } else {
+        pg_config.base_url = "postgres://user:pw@localhost:3054/xayn".into();
+        es_config.url = "http://localhost:3092".into();
+    }
+    (pg_config, es_config)
+}
+
 /// Similar to tokio::spawn but usable in drop destructors.
 ///
 /// The problem with trying to do async code in drop's for tests is that:
@@ -421,7 +426,7 @@ pub fn spawn_cleanup(
     );
 }
 
-async fn crate_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
+pub async fn crate_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
     let target_options = target.to_connection_options()?;
     let target_db: QuotedIdentifier = target_options
         .get_database()
@@ -435,7 +440,7 @@ async fn crate_db(target: &postgres::Config, management_db: &str) -> Result<(), 
     Ok(())
 }
 
-async fn delete_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
+pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
     let target_options = target.to_connection_options()?;
     let target_db: QuotedIdentifier = target_options
         .get_database()
