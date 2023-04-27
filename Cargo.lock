@@ -4275,6 +4275,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "xayn-summarizer"
+version = "0.1.0"
+dependencies = [
+ "ndarray",
+ "serde",
+ "serde_json",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "xayn-test-utils"
 version = "0.1.0"
 dependencies = [
