@@ -248,37 +248,6 @@ _test-project-root:
     #!/usr/bin/env -S bash -eu -o pipefail
     echo -n {{justfile_directory()}}
 
-_test-create-dbs test_id:
-    #!/usr/bin/env -S bash -eu -o pipefail
-    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
-        PG_HOST="postgres:5432"
-        ES_HOST="elasticsearch:9200"
-    else
-        PG_HOST="localhost:3054"
-        ES_HOST="localhost:3092"
-    fi
-    PG_BASE="postgresql://user:pw@${PG_HOST}"
-    ES_URL="http://${ES_HOST}/{{test_id}}"
-
-    psql -q -c "CREATE DATABASE {{test_id}};" "${PG_BASE}/xayn" 1>&2
-    ./web-api/elastic-search/create_es_index.sh "${ES_URL}"
-
-    echo "PG_URL=${PG_BASE}/{{test_id}}"
-    echo "ES_URL=${ES_URL}"
-
-_test-drop-dbs test_id:
-    #!/usr/bin/env -S bash -eu -o pipefail
-    if [[ "${GITHUB_ACTIONS:-false}" == "true" ]]; then
-        PG_HOST="postgres:5432"
-        ES_HOST="elasticsearch:9200"
-    else
-        PG_HOST="localhost:3054"
-        ES_HOST="localhost:3092"
-    fi
-
-    psql -q -c "DROP DATABASE {{test_id}} WITH (FORCE);" "postgresql://user:pw@${PG_HOST}/xayn" 1>&2
-    curl -sf -X DELETE "http://${ES_HOST}/{{test_id}}"
-
 alias r := rust-test
 alias t := test
 alias pp := pre-push
