@@ -74,8 +74,6 @@ const MANAGEMENT_DB: &str = "xayn";
 
 const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
 
-const DEFAULT_TEST_ENABLE_LEGACY_TENANT: bool = false;
-
 /// Runs `just` with given arguments returning `stdout` as string.
 ///
 /// If just outputs non utf-8 bytes or can't be called or fails this
@@ -158,7 +156,7 @@ pub fn initialize_test_logging() {
 ///   - you can update it using the `configure` callback
 /// - the service info including an url to the application is passed to the test
 pub async fn test_app<A, F>(
-    configure: impl FnOnce(&mut Table),
+    configure: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
 ) where
     F: Future<Output = Result<(), Panic>>,
@@ -166,12 +164,14 @@ pub async fn test_app<A, F>(
 {
     initialize_test_logging();
 
-    let services = setup_web_dev_test_context(DEFAULT_TEST_ENABLE_LEGACY_TENANT)
+    let (configure, enable_legacy_tenant) =
+        configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
+
+    let services = setup_web_dev_test_context(enable_legacy_tenant)
         .await
         .unwrap();
 
-    let handle =
-        start_test_application::<A>(&services, DEFAULT_TEST_ENABLE_LEGACY_TENANT, configure).await;
+    let handle = start_test_application::<A>(&services, configure).await;
 
     test(
         build_client(&services),
@@ -186,8 +186,8 @@ pub async fn test_app<A, F>(
 
 /// Like `test_app` but runs two applications in the same test context.
 pub async fn test_two_apps<A1, A2, F>(
-    configure_first: impl FnOnce(&mut Table),
-    configure_second: impl FnOnce(&mut Table),
+    configure_first: Option<Table>,
+    configure_second: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
 ) where
     F: Future<Output = Result<(), Panic>>,
@@ -196,21 +196,16 @@ pub async fn test_two_apps<A1, A2, F>(
 {
     initialize_test_logging();
 
-    let services = setup_web_dev_test_context(DEFAULT_TEST_ENABLE_LEGACY_TENANT)
-        .await
-        .unwrap();
-    let first_handle = start_test_application::<A1>(
-        &services,
-        DEFAULT_TEST_ENABLE_LEGACY_TENANT,
-        configure_first,
-    )
-    .await;
-    let second_handle = start_test_application::<A2>(
-        &services,
-        DEFAULT_TEST_ENABLE_LEGACY_TENANT,
-        configure_second,
-    )
-    .await;
+    let (configure_first, first_wit_legacy) =
+        configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
+    let (configure_second, second_with_legacy) =
+        configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
+    assert_eq!(first_wit_legacy, second_with_legacy);
+
+    let services = setup_web_dev_test_context(first_wit_legacy).await.unwrap();
+    let first_handle = start_test_application::<A1>(&services, configure_first).await;
+    let second_handle = start_test_application::<A2>(&services, configure_second).await;
+
     test(
         build_client(&services),
         Arc::new(first_handle.url()),
@@ -227,6 +222,26 @@ pub async fn test_two_apps<A1, A2, F>(
     res2.expect("second application to not fail during shutdown");
 }
 
+const TEST_DEFAULT_ENABLE_LEGACY_CONFIG: bool = false;
+
+fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bool) {
+    let value = config
+        .get("tenants")
+        .and_then(|config| config.get("enable_legacy_tenant"))
+        .and_then(|value| value.as_bool())
+        .unwrap_or(TEST_DEFAULT_ENABLE_LEGACY_CONFIG);
+
+    extend_config(
+        &mut config,
+        toml! {
+            [tenants]
+            enable_legacy_tenant = value
+        },
+    );
+
+    (config, value)
+}
+
 fn build_client(services: &Services) -> Arc<Client> {
     let mut default_headers = HeaderMap::default();
     default_headers.insert("X-Xayn-Tenant-Id", services.test_id.as_str().try_into().unwrap());
@@ -238,7 +253,7 @@ fn build_client(services: &Services) -> Arc<Client> {
     )
 }
 
-pub fn unchanged_config(_: &mut Table) {}
+pub const UNCHANGED_CONFIG: Option<Table> = None;
 
 pub fn extend_config(current: &mut Table, extension: Table) {
     for (key, value) in extension {
@@ -253,11 +268,7 @@ pub fn extend_config(current: &mut Table, extension: Table) {
     }
 }
 
-pub async fn start_test_application<A>(
-    services: &Services,
-    enable_legacy_tenant: bool,
-    configure: impl FnOnce(&mut Table),
-) -> AppHandle
+pub async fn start_test_application<A>(services: &Services, configure: Table) -> AppHandle
 where
     A: Application + 'static,
 {
@@ -271,9 +282,6 @@ where
 
         [embedding]
         directory = "../assets/smbert_v0003"
-
-        [tenants]
-        enable_legacy_tenant = enable_legacy_tenant
     };
 
     //the password was serialized as REDACTED in to_toml_value
@@ -285,17 +293,7 @@ where
         },
     );
 
-    configure(&mut config);
-
-    let configured_enable_legacy_tenant = config
-        .get("tenants")
-        .and_then(|config| config.get("enable_legacy_tenant"))
-        .and_then(|value| value.as_bool())
-        .unwrap_or(true);
-
-    if configured_enable_legacy_tenant != enable_legacy_tenant {
-        panic!("the configuration callback can not be used change tenants.enable_legacy_tenant");
-    }
+    extend_config(&mut config, configure);
 
     let args = &[
         "integration-test",

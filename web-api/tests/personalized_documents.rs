@@ -16,7 +16,7 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
+use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
@@ -174,8 +174,8 @@ macro_rules! assert_order {
 #[tokio::test]
 async fn test_personalization_all_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
             let documents = personalize(&client, &personalization_url, None, None).await?;
@@ -193,8 +193,8 @@ async fn test_personalization_all_dates() {
 #[tokio::test]
 async fn test_personalization_limited_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
             let documents = personalize(
@@ -218,8 +218,8 @@ async fn test_personalization_limited_dates() {
 #[tokio::test]
 async fn test_personalization_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
             let documents = personalize(

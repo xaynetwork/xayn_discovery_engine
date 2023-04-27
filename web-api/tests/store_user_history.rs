@@ -18,13 +18,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
-use xayn_integration_tests::{
-    extend_config,
-    send_assert,
-    send_assert_json,
-    test_two_apps,
-    unchanged_config,
-};
+use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_web_api::{Ingestion, Personalization};
 
 #[derive(Deserialize)]
@@ -39,16 +33,11 @@ struct PersonalizedDocumentsResponse {
 
 async fn store_user_history(enabled: bool) {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        |config| {
-            extend_config(
-                config,
-                toml! {
-                    [personalization]
-                    store_user_history = enabled
-                },
-            );
-        },
+        UNCHANGED_CONFIG,
+        Some(toml! {
+            [personalization]
+            store_user_history = enabled
+        }),
         |client, ingestion, personalization, _| async move {
             send_assert(
                 &client,

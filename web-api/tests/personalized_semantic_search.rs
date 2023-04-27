@@ -17,13 +17,7 @@ use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
-use xayn_integration_tests::{
-    extend_config,
-    send_assert,
-    send_assert_json,
-    test_two_apps,
-    unchanged_config,
-};
+use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
@@ -106,16 +100,11 @@ macro_rules! assert_order {
 #[tokio::test]
 async fn test_full_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        |config| {
-            extend_config(
-                config,
-                toml! {
-                    [semantic_search]
-                    score_weights = [0.5, 0.5, 0.0]
-                },
-            )
-        },
+        UNCHANGED_CONFIG,
+        Some(toml! {
+            [semantic_search]
+            score_weights = [0.5, 0.5, 0.0]
+        }),
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;
 
@@ -186,16 +175,11 @@ async fn test_full_personalization() {
 #[tokio::test]
 async fn test_subtle_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        |config| {
-            extend_config(
-                config,
-                toml! {
-                    [semantic_search]
-                    score_weights = [0.05, 0.05, 0.9]
-                },
-            )
-        },
+        UNCHANGED_CONFIG,
+        Some(toml! {
+            [semantic_search]
+            score_weights = [0.05, 0.05, 0.9]
+        }),
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;
             interact(&client, &personalization_url).await?;
@@ -228,16 +212,11 @@ async fn test_subtle_personalization() {
 #[tokio::test]
 async fn test_full_personalization_with_inline_history() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        |config| {
-            extend_config(
-                config,
-                toml! {
-                    [semantic_search]
-                    score_weights = [0.5, 0.5, 0.0]
-                },
-            )
-        },
+        UNCHANGED_CONFIG,
+        Some(toml! {
+            [semantic_search]
+            score_weights = [0.5, 0.5, 0.0]
+        }),
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;
 
