@@ -66,6 +66,14 @@ pub(crate) struct Config {
 
     /// If true skips running db migrations on start up.
     skip_migrations: bool,
+
+    /// Number of connections in the pool.
+    #[serde(default = "default_min_pool_size")]
+    min_pool_size: u8,
+}
+
+fn default_min_pool_size() -> u8 {
+    25
 }
 
 impl Default for Config {
@@ -78,6 +86,7 @@ impl Default for Config {
             db: None,
             application_name: option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}")),
             skip_migrations: false,
+            min_pool_size: default_min_pool_size(),
         }
     }
 }
@@ -122,6 +131,7 @@ impl Database {
         let options = Self::build_connection_options(config)?;
         info!("starting postgres setup");
         let pool = PoolOptions::new()
+            .min_connections(u32::from(config.min_pool_size))
             .after_release(|conn, _metadata| {
                 async {
                     sqlx::query("RESET ROLE;").execute(conn).await?;
@@ -150,7 +160,7 @@ impl Database {
             password,
             db,
             application_name,
-            skip_migrations: _,
+            ..
         } = config;
 
         let mut options = base_url

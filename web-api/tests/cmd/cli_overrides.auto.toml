@@ -27,7 +27,8 @@ stdout = """
       "password": "[REDACTED]",
       "db": "mydb",
       "application_name": "the-application",
-      "skip_migrations": false
+      "skip_migrations": false,
+      "min_pool_size": 25
     }
   },
   "ingestion": {
