@@ -243,8 +243,8 @@ async fn test_personalization_with_query() {
 #[tokio::test]
 async fn test_personalization_with_tags() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_tags(&client, &ingestion_url).await?;
             let documents = personalize(&client, &personalization_url, None, None).await?;

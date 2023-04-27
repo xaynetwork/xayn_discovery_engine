@@ -35,12 +35,10 @@ use chrono::Utc;
 use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
-use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::{de::DeserializeOwned, Serialize};
 use sqlx::{Connection, Executor, PgConnection};
-use tokio::runtime::Handle;
 use toml::{toml, Table, Value};
-use tracing::{error, error_span, Instrument};
+use tracing::{error_span, instrument, Instrument};
 use tracing_subscriber::filter::LevelFilter;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, logging, start, AppHandle, Application};
@@ -182,6 +180,8 @@ pub async fn test_app<A, F>(
     .unwrap();
 
     handle.stop_and_wait(APP_STOP_TIMEOUT).await.unwrap();
+
+    services.cleanup_test().await.unwrap();
 }
 
 /// Like `test_app` but runs two applications in the same test context.
@@ -220,6 +220,8 @@ pub async fn test_two_apps<A1, A2, F>(
     );
     res1.expect("first application to not fail during shutdown");
     res2.expect("second application to not fail during shutdown");
+
+    services.cleanup_test().await.unwrap();
 }
 
 const TEST_DEFAULT_ENABLE_LEGACY_CONFIG: bool = false;
@@ -338,12 +340,19 @@ pub struct Services {
     pub tenant_id: TenantId,
 }
 
+impl Services {
+    #[instrument(skip(self), fields(%test_id=self.tenant_id), err)]
+    pub async fn cleanup_test(self) -> Result<(), Error> {
+        self.silo.delete_tenant(&self.tenant_id).await?;
+        delete_db(self.silo.postgres_config(), MANAGEMENT_DB).await?;
+        Ok(())
+    }
+}
+
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
 /// A uris usable for accessing the dbs are returned.
-async fn setup_web_dev_test_context(
-    enable_legacy_tenant: bool,
-) -> Result<ScopeGuard<Services, impl FnOnce(Services), OnSuccess>, anyhow::Error> {
+async fn setup_web_dev_test_context(enable_legacy_tenant: bool) -> Result<Services, anyhow::Error> {
     clear_env();
     start_test_service_containers().unwrap();
 
@@ -367,22 +376,11 @@ async fn setup_web_dev_test_context(
     silo.initialize().await?;
     silo.create_tenant(&tenant_id).await?;
 
-    let services = Services {
+    Ok(Services {
         test_id,
         silo,
         tenant_id,
-    };
-
-    // current needs to be called in code guaranteed to be async executed
-    let handle = Handle::current();
-
-    Ok(guard_on_success(services, move |services| {
-        spawn_cleanup(handle, services.test_id.clone(), async move {
-            services.silo.delete_tenant(&services.tenant_id).await?;
-            delete_db(services.silo.postgres_config(), MANAGEMENT_DB).await?;
-            Ok(())
-        })
-    }))
+    })
 }
 
 pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Config) {
@@ -399,31 +397,6 @@ pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Conf
         es_config.url = "http://localhost:3092".into();
     }
     (pg_config, es_config)
-}
-
-/// Similar to tokio::spawn but usable in drop destructors.
-///
-/// The problem with trying to do async code in drop's for tests is that:
-/// - calling the sync `block_on` (and similar) in drops in async code will panic
-/// - tokio::spawn in drops in sync code will panic, and futures might drop sync
-/// - failure handling is verbose
-///
-/// This functions will choose the appropriate spawn and will appropriately log
-/// errors, **be aware that errors are not propagated outwards**, but then test
-/// cleanup failure should normally not fail the test.
-pub fn spawn_cleanup(
-    handle: Handle,
-    test_id: String,
-    fut: impl Future<Output = Result<(), anyhow::Error>> + Send + 'static,
-) {
-    handle.spawn(
-        async move {
-            if let Err(error) = fut.await {
-                error!({%error}, "cleanup failed");
-            }
-        }
-        .instrument(error_span!("test", test_id = %test_id)),
-    );
 }
 
 pub async fn crate_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
@@ -448,7 +421,7 @@ pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result
         .parse()?;
     let management_options = target_options.database(management_db);
     let mut conn = PgConnection::connect_with(&management_options).await?;
-    let query = format!("DROP DATABASE {target_db};");
+    let query = format!("DROP DATABASE {target_db} WITH (FORCE);");
     conn.execute(query.as_str()).await?;
     conn.close().await?;
     Ok(())

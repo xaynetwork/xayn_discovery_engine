@@ -97,7 +97,7 @@ async fn test_ingestion_created() {
 
 #[tokio::test]
 async fn test_ingestion_bad_request() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         let error = send_assert_json::<Error>(
             &client,
             client
