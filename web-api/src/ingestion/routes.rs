@@ -24,6 +24,7 @@ use itertools::{Either, Itertools};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
 use tracing::{error, info, instrument};
+use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use super::AppState;
 use crate::{
@@ -101,6 +102,8 @@ struct UnvalidatedIngestedDocument {
     is_candidate: Option<bool>,
     #[serde(default)]
     default_is_candidate: Option<bool>,
+    #[serde(default)]
+    summarize: bool,
 }
 
 #[derive(Debug)]
@@ -159,6 +162,15 @@ impl UnvalidatedIngestedDocument {
     fn validate(self) -> Result<IngestedDocument, DocumentIdAsObject> {
         let validate = || -> anyhow::Result<_> {
             let id = self.id.as_str().try_into()?;
+            let snippet = if self.summarize {
+                summarize(
+                    &Summarizer::Naive,
+                    &Source::PlainText { text: self.snippet },
+                    &Config::default(),
+                )
+            } else {
+                self.snippet
+            };
             let properties = self
                 .properties
                 .into_iter()
@@ -177,7 +189,7 @@ impl UnvalidatedIngestedDocument {
 
             Ok(IngestedDocument {
                 id,
-                snippet: self.snippet,
+                snippet,
                 properties,
                 tags,
                 is_candidate_op,
