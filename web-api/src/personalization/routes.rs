@@ -479,6 +479,8 @@ async fn semantic_search(
     Json(query): Json<UnvalidatedSemanticSearchQuery>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
+    let request_start = std::time::Instant::now();
+
     let mut warnings = Vec::new();
 
     let SemanticSearchQuery {
@@ -536,9 +538,13 @@ async fn semantic_search(
         .await?;
     }
 
-    Ok(Json(SemanticSearchResponse {
+    let response = Ok(Json(SemanticSearchResponse {
         documents: documents.into_iter().map_into().collect(),
-    }))
+    }));
+
+    tracing::info!(elapsed_time = request_start.elapsed().as_millis());
+
+    response
 }
 
 async fn personalized_exclusions(
