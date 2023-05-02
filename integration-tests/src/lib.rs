@@ -430,7 +430,7 @@ pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result
 /// Start service containers.
 ///
 /// Does nothing on CI where they have to be started from the outside.
-fn start_test_service_containers() -> Result<(), anyhow::Error> {
+pub fn start_test_service_containers() -> Result<(), anyhow::Error> {
     static ONCE: Once = Once::new();
     let mut res = Ok(());
     ONCE.call_once(|| {

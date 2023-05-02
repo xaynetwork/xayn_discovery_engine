@@ -14,13 +14,23 @@
 
 use chrono::{DateTime, TimeZone, Utc};
 use sqlx::{Connection, PgConnection};
-use xayn_integration_tests::{crate_db, db_configs_for_testing, generate_test_id, MANAGEMENT_DB};
+use xayn_integration_tests::{
+    crate_db,
+    db_configs_for_testing,
+    generate_test_id,
+    start_test_service_containers,
+    MANAGEMENT_DB,
+};
+use xayn_test_utils::env::clear_env;
 use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
 use xayn_web_api_shared::postgres::QuotedIdentifier;
 
 #[tokio::test]
 async fn test_if_the_initializations_works_correct_for_legacy_tenants() -> Result<(), anyhow::Error>
 {
+    clear_env();
+    start_test_service_containers()?;
+
     let test_id = generate_test_id();
     let (pg_config, es_config) = db_configs_for_testing(&test_id);
 
@@ -32,6 +42,8 @@ async fn test_if_the_initializations_works_correct_for_legacy_tenants() -> Resul
     sqlx::migrate!("../web-api-db-ctrl/postgres/tenant")
         .run(&mut conn)
         .await?;
+
+    //TODO create legacy index
 
     let user_id = "foo_boar";
     let last_seen = Utc.with_ymd_and_hms(2023, 2, 2, 3, 3, 3).unwrap();
@@ -69,3 +81,5 @@ async fn test_if_the_initializations_works_correct_for_legacy_tenants() -> Resul
     conn.close().await?;
     Ok(())
 }
+
+//TODO test with legacy tenant but no schema or index set up
