@@ -59,6 +59,11 @@ xayn-integration-tests = { path = "../integration-tests" }
 xayn-test-utils = { path = "../test-utils" }
 
 [[bench]]
+name = "coi_personalization"
+harness = false
+test = false
+
+[[bench]]
 name = "stateless_personalization"
 harness = false
 test = false

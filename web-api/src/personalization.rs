@@ -22,7 +22,7 @@ use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
-pub use self::stateless::bench_derive_interests;
+pub use self::{rerank::bench_rerank, stateless::bench_derive_interests};
 use crate::{
     app::{self, Application, SetupError},
     embedding::{self, Embedder},

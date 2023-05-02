@@ -12,13 +12,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, collections::HashMap, hash::Hash};
+use std::{
+    cmp::Ordering,
+    collections::HashMap,
+    hash::{BuildHasher, Hash},
+};
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
+use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, CoiSystem, UserInterests};
 
-use crate::models::{DocumentId, DocumentTag, PersonalizedDocument};
+use crate::{
+    models::{DocumentId, DocumentProperties, DocumentTag, PersonalizedDocument},
+    personalization::PersonalizationConfig,
+};
 
 fn rank_keys_by_score<K, S>(
     keys_with_score: impl IntoIterator<Item = (K, S)>,
@@ -111,4 +119,44 @@ pub(super) fn rerank_by_scores(
             )
         })
     });
+}
+
+#[doc(hidden)]
+pub fn bench_rerank<S>(
+    coi_system: &CoiSystem,
+    documents: Vec<(NormalizedEmbedding, Vec<String>)>,
+    interests: &UserInterests,
+    tag_weights: HashMap<String, usize, S>,
+    time: DateTime<Utc>,
+) where
+    S: BuildHasher,
+{
+    // small allocation overhead, but we don't have to expose a lot of private items
+    let mut documents = documents
+        .into_iter()
+        .enumerate()
+        .map(|(id, (embedding, tags))| PersonalizedDocument {
+            id: id.to_string().try_into().unwrap(),
+            score: 1.0,
+            embedding,
+            properties: DocumentProperties::default(),
+            tags: tags
+                .into_iter()
+                .map(|tag| tag.try_into().unwrap())
+                .collect_vec(),
+        })
+        .collect_vec();
+    let tag_weights = tag_weights
+        .into_iter()
+        .map(|(tag, weight)| (tag.try_into().unwrap(), weight))
+        .collect();
+    let score_weights = PersonalizationConfig::default().score_weights;
+    rerank_by_scores(
+        coi_system,
+        &mut documents,
+        interests,
+        &tag_weights,
+        score_weights,
+        time,
+    );
 }
