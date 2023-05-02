@@ -25,9 +25,9 @@ use crate::{request::TenantId, serde::serialize_redacted};
 
 pub type Client = Pool<Postgres>;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default)]
-pub(crate) struct Config {
+pub struct Config {
     /// The default base url.
     ///
     /// Passwords in the URL will be ignored, do not set the
@@ -54,7 +54,7 @@ pub(crate) struct Config {
     skip_migrations: bool,
 
     /// Number of connections in the pool.
-    min_pool_size: u8,
+    pub min_pool_size: u8,
 }
 
 impl Default for Config {
@@ -71,7 +71,6 @@ impl Default for Config {
         }
     }
 }
-
 
 impl Config {
     pub fn to_connection_options(&self) -> Result<PgConnectOptions, sqlx::Error> {
