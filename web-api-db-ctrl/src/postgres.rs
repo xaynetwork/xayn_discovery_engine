@@ -18,7 +18,7 @@ use std::{
     time::Duration,
 };
 
-use anyhow::bail;
+use anyhow::anyhow;
 use futures_util::{
     future::{self, join_all},
     Future,
@@ -119,17 +119,18 @@ pub(super) async fn initialize(
 
     unlock_lock_id(&mut conn, MIGRATION_LOCK_ID).await?;
 
-    //TODO we need to decide how to handle partial failure
-    if !failures.is_empty() {
-        for (tenant_id, error) in failures {
-            error!({ %tenant_id, %error }, "migration failed");
-        }
-        bail!("some tenant migrations failed");
+    for (tenant_id, error) in &failures {
+        error!({ %tenant_id, %error }, "migration failed");
     }
 
     conn.close().await?;
 
-    Ok(legacy_tenant_id)
+    //TODO we need to decide how to handle partial failure
+    if failures.is_empty() {
+        Ok(legacy_tenant_id)
+    } else {
+        Err(anyhow!("some tenant migrations failed"))
+    }
 }
 
 async fn initialize_legacy(tx: &mut Transaction<'_, Postgres>) -> Result<TenantId, Error> {
@@ -496,7 +497,7 @@ async fn unlock_lock_id(
     } else {
         error!(
             { lock_id },
-            "spurious pg_advisory_unlock which wasn't locket"
+            "spurious pg_advisory_unlock which wasn't locked"
         );
     }
     Ok(())
