@@ -14,6 +14,7 @@
 
 use std::{str, sync::Arc};
 
+use derive_more::{AsRef, From};
 use once_cell::sync::Lazy;
 use regex::bytes;
 use serde::{Deserialize, Serialize};
@@ -27,16 +28,9 @@ use sqlx::{
 use thiserror::Error;
 
 #[derive(
-    Clone,
-    Debug,
-    derive_more::Display,
-    derive_more::From,
-    PartialEq,
-    Eq,
-    Hash,
-    Deserialize,
-    Serialize,
+    Clone, Debug, derive_more::Display, From, AsRef, PartialEq, Eq, Hash, Deserialize, Serialize,
 )]
+#[as_ref(forward)]
 #[serde(transparent)]
 pub struct TenantId(Arc<str>);
 

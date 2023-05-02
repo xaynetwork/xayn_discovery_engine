@@ -18,6 +18,7 @@
 //! but sometimes are also very specific utility functions like
 //! a per-schema db lock.
 
+pub mod elastic;
 pub mod postgres;
 pub mod request;
 pub mod serde;

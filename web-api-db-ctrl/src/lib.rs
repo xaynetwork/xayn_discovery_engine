@@ -12,10 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod elastic;
 mod postgres;
 
 use sqlx::pool::PoolOptions;
 use xayn_web_api_shared::{
+    elastic::{Client as EsClient, Config as EsConfig},
     postgres::{Client as PgClient, Config as PgConfig},
     request::TenantId,
 };
@@ -23,31 +25,44 @@ use xayn_web_api_shared::{
 //TODO
 pub type Error = anyhow::Error;
 
-pub struct Config {
-    pub postgres: PgConfig,
-    pub enable_legacy_tenant: bool,
-}
-
 #[derive(Clone)]
 pub struct Silo {
     postgres: PgClient,
-    enable_legacy_tenant: bool,
+    elastic: EsClient,
+    enable_legacy_tenant: Option<LegacyTenantInfo>,
+}
+
+#[derive(Clone)]
+pub struct LegacyTenantInfo {
+    pub es_index: String,
 }
 
 impl Silo {
-    pub async fn builder(config: Config) -> Result<Self, Error> {
+    pub async fn new(
+        postgres: &PgConfig,
+        elastic: EsConfig,
+        enable_legacy_tenant: Option<LegacyTenantInfo>,
+    ) -> Result<Self, Error> {
         let postgres = PoolOptions::new()
-            .connect_with(config.postgres.to_connection_options()?)
+            .connect_with(postgres.to_connection_options()?)
             .await?;
+
+        let elastic = EsClient::new(elastic)?;
 
         Ok(Self {
             postgres,
-            enable_legacy_tenant: config.enable_legacy_tenant,
+            elastic,
+            enable_legacy_tenant,
         })
     }
 
     pub async fn initialize(&self) -> Result<Option<TenantId>, Error> {
-        postgres::initialize(&self.postgres, self.enable_legacy_tenant).await
+        let opt_legacy_setup = self.enable_legacy_tenant.as_ref().map(move |legacy_info| {
+            move |tenant_id| async move {
+                elastic::setup_legacy_tenant(&self.elastic, &legacy_info.es_index, &tenant_id).await
+            }
+        });
+        postgres::initialize(&self.postgres, opt_legacy_setup).await
     }
 
     pub async fn admin_as_mt_user_hack(&self) -> Result<(), Error> {
@@ -61,7 +76,7 @@ impl Silo {
     pub async fn create_tenant(&self, new_id: &TenantId) -> Result<(), Error> {
         let mut tx = self.postgres.begin().await?;
         postgres::create_tenant(&mut tx, new_id).await?;
-        //TODO elastic::create_tenant(&self.elastic, new_id).await?;
+        elastic::create_tenant(&self.elastic, new_id).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -69,7 +84,7 @@ impl Silo {
     pub async fn delete_tenant(&self, tenant_id: &TenantId) -> Result<(), Error> {
         let mut tx = self.postgres.begin().await?;
         postgres::delete_tenant(&mut tx, tenant_id).await?;
-        //TODO elastic::delete_tenant(&self.elastic, tenant_id)
+        elastic::delete_tenant(&self.elastic, tenant_id).await?;
         tx.commit().await?;
         Ok(())
     }

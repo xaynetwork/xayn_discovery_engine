@@ -27,13 +27,12 @@ use sqlx::{
     Transaction,
 };
 use tracing::{info, instrument};
-use xayn_web_api_db_ctrl::Silo;
 use xayn_web_api_shared::{
     postgres::{Config, QuotedIdentifier},
     request::TenantId,
 };
 
-use crate::{tenants, SetupError};
+use crate::SetupError;
 
 #[derive(Clone)]
 pub(crate) struct DatabaseBuilder {
@@ -69,24 +68,8 @@ impl Database {
     #[instrument(skip(config), err)]
     pub(crate) async fn builder(
         config: &Config,
-        tenants: &tenants::Config,
+        legacy_tenant: Option<TenantId>,
     ) -> Result<DatabaseBuilder, SetupError> {
-        let silo = Silo::builder(xayn_web_api_db_ctrl::Config {
-            postgres: config.clone(),
-            enable_legacy_tenant: tenants.enable_legacy_tenant,
-        })
-        .await?;
-
-        // FIXME: remove this once we have a proper separation between
-        //        a admin pg user owning the db structure and a web-api-mt
-        //        user which can only use tables but nothing more.
-        silo.admin_as_mt_user_hack().await?;
-
-        // FIXME: long term this should be run by the control plane,
-        //        in a different binary/lambda or similar before we
-        //        start updating the instances.
-        let legacy_tenant = silo.initialize().await?;
-
         let options = config.to_connection_options()?;
         info!("starting postgres setup");
         let pool = PoolOptions::new()

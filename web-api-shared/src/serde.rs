@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use secrecy::Secret;
-use serde::Serializer;
+use serde::{Serialize, Serializer};
 
 /// Serialize a `Secret<String>` as `"[REDACTED]"`.
 pub fn serialize_redacted<S>(_secret: &Secret<String>, serializer: S) -> Result<S::Ok, S::Error>
@@ -21,4 +21,16 @@ where
     S: Serializer,
 {
     serializer.serialize_str("[REDACTED]")
+}
+
+/// Serialize a sequence of serializable items into ndjson.
+pub(crate) fn serialize_to_ndjson(
+    items: impl IntoIterator<Item = Result<impl Serialize, serde_json::Error>>,
+) -> Result<Vec<u8>, serde_json::Error> {
+    let mut body = Vec::new();
+    for item in items {
+        serde_json::to_writer(&mut body, &item?)?;
+        body.push(b'\n');
+    }
+    Ok(body)
 }
