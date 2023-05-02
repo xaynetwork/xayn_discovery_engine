@@ -1,4 +1,4 @@
---  Copyright 2022 Xayn AG
+--  Copyright 2023 Xayn AG
 --
 --  This program is free software: you can redistribute it and/or modify
 --  it under the terms of the GNU Affero General Public License as
@@ -12,11 +12,4 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-CREATE TABLE IF NOT EXISTS document (
-    document_id TEXT NOT NULL PRIMARY KEY
-);
-
-ALTER TABLE interaction
-    ADD FOREIGN KEY (doc_id)
-    REFERENCES document (document_id)
-    ON DELETE CASCADE;
+REVOKE CREATE ON SCHEMA public FROM PUBLIC;

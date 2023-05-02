@@ -1,22 +1,23 @@
 [package]
-name = "xayn-integration-tests"
+name = "xayn-web-api-shared"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
+description = "Parts shared between the web-api and the web-api-db-ctrl crate."
 license = "AGPL-3.0-only"
-publish = false
 
 [dependencies]
 anyhow = { workspace = true }
+derive_more = { workspace = true }
+displaydoc = { workspace = true }
 once_cell = { workspace = true }
+rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
-scopeguard =  "1.1.0"
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-tokio = { workspace = true, features = ["macros"] }
-toml = { workspace = true }
+sqlx = { workspace = true }
+thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-xayn-test-utils = { path = "../test-utils" }
-xayn-web-api = { path = "../web-api" }

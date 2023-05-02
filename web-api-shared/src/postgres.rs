@@ -16,9 +16,98 @@ use std::{fmt::Display, str::FromStr};
 
 use once_cell::sync::Lazy;
 use regex::Regex;
+use secrecy::{ExposeSecret, Secret};
+use serde::{Deserialize, Serialize};
+use sqlx::{postgres::PgConnectOptions, Pool, Postgres, Type};
 use thiserror::Error;
 
+use crate::{request::TenantId, serde::serialize_redacted};
+
+pub type Client = Pool<Postgres>;
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Config {
+    /// The default base url.
+    ///
+    /// Passwords in the URL will be ignored, do not set the
+    /// db password with the db url.
+    base_url: String,
+
+    /// Override port from base url.
+    port: Option<u16>,
+
+    /// Override user from base url.
+    user: Option<String>,
+
+    /// Sets the password.
+    #[serde(serialize_with = "serialize_redacted")]
+    password: Secret<String>,
+
+    /// Override db from base url.
+    db: Option<String>,
+
+    /// Override default application name from base url.
+    application_name: Option<String>,
+
+    /// If true skips running db migrations on start up.
+    skip_migrations: bool,
+
+    /// Number of connections in the pool.
+    pub min_pool_size: u8,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            base_url: "postgres://user:pw@localhost:5432/xayn".into(),
+            port: None,
+            user: None,
+            password: String::from("pw").into(),
+            db: None,
+            application_name: option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}")),
+            skip_migrations: false,
+            min_pool_size: 25,
+        }
+    }
+}
+
+impl Config {
+    pub fn to_connection_options(&self) -> Result<PgConnectOptions, sqlx::Error> {
+        let Self {
+            base_url,
+            port,
+            user,
+            password,
+            db,
+            application_name,
+            ..
+        } = self;
+
+        let mut options = base_url
+            .parse::<PgConnectOptions>()?
+            .password(password.expose_secret());
+
+        if let Some(user) = user {
+            options = options.username(user);
+        }
+        if let Some(port) = port {
+            options = options.port(*port);
+        }
+        if let Some(db) = db {
+            options = options.database(db);
+        }
+        if let Some(application_name) = application_name {
+            options = options.application_name(application_name);
+        }
+
+        Ok(options)
+    }
+}
+
 /// A quoted postgres identifier.
+///
+/// If displayed (e.g. `.to_string()`) quotes (`"`) will be included.
 ///
 /// This can be used for cases where a SQL query is build
 /// dynamically and is parameterized over an identifier in
@@ -28,8 +117,20 @@ use thiserror::Error;
 ///
 /// Be aware that quoted identifiers are case-sensitive and limited to 63 bytes.
 /// Moreover, we only allow printable us-ascii characters excluding `"`; this is stricter than [postgres](https://www.postgresql.org/docs/15/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS).
-#[derive(Debug, Clone)]
-pub(crate) struct QuotedIdentifier(String);
+#[derive(Debug, Clone, Type)]
+#[sqlx(transparent)]
+pub struct QuotedIdentifier(String);
+
+impl QuotedIdentifier {
+    pub fn as_unquoted_str(&self) -> &str {
+        &self.0
+    }
+
+    pub fn db_name_for_tenant_id(tenant_id: &TenantId) -> Self {
+        format!("t:{tenant_id}").try_into()
+            .unwrap(/* tenant ids are a subset of valid quoted identifiers */)
+    }
+}
 
 impl FromStr for QuotedIdentifier {
     type Err = InvalidQuotedIdentifier;
@@ -63,7 +164,7 @@ impl Display for QuotedIdentifier {
 
 #[derive(Debug, Error)]
 #[error("String is not a supported quoted identifier: {identifier:?}")]
-pub(crate) struct InvalidQuotedIdentifier {
+pub struct InvalidQuotedIdentifier {
     identifier: String,
 }
 

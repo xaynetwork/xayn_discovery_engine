@@ -12,25 +12,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use derive_more::Deref;
-use xayn_web_api_shared::{elastic, request::TenantId};
+use secrecy::Secret;
+use serde::{Serialize, Serializer};
 
-use crate::SetupError;
-
-#[derive(Deref)]
-pub(crate) struct Client(elastic::Client);
-
-impl Client {
-    pub(crate) fn builder(config: elastic::Config) -> Result<ClientBuilder, SetupError> {
-        elastic::Client::new(config).map(ClientBuilder)
-    }
+/// Serialize a `Secret<String>` as `"[REDACTED]"`.
+pub fn serialize_redacted<S>(_secret: &Secret<String>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str("[REDACTED]")
 }
 
-#[derive(Clone)]
-pub(crate) struct ClientBuilder(elastic::Client);
-
-impl ClientBuilder {
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Client {
-        Client(self.0.with_index(tenant_id))
+/// Serialize a sequence of serializable items into ndjson.
+pub(crate) fn serialize_to_ndjson(
+    items: impl IntoIterator<Item = Result<impl Serialize, serde_json::Error>>,
+) -> Result<Vec<u8>, serde_json::Error> {
+    let mut body = Vec::new();
+    for item in items {
+        serde_json::to_writer(&mut body, &item?)?;
+        body.push(b'\n');
     }
+    Ok(body)
 }
