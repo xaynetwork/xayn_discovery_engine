@@ -15,6 +15,7 @@
 mod elastic;
 mod postgres;
 
+pub use elastic::create_tenant as elastic_create_tenant;
 use sqlx::pool::PoolOptions;
 use xayn_web_api_shared::{
     elastic::{Client as EsClient, Config as EsConfig},
