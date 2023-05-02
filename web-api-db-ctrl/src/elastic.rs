@@ -19,7 +19,7 @@ use xayn_web_api_shared::{elastic::Client, request::TenantId};
 
 use crate::Error;
 
-static MAPPING_STR: &str = include_str!("../elastic-search/mapping.json");
+static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
 
 pub(super) async fn create_tenant(elastic: &Client, new_id: &TenantId) -> Result<(), Error> {
