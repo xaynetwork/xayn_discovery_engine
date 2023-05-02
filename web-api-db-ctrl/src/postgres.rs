@@ -124,7 +124,7 @@ pub(super) async fn initialize(
         for (tenant_id, error) in failures {
             error!({ %tenant_id, %error }, "migration failed");
         }
-        bail!("all tenant migrations failed");
+        bail!("some tenant migrations failed");
     }
 
     conn.close().await?;
@@ -256,7 +256,7 @@ pub(super) async fn delete_tenant(
     }
 
     //Hint: $ binds won't work for identifiers (e.g. schema names)
-    let query = format!("DROP ROLE {tenant}; DROP SCHEMA {tenant};");
+    let query = format!("DROP SCHEMA {tenant} CASCADE; DROP ROLE {tenant};");
 
     tx.execute_many(query.as_str())
         .try_for_each(|_| future::ready(Ok(())))
