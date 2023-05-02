@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use once_cell::sync::Lazy;
-use reqwest::Method;
+use reqwest::{Method, StatusCode};
 use serde_json::{json, Value};
 use xayn_web_api_shared::{elastic::Client, request::TenantId};
 
@@ -22,7 +22,7 @@ use crate::Error;
 static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
 
-pub(super) async fn create_tenant(elastic: &Client, new_id: &TenantId) -> Result<(), Error> {
+pub async fn create_tenant(elastic: &Client, new_id: &TenantId) -> Result<(), Error> {
     elastic
         .with_index(new_id)
         .request(Method::PUT, [], [])
@@ -48,21 +48,35 @@ pub(crate) async fn setup_legacy_tenant(
     default_index: &str,
     tenant_id: &TenantId,
 ) -> Result<(), Error> {
-    elastic
-        .with_index("_aliases")
-        .request(Method::POST, [], [])
-        .json(&json!({
-          "actions": [
-            {
-              "add": {
-                "index": default_index,
-                "alias": tenant_id,
-              }
-            }
-          ]
-        }))
+    let response = elastic
+        .with_index(default_index)
+        .request(Method::GET, [], [])
         .send()
-        .await?
-        .error_for_status()?;
+        .await?;
+
+    let status = response.status();
+    if status == StatusCode::NOT_FOUND {
+        create_tenant(elastic, tenant_id).await?;
+    } else if status.is_success() {
+        elastic
+            .with_index("_aliases")
+            .request(Method::POST, [], [])
+            .json(&json!({
+              "actions": [
+                {
+                  "add": {
+                    "index": default_index,
+                    "alias": tenant_id,
+                  }
+                }
+              ]
+            }))
+            .send()
+            .await?
+            .error_for_status()?;
+    } else {
+        response.error_for_status()?;
+    }
+
     Ok(())
 }
