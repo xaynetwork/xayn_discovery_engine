@@ -19,9 +19,11 @@ use actix_web::{
     dev::{ServiceRequest, ServiceResponse},
 };
 use tracing::error;
-use xayn_web_api_shared::request::TenantId;
 
-use crate::{error::json_error::JsonErrorResponseBuilder, middleware::request_context::RequestId};
+use crate::{
+    error::json_error::JsonErrorResponseBuilder,
+    middleware::request_context::{RequestId, TenantId},
+};
 
 pub(crate) fn middleware_failure(
     middleware: &'static str,
