@@ -56,11 +56,9 @@ pub struct Config {
     /// Minimum number of connections in the pool.
     /// When the pool is built, this many connections will be automatically spun up.
     /// This value is clamped internally to not exceed `max_pool_size`.
-    /// Default: 0
     pub min_pool_size: u8,
 
     /// Maximum number of connections in the pool.
-    /// Default: 25
     pub max_pool_size: u8,
 }
 
