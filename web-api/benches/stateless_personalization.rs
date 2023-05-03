@@ -15,35 +15,35 @@
 use std::hint::black_box;
 
 use chrono::Utc;
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use itertools::Itertools;
 use xayn_ai_bert::Embedding1;
 use xayn_ai_coi::CoiConfig;
 use xayn_web_api::bench_derive_interests;
 
-fn derive_interests_with_identical_embeddings(embedding_size: usize, interest_size: usize) {
-    let system = CoiConfig::default().build();
-    let timestamp = Utc::now();
-    let embedding = Embedding1::from(vec![1.0; embedding_size])
-        .normalize()
-        .unwrap();
-    let history = vec![(timestamp, embedding); interest_size];
-    bench_derive_interests(black_box(&system), black_box(history));
-}
-
 macro_rules! bench_identical {
     ($($function: ident, $embedding_size: expr, $interest_size: expr);+ $(;)?) => {$(
         fn $function(c: &mut Criterion) {
+            let system = CoiConfig::default().build();
+            let timestamp = Utc::now();
+            let embedding = Embedding1::from(vec![1.0; $embedding_size])
+                .normalize()
+                .unwrap();
+            let history = vec![(timestamp, embedding); $interest_size];
+
             let name = format!(
                 "derive {} interests with identical embeddings ({})",
                 $interest_size,
                 $embedding_size,
             );
-            c.bench_function(&name, |b| {
-                b.iter(|| {
-                    derive_interests_with_identical_embeddings($embedding_size, $interest_size)
-                })
-            });
+            c.bench_function(
+                &name,
+                |b| b.iter_batched(
+                    || history.clone(),
+                    |history| bench_derive_interests(black_box(&system), black_box(history)),
+                    BatchSize::SmallInput,
+                ),
+            );
         }
     )+};
 }
@@ -65,33 +65,33 @@ criterion_group!(
     bench_derive_interests_with_identical_embedding_128_40,
 );
 
-fn derive_interests_with_orthogonal_embeddings(embedding_size: usize, interest_size: usize) {
-    let system = CoiConfig::default().build();
-    let timestamp = Utc::now();
-    let history = (0..interest_size)
-        .map(|i| {
-            let mut embedding = vec![0.0; embedding_size];
-            embedding[i] = 1.0;
-            let embedding = Embedding1::from(embedding).normalize().unwrap();
-            (timestamp, embedding)
-        })
-        .collect_vec();
-    bench_derive_interests(black_box(&system), black_box(history));
-}
-
 macro_rules! bench_orthogonal {
     ($($function: ident, $embedding_size: expr, $interest_size: expr);+ $(;)?) => {$(
         fn $function(c: &mut Criterion) {
+            let system = CoiConfig::default().build();
+            let timestamp = Utc::now();
+            let history = (0..$interest_size)
+                .map(|i| {
+                    let mut embedding = vec![0.0; $embedding_size];
+                    embedding[i] = 1.0;
+                    let embedding = Embedding1::from(embedding).normalize().unwrap();
+                    (timestamp, embedding)
+                })
+                .collect_vec();
+
             let name = format!(
                 "derive {} interests with orthogonal embeddings ({})",
                 $interest_size,
                 $embedding_size,
             );
-            c.bench_function(&name, |b| {
-                b.iter(|| {
-                    derive_interests_with_orthogonal_embeddings($embedding_size, $interest_size)
-                })
-            });
+            c.bench_function(
+                &name,
+                |b| b.iter_batched(
+                    || history.clone(),
+                    |history| bench_derive_interests(black_box(&system), black_box(history)),
+                    BatchSize::SmallInput,
+                ),
+            );
         }
     )+};
 }

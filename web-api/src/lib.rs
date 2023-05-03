@@ -52,5 +52,5 @@ pub use crate::{
     error::application::{ApplicationError, Error},
     ingestion::Ingestion,
     net::AppHandle,
-    personalization::{bench_derive_interests, Personalization},
+    personalization::{bench_derive_interests, bench_rerank, Personalization},
 };
