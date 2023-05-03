@@ -28,7 +28,8 @@ stdout = """
       "db": "mydb",
       "application_name": "the-application",
       "skip_migrations": false,
-      "min_pool_size": 25
+      "min_pool_size": 0,
+      "max_pool_size": 25
     }
   },
   "ingestion": {

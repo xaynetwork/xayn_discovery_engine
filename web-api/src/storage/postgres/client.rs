@@ -74,6 +74,7 @@ impl Database {
         info!("starting postgres setup");
         let pool = PoolOptions::new()
             .min_connections(u32::from(config.min_pool_size))
+            .max_connections(u32::from(config.max_pool_size))
             .after_release(|conn, _metadata| {
                 async {
                     sqlx::query("RESET ROLE;").execute(conn).await?;

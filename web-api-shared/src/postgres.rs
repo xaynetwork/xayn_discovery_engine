@@ -53,8 +53,15 @@ pub struct Config {
     /// If true skips running db migrations on start up.
     skip_migrations: bool,
 
-    /// Number of connections in the pool.
+    /// Minimum number of connections in the pool.
+    /// When the pool is built, this many connections will be automatically spun up.
+    /// This value is clamped internally to not exceed `max_pool_size`.
+    /// Default: 0
     pub min_pool_size: u8,
+
+    /// Maximum number of connections in the pool.
+    /// Default: 25
+    pub max_pool_size: u8,
 }
 
 impl Default for Config {
@@ -67,7 +74,8 @@ impl Default for Config {
             db: None,
             application_name: option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}")),
             skip_migrations: false,
-            min_pool_size: 25,
+            min_pool_size: 0,
+            max_pool_size: 25,
         }
     }
 }
