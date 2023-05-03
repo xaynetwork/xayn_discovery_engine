@@ -23,7 +23,7 @@ use anyhow::bail;
 use itertools::{Either, Itertools};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
-use tracing::{error, info, instrument};
+use tracing::{debug, error, instrument};
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use super::AppState;
@@ -337,7 +337,7 @@ async fn upsert_documents(
         )
         .collect_vec();
 
-    info!(
+    debug!(
         "{} new embeddings calculated in {} seconds and {} unchanged embeddings skipped",
         new_documents.len(),
         start.elapsed().as_secs(),
