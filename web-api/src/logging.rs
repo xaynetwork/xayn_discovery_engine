@@ -17,7 +17,7 @@
 use std::{fs::OpenOptions, sync::Once};
 
 use serde::{Deserialize, Serialize};
-use tracing::Level;
+use tracing::{error, Level};
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     layer::SubscriberExt,
@@ -121,14 +121,14 @@ fn init_tracing_once(log_config: &Config) {
 fn init_panic_logging() {
     std::panic::set_hook(Box::new(|panic| {
         if let Some(location) = panic.location() {
-            tracing::error!(
+            error!(
                 message = %panic,
                 panic.file = location.file(),
                 panic.line = location.line(),
                 panic.column = location.column(),
             );
         } else {
-            tracing::error!(message = %panic);
+            error!(message = %panic);
         }
     }));
 }

@@ -22,6 +22,7 @@ use actix_web::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use super::{
@@ -542,7 +543,7 @@ async fn semantic_search(
         documents: documents.into_iter().map_into().collect(),
     }));
 
-    tracing::info!(elapsed_time = request_start.elapsed().as_millis());
+    debug!(elapsed_time = request_start.elapsed().as_millis());
 
     response
 }
