@@ -13,8 +13,7 @@
 
 use derive_more::Deref;
 use figment::value::magic::RelativePathBuf as FigmentRelativePathBuf;
-use secrecy::Secret;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Deref)]
 #[serde(transparent)]
@@ -28,47 +27,5 @@ impl From<&str> for RelativePathBuf {
         Self {
             inner: FigmentRelativePathBuf::from(s),
         }
-    }
-}
-
-/// Serialize a `Secret<String>` as `"[REDACTED]"`.
-pub(crate) fn serialize_redacted<S>(
-    _secret: &Secret<String>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str("[REDACTED]")
-}
-
-/// Serialize a sequence of serializable items into ndjson.
-pub(crate) fn serialize_to_ndjson(
-    items: impl IntoIterator<Item = Result<impl Serialize, serde_json::Error>>,
-) -> Result<Vec<u8>, serde_json::Error> {
-    let mut body = Vec::new();
-    for item in items {
-        serde_json::to_writer(&mut body, &item?)?;
-        body.push(b'\n');
-    }
-    Ok(body)
-}
-
-pub(crate) mod serde_duration_as_seconds {
-    use std::time::Duration;
-
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-    pub(crate) fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        duration.as_secs().serialize(serializer)
-    }
-
-    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        u64::deserialize(deserializer).map(Duration::from_secs)
     }
 }

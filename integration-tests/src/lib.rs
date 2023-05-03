@@ -36,6 +36,7 @@ use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
 use toml::{toml, Table, Value};
 use tracing_subscriber::filter::LevelFilter;
+use tracing::{error_span, Instrument};
 use uuid::Uuid;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, logging, start, AppHandle, Application};
@@ -180,12 +181,13 @@ pub async fn test_two_apps<A1, A2, F>(
     res2.expect("second application to not fail during shutdown");
 }
 
-fn build_client(services: &Services) -> Arc<Client> {
-    let mut default_headers = HeaderMap::default();
-    default_headers.insert(
-        "X-Xayn-Tenant-Id",
-        services.tenant_id.as_str().try_into().unwrap(),
-    );
+fn build_client(_services: &Services) -> Arc<Client> {
+    let default_headers = HeaderMap::default();
+    //FIXME test tool doesn't yet setup tenants
+    // default_headers.insert(
+    //     "X-Xayn-Tenant-Id",
+    //     services.tenant_id.as_str().try_into().unwrap(),
+    // );
     Arc::new(
         Client::builder()
             .default_headers(default_headers)
@@ -246,7 +248,10 @@ where
 
     let config = config::load_with_args([0u8; 0], args);
 
-    start::<A>(config).await.unwrap()
+    start::<A>(config)
+        .instrument(error_span!("test", test_id = %services.id))
+        .await
+        .unwrap()
 }
 
 /// Generates an ID for the test.

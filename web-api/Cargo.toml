@@ -20,7 +20,7 @@ displaydoc = { workspace = true }
 dotenvy = "0.15.6"
 either = { version = "1.8.1", features = ["serde"] }
 figment = { workspace = true, features = ["env", "toml"] }
-futures-util = "0.3.27"
+futures-util = { workspace = true }
 itertools = { workspace = true }
 mime = "0.3.16"
 ndarray = { workspace = true }
@@ -29,7 +29,7 @@ pin-project = "1.0.12"
 rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
-secrecy = { version = "0.8.0", features = ["serde"] }
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["chrono", "uuid"] }
@@ -43,6 +43,8 @@ uuid = { workspace = true }
 xayn-ai-bert = { path = "../bert", features = ["sqlx"] }
 xayn-ai-coi = { path = "../coi", features = ["sqlx"] }
 xayn-summarizer = { path = "../summarizer" }
+xayn-web-api-db-ctrl = { path = "../web-api-db-ctrl" }
+xayn-web-api-shared = { path = "../web-api-shared" }
 
 [dev-dependencies]
 bincode = "1.3.3"

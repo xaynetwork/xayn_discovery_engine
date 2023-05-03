@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod client;
-mod utils;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -22,7 +21,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-pub(crate) use client::{Config, Database, DatabaseBuilder};
+pub(crate) use client::{Database, DatabaseBuilder};
 use either::Either;
 use itertools::Itertools;
 use sqlx::{
