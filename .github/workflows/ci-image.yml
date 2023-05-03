@@ -36,13 +36,6 @@ jobs:
       - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@4b4e9c3e2d4531116a6f8ba8e71fc6e2cb6e6c8c # v2.5.0
 
-      - name: Determine rust version
-        shell: bash
-        run: |
-          set -eux
-          RUST_VERSION=$(perl -ne 'print $1 if /channel = \"(.*)\"/' rust-toolchain.toml)
-          echo "rust_version=${RUST_VERSION}" >> $GITHUB_ENV
-
       - name: Determine image tag
         run: |
           IMAGE_TAG="$(git rev-parse --short "$GITHUB_SHA")"
@@ -52,16 +45,7 @@ jobs:
         shell: bash
         run: |
           set -eux
-          source .env
-          docker build \
-            --build-arg rust_version="${{ env.rust_version }}" \
-            --build-arg just_version="${JUST_VERSION}" \
-            --build-arg cargo_sort_version="${CARGO_SORT_VERSION}" \
-            --build-arg spectral_cli_version="${SPECTRAL_CLI_VERSION}" \
-            --build-arg ibm_openapi_ruleset_version="${IBM_OPENAPI_RULESET_VERSION}" \
-            --build-arg validator_version="${VALIDATOR_VERSION}" \
-            --tag "${{ env.image_name }}:${{ env.image_tag }}" \
-            - < .github/docker/Dockerfile.ci-image
+          just build-ci-image "${{ env.image_name }}:${{ env.image_tag }}"
 
       - name: Login to Docker Hub
         uses: docker/login-action@f4ef78c080cd8ba55a85445d5b36e214a81df20a # v2.1.0
