@@ -1,6 +1,7 @@
 services:
   postgres:
     image: postgres:15.2
+    mem_limit: 1024m
     restart: always
     environment:
       POSTGRES_USER: user
@@ -16,16 +17,9 @@ services:
       timeout: 5s
       retries: 5
 
-  adminer:
-    image: adminer
-    restart: always
-    ports:
-      - "${HOST_PORT_SCOPE:-30}80:8080"
-    networks:
-      - internal
-
   elasticsearch:
     image: elasticsearch:8.7.0
+    mem_limit: 2048m
     restart: always
     environment:
       - discovery.type=single-node
@@ -63,6 +57,14 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+
+  # adminer:
+  #   image: adminer
+  #   restart: always
+  #   ports:
+  #     - "${HOST_PORT_SCOPE:-30}80:8080"
+  #   networks:
+  #     - internal
 
   # kibana:
   #   image: kibana:8.4.0
