@@ -23,10 +23,9 @@ use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
 use xayn_ai_bert::InvalidEmbedding;
-use xayn_web_api_shared::elastic;
 
 use super::application::ApplicationError;
-use crate::{impl_application_error, models::DocumentId, Error};
+use crate::{impl_application_error, models::DocumentId, storage::elastic::ElasticError, Error};
 
 impl_application_error!(InvalidEmbedding => BAD_REQUEST);
 
@@ -134,8 +133,8 @@ impl From<String> for BadRequest {
     }
 }
 
-impl From<elastic::Error> for Error {
-    fn from(error: elastic::Error) -> Self {
+impl From<ElasticError> for Error {
+    fn from(error: ElasticError) -> Self {
         InternalError::from_std(error).into()
     }
 }
