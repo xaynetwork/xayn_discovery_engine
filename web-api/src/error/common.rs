@@ -22,30 +22,29 @@ use derive_more::From;
 use displaydoc::Display;
 use serde::Serialize;
 use thiserror::Error;
+use tracing::Level;
 use xayn_ai_bert::InvalidEmbedding;
 
 use super::application::ApplicationError;
-use crate::{impl_application_error, models::DocumentId, storage::elastic::ElasticError, Error};
+use crate::{
+    error::application::{impl_application_error, Error},
+    models::DocumentId,
+    storage::elastic::ElasticError,
+};
 
-impl_application_error!(InvalidEmbedding => BAD_REQUEST);
+impl_application_error!(InvalidEmbedding => INTERNAL_SERVER_ERROR, ERROR);
 
 /// The requested document was not found.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct DocumentNotFound;
 
-impl_application_error!(DocumentNotFound => BAD_REQUEST);
+impl_application_error!(DocumentNotFound => BAD_REQUEST, INFO);
 
 /// The requested document was found but not the requested property.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct DocumentPropertyNotFound;
 
-impl_application_error!(DocumentPropertyNotFound => BAD_REQUEST);
-
-/// The requested property was not found.
-#[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct PropertyNotFound;
-
-impl_application_error!(PropertyNotFound => BAD_REQUEST);
+impl_application_error!(DocumentPropertyNotFound => BAD_REQUEST, INFO);
 
 /// Malformed user id.
 #[derive(Debug, Error, Display, Serialize)]
@@ -53,7 +52,7 @@ pub(crate) struct InvalidUserId {
     pub(crate) value: String,
 }
 
-impl_application_error!(InvalidUserId => BAD_REQUEST);
+impl_application_error!(InvalidUserId => BAD_REQUEST, INFO);
 
 /// Malformed document id.
 #[derive(Debug, Error, Display, Serialize)]
@@ -61,7 +60,7 @@ pub(crate) struct InvalidDocumentId {
     pub(crate) value: String,
 }
 
-impl_application_error!(InvalidDocumentId => BAD_REQUEST);
+impl_application_error!(InvalidDocumentId => BAD_REQUEST, INFO);
 
 /// Malformed document property id.
 #[derive(Debug, Error, Display, Serialize)]
@@ -69,7 +68,7 @@ pub(crate) struct InvalidDocumentPropertyId {
     pub(crate) value: String,
 }
 
-impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST);
+impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
 /// Malformed document tag.
 #[derive(Debug, Error, Display, Serialize)]
@@ -77,7 +76,7 @@ pub(crate) struct InvalidDocumentTag {
     pub(crate) value: String,
 }
 
-impl_application_error!(InvalidDocumentTag => BAD_REQUEST);
+impl_application_error!(InvalidDocumentTag => BAD_REQUEST, INFO);
 
 /// Failed to delete some documents.
 #[derive(Debug, Error, Display, Serialize)]
@@ -85,7 +84,7 @@ pub(crate) struct FailedToDeleteSomeDocuments {
     pub(crate) errors: Vec<DocumentIdAsObject>,
 }
 
-impl_application_error!(FailedToDeleteSomeDocuments => BAD_REQUEST);
+impl_application_error!(FailedToDeleteSomeDocuments => BAD_REQUEST, INFO);
 
 /// The ingestion of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]
@@ -93,7 +92,7 @@ pub(crate) struct IngestingDocumentsFailed {
     pub(crate) documents: Vec<DocumentIdAsObject>,
 }
 
-impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR);
+impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR, ERROR);
 
 /// Failed to set some document candidates.
 #[derive(Debug, Display, Error, Serialize)]
@@ -101,13 +100,13 @@ pub(crate) struct FailedToSetSomeDocumentCandidates {
     pub(crate) documents: Vec<DocumentIdAsObject>,
 }
 
-impl_application_error!(FailedToSetSomeDocumentCandidates => BAD_REQUEST);
+impl_application_error!(FailedToSetSomeDocumentCandidates => BAD_REQUEST, INFO);
 
 /// The history does not contains enough information.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct HistoryTooSmall;
 
-impl_application_error!(HistoryTooSmall => BAD_REQUEST);
+impl_application_error!(HistoryTooSmall => BAD_REQUEST, INFO);
 
 /// Custom error for 400 Bad Request status code.
 #[derive(Debug, Error, Display, Serialize, From)]
@@ -115,7 +114,7 @@ pub(crate) struct BadRequest {
     pub(crate) message: Cow<'static, str>,
 }
 
-impl_application_error!(BadRequest => BAD_REQUEST);
+impl_application_error!(BadRequest => BAD_REQUEST, INFO);
 
 impl From<&'static str> for BadRequest {
     fn from(message: &'static str) -> Self {
@@ -170,6 +169,10 @@ impl ApplicationError for InternalError {
 
     fn kind(&self) -> &str {
         "InternalServerError"
+    }
+
+    fn level(&self) -> Level {
+        Level::ERROR
     }
 
     fn encode_details(&self) -> serde_json::Value {

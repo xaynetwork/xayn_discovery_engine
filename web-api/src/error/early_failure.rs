@@ -18,10 +18,10 @@ use actix_web::{
     body::BoxBody,
     dev::{ServiceRequest, ServiceResponse},
 };
-use tracing::error;
+use tracing::Level;
 
 use crate::{
-    error::json_error::JsonErrorResponseBuilder,
+    error::{application::application_event, json_error::JsonErrorResponseBuilder},
     middleware::request_context::{RequestId, TenantId},
 };
 
@@ -30,18 +30,20 @@ pub(crate) fn middleware_failure(
     request: ServiceRequest,
     request_id: Option<RequestId>,
     tenant_id: Option<TenantId>,
-    error: impl Display,
+    event: impl Display,
+    level: Level,
 ) -> ServiceResponse<BoxBody> {
     let request_id = request_id.unwrap_or_else(RequestId::missing);
     let tenant_id = tenant_id.unwrap_or_else(TenantId::missing);
 
-    error!(
+    application_event!(
+        level,
         middleware,
         path = %request.request().path(),
         method = %request.request().method(),
         %request_id,
         %tenant_id,
-        %error,
+        %event,
     );
 
     let (request, _) = request.into_parts();

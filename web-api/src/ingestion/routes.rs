@@ -197,10 +197,7 @@ impl UnvalidatedIngestedDocument {
         };
 
         validate().map_err(|error| {
-            info!(
-                "Document with id '{}' caused a PipelineError: {:#?}",
-                self.id, error,
-            );
+            info!("Invalid document '{}': {:#?}", self.id, error);
             self.id.into()
         })
     }
@@ -326,10 +323,7 @@ async fn upsert_documents(
                     is_candidate: new_is_candidate.value,
                 }),
                 Err(error) => {
-                    error!(
-                        "Failed to embed document with id '{}': {:#?}",
-                        document.id, error,
-                    );
+                    error!("Failed to embed document '{}': {:#?}", document.id, error);
                     failed_documents.push(document.id.into());
                     None
                 }
