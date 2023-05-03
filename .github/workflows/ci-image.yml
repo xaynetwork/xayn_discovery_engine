@@ -23,7 +23,7 @@ permissions:
 
 env:
   image_name: xaynetci/yellow
-  release_tag: v12
+  release_tag: v13
 
 jobs:
   build-docker-image:

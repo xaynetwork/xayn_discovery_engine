@@ -39,7 +39,7 @@ jobs:
   services-build:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v12
+      image: xaynetci/yellow:v13
     timeout-minutes: 30
     permissions:
       id-token: write
@@ -54,11 +54,6 @@ jobs:
           echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
-
-          apt update -y && apt upgrade -y
-          apt install -y g++-aarch64-linux-gnu libc6-dev-arm64-cross
-
-          rustup target add aarch64-unknown-linux-gnu
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
