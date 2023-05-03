@@ -14,7 +14,7 @@
 
 mod state;
 
-use std::{env::current_dir, path::PathBuf, sync::Arc};
+use std::{env::current_dir, fmt::Debug, path::PathBuf, sync::Arc};
 
 use actix_web::{web::ServiceConfig, App};
 use async_trait::async_trait;
@@ -43,6 +43,7 @@ pub trait Application: 'static {
         + Serialize
         + Send
         + Sync
+        + Debug
         + 'static;
     type Extension: Send + Sync + 'static;
 
