@@ -162,18 +162,20 @@ fn extract_tenant_id(
     legacy_tenant: Option<&TenantId>,
     request: &ServiceRequest,
 ) -> Result<TenantId, anyhow::Error> {
+    if let Some(id) = legacy_tenant {
+        return Ok(id.clone());
+    }
+
     let header_value = request
         .headers()
         .get(TENANT_ID_HEADER)
         .map(|value| TenantId::try_parse_ascii(trim_ascii(value.as_bytes())))
         .transpose()?;
 
-    match (header_value, legacy_tenant) {
-        //FIXME in follow up PR this ID will be fetched from the database
-        //      during startup/storage initialization.
-        (None, Some(legacy_tenant)) => Ok(legacy_tenant.clone()),
-        (None, None) => Err(anyhow!("{TENANT_ID_HEADER} header missing")),
-        (Some(passed_value), _) => Ok(passed_value),
+    if let Some(id) = header_value {
+        Ok(id)
+    } else {
+        Err(anyhow!("{TENANT_ID_HEADER} header missing"))
     }
 }
 
