@@ -12,9 +12,6 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
--- WARNING: We use the existence of `public.document` to determine
---          if there is a legacy setup in `public`. If you rename or
---          delete this table do make sure you update the check.
 CREATE TABLE IF NOT EXISTS document (
     document_id TEXT NOT NULL PRIMARY KEY
 );
