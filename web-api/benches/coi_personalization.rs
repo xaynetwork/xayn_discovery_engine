@@ -26,6 +26,10 @@ use xayn_ai_bert::Embedding1;
 use xayn_ai_coi::{CoiConfig, CoiId, CoiStats, PositiveCoi, UserInterests};
 use xayn_web_api::bench_rerank;
 
+fn tag(i: usize) -> String {
+    format!("tag {i}")
+}
+
 macro_rules! bench_rerank {
     ($(
         $function: ident,
@@ -51,7 +55,7 @@ macro_rules! bench_rerank {
                     )
                     .normalize()
                     .unwrap();
-                    let tags = vec![format!("tag {}", ints.sample(&mut rng))];
+                    let tags = vec![tag(ints.sample(&mut rng))];
                     (embedding, tags)
                 })
                 .collect_vec();
@@ -80,9 +84,7 @@ macro_rules! bench_rerank {
                 negative: Vec::new(),
             };
 
-            let tag_weights = (0..$interest_size)
-                .map(|i| (format!("tag {i}"), i))
-                .collect::<HashMap<_, _>>();
+            let tag_weights = (0..$interest_size).map(|i| (tag(i), i)).collect::<HashMap<_, _>>();
 
             let name = format!(
                 "rerank {} documents on {} interests (embedding size: {})",
