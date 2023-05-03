@@ -214,8 +214,8 @@ fn extract_tenant_id(
     config: &tenants::Config,
     request: &ServiceRequest,
 ) -> Result<TenantId, anyhow::Error> {
-    if let Some(id) = legacy_tenant {
-        return Ok(id.clone());
+    if config.enable_legacy_tenant {
+        return Ok(TenantId::missing());
     }
 
     let header_value = request
