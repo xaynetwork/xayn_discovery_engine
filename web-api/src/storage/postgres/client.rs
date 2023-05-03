@@ -148,7 +148,7 @@ impl Database {
             sqlx::migrate!().run(&pool).await?;
 
             //FIXME handle legacy tenant here (in follow up PR)
-            let _ = enable_legacy_tenant;
+            let _: bool = enable_legacy_tenant;
         }
 
         Ok(DatabaseBuilder { pool })
