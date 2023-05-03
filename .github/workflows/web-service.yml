@@ -25,6 +25,8 @@ on:
           Default is <branch>-<timestamp>-<commit hash>-<model_name>_<model_version>-<platform>.
           Step 'Images name' will print the name of the generated images.
 
+run-name: ${{ github.ref_name }} - ${{ inputs.model_name }}_${{ inputs.model_version }}
+
 permissions:
   contents: read
 
