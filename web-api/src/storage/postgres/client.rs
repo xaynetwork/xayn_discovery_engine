@@ -73,7 +73,7 @@ pub(crate) struct Config {
     min_pool_size: u8,
 
     /// Maximum number of connections in the pool.
-    #[serde(default="default_max_pool_size")]
+    #[serde(default = "default_max_pool_size")]
     max_pool_size: u8,
 }
 
