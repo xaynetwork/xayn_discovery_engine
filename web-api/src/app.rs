@@ -70,6 +70,8 @@ where
 {
     init_tracing(config.as_ref());
 
+    info!({ ?config }, "starting service");
+
     let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
     info!(pwd=?pwd);
 
