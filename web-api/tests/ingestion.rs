@@ -48,11 +48,14 @@ async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
 #[derive(Debug, Deserialize, PartialEq)]
 enum Kind {
     DocumentNotFound,
+    FailedToValidateDocuments,
     FailedToDeleteSomeDocuments,
 }
 
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 enum Details {
+    #[serde(rename = "documents")]
+    Ingest(Value),
     #[serde(rename = "errors")]
     Delete(Value),
 }
@@ -64,7 +67,7 @@ struct Error {
 }
 
 #[tokio::test]
-async fn test_ingestion() {
+async fn test_ingestion_created() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
@@ -87,6 +90,39 @@ async fn test_ingestion() {
         .await;
         assert_eq!(error.kind, Kind::DocumentNotFound);
         assert!(error.details.is_none());
+        Ok(())
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn test_ingestion_bad_request() {
+    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+        let error = send_assert_json::<Error>(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d!", "snippet": "once in a spring there was a fall" },
+                        { "id": "d2", "snippet": "fall in a once" }
+                    ]
+                }))
+                .build()?,
+            StatusCode::BAD_REQUEST,
+        )
+        .await;
+        assert_eq!(error.kind, Kind::FailedToValidateDocuments);
+        assert_eq!(
+            error.details.unwrap(),
+            Details::Ingest(json!([ { "id": "d!" } ])),
+        );
+        send_assert(
+            &client,
+            client.get(url.join("/documents/d2/properties")?).build()?,
+            StatusCode::OK,
+        )
+        .await;
         Ok(())
     })
     .await;

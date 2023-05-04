@@ -86,13 +86,21 @@ pub(crate) struct FailedToDeleteSomeDocuments {
 
 impl_application_error!(FailedToDeleteSomeDocuments => BAD_REQUEST, INFO);
 
-/// The ingestion of some documents failed.
+/// The validation of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct IngestingDocumentsFailed {
+pub(crate) struct FailedToValidateDocuments {
     pub(crate) documents: Vec<DocumentIdAsObject>,
 }
 
-impl_application_error!(IngestingDocumentsFailed => INTERNAL_SERVER_ERROR, ERROR);
+impl_application_error!(FailedToValidateDocuments => BAD_REQUEST, INFO);
+
+/// The ingestion of some documents failed.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct FailedToIngestDocuments {
+    pub(crate) documents: Vec<DocumentIdAsObject>,
+}
+
+impl_application_error!(FailedToIngestDocuments => INTERNAL_SERVER_ERROR, ERROR);
 
 /// Failed to set some document candidates.
 #[derive(Debug, Display, Error, Serialize)]

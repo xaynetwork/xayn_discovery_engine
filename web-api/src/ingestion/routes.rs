@@ -35,8 +35,9 @@ use crate::{
         DocumentNotFound,
         DocumentPropertyNotFound,
         FailedToDeleteSomeDocuments,
+        FailedToIngestDocuments,
         FailedToSetSomeDocumentCandidates,
-        IngestingDocumentsFailed,
+        FailedToValidateDocuments,
     },
     models::{self, DocumentId, DocumentProperties, DocumentProperty, DocumentTag},
     storage,
@@ -228,7 +229,7 @@ async fn upsert_documents(
         .into());
     }
 
-    let (documents, mut failed_documents) = body
+    let (documents, invalid_documents) = body
         .documents
         .into_iter()
         .map(UnvalidatedIngestedDocument::validate)
@@ -310,11 +311,11 @@ async fn upsert_documents(
     .await?;
 
     let start = Instant::now();
-    let new_documents = new_documents
+    let (new_documents, mut failed_documents) = new_documents
         .into_iter()
-        .filter_map(
-            |(document, new_is_candidate)| match state.embedder.run(&document.snippet) {
-                Ok(embedding) => Some(models::IngestedDocument {
+        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
+            match state.embedder.run(&document.snippet) {
+                Ok(embedding) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
                     properties: document.properties,
@@ -324,12 +325,10 @@ async fn upsert_documents(
                 }),
                 Err(error) => {
                     error!("Failed to embed document '{}': {:#?}", document.id, error);
-                    failed_documents.push(document.id.into());
-                    None
+                    Either::Right(document.id.into())
                 }
-            },
-        )
-        .collect_vec();
+            }
+        });
 
     debug!(
         "{} new embeddings calculated in {} seconds and {} unchanged embeddings skipped",
@@ -344,13 +343,19 @@ async fn upsert_documents(
             .map(Into::into),
     );
 
-    if failed_documents.is_empty() {
-        Ok(HttpResponse::Created())
-    } else {
-        Err(IngestingDocumentsFailed {
+    if !failed_documents.is_empty() {
+        failed_documents.extend(invalid_documents);
+        Err(FailedToIngestDocuments {
             documents: failed_documents,
         }
         .into())
+    } else if !invalid_documents.is_empty() {
+        Err(FailedToValidateDocuments {
+            documents: invalid_documents,
+        }
+        .into())
+    } else {
+        Ok(HttpResponse::Created())
     }
 }
 
