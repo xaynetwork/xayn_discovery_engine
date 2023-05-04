@@ -1,0 +1,15 @@
+name: CI -- PR Specific Events
+
+on:
+  pull_request:
+    branches-ignore:
+      - '_bors*'
+      
+jobs:
+  check-migration-unchanged:
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v12
+    steps:
+      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f
+      - run: just validate-migrations-unchanged ${{ github.event.pull_request.base.sha }}
