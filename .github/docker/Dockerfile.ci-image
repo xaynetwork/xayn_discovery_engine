@@ -19,7 +19,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*;
 
 # Begin: Rust base
-# Taken from https://github.com/rust-lang/docker-rust/blob/f558c4c660fd925e278da432640342de993f2bc7/1.68.0/bullseye/slim/Dockerfile
+# Taken from https://github.com/rust-lang/docker-rust/blob/e715973ebf70db0f75722a8d68339fe4a2ecf8c8/1.69.0/bookworm/slim/Dockerfile
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
