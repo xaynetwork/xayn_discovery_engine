@@ -25,7 +25,7 @@ jobs:
   open-api:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v12
+      image: xaynetci/yellow:v13
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
   
@@ -36,7 +36,7 @@ jobs:
     if: ${{ always() }}
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v12
+      image: xaynetci/yellow:v13
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
