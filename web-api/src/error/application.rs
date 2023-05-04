@@ -17,15 +17,14 @@ use derive_more::{Deref, Display};
 use serde::Serialize;
 use serde_json::Value;
 use thiserror::Error;
-use tracing::error;
+use tracing::Level;
 
 use super::json_error::JsonErrorResponseBuilder;
 use crate::middleware::request_context::RequestId;
 
 #[derive(Display, Debug, Deref, Error)]
-#[display(fmt = "{error}")]
+#[deref(forward)]
 pub struct Error {
-    #[deref(forward)]
     error: Box<dyn ApplicationError>,
 }
 
@@ -46,16 +45,30 @@ where
     }
 }
 
+/// Workaround to use a non-constant `tracing::Level` in the `tracing::event!` macro.
+macro_rules! application_event {
+    ($level:expr, $($fields:tt)*) => {{
+        match $level {
+            ::tracing::Level::TRACE => ::tracing::trace!($($fields)*),
+            ::tracing::Level::DEBUG => ::tracing::debug!($($fields)*),
+            ::tracing::Level::INFO => ::tracing::info!($($fields)*),
+            ::tracing::Level::WARN => ::tracing::warn!($($fields)*),
+            ::tracing::Level::ERROR => ::tracing::error!($($fields)*),
+        }
+    }};
+}
+pub(crate) use application_event;
+
 impl ResponseError for Error {
     fn status_code(&self) -> StatusCode {
         self.error.status_code()
     }
 
     fn error_response(&self) -> HttpResponse<BoxBody> {
-        // We log the error before rendering it as we likely will
+        // We log the event before rendering it as we likely will
         // not include all information in the response which we
         // might want to have in the logs.
-        error!(error=%self.error);
+        application_event!(self.level(), error=%self.error);
         let request_id =
             RequestId::extract_from_task_local_storage().unwrap_or(RequestId::missing());
         JsonErrorResponseBuilder::render(
@@ -70,39 +83,48 @@ impl ResponseError for Error {
 pub trait ApplicationError: std::error::Error + Send + Sync + 'static {
     fn status_code(&self) -> StatusCode;
     fn kind(&self) -> &str;
+    fn level(&self) -> Level;
     fn encode_details(&self) -> Value {
         Value::Null
     }
 }
 
 /// Implements `ApplicationError` for given type using given http status code.
-#[macro_export]
 macro_rules! impl_application_error {
-    ($name:ident => $code:ident) => {
+    ($name:ident => $code:ident, $level:ident) => {
         impl $crate::error::application::ApplicationError for $name {
             fn status_code(&self) -> ::actix_web::http::StatusCode {
                 ::actix_web::http::StatusCode::$code
             }
 
             fn kind(&self) -> &str {
-                stringify!($name)
+                ::std::stringify!($name)
+            }
+
+            fn level(&self) -> ::tracing::Level {
+                ::tracing::Level::$level
             }
 
             fn encode_details(&self) -> ::serde_json::Value {
                 ::serde_json::to_value(self)
-                    .unwrap_or_else(|err| {
-                        ::tracing::error!(%err, "serializing error details failed");
+                    .unwrap_or_else(|error| {
+                        ::tracing::event!(
+                            ::tracing::Level::$level,
+                            %error,
+                            "serializing error details failed",
+                        );
                         ::serde_json::Value::Null
                     })
             }
         }
     };
 }
+pub(crate) use impl_application_error;
 
-#[derive(Debug, Display, Error, Serialize)]
 /// Given functionality is not implemented.
+#[derive(Debug, Display, Error, Serialize)]
 pub(crate) struct Unimplemented {
     pub(crate) functionality: &'static str,
 }
 
-impl_application_error!(Unimplemented => INTERNAL_SERVER_ERROR);
+impl_application_error!(Unimplemented => INTERNAL_SERVER_ERROR, ERROR);

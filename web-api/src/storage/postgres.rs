@@ -36,7 +36,7 @@ use sqlx::{
     QueryBuilder,
     Transaction,
 };
-use tracing::warn;
+use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{
     nan_safe_f32_cmp_desc,
@@ -1160,7 +1160,7 @@ impl storage::Interaction for Storage {
                 // if we do we only want to keep the latest update.
                 updates.insert(updated_coi.id, updated_coi);
             } else {
-                warn!(%document_id, "interacted document doesn't exist");
+                info!(%document_id, "interacted document doesn't exist");
             }
         }
 

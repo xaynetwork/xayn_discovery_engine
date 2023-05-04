@@ -45,7 +45,7 @@ impl JsonErrorResponseBuilder {
                 body: encoded.boxed(),
             },
             Err(error) => {
-                error!("Failed to encode body:  {}", error);
+                error!("Failed to encode body: {error}");
                 Self {
                     body: GENERIC_INTERNAL_SERVER_ERROR.boxed(),
                 }

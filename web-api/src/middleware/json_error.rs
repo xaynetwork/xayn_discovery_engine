@@ -26,6 +26,7 @@ use futures_util::{
     TryFutureExt,
 };
 use serde_json::{json, Value};
+use tracing::Level;
 
 use super::request_context::{RequestContext, RequestId};
 use crate::error::{early_failure::middleware_failure, json_error::JsonErrorResponseBuilder};
@@ -44,7 +45,14 @@ where
     }) {
         Ok(id) => id,
         Err(error) => {
-            let response = middleware_failure("wrap_non_json_errors", request, None, None, error);
+            let response = middleware_failure(
+                "wrap_non_json_errors",
+                request,
+                None,
+                None,
+                error,
+                Level::ERROR,
+            );
             return Either::Left(future::ok(response));
         }
     };
@@ -63,7 +71,7 @@ fn wrap_service_response<B: MessageBody + Debug + 'static>(
     response: ServiceResponse<B>,
     request_id: RequestId,
 ) -> ServiceResponse<BoxBody> {
-    if is_wrapable_error(response.response()) {
+    if is_wrappable_error(response.response()) {
         let (request, response) = response.into_parts();
         let (response, body) = response.into_parts();
         let details = extract_message_as_details(body);
@@ -76,7 +84,7 @@ fn wrap_service_response<B: MessageBody + Debug + 'static>(
     }
 }
 
-fn is_wrapable_error<B>(response: &HttpResponse<B>) -> bool {
+fn is_wrappable_error<B>(response: &HttpResponse<B>) -> bool {
     let status = response.status();
     (status.is_client_error() || status.is_server_error())
         && response

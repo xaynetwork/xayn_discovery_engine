@@ -31,7 +31,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::Type;
 use thiserror::Error;
 use tokio::{task::futures::TaskLocalFuture, task_local};
-use tracing::{error_span, instrument, trace, Instrument};
+use tracing::{error_span, instrument, trace, Instrument, Level};
 use uuid::Uuid;
 
 use crate::{error::early_failure::middleware_failure, tenants};
@@ -174,6 +174,7 @@ where
                 Some(request_id),
                 None,
                 error,
+                Level::ERROR,
             );
             return Either::Left(future::ok(response));
         }

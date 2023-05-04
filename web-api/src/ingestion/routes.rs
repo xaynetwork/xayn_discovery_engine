@@ -23,7 +23,7 @@ use anyhow::bail;
 use itertools::{Either, Itertools};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use tokio::time::Instant;
-use tracing::{debug, error, instrument};
+use tracing::{debug, error, info, instrument};
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use super::AppState;
@@ -197,10 +197,7 @@ impl UnvalidatedIngestedDocument {
         };
 
         validate().map_err(|error| {
-            error!(
-                "Document with id '{}' caused a PipelineError: {:#?}",
-                self.id, error,
-            );
+            info!("Invalid document '{}': {:#?}", self.id, error);
             self.id.into()
         })
     }
@@ -223,7 +220,7 @@ async fn upsert_documents(
     }
 
     if body.documents.len() > state.config.ingestion.max_document_batch_size {
-        error!("{} documents exceeds maximum number", body.documents.len());
+        info!("{} documents exceeds maximum number", body.documents.len());
         return Err(BadRequest::from(format!(
             "Document batch size exceeded maximum of {}.",
             state.config.ingestion.max_document_batch_size
@@ -326,10 +323,7 @@ async fn upsert_documents(
                     is_candidate: new_is_candidate.value,
                 }),
                 Err(error) => {
-                    error!(
-                        "Document with id '{}' caused a PipelineError: {:#?}",
-                        document.id, error,
-                    );
+                    error!("Failed to embed document '{}': {:#?}", document.id, error);
                     failed_documents.push(document.id.into());
                     None
                 }
