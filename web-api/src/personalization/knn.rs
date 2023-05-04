@@ -68,35 +68,29 @@ where
                 // weights_sum can't be zero, because coi weights will always return some weights that are > 0
                 let weight = *weight / weights_sum;
                 #[allow(
-                // fine as max documents count is small enough
-                clippy::cast_precision_loss,
-                // fine as weight should be between 0 and 1
-                clippy::cast_sign_loss,
-                // fine as number of neighbors is small enough
-                clippy::cast_possible_truncation
-            )]
+                    // fine as max documents count is small enough
+                    clippy::cast_precision_loss,
+                    // fine as weight should be between 0 and 1
+                    clippy::cast_sign_loss,
+                    // fine as number of neighbors is small enough
+                    clippy::cast_possible_truncation
+                )]
                 let count = (weight * self.count as f32).ceil() as usize;
-
-                if count == 0 {
-                    // using count 0 in a KNN-search would cause storage to throw.
-                    // since the value is 0, we anyway can safely return an empty result set.
-                    Ok(Vec::new())
-                } else {
-                    storage::Document::get_by_embedding(
-                        storage,
-                        KnnSearchParams {
-                            excluded: excluded.clone(),
-                            embedding: &coi.point,
-                            count,
-                            num_candidates: self.count,
-                            published_after: self.published_after,
-                            min_similarity: None,
-                            query: self.query,
-                            time: self.time,
-                        },
-                    )
-                    .await
-                }
+                let num_candidates = self.count.max(count);
+                storage::Document::get_by_embedding(
+                    storage,
+                    KnnSearchParams {
+                        excluded: excluded.clone(),
+                        embedding: &coi.point,
+                        count,
+                        num_candidates,
+                        published_after: self.published_after,
+                        min_similarity: None,
+                        query: self.query,
+                        time: self.time,
+                    },
+                )
+                .await
             })
             .collect::<FuturesUnordered<_>>();
 

@@ -49,6 +49,11 @@ impl Client {
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
+        // knn search with `k`/`num_candidates` set to zero is a bad request
+        if params.count == 0 {
+            return Ok(HashMap::new());
+        }
+
         let time = params.time.to_rfc3339();
         // the existing documents are not filtered in the query to avoid too much work for a cold
         // path, filtering them afterwards can occasionally lead to less than k results though
