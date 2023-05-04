@@ -191,6 +191,7 @@ impl Client {
     where
         I: DeserializeOwned,
     {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
         let url = self.create_resource_path(["_bulk"], [("refresh", None)]);
 
         let mut headers = HeaderMap::new();

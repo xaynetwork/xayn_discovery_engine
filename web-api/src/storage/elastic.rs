@@ -36,11 +36,11 @@ use crate::{
     Error,
 };
 
-#[derive(Debug, Deserialize)]
 /// Deserializes from any map/struct dropping all fields.
 ///
 /// This will not work with non self describing non schema
 /// formats like bincode.
+#[derive(Debug, Deserialize)]
 struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
 
 impl Client {
@@ -91,6 +91,7 @@ impl Client {
         };
 
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
         let Value::Object(mut body) = json!({
             "knn": {
                 "field": "embedding",
@@ -257,7 +258,7 @@ impl Client {
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let url = self.create_resource_path(["_update", id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties = params.properties",
@@ -279,7 +280,7 @@ impl Client {
         id: &DocumentId,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let url = self.create_resource_path(["_update", id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties = params.properties",
@@ -303,7 +304,7 @@ impl Client {
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", document_id.as_ref()], None);
+        let url = self.create_resource_path(["_update", document_id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties.put(params.prop_id, params.property)",
@@ -327,7 +328,7 @@ impl Client {
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<()>>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", document_id.as_ref()], None);
+        let url = self.create_resource_path(["_update", document_id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties.remove(params.prop_id)",
@@ -350,7 +351,7 @@ impl Client {
         tags: &[DocumentTag],
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", id.as_ref()], None);
+        let url = self.create_resource_path(["_update", id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.tags = params.tags",
