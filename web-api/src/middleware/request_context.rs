@@ -209,7 +209,7 @@ where
     )
 }
 
-const TENANT_ID_HEADER: &str = "X-Tenant-Id";
+const TENANT_ID_HEADER: &str = "X-Xayn-Tenant-Id";
 
 fn extract_tenant_id(
     config: &tenants::Config,
