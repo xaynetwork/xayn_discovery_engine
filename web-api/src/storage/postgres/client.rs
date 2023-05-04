@@ -145,11 +145,14 @@ impl Database {
             .await?;
 
         if !config.skip_migrations {
+            info!("running postgres migrations");
             sqlx::migrate!().run(&pool).await?;
 
             //FIXME handle legacy tenant here (in follow up PR)
             let _: bool = enable_legacy_tenant;
         }
+
+        info!("postgres setup done");
 
         Ok(DatabaseBuilder { pool })
     }
