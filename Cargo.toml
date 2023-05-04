@@ -12,6 +12,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.68.0"
+license = "AGPL-3.0-only"
 
 [workspace.dependencies]
 anyhow = "1.0.69"
