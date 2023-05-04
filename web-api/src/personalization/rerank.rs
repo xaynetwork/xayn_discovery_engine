@@ -63,17 +63,28 @@ fn rerank_by_tag_weight(
     documents: &[PersonalizedDocument],
     tag_weights: &HashMap<DocumentTag, usize>,
 ) -> HashMap<DocumentId, f32> {
-    let weighted_documents = documents.iter().map(|doc| {
-        let weight = doc
-            .tags
-            .iter()
-            .map(|tag| tag_weights.get(tag).copied().unwrap_or_default())
-            .sum::<usize>();
+    let weighted_documents = documents
+        .iter()
+        .map(|doc| {
+            let weight = doc
+                .tags
+                .iter()
+                .map(|tag| tag_weights.get(tag).copied().unwrap_or_default())
+                .sum::<usize>();
 
-        (doc.id.clone(), weight)
-    });
+            (doc.id.clone(), weight)
+        })
+        .filter(|(_, w)| *w != 0);
 
-    rank_keys_by_score(weighted_documents, |w1, w2| w1.cmp(w2).reverse())
+    let ranked_documents = rank_keys_by_score(weighted_documents, |w1, w2| w1.cmp(w2).reverse());
+
+    documents
+        .iter()
+        .fold(ranked_documents, |mut ranked_documents, doc| {
+            ranked_documents.entry(doc.id.clone()).or_insert(0.0);
+
+            ranked_documents
+        })
 }
 
 /// Reranks documents based on a combination of their interest, tag weight and elasticsearch scores.
