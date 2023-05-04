@@ -3,7 +3,7 @@ name = "xayn-ai-coi"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
-license = "AGPL-3.0-only"
+license = { workspace = true }
 
 [dependencies]
 chrono = { workspace = true }
