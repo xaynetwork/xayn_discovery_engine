@@ -101,7 +101,7 @@ impl Default for PersonalizationConfig {
             default_number_documents: 10,
             // FIXME: what is a default value we know works well with how we do knn?
             max_cois_for_knn: 10,
-            score_weights: [0.5, 0.5, 0.0],
+            score_weights: [0.7, 0.3, 0.0],
             store_user_history: true,
             max_stateless_history_size: 200,
             max_stateless_history_for_cois: 20,
