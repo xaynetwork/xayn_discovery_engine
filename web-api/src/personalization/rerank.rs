@@ -12,11 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    cmp::Ordering,
-    collections::HashMap,
-    hash::{BuildHasher, Hash},
-};
+use std::{cmp::Ordering, collections::HashMap, hash::BuildHasher};
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -31,10 +27,7 @@ use crate::{
 fn rank_keys_by_score<K, S>(
     keys_with_score: impl IntoIterator<Item = (K, S)>,
     mut sort_by: impl FnMut(&S, &S) -> Ordering,
-) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+) -> impl Iterator<Item = (K, f32)> {
     keys_with_score
         .into_iter()
         .sorted_unstable_by(|(_, s1), (_, s2)| sort_by(s1, s2))
@@ -43,7 +36,6 @@ where
             #[allow(clippy::cast_precision_loss)] // index is small enough
             |(index, (key, _))| (key, 1. / (1 + index) as f32),
         )
-        .collect()
 }
 
 fn rerank_by_interest(
@@ -54,26 +46,37 @@ fn rerank_by_interest(
 ) -> HashMap<DocumentId, f32> {
     let scores = coi_system.score(documents, interests, time);
     rank_keys_by_score(
-        documents.iter().map(|doc| doc.id.clone()).zip(scores),
+        documents
+            .iter()
+            .map(|document| document.id.clone())
+            .zip(scores),
         nan_safe_f32_cmp_desc,
     )
+    .collect()
 }
 
 fn rerank_by_tag_weight(
     documents: &[PersonalizedDocument],
     tag_weights: &HashMap<DocumentTag, usize>,
 ) -> HashMap<DocumentId, f32> {
-    let weighted_documents = documents.iter().map(|doc| {
-        let weight = doc
+    let mut weights = HashMap::<_, Vec<_>>::with_capacity(documents.len());
+    for document in documents {
+        let weight = document
             .tags
             .iter()
             .map(|tag| tag_weights.get(tag).copied().unwrap_or_default())
             .sum::<usize>();
+        weights.entry(weight).or_default().push(document.id.clone());
+    }
 
-        (doc.id.clone(), weight)
-    });
-
-    rank_keys_by_score(weighted_documents, |w1, w2| w1.cmp(w2).reverse())
+    rank_keys_by_score(
+        weights
+            .into_iter()
+            .map(|(weight, documents)| (documents, weight)),
+        |w1, w2| w1.cmp(w2).reverse(),
+    )
+    .flat_map(|(documents, score)| documents.into_iter().map(move |document| (document, score)))
+    .collect()
 }
 
 /// Reranks documents based on a combination of their interest, tag weight and elasticsearch scores.

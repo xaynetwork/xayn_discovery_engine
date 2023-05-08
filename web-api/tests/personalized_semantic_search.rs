@@ -181,7 +181,7 @@ async fn test_full_personalization() {
             .await;
             assert_eq!(
                 fully_personalized.ids(),
-                ["d6", "d8", "d5", "d4", "d7"],
+                ["d8", "d5", "d4", "d6", "d7"],
                 "unexpected fully personalized documents: {:?}",
                 fully_personalized.documents,
             );
@@ -336,7 +336,7 @@ async fn test_full_personalization_with_inline_history() {
             .await;
             assert_eq!(
                 fully_personalized.ids(),
-                ["d6", "d8", "d5", "d4", "d7"],
+                ["d8", "d5", "d4", "d6", "d7"],
                 "unexpected fully personalized documents: {:?}",
                 fully_personalized.documents,
             );
