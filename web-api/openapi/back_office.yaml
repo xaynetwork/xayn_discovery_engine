@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Back Office API
-  version: 1.0.0-rc13
+  version: 1.0.0
   description: |-
     # Back Office
     The back office is typically used within server-side apps.
