@@ -1,0 +1,24 @@
+name: Generate Documentation
+
+on:
+  wokflow_dispatch:
+
+jobs:
+  generate-docs:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: Generate front-office docs
+      uses: seeebiii/redoc-cli-github-action@v10
+      with:
+        args: 'bundle web-api/openapi/front_office.yaml -o docs/front_office.html'
+    - name: Generate back-office docs
+      uses: seeebiii/redoc-cli-github-action@v10
+      with:
+        args: 'bundle web-api/openapi/back_office.yaml -o docs/back_office.html'
+    - name: Deploy generated docs to GitHub Pages
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs

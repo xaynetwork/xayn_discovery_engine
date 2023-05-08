@@ -94,6 +94,7 @@ pub(super) fn rerank_by_scores(
 ) {
     let interest_scores = rerank_by_interest(coi_system, documents, interests, time);
     let tag_weight_scores = rerank_by_tag_weight(documents, tag_weights);
+    tracing::error!("tag_weight_scores: {:#?}", tag_weight_scores);
     let mut elasticsearch_scores = HashMap::with_capacity(documents.len());
 
     for document in documents.iter_mut() {
