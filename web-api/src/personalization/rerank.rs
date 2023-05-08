@@ -163,3 +163,190 @@ pub fn bench_rerank<S>(
         time,
     );
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, time::Duration};
+
+    use xayn_ai_bert::Embedding1;
+    use xayn_ai_coi::{CoiConfig, CoiId, CoiStats, PositiveCoi};
+    use xayn_test_utils::assert_approx_eq;
+
+    use super::*;
+
+    fn mock_documents(n: usize) -> Vec<PersonalizedDocument> {
+        (0..n)
+            .map(|i| {
+                let id = i.to_string().try_into().unwrap();
+
+                let mut embedding = vec![1.0; n];
+                embedding[i] = 10.0;
+                let embedding = Embedding1::from(embedding).normalize().unwrap();
+
+                let tags = if i % 2 == 0 {
+                    vec!["general".try_into().unwrap()]
+                } else {
+                    vec![
+                        "general".try_into().unwrap(),
+                        "specific".try_into().unwrap(),
+                    ]
+                };
+
+                PersonalizedDocument {
+                    id,
+                    score: 1.0,
+                    embedding,
+                    properties: DocumentProperties::default(),
+                    tags,
+                }
+            })
+            .collect()
+    }
+
+    fn mock_coi(i: usize, n: usize, time: DateTime<Utc>) -> PositiveCoi {
+        let id = CoiId::new();
+
+        let mut point = vec![0.0; n];
+        point[i] = 1.0;
+        let point = Embedding1::from(point).normalize().unwrap();
+
+        let stats = CoiStats {
+            view_count: i + 1,
+            view_time: Duration::ZERO,
+            last_view: time,
+        };
+
+        PositiveCoi { id, point, stats }
+    }
+
+    fn sort_ids(scores: HashMap<DocumentId, f32>) -> Vec<String> {
+        scores
+            .into_iter()
+            .sorted_by(|(_, s1), (_, s2)| nan_safe_f32_cmp_desc(s1, s2))
+            .map(|(document, _)| document.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn test_rank_keys_by_score_empty() {
+        assert!(rank_keys_by_score::<(), ()>([], |_, _| unreachable!())
+            .next()
+            .is_none());
+    }
+
+    #[test]
+    fn test_rank_keys_by_similar_scores() {
+        let scores = [(0, 0), (1, 0), (2, 0), (3, 1), (4, 2), (5, 2)];
+        let keys = rank_keys_by_score(scores, |s1, s2| s1.cmp(s2).reverse())
+            .map(|(key, _)| key)
+            .collect_vec();
+        assert_eq!(
+            keys[0..=1].iter().copied().collect::<HashSet<_>>(),
+            [4, 5].into(),
+        );
+        assert!(keys[0] == 4 || keys[0] == 5);
+        assert!(keys[1] == 4 || keys[1] == 5);
+        assert_eq!(keys[2], 3);
+        assert!(keys[3] == 0 || keys[3] == 1 || keys[3] == 2);
+        assert!(keys[4] == 0 || keys[4] == 1 || keys[4] == 2);
+        assert!(keys[5] == 0 || keys[5] == 1 || keys[5] == 2);
+    }
+
+    #[test]
+    fn test_rank_key_by_different_scores() {
+        let scores = (0..=6).enumerate().map(|(score, key)| (key, score));
+        let keys = rank_keys_by_score(scores, |s1, s2| s1.cmp(s2).reverse())
+            .map(|(key, _)| key)
+            .collect_vec();
+        assert_eq!(keys, (0..=6).rev().collect_vec());
+    }
+
+    #[test]
+    fn test_rerank_by_interest_empty() {
+        let coi_system = CoiConfig::default().build();
+        let documents = Vec::default();
+        let interests = UserInterests::default();
+        let time = Utc::now();
+
+        assert!(rerank_by_interest(&coi_system, &documents, &interests, time).is_empty());
+    }
+
+    #[test]
+    fn test_rerank_without_interests() {
+        let coi_system = CoiConfig::default().build();
+        let documents = mock_documents(5);
+        let interests = UserInterests::default();
+        let time = Utc::now();
+
+        let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
+        assert_eq!(sort_ids(reranked), ["0", "1", "2", "3", "4"]);
+    }
+
+    #[test]
+    fn test_rerank_with_interest() {
+        let n = 5;
+        let coi_system = CoiConfig::default().build();
+        let documents = mock_documents(n);
+        let time = Utc::now();
+        let interests = UserInterests {
+            positive: vec![mock_coi(1, n, time), mock_coi(4, n, time)],
+            negative: vec![],
+        };
+
+        let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
+        assert_eq!(sort_ids(reranked), ["4", "1", "0", "2", "3"]);
+    }
+
+    #[test]
+    fn test_rerank_by_tag_weight_empty() {
+        let documents = Vec::default();
+        let tag_weights = HashMap::default();
+
+        assert!(rerank_by_tag_weight(&documents, &tag_weights).is_empty());
+    }
+
+    #[test]
+    fn test_rerank_without_tag_weights() {
+        let n = 5;
+        let documents = mock_documents(n);
+        let tag_weights = HashMap::default();
+
+        let reranked = rerank_by_tag_weight(&documents, &tag_weights);
+        for i in 1..n {
+            assert_approx_eq!(
+                f32,
+                reranked[&"0".try_into().unwrap()],
+                reranked[&i.to_string().try_into().unwrap()],
+            );
+        }
+    }
+
+    #[test]
+    fn test_rerank_with_tag_weights() {
+        let n = 5;
+        let documents = mock_documents(n);
+        let tag_weights = [
+            ("general".try_into().unwrap(), 4),
+            ("specific".try_into().unwrap(), 1),
+            ("other".try_into().unwrap(), 3),
+        ]
+        .into();
+
+        let reranked = rerank_by_tag_weight(&documents, &tag_weights);
+        assert!(reranked[&"0".try_into().unwrap()] < reranked[&"1".try_into().unwrap()]);
+        for i in (2..n).step_by(2) {
+            assert_approx_eq!(
+                f32,
+                reranked[&"0".try_into().unwrap()],
+                reranked[&i.to_string().try_into().unwrap()],
+            );
+        }
+        for i in (3..n).step_by(2) {
+            assert_approx_eq!(
+                f32,
+                reranked[&"1".try_into().unwrap()],
+                reranked[&i.to_string().try_into().unwrap()],
+            );
+        }
+    }
+}
