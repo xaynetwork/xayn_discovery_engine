@@ -219,11 +219,11 @@ mod tests {
         PositiveCoi { id, point, stats }
     }
 
-    fn sort_ids(scores: HashMap<DocumentId, f32>) -> Vec<String> {
+    fn ids_by_score(scores: &HashMap<DocumentId, f32>) -> Vec<&str> {
         scores
-            .into_iter()
+            .iter()
             .sorted_by(|(_, s1), (_, s2)| nan_safe_f32_cmp_desc(s1, s2))
-            .map(|(document, _)| document.to_string())
+            .map(|(document, _)| document.as_ref().as_str())
             .collect()
     }
 
@@ -236,29 +236,29 @@ mod tests {
 
     #[test]
     fn test_rank_keys_by_similar_scores() {
-        let scores = [(0, 0), (1, 0), (2, 0), (3, 1), (4, 2), (5, 2)];
+        let scores = [("0", 0), ("1", 0), ("2", 0), ("3", 1), ("4", 2), ("5", 2)];
         let keys = rank_keys_by_score(scores, |s1, s2| s1.cmp(s2).reverse())
             .map(|(key, _)| key)
             .collect_vec();
+        assert_eq!(keys.len(), 6);
         assert_eq!(
             keys[0..=1].iter().copied().collect::<HashSet<_>>(),
-            [4, 5].into(),
+            ["4", "5"].into(),
         );
-        assert!(keys[0] == 4 || keys[0] == 5);
-        assert!(keys[1] == 4 || keys[1] == 5);
-        assert_eq!(keys[2], 3);
-        assert!(keys[3] == 0 || keys[3] == 1 || keys[3] == 2);
-        assert!(keys[4] == 0 || keys[4] == 1 || keys[4] == 2);
-        assert!(keys[5] == 0 || keys[5] == 1 || keys[5] == 2);
+        assert_eq!(keys[2], "3");
+        assert_eq!(
+            keys[3..=5].iter().copied().collect::<HashSet<_>>(),
+            ["0", "1", "2"].into(),
+        );
     }
 
     #[test]
     fn test_rank_key_by_different_scores() {
-        let scores = (0..=6).enumerate().map(|(score, key)| (key, score));
+        let scores = [("0", 0), ("1", 2), ("2", 1), ("3", 4), ("4", 3), ("5", 5)];
         let keys = rank_keys_by_score(scores, |s1, s2| s1.cmp(s2).reverse())
             .map(|(key, _)| key)
             .collect_vec();
-        assert_eq!(keys, (0..=6).rev().collect_vec());
+        assert_eq!(keys, ["5", "3", "4", "1", "2", "0"]);
     }
 
     #[test]
@@ -279,7 +279,7 @@ mod tests {
         let time = Utc::now();
 
         let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
-        assert_eq!(sort_ids(reranked), ["0", "1", "2", "3", "4"]);
+        assert_eq!(ids_by_score(&reranked), ["0", "1", "2", "3", "4"]);
     }
 
     #[test]
@@ -294,7 +294,7 @@ mod tests {
         };
 
         let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
-        assert_eq!(sort_ids(reranked), ["4", "1", "0", "2", "3"]);
+        assert_eq!(ids_by_score(&reranked), ["4", "1", "0", "2", "3"]);
     }
 
     #[test]
