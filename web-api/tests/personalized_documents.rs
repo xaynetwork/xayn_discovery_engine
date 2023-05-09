@@ -154,7 +154,6 @@ async fn test_personalization_all_dates() {
         },
     )
     .await;
-    panic!();
 }
 
 #[tokio::test]
