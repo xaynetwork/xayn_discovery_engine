@@ -132,3 +132,17 @@ async fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants
     conn.close().await?;
     Ok(())
 }
+
+#[ignore = "not yet implemented"]
+#[tokio::test]
+async fn test_full_migration() -> Result<(), Error> {
+    /*
+        3. spin up dev env with different scope/ports
+        4. start old build using the start api and test scaffolding from this build
+        5. ingest + test
+        6. stop old build
+        7. start new build
+        8. test
+    */
+    todo!()
+}
