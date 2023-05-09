@@ -152,25 +152,23 @@ async fn personalize(
     Ok(documents)
 }
 
-fn assert<const N: usize>(
-    documents: &[PersonalizedDocumentData],
-    ids: [&str; N],
-) -> Result<(), Panic> {
-    assert_eq!(
-        documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect_vec(),
-        ids,
-    );
-    for documents in documents.windows(2) {
-        let [d1, d2] = documents else {unreachable!()};
-        assert!(1.0 >= d1.score);
-        assert!(d1.score > d2.score);
-        assert!(d2.score >= 0.0);
-    }
-
-    Ok(())
+macro_rules! assert_order {
+    ($documents: expr, $ids: expr, $($arg: tt)*) => {
+        assert_eq!(
+            $documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect_vec(),
+            $ids,
+            $($arg)*
+        );
+        for documents in $documents.windows(2) {
+            let [d1, d2] = documents else { unreachable!() };
+            assert!(1.0 >= d1.score, $($arg)*);
+            assert!(d1.score > d2.score, $($arg)*);
+            assert!(d2.score >= 0.0, $($arg)*);
+        }
+    };
 }
 
 #[tokio::test]
@@ -181,14 +179,12 @@ async fn test_personalization_all_dates() {
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
             let documents = personalize(&client, &personalization_url, None, None).await?;
-            println!(
-                "{:?}",
-                documents
-                    .iter()
-                    .map(|d| (d.id.as_str(), d.score))
-                    .collect_vec()
+            assert_order!(
+                &documents,
+                ["d8", "d6", "d1", "d7", "d3"],
+                "unexpected personalized documents: {documents:?}",
             );
-            assert(&documents, ["d8", "d6", "d1", "d7", "d3"])
+            Ok(())
         },
     )
     .await;
@@ -208,7 +204,12 @@ async fn test_personalization_limited_dates() {
                 None,
             )
             .await?;
-            assert(&documents, ["d1", "d3"])
+            assert_order!(
+                &documents,
+                ["d1", "d3"],
+                "unexpected personalized documents: {documents:?}",
+            );
+            Ok(())
         },
     )
     .await;
@@ -228,7 +229,12 @@ async fn test_personalization_with_query() {
                 Some("Robot Technology Chicken"),
             )
             .await?;
-            assert(&documents, ["d8", "d6", "d1", "d7"])
+            assert_order!(
+                &documents,
+                ["d8", "d6", "d1", "d7"],
+                "unexpected personalized documents: {documents:?}",
+            );
+            Ok(())
         },
     )
     .await;
@@ -242,7 +248,12 @@ async fn test_personalization_with_tags() {
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_tags(&client, &ingestion_url).await?;
             let documents = personalize(&client, &personalization_url, None, None).await?;
-            assert(&documents, ["d5", "d8", "d6", "d4", "d1"])
+            assert_order!(
+                &documents,
+                ["d5", "d8", "d6", "d4", "d1"],
+                "unexpected personalized documents: {documents:?}",
+            );
+            Ok(())
         },
     )
     .await;
