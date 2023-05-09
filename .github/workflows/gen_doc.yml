@@ -3,7 +3,7 @@ name: Generate Documentation
 on:
   push:
     branches:
-      - test_doc
+      - main
     paths:
       - 'web-api/openapi/**'
   workflow_dispatch:
