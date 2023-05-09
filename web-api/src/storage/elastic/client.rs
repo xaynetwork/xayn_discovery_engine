@@ -70,7 +70,7 @@ impl Client {
         Ok(ClientBuilder {
             config: Arc::new(config.clone()),
             base_url: Arc::new(config.url.parse::<SegmentableUrl>()?),
-            client: reqwest::Client::new(),
+            client: reqwest::ClientBuilder::new().timeout(std::time::Duration::from_millis(5000)).build()?,
         })
     }
 }
