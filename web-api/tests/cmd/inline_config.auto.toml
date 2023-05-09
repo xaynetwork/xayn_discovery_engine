@@ -18,7 +18,8 @@ stdout = """
       "url": "http://localhost:9200",
       "user": "elastic",
       "password": "[REDACTED]",
-      "index_name": "test_index"
+      "index_name": "test_index",
+      "timeout": 2
     },
     "postgres": {
       "base_url": "postgres://user:pw@localhost:5432/xayn",
