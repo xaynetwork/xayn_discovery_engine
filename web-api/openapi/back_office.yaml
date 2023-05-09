@@ -1,0 +1,453 @@
+openapi: 3.0.3
+info:
+  title: Back Office API
+  version: 1.0.0
+  description: |-
+    # Back Office
+    ASDFASDFADF
+    The back office is typically used within server-side apps.
+    This SDK acts as a create/read/update/delete interface for anything related to documents.
+
+    ## Document
+    By document, we refer to a cohesive text, for example a complete news article.
+    However, we only require a simple representation for our system to work. Consisting just of a unique ID, a text snippet and optional properties.
+    The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one paragraph.
+
+    ### Id
+    The document_id is a unique identifier for a single document.
+    We don't require a specific format, it just needs to comply to the following regexp: `^[a-zA-Z0-9_:@.-]+$`.
+
+    ## Snippet
+    A snippet is a reduced representation of a larger text, for example if the document would be a news article, then its text would be the news article in a pure textual format.
+    In order for our system to work correctly, it is important that the snippet is just the size of one or two paragraphs, and that the snippet's text clearly summarises the larger text.
+    For example, let's take a news article which talks about the effects of inflation.
+    Our snippet could then be: "Inflation worries as prices keep rising. People having budgetary difficulties as a result. Government pressured to take action.".
+    A bad snippet would for example be just taking the very first paragraph of a document, which could sometimes work, but could also lead to:
+    "December 20th 2020. Article written by Jane Doe. On this bright and sunny day, people might forget about their worries sometimes."
+
+    ## Properties
+    Properties are optional entries for documents, which are usually needed to properly show the document back to the user, when it returns as a personalized document.
+    If for example, you'd wish to integrate a type of carousel view, listing a total of 10 personalized documents in a "for you"-section, then you might choose to display each document as an image and title, with a url to link the user to when pressed.
+    For this, you would need three document properties: `image`, `link` and `title`.
+    You are free to add as many properties as needed.
+
+    ## Auth
+    The API requires an authentication token when used.
+    Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
+    \
+tags:
+  - name: back office
+    description: System management, including documents and properties.
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /documents:
+    post:
+      tags:
+        - back office
+      summary: Add documents to the system
+      description: |
+        Add documents to the system.
+
+        The system will create a representation of the document that will be used to match it against the preferences of a user.
+
+        **Important note:** Currently we allow up to a maximum of 100 documents per batch size. If you need to add more, then
+        please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
+
+        **Important note:** Documents which have no `publication_date` are not included when using the `published_after` filter.
+      operationId: createDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/IngestionRequest'
+      responses:
+        '201':
+          $ref: './responses/generic.yml#/Created'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+        '500':
+          description: all or some of the documents were not successfully uploaded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IngestionError'
+    delete:
+      tags:
+        - back office
+      summary: Delete all listed documents.
+      description: |-
+        Delete all documents listed in the request body.
+      operationId: deleteDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeleteDocumentsRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
+  /documents/candidates:
+    get:
+      tags:
+        - back office
+      deprecated: true
+      operationId: listDocumentCandidatesDeprecated
+      summary: Get the documents considered for recommendations.
+      description: Get the documents considered for recommendations.
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentCandidatesResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+    put:
+      tags:
+        - back office
+      deprecated: true
+      operationId: replaceDocumentCandidatesDeprecated
+      summary: Set the documents considered for recommendations.
+      description: Set the documents considered for recommendations.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCandidatesRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
+  /documents/{document_id}:
+    parameters:
+      - $ref: './parameters/path/document_id.yml'
+    delete:
+      tags:
+        - back office
+      summary: Delete the document from the system.
+      description: |-
+        Permanently deletes the document from the system.
+      operationId: deleteDocument
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
+  /documents/{document_id}/properties:
+    parameters:
+      - $ref: './parameters/path/document_id.yml'
+    get:
+      tags:
+        - back office
+      summary: Get all document properties
+      description: Gets all the properties of the document.
+      operationId: listDocumentProperties
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPropertiesResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+    put:
+      tags:
+        - back office
+      summary: Set all document properties
+      description: Sets or replaces all the properties of the document.
+      operationId: replaceDocumentProperties
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPropertiesRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+    delete:
+      tags:
+        - back office
+      summary: Delete all document properties
+      description: Deletes all the properties of the document.
+      operationId: deleteDocumentProperties
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
+  /documents/{document_id}/properties/{property_id}:
+    parameters:
+      - $ref: './parameters/path/document_id.yml'
+      - name: property_id
+        in: path
+        description: Id of the document property
+        required: true
+        schema:
+          $ref: './schemas/document.yml#/DocumentPropertyId'
+    get:
+      tags:
+        - back office
+      summary: Get a document property
+      description: Gets the property of the document.
+      operationId: getDocumentProperty
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentPropertyResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+    put:
+      tags:
+        - back office
+      summary: Set a document property
+      description: Sets or replaces the property of the document.
+      operationId: replaceDocumentProperty
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentPropertyRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+    delete:
+      tags:
+        - back office
+      summary: Delete a document property
+      description: Deletes the property of the document.
+      operationId: deleteDocumentProperty
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
+  /candidates:
+    get:
+      tags:
+        - back office
+      summary: Get the documents considered for recommendations.
+      description: Get the documents considered for recommendations.
+      operationId: listDocumentCandidates
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DocumentCandidatesResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+    put:
+      tags:
+        - back office
+      summary: Set the documents considered for recommendations.
+      description: Set the documents considered for recommendations.
+      operationId: replaceDocumentCandidates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DocumentCandidatesRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      $ref: './securitySchemes/auth.yml#/ApiKeyAuth'
+  schemas:
+    DocumentPropertyRequest:
+      type: object
+      required: [property]
+      properties:
+        property:
+          $ref: './schemas/document.yml#/DocumentProperty'
+    DocumentPropertyResponse:
+      type: object
+      required: [property]
+      properties:
+        property:
+          $ref: './schemas/document.yml#/DocumentProperty'
+      example:
+        property: "Any valid json value"
+    DocumentPropertiesRequest:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: './schemas/document.yml#/DocumentProperties'
+    DocumentPropertiesResponse:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: './schemas/document.yml#/DocumentProperties'
+      example:
+        properties:
+          title: "News title"
+    IngestedDocument:
+      type: object
+      required: [id, snippet]
+      properties:
+        id:
+          $ref: './schemas/document.yml#/DocumentId'
+        snippet:
+          description: Text that will be used to match the document against the user interests.
+          type: string
+          minLength: 1
+          maxLength: 1024
+          pattern: '.+'
+        properties:
+          $ref: './schemas/document.yml#/DocumentProperties'
+        tags:
+          type: array
+          minItems: 0
+          maxItems: 10
+          items:
+            $ref: './schemas/document.yml#/DocumentTag'
+        is_candidate:
+          description: |
+            Indicates if the document is considered for recommendations.
+
+            Always overwrite any existing `is_candidate` value from a previous ingestion.
+
+            Setting both this field and the `default_is_candidate` field will fail the request.
+
+            Setting neither will default to `is_candidate = true`.
+          type: boolean
+        default_is_candidate:
+          description: |
+            Behaves like `is_candidate` but will not overwrite any existing `is_candidate`
+            value already stored in the database for this document.
+
+            Setting both this field and the `is_candidate` field will fail the request.
+          type: boolean
+        summarize:
+          description: Summarizes the document snippets before further processing.
+          type: boolean
+          default: false
+      example:
+        id: document_1
+        snippet: lorem ipsum delores
+        properties:
+          is_blue: true
+        tags:
+          - news
+          - tech
+        is_candidate: true
+        summarize: false
+
+    IngestionRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/IngestedDocument'
+      example:
+        documents:
+          - id: document_1
+            snippet: lorem ipsum delores
+            properties:
+              is_blue: true
+            tags:
+              - news
+              - tech
+            is_candidate: false
+          - id: document_2
+            snippet: more lorem less ipsum
+            tags:
+              - exclusive
+            default_is_candidate: false
+          - id: document_3
+            snippet: quite a lot of lines of lorem ipsum delores
+            summarize: true
+    IngestionError:
+      allOf:
+        - $ref: './schemas/error.yml#/GenericError'
+        - type: object
+          required: [details]
+          properties:
+            details:
+              type: object
+              required: [documents]
+              properties:
+                documents:
+                  type: array
+                  minItems: 0
+                  maxItems: 100
+                  items:
+                    type: object
+                    required: [id]
+                    properties:
+                      id:
+                        $ref: './schemas/document.yml#/DocumentId'
+    DeleteDocumentsRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: './schemas/document.yml#/DocumentId'
+    DocumentCandidate:
+      type: object
+      required: [id]
+      properties:
+        id:
+          $ref: './schemas/document.yml#/DocumentId'
+    DocumentCandidatesRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 0
+          items:
+            $ref: '#/components/schemas/DocumentCandidate'
+    DocumentCandidatesResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 0
+          items:
+            $ref: './schemas/document.yml#/DocumentId'
+      example:
+        documents:
+          - 'document_id0'

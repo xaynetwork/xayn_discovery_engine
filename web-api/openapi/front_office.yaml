@@ -1,0 +1,254 @@
+openapi: 3.0.3
+info:
+  title: Front Office API
+  version: 1.0.0
+  description: |-
+    # Front Office
+    The front office is typically used within front-end apps, for example a website or a mobile application.
+    With this SDK, you can handle interactions with documents and request a list of personalized documents.
+
+    ## User
+    Each method requires a `user_id`.
+    From our perspective, a `user_id` is simply required to group interactions together. We don't need to know who that user is, so it is preferred to create this `user_id` in a privacy-preserving way.
+    For example, create a hash method which transforms your user into an ID hash.
+
+    ## Document
+    A document here is represented by its `id` and optional `properties`.
+    In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
+    For example, it could contain an image url, a full article url, the publication date, the author or much more.
+    The properties that were added when the document was submitted to us, are just mirrored here.
+
+    ## Auth
+    The API requires an authenticationToken when used.
+    Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
+    \
+tags:
+  - name: front office
+    description: Handles interactions between users and documents and allows to fetch personalized documents per user.
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /users/{user_id}/personalized_documents:
+    get:
+      tags:
+        - front office
+      summary: Gets personalized documents for the user.
+      description: |-
+        Returns a list of documents personalized for the given `user_id`.
+        Each document contains the id, the score and the properties that are attached to the document.
+        The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+        Documents that have been interacted with by the user are filtered out from the result.
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
+      operationId: getPersonalizedDocuments
+      parameters:
+        - $ref: './parameters/path/user_id.yml'
+        - name: count
+          in: query
+          description: Maximum number of personalized documents to return
+          required: false
+          schema:
+            $ref: "#/components/schemas/Count"
+        - name: published_after
+          in: query
+          description: |-
+            Only include documents which have been published after given datetime.
+
+            If used documents without a `properties.publication_date` will be ignored.
+          required: false
+          schema:
+            $ref: './schemas/time.yml#/PublicationDate'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+        '400':
+           $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: impossible to create a personalized list for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
+
+  /users/{user_id}/interactions:
+    patch:
+      tags:
+        - front office
+      summary: Adds an interaction between the user and the document.
+      description: |-
+        Use this method to register an interaction between a user and a document.
+        Currently, we only support a `Positive` interaction, which is equivalent to a user who "likes" a certain document.
+        For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
+        For apps, consider implementing a "like" button, where the on click then triggers this method.
+      operationId: updateUserInteractions
+      parameters:
+        - $ref: './parameters/path/user_id.yml'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInteractionRequest'
+      responses:
+        '204':
+          description: successful operation
+        '400':
+          description: invalid request. User or document id is invalid
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInteractionError'
+
+  /semantic_search:
+    post:
+      tags:
+        - front office
+      summary: Returns documents similar to the given document.
+      description: |-
+        Returns a list of documents that are semantically similar to the one given as input.
+        Each document contains the id, the score and the properties.
+        The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
+      operationId: getSimilarDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SemanticSearchRequest'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResponse'
+        '400':
+            $ref: './responses/generic.yml#/BadRequest'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      $ref: './securitySchemes/auth.yml#/ApiKeyAuth'
+  schemas:
+    Count:
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 100
+      default: 10
+    PersonalizedDocumentData:
+      type: object
+      required: [id, score]
+      properties:
+        id:
+          $ref: './schemas/document.yml#/DocumentId'
+        score:
+          type: number
+        properties:
+          $ref: './schemas/document.yml#/DocumentProperties'
+    PersonalizedDocuments:
+      type: array
+      minItems: 0
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/PersonalizedDocumentData'
+    PersonalizedDocumentsResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          $ref: '#/components/schemas/PersonalizedDocuments'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
+    SemanticSearchRequest:
+      type: object
+      required: [document]
+      properties:
+        document:
+          $ref: './schemas/document.yml#/InputDocument'
+        count:
+          $ref: '#/components/schemas/Count'
+        published_after:
+          $ref: './schemas/time.yml#/PublicationDate'
+        min_similarity:
+          description: "Minimal similarity of a document to consider it as search candidate."
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0
+        personalize:
+          description: Personalize the ranking of candidates based on a users preferences
+          type: object
+          required: [user]
+          properties:
+            exclude_seen:
+              type: boolean
+              default: true
+              description: |
+                If true do not include documents the user has already seen as search candidate.
+
+                A trimmed version of the users history might be used for this filter.
+
+                This option is incompatible with not specifying a user.
+            user:
+              $ref: './schemas/user.yml#/InputUser'
+    SemanticSearchResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          $ref: '#/components/schemas/PersonalizedDocuments'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
+    PersonalizedDocumentsError:
+      allOf:
+        - $ref: './schemas/error.yml#/GenericError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [NotEnoughInteractions]
+    UserInteractionType:
+      type: string
+      enum: [Positive]
+    UserInteractionData:
+      type: object
+      properties:
+        id:
+          $ref: './schemas/document.yml#/DocumentId'
+        type:
+          $ref: '#/components/schemas/UserInteractionType'
+    UserInteractionRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/UserInteractionData'
+    UserInteractionError:
+      allOf:
+        - $ref: './schemas/error.yml#/GenericError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [InvalidUserId, InvalidDocumentId]

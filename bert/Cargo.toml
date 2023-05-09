@@ -1,0 +1,35 @@
+[package]
+name = "xayn-ai-bert"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+
+[dependencies]
+derive_more = { workspace = true }
+displaydoc = { workspace = true }
+figment = { workspace = true, features = ["toml"] }
+itertools = { workspace = true }
+lindera = "0.23.0"
+ndarray = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sqlx = { workspace = true, optional = true }
+thiserror = { workspace = true }
+tokenizers = { version = "0.13.2", default-features = false, features = ["onig"] }
+tract-onnx = "0.19.7"
+xayn-test-utils = { path = "../test-utils" }
+
+[dev-dependencies]
+criterion = { workspace = true }
+csv = { workspace = true }
+indicatif = "0.17.3"
+
+[[example]]
+name = "bert"
+test = false
+
+[[bench]]
+name = "bert"
+harness = false
+test = false

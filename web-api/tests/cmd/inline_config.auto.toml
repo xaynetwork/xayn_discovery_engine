@@ -1,0 +1,46 @@
+bin.name = "ingestion"
+args = ["--print-config", "--config", "inline:[logging]\nlevel=\"error\"\n[tenants]\nenable_legacy_tenant=false"]
+status.code = 0
+stderr = ""
+stdout = """
+{
+  "logging": {
+    "file": null,
+    "level": "error"
+  },
+  "net": {
+    "bind_to": "127.0.0.1:4252",
+    "keep_alive": 61,
+    "client_request_timeout": 0
+  },
+  "storage": {
+    "elastic": {
+      "url": "http://localhost:9200",
+      "user": "elastic",
+      "password": "[REDACTED]",
+      "index_name": "test_index"
+    },
+    "postgres": {
+      "base_url": "postgres://user:pw@localhost:5432/xayn",
+      "port": null,
+      "user": null,
+      "password": "[REDACTED]",
+      "db": null,
+      "application_name": null,
+      "skip_migrations": false,
+      "min_pool_size": 0,
+      "max_pool_size": 25
+    }
+  },
+  "ingestion": {
+    "max_document_batch_size": 100
+  },
+  "embedding": {
+    "directory": "assets",
+    "token_size": 250
+  },
+  "tenants": {
+    "enable_legacy_tenant": false
+  }
+}
+"""
