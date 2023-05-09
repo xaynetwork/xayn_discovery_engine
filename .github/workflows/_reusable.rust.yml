@@ -48,6 +48,7 @@ jobs:
     services:
       elasticsearch:
         image: elasticsearch:8.7.0
+        mem_limit: 2048m
         env:
           "discovery.type": "single-node"
           "xpack.security.enabled": "false"
@@ -58,6 +59,7 @@ jobs:
           --health-retries 5
       postgres:
         image: postgres:15.2
+        mem_limit: 1024m
         env:
           POSTGRES_USER: user
           POSTGRES_PASSWORD: pw
