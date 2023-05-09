@@ -15,12 +15,12 @@ jobs:
     - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
 
     - name: Generate front-office docs
-      uses: seeebiii/redoc-cli-github-action@vc9649b33918da5eb290b81cd03a943caea091540 # v10
+      uses: seeebiii/redoc-cli-github-action@c9649b33918da5eb290b81cd03a943caea091540 # v10
       with:
         args: 'bundle web-api/openapi/front_office.yaml -o front_office.html'
 
     - name: Generate back-office docs
-      uses: seeebiii/redoc-cli-github-action@vc9649b33918da5eb290b81cd03a943caea091540 # v10
+      uses: seeebiii/redoc-cli-github-action@c9649b33918da5eb290b81cd03a943caea091540 # v10
       with:
         args: 'bundle web-api/openapi/back_office.yaml -o back_office.html'
 
