@@ -4,7 +4,6 @@ info:
   version: 1.0.0
   description: |-
     # Back Office
-    ASDFASDFADF
     The back office is typically used within server-side apps.
     This SDK acts as a create/read/update/delete interface for anything related to documents.
 
