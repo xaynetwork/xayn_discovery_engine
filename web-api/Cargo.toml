@@ -3,7 +3,7 @@ name = "xayn-web-api"
 version = { workspace = true }
 edition = { workspace = true }
 rust-version = { workspace = true }
-description = "Wep Api server for the document personalization service. AAAA"
+description = "Wep Api server for the document personalization service."
 license = { workspace = true }
 
 [dependencies]
