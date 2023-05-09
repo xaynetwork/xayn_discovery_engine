@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
+use serial_test::serial;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
@@ -132,6 +133,7 @@ async fn personalize(
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_personalization_all_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
@@ -157,6 +159,7 @@ async fn test_personalization_all_dates() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_personalization_limited_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
@@ -188,6 +191,7 @@ async fn test_personalization_limited_dates() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_personalization_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,

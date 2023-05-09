@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use serial_test::serial;
 use xayn_integration_tests::{
     send_assert,
     send_assert_json,
@@ -67,6 +68,7 @@ struct Error {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_ingestion_created() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         ingest(&client, &url).await?;
@@ -96,6 +98,7 @@ async fn test_ingestion_created() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_ingestion_bad_request() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         let error = send_assert_json::<Error>(
@@ -129,6 +132,7 @@ async fn test_ingestion_bad_request() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_deletion() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         ingest(&client, &url).await?;
@@ -168,6 +172,7 @@ struct SemanticSearchResponse {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_reingestion_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
@@ -249,6 +254,7 @@ async fn test_reingestion_candidates() {
 // least run the test to see if something crashes and manually check with log level `info` how many
 // new and changed documents have been logged and manually check the databases
 #[tokio::test]
+#[serial(db)]
 async fn test_reingestion_snippets() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         send_assert(

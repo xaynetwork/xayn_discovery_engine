@@ -16,6 +16,7 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
+use serial_test::serial;
 use toml::toml;
 use xayn_integration_tests::{
     extend_config,
@@ -94,6 +95,7 @@ impl SemanticSearchResponse {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_full_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
@@ -197,6 +199,7 @@ async fn test_full_personalization() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_subtle_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
@@ -248,6 +251,7 @@ async fn test_subtle_personalization() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_full_personalization_with_inline_history() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,

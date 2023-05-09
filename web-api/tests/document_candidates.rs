@@ -18,6 +18,7 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
+use serial_test::serial;
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, unchanged_config};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::Ingestion;
@@ -70,6 +71,7 @@ async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) ->
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_candidates_all() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -83,6 +85,7 @@ async fn test_candidates_all() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_candidates_some() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -96,6 +99,7 @@ async fn test_candidates_some() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_candidates_none() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -109,6 +113,7 @@ async fn test_candidates_none() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_candidates_not_default() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -155,6 +160,7 @@ struct Error {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_candidates_warning() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -183,6 +189,7 @@ async fn test_candidates_warning() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_candidates_reingestion() {
     test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());

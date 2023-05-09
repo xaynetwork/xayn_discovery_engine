@@ -15,6 +15,7 @@
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use serial_test::serial;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
@@ -58,6 +59,7 @@ struct SemanticSearchResponse {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
@@ -118,6 +120,7 @@ async fn test_semantic_search() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_semantic_search_min_similarity() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,
@@ -173,6 +176,7 @@ async fn test_semantic_search_min_similarity() {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_semantic_search_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         unchanged_config,

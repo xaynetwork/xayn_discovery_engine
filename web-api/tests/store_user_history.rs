@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::json;
+use serial_test::serial;
 use toml::toml;
 use xayn_integration_tests::{
     extend_config,
@@ -109,11 +110,13 @@ async fn store_user_history(enabled: bool) {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_store_user_history_enabled() {
     store_user_history(true).await;
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_store_user_history_disabled() {
     store_user_history(false).await;
 }

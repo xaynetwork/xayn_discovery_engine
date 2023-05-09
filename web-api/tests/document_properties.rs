@@ -17,6 +17,7 @@ use std::collections::HashMap;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{json, Value};
+use serial_test::serial;
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, unchanged_config};
 use xayn_web_api::Ingestion;
 
@@ -128,11 +129,13 @@ async fn document_properties(is_candidate: bool) {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_document_properties_candidate() {
     document_properties(true).await;
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_document_properties_noncandidate() {
     document_properties(false).await;
 }
@@ -238,11 +241,13 @@ async fn document_property(is_candidate: bool) {
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_document_property_candidate() {
     document_property(true).await;
 }
 
 #[tokio::test]
+#[serial(db)]
 async fn test_document_property_noncandidate() {
     document_property(false).await;
 }
