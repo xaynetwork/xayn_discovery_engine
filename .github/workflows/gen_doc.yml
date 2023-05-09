@@ -2,6 +2,10 @@ name: Generate Documentation
 
 on:
   push:
+    branches:
+      - test_doc
+    paths:
+      - 'web-api/openapi/**'
   workflow_dispatch:
 
 jobs:
@@ -13,11 +17,11 @@ jobs:
     - name: Generate front-office docs
       uses: seeebiii/redoc-cli-github-action@v10
       with:
-        args: 'bundle web-api/openapi/front_office.yaml -o docs/front_office.html'
+        args: 'bundle web-api/openapi/front_office.yaml -o front_office.html'
     - name: Generate back-office docs
       uses: seeebiii/redoc-cli-github-action@v10
       with:
-        args: 'bundle web-api/openapi/back_office.yaml -o docs/back_office.html'
+        args: 'bundle web-api/openapi/back_office.yaml -o back_office.html'
     - name: Deploy generated docs to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
       with:
