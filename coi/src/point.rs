@@ -165,7 +165,7 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn test_shift_coi_point() {
+    fn test_shift_coi_point_towards_other() {
         let mut cois = create_pos_cois([[1., 1., 1.]]);
         let towards = [2., 3., 4.].try_into().unwrap();
         let shift_factor = 0.1;
@@ -175,6 +175,15 @@ pub(crate) mod tests {
             cois[0].point,
             [0.558_521_4, 0.577_149_87, 0.595_778_35],
         );
+    }
+
+    #[test]
+    fn test_shift_coi_point_towards_self() {
+        let mut cois = create_pos_cois([[1., 1., 1.]]);
+        let towards = cois[0].point.clone();
+        let shift_factor = 0.1;
+        cois[0].shift_point(&towards, shift_factor).unwrap();
+        assert_approx_eq!(f32, cois[0].point, towards);
     }
 
     #[test]
