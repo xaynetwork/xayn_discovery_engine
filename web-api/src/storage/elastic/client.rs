@@ -35,7 +35,7 @@ use tracing::error;
 
 use crate::{
     app::SetupError,
-    utils::{serialize_redacted, serialize_to_ndjson, serde_duration_as_secs},
+    utils::{serde_duration_as_secs, serialize_redacted, serialize_to_ndjson},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -80,7 +80,9 @@ impl Client {
         Ok(ClientBuilder {
             config: Arc::new(config.clone()),
             base_url: Arc::new(config.url.parse::<SegmentableUrl>()?),
-            client: reqwest::ClientBuilder::new().timeout(config.timeout).build()?,
+            client: reqwest::ClientBuilder::new()
+                .timeout(config.timeout)
+                .build()?,
         })
     }
 }
