@@ -37,27 +37,8 @@ use tracing::info;
 use crate::{
     middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context},
     tenants,
+    utils::serde_duration_as_secs,
 };
-
-mod serde_duration_as_seconds {
-    use std::time::Duration;
-
-    use serde::{Deserialize, Deserializer, Serialize, Serializer};
-
-    pub(super) fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        duration.as_secs().serialize(serializer)
-    }
-
-    pub(super) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        u64::deserialize(deserializer).map(Duration::from_secs)
-    }
-}
 
 /// Configuration for roughly network/connection layer specific configurations.
 // Hint: this value just happens to be copy, if needed the Copy trait can be removed
@@ -68,11 +49,11 @@ pub struct Config {
     pub(crate) bind_to: SocketAddr,
 
     /// Keep alive timeout in seconds
-    #[serde(with = "serde_duration_as_seconds")]
+    #[serde(with = "serde_duration_as_secs")]
     pub(crate) keep_alive: Duration,
 
     /// Client request timeout in seconds
-    #[serde(with = "serde_duration_as_seconds")]
+    #[serde(with = "serde_duration_as_secs")]
     pub(crate) client_request_timeout: Duration,
 }
 
