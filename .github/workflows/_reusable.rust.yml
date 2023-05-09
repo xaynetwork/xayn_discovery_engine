@@ -52,6 +52,7 @@ jobs:
           "discovery.type": "single-node"
           "xpack.security.enabled": "false"
         options: >-
+          --memory 2048m
           --health-cmd "curl --fail 'http://localhost:9200/_cluster/health'"
           --health-interval 10s
           --health-timeout 5s
@@ -63,6 +64,7 @@ jobs:
           POSTGRES_PASSWORD: pw
           POSTGRES_DB: xayn
         options: >-
+          --memory 1024m
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
