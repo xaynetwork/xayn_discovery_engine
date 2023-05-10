@@ -15,6 +15,7 @@
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
+    hash::Hash,
     str::FromStr,
     sync::Arc,
 };
@@ -27,7 +28,7 @@ use reqwest::{
     Url,
 };
 use secrecy::{ExposeSecret, Secret};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
 use serde_json::Value;
 use thiserror::Error;
 use tracing::error;
@@ -162,6 +163,39 @@ impl<I> BulkResponse<I> {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct Hit<I, T> {
+    #[serde(rename = "_id")]
+    id: I,
+    #[allow(dead_code)]
+    #[serde(rename = "_source")]
+    source: T,
+    #[serde(rename = "_score")]
+    score: f32,
+}
+
+#[derive(Debug, Deserialize)]
+struct Hits<I, T> {
+    hits: Vec<Hit<I, T>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct SearchResponse<I, T> {
+    hits: Hits<I, T>,
+}
+
+#[derive(Debug)]
+struct NoSource;
+
+impl<'de> Deserialize<'de> for NoSource {
+    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Ok(Self)
+    }
+}
+
 impl Client {
     pub(crate) fn create_resource_path<'a>(
         &self,
@@ -205,6 +239,32 @@ impl Client {
         self.query_with_bytes::<_, BulkResponse<I>>(url, Some((headers, body)))
             .await?
             .ok_or_else(|| Error::EndpointNotFound("_bulk"))
+    }
+
+    pub(super) async fn search_request<I>(
+        &self,
+        body: impl Serialize,
+    ) -> Result<HashMap<I, f32>, Error>
+    where
+        I: DeserializeOwned + Eq + Hash,
+    {
+        self.query_with_json::<_, SearchResponse<I, NoSource>>(
+            self.create_resource_path(["_search"], None),
+            Some(body),
+        )
+        .await
+        .map(|response| {
+            response
+                .map(|response| {
+                    response
+                        .hits
+                        .hits
+                        .into_iter()
+                        .map(|hit| (hit.id, hit.score))
+                        .collect()
+                })
+                .unwrap_or_default()
+        })
     }
 
     pub(super) async fn query_with_bytes<B, T>(
