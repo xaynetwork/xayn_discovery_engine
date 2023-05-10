@@ -4214,7 +4214,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-ai-bert"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
  "csv",
@@ -4236,7 +4236,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-ai-coi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "criterion",
@@ -4258,7 +4258,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-integration-tests"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "once_cell",
@@ -4277,7 +4277,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-summarizer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ndarray",
  "serde",
@@ -4287,7 +4287,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-test-utils"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "float-cmp",
  "ndarray",
@@ -4298,7 +4298,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-web-api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "actix-cors",
  "actix-web",
