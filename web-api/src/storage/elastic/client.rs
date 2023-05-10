@@ -17,6 +17,7 @@ use std::{
     fmt::{Debug, Display},
     str::FromStr,
     sync::Arc,
+    time::Duration,
 };
 
 use derive_more::From;
@@ -34,7 +35,7 @@ use tracing::error;
 
 use crate::{
     app::SetupError,
-    utils::{serialize_redacted, serialize_to_ndjson},
+    utils::{serde_duration_as_seconds, serialize_redacted, serialize_to_ndjson},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -45,6 +46,10 @@ pub(crate) struct Config {
     #[serde(serialize_with = "serialize_redacted")]
     password: Secret<String>,
     index_name: String,
+
+    /// Request timeout in seconds.
+    #[serde(with = "serde_duration_as_seconds")]
+    timeout: Duration,
 }
 
 impl Default for Config {
@@ -54,6 +59,7 @@ impl Default for Config {
             user: "elastic".into(),
             password: String::from("changeme").into(),
             index_name: "test_index".into(),
+            timeout: Duration::from_secs(2),
         }
     }
 }
@@ -70,7 +76,9 @@ impl Client {
         Ok(ClientBuilder {
             config: Arc::new(config.clone()),
             base_url: Arc::new(config.url.parse::<SegmentableUrl>()?),
-            client: reqwest::Client::new(),
+            client: reqwest::ClientBuilder::new()
+                .timeout(config.timeout)
+                .build()?,
         })
     }
 }
