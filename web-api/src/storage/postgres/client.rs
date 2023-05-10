@@ -211,11 +211,8 @@ impl Database {
     }
 
     pub(crate) async fn begin(&self) -> Result<Transaction<'_, Postgres>, sqlx::Error> {
-        info!("db_conn=acquiring");
         let mut conn = self.pool.begin().await?;
-        info!("db_conn=acquired");
         self.set_role(&mut conn).await?;
-        info!("db_conn=ready");
         Ok(conn)
     }
 }
