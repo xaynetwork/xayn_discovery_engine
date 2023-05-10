@@ -342,27 +342,39 @@ async fn create_tenant_role_and_schema(
         r##"-- tenant is only allowed to use the schema, they don't own it
             GRANT USAGE ON SCHEMA {tenant} TO {tenant};
 
+            GRANT ALL
+                ON ALL TABLES IN SCHEMA {tenant}
+                TO {tenant};
+
+            GRANT ALL
+                ON ALL SEQUENCES IN SCHEMA {tenant}
+                TO {tenant};
+
+            GRANT ALL
+                ON ALL ROUTINES IN SCHEMA {tenant}
+                TO {tenant};
+
             -- make sure all object we create can be used by tenant
             -- Note:
             --   This sets the default privileges for objects created by the user running this
             --   command, this will not affect the privileges of objects created by other users.
             ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT SELECT, INSERT, UPDATE, DELETE
+                GRANT ALL
                 ON TABLES
                 TO {tenant};
 
             ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT USAGE
+                GRANT ALL
                 ON SEQUENCES
                 TO {tenant};
 
             ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT EXECUTE
+                GRANT ALL
                 ON ROUTINES
                 TO {tenant};
 
             ALTER DEFAULT PRIVILEGES IN SCHEMA {tenant}
-                GRANT USAGE
+                GRANT ALL
                 ON TYPES
                 TO {tenant};
         "##
