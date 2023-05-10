@@ -2,7 +2,9 @@
 
 # Xayn Discovery Engine
 
-Here you can find our Personalised Semantic Search and Recommendations service implementation!
+Here you can find our Personalised Semantic Search and Recommendations service implementation.
+
+To test our fully managed Personalised Semantic Search and Recommendations Plug-in, you can get started by requesting a test environment [here](https://www.xayn.com/developers#B2b-form) and having a look at our API documentation: 
 
 The Front Office API provides the API that is needed to get personalised content or do semantic searches. It is also used to transmit a user's interactions for personalisation. You can find its reference here: [Front Office API](https://xaynetwork.github.io/xayn_discovery_engine/front_office.html)
 
