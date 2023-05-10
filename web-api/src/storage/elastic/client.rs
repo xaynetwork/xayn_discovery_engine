@@ -48,7 +48,7 @@ pub(crate) struct Config {
     index_name: String,
 
     /// Request timeout in seconds.
-    #[serde(with = "serde_duration_as_secs"]
+    #[serde(with = "serde_duration_as_secs")]
     timeout: Duration,
 }
 
