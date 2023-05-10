@@ -51,13 +51,18 @@ bincode = "1.3.3"
 criterion = { workspace = true }
 instant-distance = { version = "0.6.0", features = ["with-serde"] }
 npyz = "0.7.4"
-old-xayn-web-api = { package = "xayn-web-api", git = "https://github.com/xaynetwork/xayn_discovery_engine.git", ref = "02d61abc3955d5e9fbcaadc08db30b856184efcc" }
 ouroboros = "0.15.6"
 tokio = { workspace = true, features = ["sync"] }
 toml = { workspace = true }
 trycmd = "0.14.14"
 xayn-integration-tests = { path = "../integration-tests" }
 xayn-test-utils = { path = "../test-utils" }
+
+[dev-dependencies.old-xayn-web-api]
+package = "xayn-web-api"
+version = "0.1.1"
+git = "https://github.com/xaynetwork/xayn_discovery_engine.git"
+rev = "f7bdf56e265e78d34d35f67301914fcd9c9179e9"
 
 [[bench]]
 name = "coi_personalization"
