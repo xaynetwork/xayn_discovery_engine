@@ -135,6 +135,10 @@ pub fn initialize_test_logging() {
         logging::initialize(&logging::Config {
             file: None,
             level: LevelFilter::WARN,
+            // FIXME If we have json logging do fix the panic logging hock
+            //       to also log the backtrace instead of disabling the
+            //       panic hook.
+            install_panic_hook: false
         })
         .unwrap();
     });

@@ -75,8 +75,8 @@ build: rust-build
 
 # Tests rust
 rust-test: download-assets
-    #!/usr/bin/env bash
-    set -eux -o pipefail
+    #!/usr/bin/env -S bash -eux -o pipefail
+    export RUST_BACKTRACE=1
     cargo test --lib --bins --tests --locked
     cargo test --doc --locked
 
