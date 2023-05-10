@@ -35,58 +35,6 @@ jobs:
       - name: rust check
         run: just rust-check
 
-  cargo-test:
-    runs-on: hetzner-pm
-    container:
-      image: xaynetci/yellow:v13
-    timeout-minutes: 20
-    env:
-      XAYN_INGESTION__NET__BIND_TO: "127.0.0.1:3030"
-      INGESTION_URI: "http://127.0.0.1:3030"
-      XAYN_PERSONALIZATION__NET__BIND_TO: "127.0.0.1:3031"
-      PERSONALIZATION_URI: "http://127.0.0.1:3031"
-    services:
-      elasticsearch:
-        image: elasticsearch:8.7.0
-        env:
-          "discovery.type": "single-node"
-          "xpack.security.enabled": "false"
-        options: >-
-          --memory 2048m
-          --health-cmd "curl --fail 'http://localhost:9200/_cluster/health'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-      postgres:
-        image: postgres:15.2
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: pw
-          POSTGRES_DB: xayn
-        options: >-
-          --memory 1024m
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          role-to-assume: ${{ secrets.AWS_OIDC_ROLE }}
-          aws-region: eu-central-1
-
-      - name: Setup the rust CI.
-        uses: ./.github/actions/setup-job-docker
-
-      - name: Download test assets
-        run: just download-assets
-
-      - name: Run tests
-        run: just rust-test
-
   cargo-doc:
     runs-on: hetzner-pm
     container:
