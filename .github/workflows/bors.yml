@@ -1,10 +1,7 @@
-name: Bors CI
+name: Merge Queue
 
 on:
-  push:
-    branches:
-      - '_bors_staging'
-      - '_bors_trying'
+  merge_group:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

@@ -1,10 +1,10 @@
-name: CI
+name: Pull request
 
 on:
   push:
     branches-ignore:
       - 'main'
-      - '_bors*'
+      - 'gh-readonly-queue/main/**'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
