@@ -36,7 +36,7 @@ pub mod config;
 mod embedding;
 mod error;
 mod ingestion;
-mod logging;
+pub mod logging;
 mod middleware;
 #[cfg(test)]
 mod mind;

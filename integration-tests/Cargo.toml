@@ -16,6 +16,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 toml = { workspace = true }
+tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
 xayn-test-utils = { path = "../test-utils" }
 xayn-web-api = { path = "../web-api" }

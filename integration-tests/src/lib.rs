@@ -35,9 +35,10 @@ use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
 use scopeguard::{guard_on_success, OnSuccess, ScopeGuard};
 use serde::de::DeserializeOwned;
 use toml::{toml, Table, Value};
+use tracing_subscriber::filter::LevelFilter;
 use uuid::Uuid;
 use xayn_test_utils::{env::clear_env, error::Panic};
-use xayn_web_api::{config, start, AppHandle, Application};
+use xayn_web_api::{config, logging, start, AppHandle, Application};
 
 /// Absolute path to the root of the project as determined by `just`.
 pub static PROJECT_ROOT: Lazy<PathBuf> =
@@ -100,6 +101,18 @@ where
 
 const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
 
+/// Initialize logging in tests.
+pub fn initialize_test_logging() {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        logging::initialize(&logging::Config {
+            file: None,
+            level: LevelFilter::WARN,
+        })
+        .unwrap();
+    });
+}
+
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
 ///
 /// Before anything this function assures two things:
@@ -121,6 +134,7 @@ pub async fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
+    initialize_test_logging();
     let services = setup_web_dev_test_context().await.unwrap();
 
     let handle = start_test_application::<A>(&services, configure).await;
@@ -146,6 +160,7 @@ pub async fn test_two_apps<A1, A2, F>(
     A1: Application + 'static,
     A2: Application + 'static,
 {
+    initialize_test_logging();
     let services = setup_web_dev_test_context().await.unwrap();
     let first_handle = start_test_application::<A1>(&services, configure_first).await;
     let second_handle = start_test_application::<A2>(&services, configure_second).await;
@@ -205,9 +220,6 @@ where
     let pg_url = services.postgres.as_str();
 
     let mut config = toml! {
-        [logging]
-        level = "warn"
-
         [storage.postgres]
         base_url = pg_url
 

@@ -14,14 +14,14 @@
 
 //! Setup tracing on different platforms.
 
-use std::{fs::OpenOptions, sync::Once};
+use std::fs::OpenOptions;
 
 use serde::{Deserialize, Serialize};
 use tracing::{error, Level};
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     layer::SubscriberExt,
-    util::SubscriberInitExt,
+    util::{SubscriberInitExt, TryInitError},
 };
 
 use crate::utils::RelativePathBuf;
@@ -56,9 +56,9 @@ mod serde_level_filter {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Config {
-    pub(crate) file: Option<RelativePathBuf>,
+    pub file: Option<RelativePathBuf>,
     #[serde(with = "serde_level_filter")]
-    pub(crate) level: LevelFilter,
+    pub level: LevelFilter,
 }
 
 impl Default for Config {
@@ -70,16 +70,16 @@ impl Default for Config {
     }
 }
 
-static INIT_TRACING: Once = Once::new();
-
-pub(crate) fn init_tracing(log_config: &Config) {
-    INIT_TRACING.call_once(|| {
-        init_tracing_once(log_config);
-        init_panic_logging();
-    });
+/// Initializes the logging.
+///
+/// This should be called before [`crate::start()`] is called.
+pub fn initialize(log_config: &Config) -> Result<(), TryInitError> {
+    init_tracing_once(log_config)?;
+    init_panic_logging();
+    Ok(())
 }
 
-fn init_tracing_once(log_config: &Config) {
+fn init_tracing_once(log_config: &Config) -> Result<(), TryInitError> {
     let subscriber = tracing_subscriber::registry();
 
     let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
@@ -115,7 +115,7 @@ fn init_tracing_once(log_config: &Config) {
         .with(sqlx_query_no_info)
         .with(file_log)
         .with(log_config.level)
-        .init();
+        .try_init()
 }
 
 fn init_panic_logging() {

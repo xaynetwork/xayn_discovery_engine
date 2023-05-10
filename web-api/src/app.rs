@@ -25,7 +25,6 @@ use tracing::info;
 pub(crate) use self::state::{AppState, TenantState};
 use crate::{
     logging,
-    logging::init_tracing,
     net::{self, AppHandle},
     storage,
     tenants,
@@ -69,8 +68,6 @@ pub async fn start<A>(config: A::Config) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,
 {
-    init_tracing(config.as_ref());
-
     info!({ ?config }, "starting service");
 
     let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));

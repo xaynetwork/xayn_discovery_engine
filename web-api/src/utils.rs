@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize, Serializer};
 
 #[derive(Serialize, Deserialize, Debug, Deref)]
 #[serde(transparent)]
-pub(crate) struct RelativePathBuf {
+pub struct RelativePathBuf {
     #[serde(serialize_with = "FigmentRelativePathBuf::serialize_relative")]
     inner: FigmentRelativePathBuf,
 }

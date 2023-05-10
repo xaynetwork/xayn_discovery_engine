@@ -4269,6 +4269,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "toml 0.7.3",
+ "tracing-subscriber",
  "uuid",
  "xayn-test-utils",
  "xayn-web-api",
