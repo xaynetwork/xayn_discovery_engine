@@ -79,18 +79,28 @@ struct PersonalizedDocumentData {
     properties: serde_json::Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 struct SemanticSearchResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
-impl SemanticSearchResponse {
-    fn ids(&self) -> Vec<&str> {
-        self.documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect_vec()
-    }
+macro_rules! assert_order {
+    ($documents: expr, $ids: expr, $($arg: tt)*) => {
+        assert_eq!(
+            $documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect_vec(),
+            $ids,
+            $($arg)*
+        );
+        for documents in $documents.windows(2) {
+            let [d1, d2] = documents else { unreachable!() };
+            assert!(1.0 >= d1.score, $($arg)*);
+            assert!(d1.score > d2.score, $($arg)*);
+            assert!(d2.score >= 0.0, $($arg)*);
+        }
+    };
 }
 
 #[tokio::test]
@@ -109,37 +119,28 @@ async fn test_full_personalization() {
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;
 
-            let not_enough_interactions = send_assert_json::<SemanticSearchResponse>(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
-                        "personalize": {
-                            "user": {
-                                "id": "u1"
-                            }
-                        }
+                        "personalize": { "user": { "id": "u1" } }
                     }))
                     .build()?,
                 StatusCode::OK,
             )
             .await;
-            assert_eq!(
-                not_enough_interactions.ids(),
+            assert_order!(
+                documents,
                 ["d6", "d4", "d2", "d5", "d7"],
-                "unexpected not enough interactions documents: {:?}",
-                not_enough_interactions.documents,
+                "unexpected not enough interactions documents: {documents:?}",
             );
-            assert!(not_enough_interactions
-                .documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             interact(&client, &personalization_url).await?;
 
-            let not_personalized = send_assert_json::<SemanticSearchResponse>(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
@@ -151,44 +152,30 @@ async fn test_full_personalization() {
                 StatusCode::OK,
             )
             .await;
-            assert_eq!(
-                not_personalized.ids(),
+            assert_order!(
+                documents,
                 ["d6", "d4", "d2", "d5", "d7"],
-                "unexpected not personalized documents: {:?}",
-                not_personalized.documents,
+                "unexpected not personalized documents: {documents:?}",
             );
-            assert!(not_personalized
-                .documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
 
-            let fully_personalized = send_assert_json::<SemanticSearchResponse>(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
-                        "personalize": {
-                            "user": {
-                                "id": "u1"
-                            }
-                        }
+                        "personalize": { "user": { "id": "u1" } }
                     }))
                     .build()?,
                 StatusCode::OK,
             )
             .await;
-            assert_eq!(
-                fully_personalized.ids(),
+            assert_order!(
+                documents,
                 ["d8", "d5", "d4", "d6", "d7"],
-                "unexpected fully personalized documents: {:?}",
-                fully_personalized.documents,
+                "unexpected fully personalized documents: {documents:?}",
             );
-            assert!(fully_personalized
-                .documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },
@@ -213,33 +200,24 @@ async fn test_subtle_personalization() {
             ingest(&client, &ingestion_url).await?;
             interact(&client, &personalization_url).await?;
 
-            let subtle_personalized = send_assert_json::<SemanticSearchResponse>(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
-                        "personalize": {
-                            "user": {
-                                "id": "u1"
-                            }
-                        }
+                        "personalize": { "user": { "id": "u1" } }
                     }))
                     .build()?,
                 StatusCode::OK,
             )
             .await;
-            assert_eq!(
-                subtle_personalized.ids(),
+            assert_order!(
+                documents,
                 ["d6", "d4", "d5", "d8", "d7"],
-                "unexpected subtle personalized documents: {:?}",
-                subtle_personalized.documents,
+                "unexpected subtle personalized documents: {documents:?}",
             );
-            assert!(subtle_personalized
-                .documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },
@@ -263,35 +241,26 @@ async fn test_full_personalization_with_inline_history() {
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;
 
-            let not_enough_interactions = send_assert_json::<SemanticSearchResponse>(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
-                        "personalize": {
-                            "user": {
-                                "history": []
-                            }
-                        }
+                        "personalize": { "user": { "history": [] } }
                     }))
                     .build()?,
                 StatusCode::OK,
             )
             .await;
-            assert_eq!(
-                not_enough_interactions.ids(),
+            assert_order!(
+                documents,
                 ["d6", "d4", "d2", "d5", "d7"],
-                "unexpected not enough interactions documents: {:?}",
-                not_enough_interactions.documents,
+                "unexpected not enough interactions documents: {documents:?}",
             );
-            assert!(not_enough_interactions
-                .documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
 
-            let not_personalized = send_assert_json::<SemanticSearchResponse>(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
@@ -303,47 +272,30 @@ async fn test_full_personalization_with_inline_history() {
                 StatusCode::OK,
             )
             .await;
-            assert_eq!(
-                not_personalized.ids(),
+            assert_order!(
+                documents,
                 ["d6", "d4", "d2", "d5", "d7"],
-                "unexpected not personalized documents: {:?}",
-                not_personalized.documents,
+                "unexpected not personalized documents: {documents:?}",
             );
-            assert!(not_personalized
-                .documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
 
-            let fully_personalized = send_assert_json::<SemanticSearchResponse>(
+            let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
-                        "personalize": {
-                            "user": {
-                                "history": [
-                                    { "id": "d2" },
-                                    { "id": "d9" }
-                                ]
-                            }
-                        }
+                        "personalize": { "user": { "history": [ { "id": "d2" }, { "id": "d9" } ] } }
                     }))
                     .build()?,
                 StatusCode::OK,
             )
             .await;
-            assert_eq!(
-                fully_personalized.ids(),
+            assert_order!(
+                documents,
                 ["d8", "d5", "d4", "d6", "d7"],
-                "unexpected fully personalized documents: {:?}",
-                fully_personalized.documents,
+                "unexpected fully personalized documents: {documents:?}",
             );
-            assert!(fully_personalized
-                .documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
 
             Ok(())
         },
