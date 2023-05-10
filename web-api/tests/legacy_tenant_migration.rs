@@ -35,9 +35,7 @@ async fn legacy_test_setup() -> Result<(postgres::Config, elastic::Config), Erro
     start_test_service_containers()?;
 
     let test_id = generate_test_id();
-    let (pg_config, mut es_config) = db_configs_for_testing(&test_id);
-    // changed default index
-    es_config.index_name = format!("{}_{}", test_id, es_config.index_name);
+    let (pg_config, es_config) = db_configs_for_testing(&test_id);
 
     crate_db(&pg_config, MANAGEMENT_DB).await?;
 

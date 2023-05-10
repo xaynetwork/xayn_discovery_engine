@@ -138,7 +138,7 @@ pub fn initialize_test_logging() {
             // FIXME If we have json logging do fix the panic logging hock
             //       to also log the backtrace instead of disabling the
             //       panic hook.
-            install_panic_hook: false
+            install_panic_hook: false,
         })
         .unwrap();
     });
@@ -391,17 +391,31 @@ async fn setup_web_dev_test_context(enable_legacy_tenant: bool) -> Result<Servic
 }
 
 pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Config) {
-    let mut pg_config = postgres::Config {
-        db: Some(test_id.to_owned()),
-        ..Default::default()
-    };
-    let mut es_config = elastic::Config::default();
+    let es_index_name = format!("{test_id}_default");
+    let pg_config;
+    let es_config;
     if *RUNS_IN_CONTAINER {
-        pg_config.base_url = "postgres://user:pw@postgres:5432/".into();
-        es_config.url = "http://elasticsearch:9200".into();
+        pg_config = postgres::Config {
+            db: Some(test_id.to_owned()),
+            base_url: "postgres://user:pw@postgres:5432/".into(),
+            ..Default::default()
+        };
+        es_config = elastic::Config {
+            url: "http://elasticsearch:9200".into(),
+            index_name: es_index_name,
+            ..Default::default()
+        };
     } else {
-        pg_config.base_url = "postgres://user:pw@localhost:3054/xayn".into();
-        es_config.url = "http://localhost:3092".into();
+        pg_config = postgres::Config {
+            db: Some(test_id.to_owned()),
+            base_url: "postgres://user:pw@localhost:3054/".into(),
+            ..Default::default()
+        };
+        es_config = elastic::Config {
+            url: "http://localhost:3092".into(),
+            index_name: es_index_name,
+            ..Default::default()
+        }
     }
     (pg_config, es_config)
 }
