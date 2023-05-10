@@ -35,6 +35,7 @@ use chrono::Utc;
 use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
+use secrecy::ExposeSecret;
 use serde::{de::DeserializeOwned, Serialize};
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
@@ -274,6 +275,8 @@ pub async fn start_test_application<A>(services: &Services, configure: Table) ->
 where
     A: Application + 'static,
 {
+    let pg_config = services.silo.postgres_config();
+    let pg_password = pg_config.password.expose_secret().as_str();
     let pg_config = to_toml_value(services.silo.postgres_config()).unwrap();
     let es_config = to_toml_value(services.silo.elastic_config()).unwrap();
 
@@ -291,7 +294,7 @@ where
         &mut config,
         toml! {
             [storage.postgres]
-            password = "pw"
+            password = pg_password
         },
     );
 
