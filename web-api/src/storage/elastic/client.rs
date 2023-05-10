@@ -48,12 +48,8 @@ pub(crate) struct Config {
     index_name: String,
 
     /// Request timeout in seconds.
-    #[serde(with = "serde_duration_as_secs", default = "default_timeout")]
+    #[serde(with = "serde_duration_as_secs"]
     timeout: Duration,
-}
-
-fn default_timeout() -> Duration {
-    Duration::from_secs(2)
 }
 
 impl Default for Config {
@@ -63,7 +59,7 @@ impl Default for Config {
             user: "elastic".into(),
             password: String::from("changeme").into(),
             index_name: "test_index".into(),
-            timeout: default_timeout(),
+            timeout: Duration::from_secs(2),
         }
     }
 }
