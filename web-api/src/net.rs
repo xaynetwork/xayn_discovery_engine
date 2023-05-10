@@ -37,7 +37,7 @@ use tracing::info;
 use crate::{
     middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context},
     tenants,
-    utils::serde_duration_as_secs,
+    utils::serde_duration_as_seconds,
 };
 
 /// Configuration for roughly network/connection layer specific configurations.
@@ -49,11 +49,11 @@ pub struct Config {
     pub(crate) bind_to: SocketAddr,
 
     /// Keep alive timeout in seconds
-    #[serde(with = "serde_duration_as_secs")]
+    #[serde(with = "serde_duration_as_seconds")]
     pub(crate) keep_alive: Duration,
 
     /// Client request timeout in seconds
-    #[serde(with = "serde_duration_as_secs")]
+    #[serde(with = "serde_duration_as_seconds")]
     pub(crate) client_request_timeout: Duration,
 }
 

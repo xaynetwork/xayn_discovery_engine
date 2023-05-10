@@ -54,7 +54,7 @@ pub(crate) fn serialize_to_ndjson(
     Ok(body)
 }
 
-pub(crate) mod serde_duration_as_secs {
+pub(crate) mod serde_duration_as_seconds {
     use std::time::Duration;
 
     use serde::{Deserialize, Deserializer, Serialize, Serializer};

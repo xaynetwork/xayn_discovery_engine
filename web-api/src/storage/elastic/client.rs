@@ -35,7 +35,7 @@ use tracing::error;
 
 use crate::{
     app::SetupError,
-    utils::{serde_duration_as_secs, serialize_redacted, serialize_to_ndjson},
+    utils::{serde_duration_as_seconds, serialize_redacted, serialize_to_ndjson},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -48,7 +48,7 @@ pub(crate) struct Config {
     index_name: String,
 
     /// Request timeout in seconds.
-    #[serde(with = "serde_duration_as_secs")]
+    #[serde(with = "serde_duration_as_seconds")]
     timeout: Duration,
 }
 
