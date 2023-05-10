@@ -75,7 +75,7 @@ build: rust-build
 
 # Tests rust
 rust-test: download-assets
-    #!/usr/bin/env -S bash -eux -o pipefail
+    #!/usr/bin/env -S bash -eu -o pipefail
     export RUST_BACKTRACE=1
     cargo test --lib --bins --tests --locked
     cargo test --doc --locked
@@ -105,10 +105,9 @@ pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
 download-assets *args:
-    #!/usr/bin/env bash
-    set -eux -o pipefail
+    #!/usr/bin/env -S bash -eu -o pipefail
     cd {{justfile_directory()}}/.github/scripts
-    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"" } else { "" } }}
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     ./download_assets.sh {{args}}
 
 build-service-args name target="default" features="":
