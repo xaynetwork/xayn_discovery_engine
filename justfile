@@ -133,11 +133,11 @@ build-service name target="default" features="":
         cross build $args
     fi
 
-web-dev-up scope="0":
+web-dev-up:
     #!/usr/bin/env -S bash -eu -o pipefail
-    PROJECT="web-dev-{{scope}}"
+    PROJECT=web-dev
     # -gt 1 because of the heading
-    if [[ "$(docker ps --filter "label=com.docker.compose.project=${PROJECT}" | wc -l)" -gt 1 ]]; then
+    if [[ "$(docker ps --filter "label=com.docker.compose.project=$PROJECT" | wc -l)" -gt 1 ]]; then
         echo "web-dev composition is already running, SKIPPING STARTUP"
         exit 0
     fi
@@ -145,14 +145,12 @@ web-dev-up scope="0":
         rm "./web-api/assets" || :
         ln -s "./assets/smbert_v0003" "./web-api/assets"
     fi
-    export HOST_PORT_SCOPE="$((30 + {{scope}}))"
-    docker-compose -p "${PROJECT}" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
+    export HOST_PORT_SCOPE=30
+    docker-compose -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
 
-web-dev-down scope="0":
+web-dev-down:
     #!/usr/bin/env -S bash -eu -o pipefail
-    PROJECT="web-dev-{{scope}}"
-    export HOST_PORT_SCOPE="$((30 + {{scope}}))"
-    docker-compose -p "${PROJECT}" -f "./web-api/compose.db.yml" down
+    docker-compose -p web-dev -f "./web-api/compose.db.yml" down
 
 build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     #!/usr/bin/env -S bash -eux -o pipefail

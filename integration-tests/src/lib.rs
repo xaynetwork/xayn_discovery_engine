@@ -464,28 +464,6 @@ pub fn start_test_service_containers() -> Result<(), anyhow::Error> {
     res
 }
 
-pub fn start_alternative_test_services(scope: u8) -> Result<(), anyhow::Error> {
-    check_alternative_test_services_params(scope)?;
-    just(&["web-dev-up", &scope.to_string()])?;
-    Ok(())
-}
-
-pub fn stop_alternative_test_services(scope: u8) -> Result<(), anyhow::Error> {
-    check_alternative_test_services_params(scope)?;
-    just(&["web-dev-down", &scope.to_string()])?;
-    Ok(())
-}
-
-fn check_alternative_test_services_params(scope: u8) -> Result<(), anyhow::Error> {
-    if scope == 0 {
-        bail!("scope must be != 0 as 0 is the default env");
-    }
-    if *RUNS_IN_CONTAINER {
-        bail!("alternative services only works locally");
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use regex::Regex;
