@@ -170,9 +170,7 @@ pub async fn test_app<A, F>(
     let (configure, enable_legacy_tenant) =
         configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
-    let services = setup_web_dev_test_context(enable_legacy_tenant)
-        .await
-        .unwrap();
+    let services = setup_web_dev_services(enable_legacy_tenant).await.unwrap();
 
     let handle = start_test_application::<A>(&services, configure).await;
 
@@ -207,7 +205,7 @@ pub async fn test_two_apps<A1, A2, F>(
         configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
     assert_eq!(first_wit_legacy, second_with_legacy);
 
-    let services = setup_web_dev_test_context(first_wit_legacy).await.unwrap();
+    let services = setup_web_dev_services(first_wit_legacy).await.unwrap();
     let first_handle = start_test_application::<A1>(&services, configure_first).await;
     let second_handle = start_test_application::<A2>(&services, configure_second).await;
 
@@ -359,7 +357,7 @@ impl Services {
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
 /// A uris usable for accessing the dbs are returned.
-async fn setup_web_dev_test_context(enable_legacy_tenant: bool) -> Result<Services, anyhow::Error> {
+async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, anyhow::Error> {
     clear_env();
     start_test_service_containers().unwrap();
 
