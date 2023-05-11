@@ -297,7 +297,7 @@ pub(super) async fn create_tenant(
     let legcy_hint = if is_legacy_tenant {
         LegacyHint::NewSchema
     } else {
-        LegacyHint::Not
+        LegacyHint::NotLegacy
     };
     create_tenant_role_and_schema(tx, tenant_id, legcy_hint).await?;
     run_db_migration_for(tx, tenant_id, true).await?;
@@ -306,7 +306,7 @@ pub(super) async fn create_tenant(
 
 #[derive(Clone, Copy, Debug)]
 enum LegacyHint {
-    Not,
+    NotLegacy,
     MigrateSchema,
     NewSchema,
 }
