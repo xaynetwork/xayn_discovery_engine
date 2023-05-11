@@ -122,7 +122,7 @@ async fn personalize(
         request = request.query(&[("published_after", published_after)]);
     }
     if let Some(query) = query {
-        request = request.query(&[("query", query)]);
+        request = request.query(&[("query", query), ("enable_hybrid_search", "true")]);
     }
     let request = request.build()?;
 

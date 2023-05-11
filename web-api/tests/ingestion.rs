@@ -193,7 +193,10 @@ async fn test_reingestion_candidates() {
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({ "document": { "query": "snippet" } }))
+                    .json(&json!({
+                        "document": { "query": "snippet" },
+                        "enable_hybrid_search": true
+                    }))
                     .build()?,
                 StatusCode::OK,
             )
@@ -226,7 +229,10 @@ async fn test_reingestion_candidates() {
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({ "document": { "query": "snippet" } }))
+                    .json(&json!({
+                        "document": { "query": "snippet" },
+                        "enable_hybrid_search": true
+                    }))
                     .build()?,
                 StatusCode::OK,
             )
