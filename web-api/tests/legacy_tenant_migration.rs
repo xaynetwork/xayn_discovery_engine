@@ -19,6 +19,7 @@ use xayn_integration_tests::{
     crate_db,
     db_configs_for_testing,
     generate_test_id,
+    initialize_test_logging,
     start_test_service_containers,
     MANAGEMENT_DB,
 };
@@ -32,6 +33,7 @@ use xayn_web_api_shared::{
 
 async fn legacy_test_setup() -> Result<(postgres::Config, elastic::Config), Error> {
     clear_env();
+    initialize_test_logging();
     start_test_service_containers()?;
 
     let test_id = generate_test_id();
