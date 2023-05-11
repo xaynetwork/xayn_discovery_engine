@@ -82,15 +82,15 @@ impl Silo {
     pub async fn create_tenant(
         &self,
         tenant_id: TenantId,
-        is_legacy: bool,
+        is_legacy_tenant: bool,
     ) -> Result<Tenant, Error> {
         let mut tx = self.postgres.begin().await?;
-        postgres::create_tenant(&mut tx, &tenant_id, is_legacy).await?;
+        postgres::create_tenant(&mut tx, &tenant_id, is_legacy_tenant).await?;
         elastic::create_tenant(&self.elastic, &tenant_id).await?;
         tx.commit().await?;
         Ok(Tenant {
             tenant_id,
-            is_legacy,
+            is_legacy_tenant,
         })
     }
 
@@ -122,7 +122,7 @@ impl Silo {
 
     async fn run_operation(&self, op: Operation) -> OperationResult {
         match op {
-            Operation::ListTenants => self
+            Operation::ListTenants {} => self
                 .list_tenants()
                 .await
                 .map(|tenants| OperationResult::ListTenants { tenants })
@@ -131,9 +131,9 @@ impl Silo {
                 }),
             Operation::CreateTenant {
                 tenant_id,
-                is_legacy,
+                is_legacy_tenant,
             } => self
-                .create_tenant(tenant_id, is_legacy)
+                .create_tenant(tenant_id, is_legacy_tenant)
                 .await
                 .map(|tenant| OperationResult::CreateTenant { tenant })
                 .unwrap_or_else(|err| OperationResult::Error {
@@ -160,26 +160,26 @@ impl Silo {
 
 #[derive(Deserialize, Debug)]
 pub enum Operation {
-    ListTenants,
+    ListTenants {},
     CreateTenant {
         tenant_id: TenantId,
         #[serde(default)]
-        is_legacy: bool,
+        is_legacy_tenant: bool,
     },
     DeleteTenant {
         tenant_id: TenantId,
     },
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 pub enum OperationResult {
     ListTenants { tenants: Vec<Tenant> },
     CreateTenant { tenant: Tenant },
     DeleteTenant { tenant: Option<Tenant> },
     Error { msg: String },
 }
-#[derive(Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Tenant {
     pub tenant_id: TenantId,
-    pub is_legacy: bool,
+    pub is_legacy_tenant: bool,
 }

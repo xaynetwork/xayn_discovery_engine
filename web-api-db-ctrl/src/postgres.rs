@@ -244,9 +244,9 @@ pub(super) async fn list_tenants(pool: &Pool<Postgres>) -> Result<Vec<Tenant>, E
     .fetch_all(pool)
     .await?
     .into_iter()
-    .map(|(tenant_id, is_legacy)| Tenant {
+    .map(|(tenant_id, is_legacy_tenant)| Tenant {
         tenant_id,
-        is_legacy,
+        is_legacy_tenant,
     })
     .collect())
 }
@@ -261,14 +261,14 @@ pub(super) async fn delete_tenant(
     let deleted_tenant = sqlx::query_as::<_, (bool,)>(
         "DELETE FROM management.tenant
            WHERE tenant_id = $1
-           RETURNING is_legacy;",
+           RETURNING is_legacy_tenant;",
     )
     .bind(&tenant_id)
     .fetch_optional(&mut *tx)
     .await?
-    .map(|(is_legacy,)| Tenant {
+    .map(|(is_legacy_tenant,)| Tenant {
         tenant_id,
-        is_legacy,
+        is_legacy_tenant,
     });
 
     if deleted_tenant.is_none() {

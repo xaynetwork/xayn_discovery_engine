@@ -256,7 +256,7 @@ pub(crate) async fn initialize_silo(
     tenant_config: &tenants::Config,
 ) -> Result<(Silo, Option<TenantId>), SetupError> {
     let silo = Silo::new(
-        &config.postgres,
+        config.postgres.clone(),
         config.elastic.clone(),
         tenant_config
             .enable_legacy_tenant
