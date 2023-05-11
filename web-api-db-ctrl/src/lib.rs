@@ -149,7 +149,7 @@ impl Silo {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub enum Operation {
     ListTenants,
     CreateTenant {
