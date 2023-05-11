@@ -21,7 +21,6 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc};
 
 use self::client::BulkInstruction;
 use crate::{
@@ -126,8 +125,8 @@ impl Client {
             let bm25_scores = self.search_request(body).await?;
             let max_bm25_score = bm25_scores
                 .values()
+                .max_by(|s1, s2| s1.total_cmp(s2))
                 .copied()
-                .max_by(nan_safe_f32_cmp)
                 .unwrap_or_default()
                 .max(1.0);
 
@@ -142,7 +141,7 @@ impl Client {
 
             knn_scores = knn_scores
                 .into_iter()
-                .sorted_unstable_by(|(_, s1), (_, s2)| nan_safe_f32_cmp_desc(s1, s2))
+                .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
                 .take(params.count)
                 .collect();
         }

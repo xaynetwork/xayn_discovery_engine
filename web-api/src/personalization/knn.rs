@@ -18,7 +18,7 @@ use chrono::{DateTime, Utc};
 use futures_util::{stream::FuturesUnordered, Stream, StreamExt};
 use itertools::Itertools;
 use tracing::error;
-use xayn_ai_coi::{compute_coi_weights, nan_safe_f32_cmp, PositiveCoi};
+use xayn_ai_coi::{compute_coi_weights, PositiveCoi};
 
 use crate::{
     error::common::InternalError,
@@ -55,7 +55,7 @@ where
         let coi_weights = compute_coi_weights(interests.clone(), self.horizon, self.time);
         let cois = interests
             .zip(coi_weights)
-            .sorted_by(|(_, a_weight), (_, b_weight)| nan_safe_f32_cmp(b_weight, a_weight))
+            .sorted_by(|(_, w1), (_, w2)| w1.total_cmp(w2).reverse())
             .take(self.max_cois)
             .collect_vec();
 

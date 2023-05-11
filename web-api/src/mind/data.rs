@@ -21,7 +21,6 @@ use ndarray::{Array, Array1, Dimension, Ix2, ShapeBuilder, SliceArg};
 use npyz::WriterBuilder;
 use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use serde::{de, Deserialize, Deserializer};
-use xayn_ai_coi::nan_safe_f32_cmp_desc;
 use xayn_test_utils::error::Panic;
 
 use crate::models::{DocumentId, DocumentTag, UserId};
@@ -222,7 +221,7 @@ where
 
     fn compute(relevance: &[f32], k: &[usize]) -> Array1<f32> {
         let mut optimal_order = relevance.to_vec();
-        optimal_order.sort_by(nan_safe_f32_cmp_desc);
+        optimal_order.sort_by(|r1, r2| r1.total_cmp(r2).reverse());
         let last = k
             .iter()
             .max()
