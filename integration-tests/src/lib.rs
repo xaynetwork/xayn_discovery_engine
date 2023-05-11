@@ -168,7 +168,7 @@ pub async fn test_two_apps<A1, A2, F>(
 fn build_client(services: &Services) -> Arc<Client> {
     let mut default_headers = HeaderMap::default();
     default_headers.insert(
-        "X-Tenant-Id",
+        "X-Xayn-Tenant-Id",
         services.tenant_id.as_str().try_into().unwrap(),
     );
     Arc::new(

@@ -31,7 +31,7 @@ async fn test_tenant_id_is_required_if_legacy_tenant_is_disabled() {
             );
         },
         |_, url, _| async move {
-            // don't use injected "X-Tenant-Id" header
+            // don't use injected "X-Xayn-Tenant-Id" header
             let client = Client::new();
             send_assert(
                 &client,
@@ -65,7 +65,7 @@ async fn test_tenant_id_is_not_required_if_legacy_tenant_is_enabled() {
             )
         },
         |_, url, _| async move {
-            // don't use injected "X-Tenant-Id" header
+            // don't use injected "X-Xayn-Tenant-Id" header
             let client = Client::new();
             send_assert(
                 &client,
