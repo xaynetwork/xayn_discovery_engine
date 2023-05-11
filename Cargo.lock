@@ -4412,6 +4412,7 @@ dependencies = [
  "itertools 0.10.5",
  "once_cell",
  "reqwest",
+ "serde",
  "serde_json",
  "sqlx",
  "tokio",
