@@ -64,8 +64,7 @@ where
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
         let (silo, legacy_tenant) = initialize_silo(config.as_ref(), config.as_ref()).await?;
-        let storage_builder =
-            Arc::new(Storage::builder(config.as_ref(), &silo, legacy_tenant).await?);
+        let storage_builder = Arc::new(Storage::builder(config.as_ref(), legacy_tenant).await?);
         Ok(Self {
             config,
             extension,

@@ -239,7 +239,6 @@ pub(crate) struct Storage {
 impl Storage {
     pub(crate) async fn builder(
         config: &Config,
-        silo: &Silo,
         legacy_tenant: Option<TenantId>,
     ) -> Result<StorageBuilder, SetupError> {
         Ok(StorageBuilder {

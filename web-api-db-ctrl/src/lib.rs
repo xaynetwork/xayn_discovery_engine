@@ -163,6 +163,7 @@ pub enum Operation {
 }
 
 #[derive(Serialize)]
+#[serde(untagged)]
 pub enum OperationSucceeded {
     ListTenants { tenants: Vec<Tenant> },
     CreateTenant { tenant: Tenant },
