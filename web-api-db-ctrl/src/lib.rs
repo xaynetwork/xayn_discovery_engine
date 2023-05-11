@@ -84,9 +84,8 @@ impl Silo {
         tenant_id: TenantId,
         is_legacy: bool,
     ) -> Result<Tenant, Error> {
-        //TODO allow creating legacy tenants post non legacy init
         let mut tx = self.postgres.begin().await?;
-        postgres::create_tenant(&mut tx, &tenant_id).await?;
+        postgres::create_tenant(&mut tx, &tenant_id, is_legacy).await?;
         elastic::create_tenant(&self.elastic, &tenant_id).await?;
         tx.commit().await?;
         Ok(Tenant {
@@ -155,6 +154,7 @@ pub enum Operation {
     ListTenants,
     CreateTenant {
         tenant_id: TenantId,
+        #[serde(default)]
         is_legacy: bool,
     },
     DeleteTenant {

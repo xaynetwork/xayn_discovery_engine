@@ -153,7 +153,7 @@ where
         legacy_tenant_id
     } else {
         let new_id = TenantId::random_legacy_tenant_id();
-        create_tenant_role_and_schema(tx, &new_id, true).await?;
+        create_tenant_role_and_schema(tx, &new_id, LegacyHint::MigrateSchema).await?;
         legacy_setup(new_id.clone()).await?;
         info!({tenant_id = %new_id}, "created new legacy tenant");
         new_id
@@ -292,10 +292,29 @@ pub(super) async fn delete_tenant(
 pub(super) async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: &TenantId,
+    is_legacy_tenant: bool,
 ) -> Result<(), Error> {
-    create_tenant_role_and_schema(tx, tenant_id, false).await?;
+    let legcy_hint = if is_legacy_tenant {
+        LegacyHint::NewSchema
+    } else {
+        LegacyHint::Not
+    };
+    create_tenant_role_and_schema(tx, tenant_id, legcy_hint).await?;
     run_db_migration_for(tx, tenant_id, true).await?;
     Ok(())
+}
+
+#[derive(Clone, Copy, Debug)]
+enum LegacyHint {
+    Not,
+    MigrateSchema,
+    NewSchema,
+}
+
+impl LegacyHint {
+    fn is_legacy_tenant(self) -> bool {
+        matches!(self, LegacyHint::MigrateSchema | LegacyHint::NewSchema)
+    }
 }
 
 /// Sets up a new tenant with given id.
@@ -307,8 +326,9 @@ pub(super) async fn create_tenant(
 async fn create_tenant_role_and_schema(
     tx: &mut Transaction<'_, Postgres>,
     tenant_id: &TenantId,
-    is_legacy_tenant: bool,
+    legacy_hint: LegacyHint,
 ) -> Result<(), Error> {
+    // TODO make sure legacy tenant creation through management API works
     let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
 
     create_role(tx, &tenant).await?;
@@ -327,7 +347,7 @@ async fn create_tenant_role_and_schema(
         .try_for_each(|_| future::ready(Ok(())))
         .await?;
 
-    let query = if is_legacy_tenant {
+    let query = if let LegacyHint::MigrateSchema = legacy_hint {
         info!("moving legacy tenant from public schema to {tenant}");
         format!(
             r##"ALTER SCHEMA public RENAME TO {tenant};
@@ -398,7 +418,7 @@ async fn create_tenant_role_and_schema(
 
     sqlx::query("INSERT INTO management.tenant (tenant_id, is_legacy_tenant) VALUES ($1, $2);")
         .bind(tenant_id)
-        .bind(is_legacy_tenant)
+        .bind(legacy_hint.is_legacy_tenant())
         .execute(tx)
         .await?;
 
