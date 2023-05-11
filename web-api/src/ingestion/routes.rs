@@ -568,15 +568,7 @@ async fn silo_management_api(
     silo: Data<Silo>,
 ) -> Result<impl Responder, Error> {
     let results = silo.run_operations(false, request.operations).await?;
-    let results: Vec<_> = results
-        .into_iter()
-        .map(|res| -> Result<_, Error> {
-            Ok(match res {
-                Ok(out) => serde_json::to_value(&out)?,
-                Err(error) => json!({"error": error.to_string()}),
-            })
-        })
-        .try_collect()?;
+    let results: Vec<_> = results.iter().map(serde_json::to_value).try_collect()?;
 
     Ok(Json(json!({ "results": results })))
 }

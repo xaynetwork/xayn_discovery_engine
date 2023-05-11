@@ -121,23 +121,32 @@ impl Silo {
     }
 
     async fn run_operation(&self, op: Operation) -> OperationResult {
-        Ok(match op {
-            Operation::ListTenants => {
-                let tenants = self.list_tenants().await?;
-                OperationSucceeded::ListTenants { tenants }
-            }
+        match op {
+            Operation::ListTenants => self
+                .list_tenants()
+                .await
+                .map(|tenants| OperationResult::ListTenants { tenants })
+                .unwrap_or_else(|err| OperationResult::Error {
+                    msg: err.to_string(),
+                }),
             Operation::CreateTenant {
                 tenant_id,
                 is_legacy,
-            } => {
-                let tenant = self.create_tenant(tenant_id, is_legacy).await?;
-                OperationSucceeded::CreateTenant { tenant }
-            }
-            Operation::DeleteTenant { tenant_id } => {
-                let tenant = self.delete_tenant(tenant_id).await?;
-                OperationSucceeded::DeleteTenant { tenant }
-            }
-        })
+            } => self
+                .create_tenant(tenant_id, is_legacy)
+                .await
+                .map(|tenant| OperationResult::CreateTenant { tenant })
+                .unwrap_or_else(|err| OperationResult::Error {
+                    msg: err.to_string(),
+                }),
+            Operation::DeleteTenant { tenant_id } => self
+                .delete_tenant(tenant_id)
+                .await
+                .map(|tenant| OperationResult::DeleteTenant { tenant })
+                .unwrap_or_else(|err| OperationResult::Error {
+                    msg: err.to_string(),
+                }),
+        }
     }
 
     pub fn postgres_config(&self) -> &PgConfig {
@@ -163,15 +172,12 @@ pub enum Operation {
 }
 
 #[derive(Serialize)]
-#[serde(untagged)]
-pub enum OperationSucceeded {
+pub enum OperationResult {
     ListTenants { tenants: Vec<Tenant> },
     CreateTenant { tenant: Tenant },
     DeleteTenant { tenant: Option<Tenant> },
+    Error { msg: String },
 }
-
-pub type OperationResult = Result<OperationSucceeded, Error>;
-
 #[derive(Serialize, Deserialize)]
 pub struct Tenant {
     pub tenant_id: TenantId,
