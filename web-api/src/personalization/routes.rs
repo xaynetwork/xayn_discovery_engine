@@ -152,7 +152,7 @@ struct PersonalizedDocumentsQuery {
     published_after: Option<DateTime<Utc>>,
     query: Option<String>,
     #[serde(default)]
-    disable_hybrid_search: bool,
+    enable_hybrid_search: bool,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -165,10 +165,10 @@ impl PersonalizedDocumentsQuery {
     }
 
     fn query(&self) -> Option<&str> {
-        if self.disable_hybrid_search {
-            None
-        } else {
+        if self.enable_hybrid_search {
             self.query.as_deref()
+        } else {
+            None
         }
     }
 }
@@ -355,7 +355,7 @@ struct UnvalidatedSemanticSearchQuery {
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
     #[serde(default)]
-    disable_hybrid_search: bool,
+    enable_hybrid_search: bool,
 }
 
 impl UnvalidatedSemanticSearchQuery {
@@ -370,7 +370,7 @@ impl UnvalidatedSemanticSearchQuery {
             min_similarity,
             published_after,
             personalize,
-            disable_hybrid_search,
+            enable_hybrid_search,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         Ok(SemanticSearchQuery {
@@ -385,7 +385,7 @@ impl UnvalidatedSemanticSearchQuery {
             personalize: personalize
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
-            disable_hybrid_search,
+            enable_hybrid_search,
         })
     }
 }
@@ -442,7 +442,7 @@ struct SemanticSearchQuery {
     min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
-    disable_hybrid_search: bool,
+    enable_hybrid_search: bool,
 }
 
 enum InputDocument {
@@ -487,7 +487,7 @@ async fn semantic_search(
         min_similarity,
         personalize,
         published_after,
-        disable_hybrid_search,
+        enable_hybrid_search,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -505,7 +505,7 @@ async fn semantic_search(
         }
         InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
-            let query = (!disable_hybrid_search).then_some(query);
+            let query = enable_hybrid_search.then_some(query);
             (embedding, query)
         }
     };
