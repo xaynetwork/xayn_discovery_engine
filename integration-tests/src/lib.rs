@@ -232,7 +232,7 @@ fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bo
         .get("tenants")
         .and_then(|config| config.get("enable_legacy_tenant"))
         .and_then(|value| value.as_bool())
-        // Default to false, this is a different default then used for deployments.
+        // This is a different default value then used for deployments.
         .unwrap_or_default();
 
     extend_config(
