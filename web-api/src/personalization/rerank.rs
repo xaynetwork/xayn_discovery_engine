@@ -50,13 +50,13 @@ fn rerank_by_tag_weight<'a>(
     if total_tag_weight == 0 {
         return HashMap::new();
     }
-    #[allow(clippy::cast_precision_loss)] // acceptable for large values
+    #[allow(clippy::cast_precision_loss)]
     let total_tag_weight = total_tag_weight as f32;
 
     documents
         .iter()
         .map(|document| {
-            #[allow(clippy::cast_precision_loss)] // acceptable for large values
+            #[allow(clippy::cast_precision_loss)]
             let weight = document
                 .tags
                 .iter()

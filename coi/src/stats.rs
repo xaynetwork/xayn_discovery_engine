@@ -77,7 +77,7 @@ pub fn compute_coi_relevances<'a>(
     let cois = cois.into_iter();
 
     let view_counts = cois.clone().map(|coi| coi.stats.view_count).sum::<usize>();
-    #[allow(clippy::cast_precision_loss)] // acceptable for large values
+    #[allow(clippy::cast_precision_loss)]
     let view_counts = if view_counts == 0 {
         // arbitrary to allow for division since each view_count is zero
         1.
@@ -97,7 +97,7 @@ pub fn compute_coi_relevances<'a>(
     };
 
     cois.map(|coi| {
-        #[allow(clippy::cast_precision_loss)] // acceptable for large values
+        #[allow(clippy::cast_precision_loss)]
         let view_count = coi.stats.view_count as f32 / view_counts;
         let view_time = coi.stats.view_time.as_secs_f32() / view_times;
         let decay = compute_coi_decay_factor(horizon, time, coi.stats.last_view);
