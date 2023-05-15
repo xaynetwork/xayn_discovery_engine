@@ -168,7 +168,9 @@ async fn test_full_migration() -> Result<(), Error> {
     let (pg_config, es_config) = legacy_test_setup(todo!()).await?;
     let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
 
     let es_mapping: Value = serde_json::from_str(ELASTIC_MAPPING)?;
     // the old setup didn't setup elastic search itself, nor has the config pub fields
@@ -242,8 +244,8 @@ async fn test_full_migration() -> Result<(), Error> {
         .await?;
     conn.close().await?;
 
-    let new_ingestion_config = config::load_with_args([""; 0], args);
-    let ingestion = start::<Ingestion>(new_ingestion_config).await?;
+    let config = config::load_with_args([""; 0], args);
+    let ingestion = start::<Ingestion>(config).await?;
     let ingestion_url = ingestion.url();
     let config = config::load_with_args([""; 0], args);
     let personalization = start::<Personalization>(config).await?;
