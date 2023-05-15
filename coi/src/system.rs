@@ -89,18 +89,17 @@ impl System {
         cois.push(NegativeCoi::new(CoiId::new(), embedding.clone(), time));
     }
 
-    /// Calculates scores for the documents wrt the user interests.
-    pub fn score<D>(&self, documents: &[D], cois: &UserInterests, time: DateTime<Utc>) -> Vec<f32>
+    /// Calculates scores for the documents wrt the user interests (if there are any).
+    pub fn score<D>(
+        &self,
+        documents: &[D],
+        cois: &UserInterests,
+        time: DateTime<Utc>,
+    ) -> Option<Vec<f32>>
     where
         D: Document,
     {
-        #[allow(clippy::cast_precision_loss)]
         cois.compute_scores_for_docs(documents, &self.config, time)
-            .unwrap_or_else(|| {
-                (0..documents.len())
-                    .map(|idx| 1. / (1. + idx as f32))
-                    .collect()
-            })
     }
 }
 
@@ -116,12 +115,17 @@ mod tests {
 
     #[test]
     fn test_log_positive_user_reaction_same_coi() {
-        let mut cois = create_pos_cois([[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]]);
+        let now = Utc::now();
+        let mut cois = create_pos_cois([[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]], now);
         let embedding = [2., 3., 4.].try_into().unwrap();
         let system = Config::default().build();
 
         let before = cois.clone();
-        system.log_positive_user_reaction(&mut cois, &embedding, Utc::now());
+        system.log_positive_user_reaction(
+            &mut cois,
+            &embedding,
+            now + chrono::Duration::seconds(1),
+        );
 
         assert_eq!(cois.len(), 3);
         assert_approx_eq!(
@@ -138,11 +142,12 @@ mod tests {
 
     #[test]
     fn test_log_positive_user_reaction_new_coi() {
-        let mut cois = create_pos_cois([[0., 1.]]);
+        let now = Utc::now();
+        let mut cois = create_pos_cois([[0., 1.]], now);
         let embedding = [1., 0.].try_into().unwrap();
         let system = Config::default().build();
 
-        system.log_positive_user_reaction(&mut cois, &embedding, Utc::now());
+        system.log_positive_user_reaction(&mut cois, &embedding, now);
 
         assert_eq!(cois.len(), 2);
         assert_approx_eq!(f32, cois[0].point, [0., 1.,]);
@@ -151,12 +156,17 @@ mod tests {
 
     #[test]
     fn test_log_negative_user_reaction_last_view() {
-        let mut cois = create_neg_cois([[1., 2., 3.]]);
+        let now = Utc::now();
+        let mut cois = create_neg_cois([[1., 2., 3.]], now);
         let embedding = [1., 2., 4.].try_into().unwrap();
         let system = Config::default().build();
 
         let last_view = cois[0].last_view;
-        system.log_negative_user_reaction(&mut cois, &embedding, Utc::now());
+        system.log_negative_user_reaction(
+            &mut cois,
+            &embedding,
+            now + chrono::Duration::seconds(1),
+        );
 
         assert_eq!(cois.len(), 1);
         assert!(cois[0].last_view > last_view);
@@ -164,7 +174,7 @@ mod tests {
 
     #[test]
     fn test_log_document_view_time() {
-        let mut cois = create_pos_cois([[1., 2., 3.]]);
+        let mut cois = create_pos_cois([[1., 2., 3.]], Utc::now());
 
         System::log_document_view_time(
             &mut cois,
@@ -189,14 +199,16 @@ mod tests {
             TestDocument::new(2, [1., 2., 0.].try_into().unwrap()),
             TestDocument::new(3, [5., 3., 0.].try_into().unwrap()),
         ];
+        let now = Utc::now();
         let cois = UserInterests {
-            positive: create_pos_cois([[1., 0., 0.], [4., 12., 2.]]),
-            negative: create_neg_cois([[-100., -10., 0.]]),
+            positive: create_pos_cois([[1., 0., 0.], [4., 12., 2.]], now),
+            negative: create_neg_cois([[-100., -10., 0.]], now),
         };
 
         let scores = Config::default()
             .build()
-            .score(&documents, &cois, Utc::now());
+            .score(&documents, &cois, Utc::now())
+            .unwrap();
 
         assert!(scores[0] < scores[2]);
         assert!(scores[2] < scores[3]);
@@ -214,7 +226,6 @@ mod tests {
         let scores = Config::default()
             .build()
             .score(&documents, &cois, Utc::now());
-        assert!(scores[0] > scores[1]);
-        assert!(scores[1] > scores[2]);
+        assert!(scores.is_none());
     }
 }

@@ -250,7 +250,7 @@ async fn test_personalization_with_tags() {
             let documents = personalize(&client, &personalization_url, None, None).await?;
             assert_order!(
                 &documents,
-                ["d5", "d8", "d6", "d4", "d1"],
+                ["d5", "d6", "d4", "d1", "d8"],
                 "unexpected personalized documents: {documents:?}",
             );
             Ok(())

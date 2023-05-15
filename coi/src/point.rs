@@ -97,6 +97,8 @@ impl_coi_point! {
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
+///
+/// The similarity ranges in the interval `[-1.0, 1.0]`.
 pub(super) fn find_closest_coi_index(
     cois: &[impl CoiPoint],
     embedding: &NormalizedEmbedding,
@@ -112,6 +114,8 @@ pub(super) fn find_closest_coi_index(
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
+///
+/// The similarity ranges in the interval `[-1.0, 1.0]`.
 pub(super) fn find_closest_coi<'coi, CP>(
     cois: &'coi [CP],
     embedding: &NormalizedEmbedding,
@@ -123,6 +127,8 @@ where
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
+///
+/// The similarity ranges in the interval `[-1.0, 1.0]`.
 pub(super) fn find_closest_coi_mut<'coi, CP>(
     cois: &'coi mut [CP],
     embedding: &NormalizedEmbedding,
@@ -140,33 +146,37 @@ pub(crate) mod tests {
 
     use super::*;
 
-    pub(crate) fn create_cois<const M: usize, const N: usize, CP>(points: [[f32; N]; M]) -> Vec<CP>
+    pub(crate) fn create_cois<const M: usize, const N: usize, CP>(
+        points: [[f32; N]; M],
+        time: DateTime<Utc>,
+    ) -> Vec<CP>
     where
         CP: CoiPoint,
     {
-        let now = Utc::now();
         points
             .into_iter()
             .enumerate()
-            .map(|(id, point)| CP::new(CoiId::mocked(id), point.try_into().unwrap(), now))
+            .map(|(id, point)| CP::new(CoiId::mocked(id), point.try_into().unwrap(), time))
             .collect()
     }
 
     pub(crate) fn create_pos_cois<const M: usize, const N: usize>(
         points: [[f32; N]; M],
+        time: DateTime<Utc>,
     ) -> Vec<PositiveCoi> {
-        create_cois(points)
+        create_cois(points, time)
     }
 
     pub(crate) fn create_neg_cois<const M: usize, const N: usize>(
         points: [[f32; N]; M],
+        time: DateTime<Utc>,
     ) -> Vec<NegativeCoi> {
-        create_cois(points)
+        create_cois(points, time)
     }
 
     #[test]
     fn test_shift_coi_point_towards_other() {
-        let mut cois = create_pos_cois([[1., 1., 1.]]);
+        let mut cois = create_pos_cois([[1., 1., 1.]], Utc::now());
         let towards = [2., 3., 4.].try_into().unwrap();
         let shift_factor = 0.1;
         cois[0].shift_point(&towards, shift_factor).unwrap();
@@ -179,7 +189,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_shift_coi_point_towards_self() {
-        let mut cois = create_pos_cois([[1., 1., 1.]]);
+        let mut cois = create_pos_cois([[1., 1., 1.]], Utc::now());
         let towards = cois[0].point.clone();
         let shift_factor = 0.1;
         cois[0].shift_point(&towards, shift_factor).unwrap();
@@ -188,7 +198,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_find_closest_coi_single() {
-        let cois = create_pos_cois([[1., 2., 3.]]);
+        let cois = create_pos_cois([[1., 2., 3.]], Utc::now());
         let embedding = [1., 5., 9.].try_into().unwrap();
         let (index, similarity) = find_closest_coi_index(&cois, &embedding).unwrap();
         assert_eq!(index, 0);
@@ -197,7 +207,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_find_closest_coi() {
-        let cois = create_pos_cois([[6., 1., 8.], [12., 4., 0.], [0., 4., 13.]]);
+        let cois = create_pos_cois([[6., 1., 8.], [12., 4., 0.], [0., 4., 13.]], Utc::now());
         let embedding = [1., 5., 9.].try_into().unwrap();
         let (closest, similarity) = find_closest_coi(&cois, &embedding).unwrap();
         assert_approx_eq!(f32, closest.point, cois[2].point);
@@ -206,7 +216,7 @@ pub(crate) mod tests {
 
     #[test]
     fn test_find_closest_coi_equal() {
-        let cois = create_pos_cois([[1., 2., 3.]]);
+        let cois = create_pos_cois([[1., 2., 3.]], Utc::now());
         let embedding = [1., 2., 3.].try_into().unwrap();
         let (closest, similarity) = find_closest_coi(&cois, &embedding).unwrap();
         assert_approx_eq!(f32, closest.point, cois[0].point);

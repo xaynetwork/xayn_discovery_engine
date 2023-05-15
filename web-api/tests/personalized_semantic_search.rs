@@ -199,7 +199,7 @@ async fn test_subtle_personalization() {
             .await;
             assert_order!(
                 documents,
-                ["d6", "d4", "d5", "d8", "d7"],
+                ["d6", "d4", "d5", "d7", "d8"],
                 "unexpected subtle personalized documents: {documents:?}",
             );
 
