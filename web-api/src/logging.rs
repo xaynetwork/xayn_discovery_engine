@@ -74,7 +74,7 @@ impl Default for Config {
 ///
 /// This should be called before [`crate::start()`] is called.
 ///
-/// Even through this returns an error if logging was already initialized you
+/// Even though this returns an error if logging was already initialized you
 /// should only call this function when you expect it to succeed.
 pub fn initialize(log_config: &Config) -> Result<(), TryInitError> {
     init_tracing_once(log_config)?;
