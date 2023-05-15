@@ -36,7 +36,7 @@ sqlx = { workspace = true, features = ["chrono", "uuid"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
-tracing-subscriber = { version = "0.3.16", features = ["env-filter", "json"] }
+tracing-subscriber = { workspace = true }
 url = { version = "2.3.1", features = ["serde"] }
 urlencoding = "2.1.2"
 uuid = { workspace = true }

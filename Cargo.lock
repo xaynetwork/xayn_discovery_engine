@@ -3623,9 +3623,9 @@ dependencies = [
 
 [[package]]
 name = "tracing-subscriber"
-version = "0.3.16"
+version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6176eae26dd70d0c919749377897b54a9276bd7061339665dd68777926b5a70"
+checksum = "30a651bc37f915e81f087d86e62a18eec5f79550c7faff886f7090b4ea757c77"
 dependencies = [
  "matchers",
  "nu-ansi-term",
@@ -4214,7 +4214,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-ai-bert"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "criterion",
  "csv",
@@ -4236,7 +4236,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-ai-coi"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "criterion",
@@ -4258,7 +4258,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-integration-tests"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "once_cell",
@@ -4269,6 +4269,7 @@ dependencies = [
  "serde_json",
  "tokio",
  "toml 0.7.3",
+ "tracing-subscriber",
  "uuid",
  "xayn-test-utils",
  "xayn-web-api",
@@ -4276,7 +4277,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-summarizer"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "ndarray",
  "serde",
@@ -4286,7 +4287,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-test-utils"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "float-cmp",
  "ndarray",
@@ -4297,7 +4298,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-web-api"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "actix-cors",
  "actix-web",
