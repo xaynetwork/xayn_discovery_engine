@@ -24,13 +24,10 @@ use serde::Serialize;
 use thiserror::Error;
 use tracing::Level;
 use xayn_ai_bert::InvalidEmbedding;
+use xayn_web_api_shared::elastic;
 
-use super::application::ApplicationError;
-use crate::{
-    error::application::{impl_application_error, Error},
-    models::DocumentId,
-    storage::elastic::ElasticError,
-};
+use super::application::{impl_application_error, ApplicationError};
+use crate::{models::DocumentId, Error};
 
 impl_application_error!(InvalidEmbedding => INTERNAL_SERVER_ERROR, ERROR);
 
@@ -140,8 +137,8 @@ impl From<String> for BadRequest {
     }
 }
 
-impl From<ElasticError> for Error {
-    fn from(error: ElasticError) -> Self {
+impl From<elastic::Error> for Error {
+    fn from(error: elastic::Error) -> Self {
         InternalError::from_std(error).into()
     }
 }

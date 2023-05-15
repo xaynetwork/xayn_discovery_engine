@@ -15,11 +15,9 @@
 use async_stream::try_stream;
 use either::Either;
 use futures_util::{future::BoxFuture, stream::BoxStream, FutureExt, StreamExt, TryStreamExt};
-use secrecy::{ExposeSecret, Secret};
-use serde::{Deserialize, Serialize};
 use sqlx::{
     pool::{PoolConnection, PoolOptions},
-    postgres::{PgConnectOptions, PgQueryResult, PgRow, PgStatement, PgTypeInfo},
+    postgres::{PgQueryResult, PgRow, PgStatement, PgTypeInfo},
     Acquire,
     Describe,
     Execute,
@@ -29,72 +27,17 @@ use sqlx::{
     Transaction,
 };
 use tracing::{info, instrument};
-
-use super::utils::{InvalidQuotedIdentifier, QuotedIdentifier};
-use crate::{
-    error::common::InternalError,
-    middleware::request_context::TenantId,
-    utils::serialize_redacted,
-    Error,
-    SetupError,
+use xayn_web_api_shared::{
+    postgres::{Config, QuotedIdentifier},
+    request::TenantId,
 };
 
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(default)]
-pub(crate) struct Config {
-    /// The default base url.
-    ///
-    /// Passwords in the URL will be ignored, do not set the
-    /// db password with the db url.
-    base_url: String,
-
-    /// Override port from base url.
-    port: Option<u16>,
-
-    /// Override user from base url.
-    user: Option<String>,
-
-    /// Sets the password.
-    #[serde(serialize_with = "serialize_redacted")]
-    password: Secret<String>,
-
-    /// Override db from base url.
-    db: Option<String>,
-
-    /// Override default application name from base url.
-    application_name: Option<String>,
-
-    /// If true skips running db migrations on start up.
-    skip_migrations: bool,
-
-    /// Minimum number of connections in the pool.
-    /// When the pool is built, this many connections will be automatically spun up.
-    /// This value is clamped internally to not exceed `max_pool_size`.
-    min_pool_size: u8,
-
-    /// Maximum number of connections in the pool.
-    max_pool_size: u8,
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        Self {
-            base_url: "postgres://user:pw@localhost:5432/xayn".into(),
-            port: None,
-            user: None,
-            password: String::from("pw").into(),
-            db: None,
-            application_name: option_env!("CARGO_BIN_NAME").map(|name| format!("xayn-web-{name}")),
-            skip_migrations: false,
-            min_pool_size: 0,
-            max_pool_size: 25,
-        }
-    }
-}
+use crate::SetupError;
 
 #[derive(Clone)]
 pub(crate) struct DatabaseBuilder {
     pool: Pool<Postgres>,
+    legacy_tenant: Option<TenantId>,
 }
 
 impl DatabaseBuilder {
@@ -102,18 +45,16 @@ impl DatabaseBuilder {
         self.pool.close().await;
     }
 
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Result<Database, Error> {
-        Ok(Database {
+    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Database {
+        Database {
             pool: self.pool.clone(),
-            tenant_db_name: db_name_for_tenant_id(tenant_id).map_err(InternalError::from_std)?,
-        })
+            tenant_db_name: QuotedIdentifier::db_name_for_tenant_id(tenant_id),
+        }
     }
-}
 
-fn db_name_for_tenant_id(
-    tenant_id: &TenantId,
-) -> Result<QuotedIdentifier, InvalidQuotedIdentifier> {
-    format!("t:{tenant_id}").try_into()
+    pub(crate) fn legacy_tenant(&self) -> Option<&TenantId> {
+        self.legacy_tenant.as_ref()
+    }
 }
 
 #[derive(Debug)]
@@ -124,12 +65,12 @@ pub(crate) struct Database {
 }
 
 impl Database {
-    #[instrument]
+    #[instrument(skip(config), err)]
     pub(crate) async fn builder(
         config: &Config,
-        enable_legacy_tenant: bool,
+        legacy_tenant: Option<TenantId>,
     ) -> Result<DatabaseBuilder, SetupError> {
-        let options = Self::build_connection_options(config)?;
+        let options = config.to_connection_options()?;
         info!("starting postgres setup");
         let pool = PoolOptions::new()
             .min_connections(u32::from(config.min_pool_size))
@@ -144,64 +85,20 @@ impl Database {
             .connect_with(options)
             .await?;
 
-        if !config.skip_migrations {
-            info!("running postgres migrations");
-            sqlx::migrate!().run(&pool).await?;
-
-            //FIXME handle legacy tenant here (in follow up PR)
-            let _: bool = enable_legacy_tenant;
-        }
-
-        info!("postgres setup done");
-
-        Ok(DatabaseBuilder { pool })
-    }
-
-    fn build_connection_options(config: &Config) -> Result<PgConnectOptions, sqlx::Error> {
-        let Config {
-            base_url,
-            port,
-            user,
-            password,
-            db,
-            application_name,
-            ..
-        } = config;
-
-        let mut options = base_url
-            .parse::<PgConnectOptions>()?
-            .password(password.expose_secret());
-
-        if let Some(user) = user {
-            options = options.username(user);
-        }
-        if let Some(port) = port {
-            options = options.port(*port);
-        }
-        if let Some(db) = db {
-            options = options.database(db);
-        }
-        if let Some(application_name) = application_name {
-            options = options.application_name(application_name);
-        }
-
-        Ok(options)
+        Ok(DatabaseBuilder {
+            pool,
+            legacy_tenant,
+        })
     }
 
     async fn set_role(
         &self,
-        _conn: impl Executor<'_, Database = Postgres>,
+        conn: impl Executor<'_, Database = Postgres>,
     ) -> Result<(), sqlx::Error> {
-        // prepare/bind doesn't work with `SET ROLE` so we need to do a bit
-        // of encoding/safety checking ourself
-        //FIXME to avoid problems this is commented out until follow up PRs
-        //      which properly setup the database
-        // sqlx::query(&format!("SET ROLE {};", self.tenant_db_name))
-        //     .execute(conn)
-        //     .await
-        //     .map(|_| ())
-        #![allow(clippy::unused_async)]
-        Ok(())
+        sqlx::query(&format!("SET ROLE {};", self.tenant_db_name))
+            .execute(conn)
+            .await
+            .map(|_| ())
     }
 
     pub(crate) async fn acquire(&self) -> Result<PoolConnection<Postgres>, sqlx::Error> {

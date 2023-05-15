@@ -12,25 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use derive_more::Deref;
-use xayn_web_api_shared::{elastic, request::TenantId};
+//! Code shared between various web-api* crates.
+//!
+//! This are mostly models and new types like e.g. `TenantId`,
+//! but sometimes are also very specific utility functions like
+//! a per-schema db lock.
 
-use crate::SetupError;
-
-#[derive(Deref)]
-pub(crate) struct Client(elastic::Client);
-
-impl Client {
-    pub(crate) fn builder(config: elastic::Config) -> Result<ClientBuilder, SetupError> {
-        elastic::Client::new(config).map(ClientBuilder)
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct ClientBuilder(elastic::Client);
-
-impl ClientBuilder {
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Client {
-        Client(self.0.with_index(tenant_id))
-    }
-}
+pub mod elastic;
+pub mod postgres;
+pub mod request;
+pub mod serde;

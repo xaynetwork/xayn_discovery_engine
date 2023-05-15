@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{convert::identity, sync::Arc};
+use std::sync::Arc;
 
 use actix_web::{
     dev::{Payload, ServiceFactory, ServiceRequest},
@@ -23,13 +23,13 @@ use actix_web::{
 };
 use derive_more::{AsRef, Deref};
 use futures_util::future::{ready, Ready};
+use xayn_web_api_shared::request::TenantId;
 
 use crate::{
     app::{Application, SetupError},
     error::common::InternalError,
     middleware::request_context::RequestContext,
     storage::{Storage, StorageBuilder},
-    tenants,
     Error,
 };
 
@@ -60,10 +60,7 @@ where
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
-        let enable_legacy_tenant =
-            identity::<&tenants::Config>(config.as_ref()).enable_legacy_tenant;
-        let storage_builder =
-            Arc::new(Storage::builder(config.as_ref(), enable_legacy_tenant).await?);
+        let storage_builder = Arc::new(Storage::builder(config.as_ref(), config.as_ref()).await?);
         Ok(Self {
             config,
             extension,
@@ -73,6 +70,10 @@ where
 
     pub(super) async fn close(self: Arc<Self>) {
         self.storage_builder.close().await;
+    }
+
+    pub(crate) fn legacy_tenant(&self) -> Option<&TenantId> {
+        self.storage_builder.legacy_tenant()
     }
 }
 
@@ -96,7 +97,7 @@ fn extract_tenant_state(request: &HttpRequest) -> Result<TenantState, Error> {
         let storage = request
             .app_data::<Arc<StorageBuilder>>()
             .ok_or_else(|| InternalError::from_message("Arc<StorageBuilder> missing"))?
-            .build_for(&ctx.tenant_id)?;
+            .build_for(&ctx.tenant_id);
         Ok(TenantState(storage))
     })
     .map_err(InternalError::from_std)?
