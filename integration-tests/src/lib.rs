@@ -36,7 +36,7 @@ use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
 use secrecy::ExposeSecret;
-use serde::{de::DeserializeOwned, Serialize};
+use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
 use tracing::{error_span, instrument, Instrument};
