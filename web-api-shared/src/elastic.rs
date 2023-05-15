@@ -63,6 +63,8 @@ impl Default for Config {
         }
     }
 }
+
+#[derive(Debug)]
 struct Auth {
     user: String,
     password: Secret<String>,
@@ -74,7 +76,7 @@ impl Auth {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Client {
     auth: Arc<Auth>,
     url_to_index: Arc<SegmentableUrl>,
@@ -355,7 +357,7 @@ pub enum Error {
     EndpointNotFound(&'static str),
 }
 
-#[derive(derive_more::Into, Clone)]
+#[derive(derive_more::Into, Clone, Debug)]
 pub struct SegmentableUrl(Url);
 
 impl SegmentableUrl {

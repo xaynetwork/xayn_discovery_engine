@@ -17,7 +17,7 @@ use std::collections::HashMap;
 use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::{json, Value};
-use xayn_integration_tests::{send_assert, send_assert_json, test_app, unchanged_config};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
 use xayn_web_api::Ingestion;
 
 #[derive(Debug, Deserialize)]
@@ -33,7 +33,7 @@ enum Error {
 }
 
 async fn document_properties(is_candidate: bool) {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
             client
@@ -143,7 +143,7 @@ struct DocumentPropertyResponse {
 }
 
 async fn document_property(is_candidate: bool) {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
             client

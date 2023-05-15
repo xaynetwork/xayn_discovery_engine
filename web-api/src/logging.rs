@@ -59,6 +59,7 @@ pub struct Config {
     pub file: Option<RelativePathBuf>,
     #[serde(with = "serde_level_filter")]
     pub level: LevelFilter,
+    pub install_panic_hook: bool,
 }
 
 impl Default for Config {
@@ -66,6 +67,7 @@ impl Default for Config {
         Self {
             file: None,
             level: LevelFilter::INFO,
+            install_panic_hook: true,
         }
     }
 }
@@ -78,7 +80,9 @@ impl Default for Config {
 /// should only call this function when you expect it to succeed.
 pub fn initialize(log_config: &Config) -> Result<(), TryInitError> {
     init_tracing_once(log_config)?;
-    init_panic_logging();
+    if log_config.install_panic_hook {
+        init_panic_logging();
+    }
     Ok(())
 }
 

@@ -25,6 +25,8 @@ use regex::Regex;
 /// - `LANG`
 /// - `PWD`
 /// - `CI`
+/// - `RUST_BACKTRACE`
+/// - `RUST_LIB_BACKTRACE`
 ///
 /// Additional exceptions to avoid potential complications
 /// with programs called by just, especially wrt to docker-compose
@@ -64,6 +66,8 @@ static ENV_PRUNE_EXCEPTIONS: Lazy<Regex> = Lazy::new(|| {
         |(?:^USER$)
         |(?:^CI$)
         |(?:^HOME$)
+        |(?:^RUST_BACKTRACE$)
+        |(?:^RUST_LIB_BACKTRACE$)
         |(?:^DBUS)
         |(?:^SYSTEMD)
         |(?:^DOCKER)

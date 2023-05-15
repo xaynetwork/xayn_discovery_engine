@@ -18,7 +18,7 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use xayn_integration_tests::{send_assert, send_assert_json, test_app, unchanged_config};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::Ingestion;
 
@@ -71,7 +71,7 @@ async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) ->
 
 #[tokio::test]
 async fn test_candidates_all() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -84,7 +84,7 @@ async fn test_candidates_all() {
 
 #[tokio::test]
 async fn test_candidates_some() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -97,7 +97,7 @@ async fn test_candidates_some() {
 
 #[tokio::test]
 async fn test_candidates_none() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -110,7 +110,7 @@ async fn test_candidates_none() {
 
 #[tokio::test]
 async fn test_candidates_not_default() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         send_assert(
             &client,
@@ -156,7 +156,7 @@ struct Error {
 
 #[tokio::test]
 async fn test_candidates_warning() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -184,7 +184,7 @@ async fn test_candidates_warning() {
 
 #[tokio::test]
 async fn test_candidates_reingestion() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         send_assert(
             &client,

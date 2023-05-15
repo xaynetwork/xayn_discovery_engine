@@ -15,6 +15,7 @@
 mod elastic;
 mod postgres;
 
+pub use elastic::create_tenant as elastic_create_tenant;
 use sqlx::pool::PoolOptions;
 use xayn_web_api_shared::{
     elastic::{Client as EsClient, Config as EsConfig},
@@ -25,31 +26,35 @@ use xayn_web_api_shared::{
 //TODO
 pub type Error = anyhow::Error;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Silo {
+    postgres_config: PgConfig,
+    elastic_config: EsConfig,
     postgres: PgClient,
     elastic: EsClient,
     enable_legacy_tenant: Option<LegacyTenantInfo>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LegacyTenantInfo {
     pub es_index: String,
 }
 
 impl Silo {
     pub async fn new(
-        postgres: &PgConfig,
-        elastic: EsConfig,
+        postgres_config: PgConfig,
+        elastic_config: EsConfig,
         enable_legacy_tenant: Option<LegacyTenantInfo>,
     ) -> Result<Self, Error> {
         let postgres = PoolOptions::new()
-            .connect_with(postgres.to_connection_options()?)
+            .connect_with(postgres_config.to_connection_options()?)
             .await?;
 
-        let elastic = EsClient::new(elastic)?;
+        let elastic = EsClient::new(elastic_config.clone())?;
 
         Ok(Self {
+            postgres_config,
+            elastic_config,
             postgres,
             elastic,
             enable_legacy_tenant,
@@ -87,5 +92,13 @@ impl Silo {
         elastic::delete_tenant(&self.elastic, tenant_id).await?;
         tx.commit().await?;
         Ok(())
+    }
+
+    pub fn postgres_config(&self) -> &PgConfig {
+        &self.postgres_config
+    }
+
+    pub fn elastic_config(&self) -> &EsConfig {
+        &self.elastic_config
     }
 }

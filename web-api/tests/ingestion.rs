@@ -22,7 +22,7 @@ use xayn_integration_tests::{
     send_assert_json,
     test_app,
     test_two_apps,
-    unchanged_config,
+    UNCHANGED_CONFIG,
 };
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
@@ -68,7 +68,7 @@ struct Error {
 
 #[tokio::test]
 async fn test_ingestion_created() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
@@ -97,7 +97,7 @@ async fn test_ingestion_created() {
 
 #[tokio::test]
 async fn test_ingestion_bad_request() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         let error = send_assert_json::<Error>(
             &client,
             client
@@ -130,7 +130,7 @@ async fn test_ingestion_bad_request() {
 
 #[tokio::test]
 async fn test_deletion() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
@@ -170,8 +170,8 @@ struct SemanticSearchResponse {
 #[tokio::test]
 async fn test_reingestion_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             send_assert(
                 &client,
@@ -256,7 +256,7 @@ async fn test_reingestion_candidates() {
 // new and changed documents have been logged and manually check the databases
 #[tokio::test]
 async fn test_reingestion_snippets() {
-    test_app::<Ingestion, _>(unchanged_config, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
             client

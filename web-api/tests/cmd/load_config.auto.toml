@@ -6,7 +6,8 @@ stdout = """
 {
   "logging": {
     "file": "[CWD]/tests/cmd/assets/foo/bar.log",
-    "level": "info"
+    "level": "info",
+    "install_panic_hook": true
   },
   "net": {
     "bind_to": "127.0.1.1:3040",
