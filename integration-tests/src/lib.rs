@@ -135,7 +135,7 @@ pub fn initialize_test_logging() {
         logging::initialize(&logging::Config {
             file: None,
             level: LevelFilter::WARN,
-            // FIXME If we have json logging do fix the panic logging hock
+            // FIXME If we have json logging do fix the panic logging hook
             //       to also log the backtrace instead of disabling the
             //       panic hook.
             install_panic_hook: false,
@@ -227,14 +227,13 @@ pub async fn test_two_apps<A1, A2, F>(
     services.cleanup_test().await.unwrap();
 }
 
-const TEST_DEFAULT_ENABLE_LEGACY_CONFIG: bool = false;
-
 fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bool) {
     let value = config
         .get("tenants")
         .and_then(|config| config.get("enable_legacy_tenant"))
         .and_then(|value| value.as_bool())
-        .unwrap_or(TEST_DEFAULT_ENABLE_LEGACY_CONFIG);
+        // Default to false, this is a different default then used for deployments.
+        .unwrap_or_default();
 
     extend_config(
         &mut config,
@@ -249,7 +248,10 @@ fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bo
 
 fn build_client(services: &Services) -> Arc<Client> {
     let mut default_headers = HeaderMap::default();
-    default_headers.insert("X-Xayn-Tenant-Id", services.test_id.as_str().try_into().unwrap());
+    default_headers.insert(
+        "X-Xayn-Tenant-Id",
+        services.test_id.as_str().try_into().unwrap(),
+    );
     Arc::new(
         Client::builder()
             .default_headers(default_headers)
@@ -279,8 +281,8 @@ where
 {
     let pg_config = services.silo.postgres_config();
     let pg_password = pg_config.password.expose_secret().as_str();
-    let pg_config = to_toml_value(services.silo.postgres_config()).unwrap();
-    let es_config = to_toml_value(services.silo.elastic_config()).unwrap();
+    let pg_config = Value::try_from(services.silo.postgres_config()).unwrap();
+    let es_config = Value::try_from(services.silo.elastic_config()).unwrap();
 
     let mut config = toml! {
         [storage]
@@ -316,14 +318,6 @@ where
         .instrument(error_span!("test", test_id = %services.test_id))
         .await
         .unwrap()
-}
-
-/// Workaround of limitations of the toml library.
-///
-/// Not very fast only use for testing.
-fn to_toml_value(value: &impl Serialize) -> Result<toml::Value, anyhow::Error> {
-    let str = toml::to_string(value)?;
-    toml::from_str(&str).map_err(Into::into)
 }
 
 /// Generates an ID for the test.
@@ -366,7 +360,7 @@ async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, 
 
     let (pg_config, es_config) = db_configs_for_testing(&test_id);
 
-    crate_db(&pg_config, MANAGEMENT_DB).await?;
+    create_db(&pg_config, MANAGEMENT_DB).await?;
 
     let default_es_index = es_config.index_name.clone();
     let silo = Silo::new(
@@ -389,12 +383,13 @@ async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, 
 }
 
 pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Config) {
+    let pg_db = Some(test_id.to_string());
     let es_index_name = format!("{test_id}_default");
     let pg_config;
     let es_config;
     if *RUNS_IN_CONTAINER {
         pg_config = postgres::Config {
-            db: Some(test_id.to_owned()),
+            db: pg_db,
             base_url: "postgres://user:pw@postgres:5432/".into(),
             ..Default::default()
         };
@@ -405,7 +400,7 @@ pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Conf
         };
     } else {
         pg_config = postgres::Config {
-            db: Some(test_id.to_owned()),
+            db: pg_db,
             base_url: "postgres://user:pw@localhost:3054/".into(),
             ..Default::default()
         };
@@ -418,7 +413,7 @@ pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Conf
     (pg_config, es_config)
 }
 
-pub async fn crate_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
+pub async fn create_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
     let target_options = target.to_connection_options()?;
     let target_db: QuotedIdentifier = target_options
         .get_database()

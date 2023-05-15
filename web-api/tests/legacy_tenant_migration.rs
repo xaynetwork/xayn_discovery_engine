@@ -16,7 +16,7 @@ use anyhow::Error;
 use chrono::{DateTime, TimeZone, Utc};
 use sqlx::{Connection, PgConnection};
 use xayn_integration_tests::{
-    crate_db,
+    create_db,
     db_configs_for_testing,
     generate_test_id,
     initialize_test_logging,
@@ -39,7 +39,7 @@ async fn legacy_test_setup() -> Result<(postgres::Config, elastic::Config), Erro
     let test_id = generate_test_id();
     let (pg_config, es_config) = db_configs_for_testing(&test_id);
 
-    crate_db(&pg_config, MANAGEMENT_DB).await?;
+    create_db(&pg_config, MANAGEMENT_DB).await?;
 
     Ok((pg_config, es_config))
 }
