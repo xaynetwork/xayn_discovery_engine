@@ -45,7 +45,7 @@ async fn legacy_test_setup() -> Result<(postgres::Config, elastic::Config), Erro
 }
 
 #[tokio::test]
-async fn test_if_the_initializations_works_correct_for_legacy_tenants() -> Result<(), Error> {
+async fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(), Error> {
     let (pg_config, es_config) = legacy_test_setup().await?;
 
     let pg_options = pg_config.to_connection_options()?;
@@ -100,7 +100,7 @@ async fn test_if_the_initializations_works_correct_for_legacy_tenants() -> Resul
 }
 
 #[tokio::test]
-async fn test_if_the_initializations_works_correct_for_not_setup_legacy_tenants(
+async fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants(
 ) -> Result<(), anyhow::Error> {
     let (pg_config, es_config) = legacy_test_setup().await?;
 
