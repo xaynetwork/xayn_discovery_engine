@@ -13,30 +13,28 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 /// The number of seconds per day (without leap seconds).
-pub(crate) const SECONDS_PER_DAY_F32: f32 = 86400.;
+pub(crate) const SECONDS_PER_DAY: u64 = 60 * 60 * 24;
 
-/// The number of seconds per day (without leap seconds).
-pub(crate) const SECONDS_PER_DAY_U64: u64 = 86400;
-
+/// Serde of a duration as full days (rounds down).
 pub(crate) mod serde_duration_as_days {
     use std::time::Duration;
 
     use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-    use crate::utils::SECONDS_PER_DAY_U64;
+    use crate::utils::SECONDS_PER_DAY;
 
     pub(crate) fn serialize<S>(horizon: &Duration, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        (horizon.as_secs() / SECONDS_PER_DAY_U64).serialize(serializer)
+        (horizon.as_secs() / SECONDS_PER_DAY).serialize(serializer)
     }
 
     pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
     where
         D: Deserializer<'de>,
     {
-        u64::deserialize(deserializer).map(|days| Duration::from_secs(SECONDS_PER_DAY_U64 * days))
+        u64::deserialize(deserializer).map(|days| Duration::from_secs(SECONDS_PER_DAY * days))
     }
 }
 
@@ -54,7 +52,7 @@ mod tests {
 
     #[test]
     fn test_less() -> Result<(), Box<dyn Error>> {
-        let duration = Duration::from_secs(SECONDS_PER_DAY_U64 - 1);
+        let duration = Duration::from_secs(SECONDS_PER_DAY - 1);
         let serialized = to_string(&Days(duration))?;
         assert_eq!(serialized, "0");
         let deserialized = from_str::<Days>(&serialized)?.0;
@@ -64,7 +62,7 @@ mod tests {
 
     #[test]
     fn test_equal() -> Result<(), Box<dyn Error>> {
-        let duration = Duration::from_secs(SECONDS_PER_DAY_U64);
+        let duration = Duration::from_secs(SECONDS_PER_DAY);
         let serialized = to_string(&Days(duration))?;
         assert_eq!(serialized, "1");
         let deserialized = from_str::<Days>(&serialized)?.0;
@@ -74,11 +72,11 @@ mod tests {
 
     #[test]
     fn test_greater() -> Result<(), Box<dyn Error>> {
-        let duration = Duration::from_secs(SECONDS_PER_DAY_U64 + 1);
+        let duration = Duration::from_secs(SECONDS_PER_DAY + 1);
         let serialized = to_string(&Days(duration))?;
         assert_eq!(serialized, "1");
         let deserialized = from_str::<Days>(&serialized)?.0;
-        assert_eq!(deserialized, Duration::from_secs(SECONDS_PER_DAY_U64));
+        assert_eq!(deserialized, Duration::from_secs(SECONDS_PER_DAY));
         Ok(())
     }
 }
