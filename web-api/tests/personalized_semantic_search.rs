@@ -90,9 +90,9 @@ macro_rules! assert_order {
         );
         for documents in $documents.windows(2) {
             let [d1, d2] = documents else { unreachable!() };
-            assert!(1.0 >= d1.score, $($arg)*);
+            assert!(1. >= d1.score, $($arg)*);
             assert!(d1.score > d2.score, $($arg)*);
-            assert!(d2.score >= 0.0, $($arg)*);
+            assert!(d2.score >= 0., $($arg)*);
         }
     };
 }
@@ -103,7 +103,7 @@ async fn test_full_personalization() {
         UNCHANGED_CONFIG,
         Some(toml! {
             [semantic_search]
-            score_weights = [0.5, 0.5, 0.0]
+            score_weights = [0.5, 0.5, 0.]
         }),
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;
@@ -215,7 +215,7 @@ async fn test_full_personalization_with_inline_history() {
         UNCHANGED_CONFIG,
         Some(toml! {
             [semantic_search]
-            score_weights = [0.5, 0.5, 0.0]
+            score_weights = [0.5, 0.5, 0.]
         }),
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;

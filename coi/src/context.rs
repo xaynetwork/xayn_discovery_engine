@@ -25,7 +25,7 @@ use crate::{
     stats::{compute_coi_decay_factor, compute_coi_relevances},
 };
 
-/// The score ranges in the interval `[-1.0, 3.0]` if a positive coi exists.
+/// The score ranges in the interval `[-1., 3.]` if a positive coi exists.
 fn compute_score_for_closest_positive_coi(
     embedding: &NormalizedEmbedding,
     cois: &[PositiveCoi],
@@ -39,7 +39,7 @@ fn compute_score_for_closest_positive_coi(
     })
 }
 
-/// The score ranges in the interval `[-1.0, 1.0]` if a negative coi exists.
+/// The score ranges in the interval `[-1., 1.]` if a negative coi exists.
 fn compute_score_for_closest_negative_coi(
     embedding: &NormalizedEmbedding,
     cois: &[NegativeCoi],
@@ -65,7 +65,7 @@ impl UserInterests {
             && self.negative.len() >= config.min_negative_cois()
     }
 
-    /// The score ranges in the interval `[0.0, 1.0]` if a coi exists.
+    /// The score ranges in the interval `[0., 1.]` if a coi exists.
     fn compute_score_for_embedding(
         &self,
         embedding: &NormalizedEmbedding,
@@ -76,16 +76,16 @@ impl UserInterests {
             compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, time),
             compute_score_for_closest_negative_coi(embedding, &self.negative, horizon, time),
         ) {
-            (Some(positive), Some(negative)) => Some((positive - negative + 2.0) / 6.0),
-            (Some(positive), None) => Some((positive + 1.0) / 4.0),
-            (None, Some(negative)) => Some((-negative + 1.0) / 2.0),
+            (Some(positive), Some(negative)) => Some((positive - negative + 2.) / 6.),
+            (Some(positive), None) => Some((positive + 1.) / 4.),
+            (None, Some(negative)) => Some((-negative + 1.) / 2.),
             (None, None) => None,
         }
     }
 
     /// Computes the scores for all documents.
     ///
-    /// Each score ranges in the interval `[0.0, 1.0]` if a coi exists. The [coi weighting] outlines
+    /// Each score ranges in the interval `[0., 1.]` if a coi exists. The [coi weighting] outlines
     /// parts of the score calculation.
     ///
     /// [coi weighting]: https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI
@@ -156,8 +156,8 @@ mod tests {
             // negative[0]: similarity * decay
             - 0.774_465_7 * 0.475_020_83
             // normalize
-            + 2.0)
-                / 6.0,
+            + 2.)
+                / 6.,
         );
     }
 

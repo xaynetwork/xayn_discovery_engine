@@ -122,7 +122,7 @@ pub fn bench_rerank<S>(
         .enumerate()
         .map(|(id, (embedding, tags))| PersonalizedDocument {
             id: id.to_string().try_into().unwrap(),
-            score: 1.0,
+            score: 1.,
             embedding,
             properties: DocumentProperties::default(),
             tags: tags
@@ -161,8 +161,8 @@ mod tests {
             .map(|i| {
                 let id = i.to_string().try_into().unwrap();
 
-                let mut embedding = vec![1.0; n];
-                embedding[i] = 10.0;
+                let mut embedding = vec![1.; n];
+                embedding[i] = 10.;
                 let embedding = Embedding1::from(embedding).normalize().unwrap();
 
                 let tags = if i % 2 == 0 {
@@ -176,7 +176,7 @@ mod tests {
 
                 PersonalizedDocument {
                     id,
-                    score: 1.0,
+                    score: 1.,
                     embedding,
                     properties: DocumentProperties::default(),
                     tags,
@@ -188,8 +188,8 @@ mod tests {
     fn mock_coi(i: usize, n: usize, time: DateTime<Utc>) -> PositiveCoi {
         let id = CoiId::new();
 
-        let mut point = vec![0.0; n];
-        point[i] = 1.0;
+        let mut point = vec![0.; n];
+        point[i] = 1.;
         let point = Embedding1::from(point).normalize().unwrap();
 
         let stats = CoiStats {
@@ -238,12 +238,12 @@ mod tests {
         let two = "2".try_into().unwrap();
         let three = "3".try_into().unwrap();
         let four = "4".try_into().unwrap();
-        assert!(0.0 <= reranked[&&zero]);
+        assert!(0. <= reranked[&&zero]);
         assert_approx_eq!(f32, reranked[&&zero], reranked[&&two]);
         assert_approx_eq!(f32, reranked[&&zero], reranked[&&three]);
         assert!(reranked[&&zero] < reranked[&&one]);
         assert!(reranked[&&one] < reranked[&&four]);
-        assert!(reranked[&&one] <= 1.0);
+        assert!(reranked[&&four] <= 1.);
     }
 
     #[test]

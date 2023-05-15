@@ -89,7 +89,9 @@ impl System {
         cois.push(NegativeCoi::new(CoiId::new(), embedding.clone(), time));
     }
 
-    /// Calculates scores for the documents wrt the user interests (if there are any).
+    /// Calculates scores for the documents wrt the user interests.
+    ///
+    /// Each score ranges in the interval `[0., 1.]` if a coi exists.
     pub fn score<D>(
         &self,
         documents: &[D],

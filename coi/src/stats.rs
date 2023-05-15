@@ -68,7 +68,7 @@ impl NegativeCoi {
 /// Computes the relevances of the positive cois.
 ///
 /// The relevance of each coi is computed from its view count and view time relative to the
-/// other cois and ranges in the interval `[0.0, 2.0]`.
+/// other cois and ranges in the interval `[0., 2.]`.
 pub fn compute_coi_relevances<'a>(
     cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a PositiveCoi>>,
     horizon: Duration,
@@ -80,7 +80,7 @@ pub fn compute_coi_relevances<'a>(
     #[allow(clippy::cast_precision_loss)] // acceptable for large values
     let view_counts = if view_counts == 0 {
         // arbitrary to allow for division since each view_count is zero
-        1.0
+        1.
     } else {
         view_counts as f32
     };
@@ -91,7 +91,7 @@ pub fn compute_coi_relevances<'a>(
         .sum::<Duration>();
     let view_times = if view_times == Duration::ZERO {
         // arbitrary to allow for division since each view_time is zero
-        1.0
+        1.
     } else {
         view_times.as_secs_f32()
     };
@@ -110,30 +110,30 @@ pub fn compute_coi_relevances<'a>(
 /// Computes the time decay factor for a coi.
 ///
 /// The decay factor is based on its `last_view` stat relative to the current `time` and ranges in
-/// the interval `[0.0, 1.0]`.
+/// the interval `[0., 1.]`.
 pub fn compute_coi_decay_factor(
     horizon: Duration,
     time: DateTime<Utc>,
     last_view: DateTime<Utc>,
 ) -> f32 {
     if horizon == Duration::ZERO {
-        return 0.0;
+        return 0.;
     }
 
     let Ok(days) = time.signed_duration_since(last_view).to_std() else {
-        return 1.0;
+        return 1.;
     };
 
     const DAYS_SCALE: f32 = -0.1 / (60. * 60. * 24.);
     let horizon = (DAYS_SCALE * horizon.as_secs_f32()).exp();
     let days = (DAYS_SCALE * days.as_secs_f32()).exp();
 
-    ((horizon - days) / (horizon - 1.)).max(0.0)
+    ((horizon - days) / (horizon - 1.)).max(0.)
 }
 
 /// Computes a weight distributions across cois based on their relevance.
 ///
-/// Each weight ranges in the interval `[0.0, 1.0]`.
+/// Each weight ranges in the interval `[0., 1.]`.
 pub fn compute_coi_weights<'a>(
     cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a PositiveCoi>>,
     horizon: Duration,
@@ -141,11 +141,11 @@ pub fn compute_coi_weights<'a>(
 ) -> Vec<f32> {
     let relevances = compute_coi_relevances(cois, horizon, time)
         .into_iter()
-        .map(|relevance| 1.0 - (-3.0 * relevance).exp())
+        .map(|relevance| 1. - (-3. * relevance).exp())
         .collect_vec();
     let relevance_sum = relevances.iter().sum::<f32>();
 
-    if relevance_sum > 0.0 {
+    if relevance_sum > 0. {
         relevances
             .iter()
             .map(|relevance| relevance / relevance_sum)
@@ -153,7 +153,7 @@ pub fn compute_coi_weights<'a>(
     } else {
         #[allow(clippy::cast_precision_loss)] // should be ok for our use case
         let len = relevances.len().max(1) as f32;
-        vec![1.0 / len; relevances.len()]
+        vec![1. / len; relevances.len()]
     }
 }
 
@@ -205,7 +205,7 @@ mod tests {
         let horizon = Duration::from_secs(SECONDS_PER_DAY);
 
         let relevances = compute_coi_relevances(&cois, horizon, now);
-        assert_approx_eq!(f32, relevances, [0.333_333_34, 0.666_666_7, 1.0]);
+        assert_approx_eq!(f32, relevances, [0.333_333_34, 0.666_666_7, 1.]);
     }
 
     #[test]
@@ -221,7 +221,7 @@ mod tests {
         assert_approx_eq!(
             f32,
             relevances,
-            [0.243_649_84, 0.077_191_29, 0.0],
+            [0.243_649_84, 0.077_191_29, 0.],
             epsilon = 1e-7,
         );
     }
