@@ -28,7 +28,7 @@ jobs:
       image: xaynetci/yellow:v13
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
-  
+
       - name: Validate openapi
         run: just validate-openapi
 

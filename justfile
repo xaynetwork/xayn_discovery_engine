@@ -231,6 +231,27 @@ validate-openapi:
         spectral lint --verbose -F warn "$file"
     done
 
+validate-migrations-unchanged cmp_ref:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    if ! git rev-list "{{ cmp_ref }}".."{{ cmp_ref }}"; then
+        git fetch --depth=1 "$(git remote get-url origin)" "{{ cmp_ref }}"
+    fi
+
+    changed_migrations=( $(\
+        git diff --name-only "{{ cmp_ref }}" | \
+        grep -E "^web-api/migrations/.*" \
+    ) ) || true
+
+    if [ "${#changed_migrations[@]}" -gt 0 ]; then
+        for migration in "${changed_migrations[@]}"; do
+            echo "Migrations was changed ${migration}" >&2
+        done
+        exit 1
+    else
+        echo "OK - migrations unchanged"
+    fi
+
+
 print-just-env:
     export
 
