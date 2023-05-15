@@ -192,8 +192,6 @@ async fn test_full_migration() -> Result<(), Error> {
         &format!("inline:{config}"),
     ];
 
-    dbg!(&args);
-
     let config = old_config::load_with_args([""; 0], args);
     let ingestion = start_old::<OldIngestion>(config).await?;
     let ingestion_url = ingestion.url();
