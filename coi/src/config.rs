@@ -20,7 +20,7 @@ use thiserror::Error;
 
 use crate::{
     system::System,
-    utils::{serde_duration_as_days, SECONDS_PER_DAY_U64},
+    utils::{serde_duration_as_days, SECONDS_PER_DAY},
 };
 
 /// Configurations of the coi system.
@@ -46,7 +46,7 @@ impl Default for Config {
             threshold: 0.67,
             min_positive_cois: 1,
             min_negative_cois: 0,
-            horizon: Duration::from_secs(SECONDS_PER_DAY_U64 * 30),
+            horizon: Duration::from_secs(30 * SECONDS_PER_DAY),
         }
     }
 }

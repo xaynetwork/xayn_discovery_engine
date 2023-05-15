@@ -19,7 +19,7 @@ use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::{InvalidEmbedding, NormalizedEmbedding};
 
-use crate::{id::CoiId, stats::CoiStats, utils::nan_safe_f32_cmp_desc};
+use crate::{id::CoiId, stats::CoiStats};
 
 /// A positive `CoI`.
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -106,7 +106,7 @@ pub(super) fn find_closest_coi_index(
         .map(|coi| embedding.dot_product(coi.point()))
         .enumerate()
         .collect_vec();
-    similarities.sort_by(|(_, a), (_, b)| nan_safe_f32_cmp_desc(a, b));
+    similarities.sort_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse());
 
     similarities.first().copied()
 }

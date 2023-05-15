@@ -17,7 +17,7 @@ use std::{cmp::Ordering, collections::HashMap, hash::BuildHasher};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, CoiSystem, UserInterests};
+use xayn_ai_coi::{CoiSystem, UserInterests};
 
 use crate::{
     models::{DocumentId, DocumentProperties, DocumentTag, PersonalizedDocument},
@@ -50,7 +50,7 @@ fn rerank_by_interest(
             .iter()
             .map(|document| document.id.clone())
             .zip(scores),
-        nan_safe_f32_cmp_desc,
+        |s1, s2| s1.total_cmp(s2).reverse(),
     )
     .collect()
 }
@@ -103,7 +103,7 @@ pub(super) fn rerank_by_scores(
             + score_weights[2] * document.score;
     }
 
-    let max_score_weight = score_weights.into_iter().max_by(nan_safe_f32_cmp);
+    let max_score_weight = score_weights.into_iter().max_by(f32::total_cmp);
     let secondary_sorting_factor = match score_weights
         .into_iter()
         .position(|score_weight| Some(score_weight) >= max_score_weight)
@@ -114,12 +114,11 @@ pub(super) fn rerank_by_scores(
         _ => unreachable!(),
     };
 
-    documents.sort_unstable_by(|a, b| {
-        nan_safe_f32_cmp_desc(&a.score, &b.score).then_with(|| {
-            nan_safe_f32_cmp_desc(
-                &secondary_sorting_factor[&a.id],
-                &secondary_sorting_factor[&b.id],
-            )
+    documents.sort_unstable_by(|d1, d2| {
+        d1.score.total_cmp(&d2.score).reverse().then_with(|| {
+            secondary_sorting_factor[&d1.id]
+                .total_cmp(&secondary_sorting_factor[&d2.id])
+                .reverse()
         })
     });
 }
@@ -222,7 +221,7 @@ mod tests {
     fn ids_by_score(scores: &HashMap<DocumentId, f32>) -> Vec<&str> {
         scores
             .iter()
-            .sorted_by(|(_, s1), (_, s2)| nan_safe_f32_cmp_desc(s1, s2))
+            .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
             .map(|(document, _)| document.as_ref().as_str())
             .collect()
     }
