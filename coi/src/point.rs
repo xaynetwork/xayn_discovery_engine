@@ -114,8 +114,6 @@ pub(super) fn find_closest_coi_index(
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
-///
-/// The similarity ranges in the interval `[-1., 1.]`.
 pub(super) fn find_closest_coi<'coi, CP>(
     cois: &'coi [CP],
     embedding: &NormalizedEmbedding,
@@ -127,8 +125,6 @@ where
 }
 
 /// Finds the most similar centre of interest (`CoI`) for the given embedding.
-///
-/// The similarity ranges in the interval `[-1., 1.]`.
 pub(super) fn find_closest_coi_mut<'coi, CP>(
     cois: &'coi mut [CP],
     embedding: &NormalizedEmbedding,

@@ -90,8 +90,6 @@ impl System {
     }
 
     /// Calculates scores for the documents wrt the user interests.
-    ///
-    /// Each score ranges in the interval `[0., 1.]` if a coi exists.
     pub fn score<D>(
         &self,
         documents: &[D],
