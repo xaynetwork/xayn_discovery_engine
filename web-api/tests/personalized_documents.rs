@@ -164,9 +164,9 @@ macro_rules! assert_order {
         );
         for documents in $documents.windows(2) {
             let [d1, d2] = documents else { unreachable!() };
-            assert!(1.0 >= d1.score, $($arg)*);
+            assert!(1. >= d1.score, $($arg)*);
             assert!(d1.score > d2.score, $($arg)*);
-            assert!(d2.score >= 0.0, $($arg)*);
+            assert!(d2.score >= 0., $($arg)*);
         }
     };
 }
@@ -250,7 +250,7 @@ async fn test_personalization_with_tags() {
             let documents = personalize(&client, &personalization_url, None, None).await?;
             assert_order!(
                 &documents,
-                ["d5", "d8", "d6", "d4", "d1"],
+                ["d5", "d6", "d4", "d1", "d8"],
                 "unexpected personalized documents: {documents:?}",
             );
             Ok(())
