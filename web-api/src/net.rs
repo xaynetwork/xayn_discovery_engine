@@ -110,7 +110,7 @@ where
     // `spawn` it on the tokio runtime. This hands off the responsibility to poll the server to
     // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
     // stop and get it's return value (we don't have to await `term_handle`).
-    // TODO[pmk/now] instrument appropriately
+    // TODO[pmk/now] instrument appropriately also add service name to right instrumentation
     let term_handle = tokio::spawn(server.with_current_subscriber());
     Ok(AppHandle {
         on_shutdown,
