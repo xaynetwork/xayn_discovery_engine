@@ -20,7 +20,7 @@ use std::{
 
 use actix_cors::Cors;
 use actix_web::{
-    dev::{ServerHandle, Service, ServiceFactory, ServiceRequest, ServiceResponse},
+    dev::{ServerHandle, ServiceFactory, ServiceRequest, ServiceResponse},
     middleware,
     web::{self, JsonConfig},
     App,
@@ -31,10 +31,14 @@ use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
-use tracing::{dispatcher, error_span, info, instrument::WithSubscriber, Dispatch, Instrument};
+use tracing::{dispatcher, info, instrument::WithSubscriber, Dispatch};
 use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 
-use crate::middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context};
+use crate::middleware::{
+    json_error::wrap_non_json_errors,
+    request_context::setup_request_context,
+    tracing::create_wrapper_for_local_trace_event_dispatch,
+};
 
 /// Configuration for roughly network/connection layer specific configurations.
 // Hint: this value just happens to be copy, if needed the Copy trait can be removed
@@ -83,22 +87,18 @@ where
     let subscriber = dispatcher::get_default(Dispatch::clone);
     let server = HttpServer::new(move || {
         let legacy_tenant = legacy_tenant.clone();
-        let subscriber = subscriber.clone();
-        mk_base_app()
-            .app_data(json_config.clone())
-            .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
-            .wrap_fn(wrap_non_json_errors)
-            .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
-            .wrap(middleware::Compress::default())
-            .wrap(Cors::permissive())
-            .wrap_fn(move |r, s| {
-                let fut = s.call(r);
-                async {
-                    // TODO[pmk/now] proper message and service type
-                    fut.instrument(error_span!(parent: None, "decouple")).await
-                }
-                .with_subscriber(subscriber.clone())
-            })
+        // TODO[pmk/now] is this needed or are we already running in the right context.
+        dispatcher::with_default(&subscriber, || {
+            let subscriber = subscriber.clone();
+            mk_base_app()
+                .app_data(json_config.clone())
+                .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
+                .wrap_fn(wrap_non_json_errors)
+                .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
+                .wrap(middleware::Compress::default())
+                .wrap(Cors::permissive())
+                .wrap_fn(create_wrapper_for_local_trace_event_dispatch(subscriber))
+        })
     })
     .keep_alive(net_config.keep_alive)
     .client_request_timeout(net_config.client_request_timeout)

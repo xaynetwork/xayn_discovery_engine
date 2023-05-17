@@ -39,7 +39,14 @@ use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
-use tracing::{error_span, instrument, instrument::WithSubscriber, Dispatch, Instrument};
+use tracing::{
+    dispatcher,
+    error_span,
+    instrument,
+    instrument::WithSubscriber,
+    Dispatch,
+    Instrument,
+};
 use tracing_subscriber::filter::LevelFilter;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, logging, start, AppHandle, Application};
@@ -128,24 +135,26 @@ where
 
 /// Initialize logging in tests.
 pub fn initialize_test_logging_fallback() {
-    static ONCE: Once = Once::new();
-    ONCE.call_once(|| {
-        logging::initialize_global(&logging::Config {
-            file: Some("/tmp/test_global.delme".into()),
-            level: LevelFilter::WARN,
-            // FIXME If we have json logging do fix the panic logging hook
-            //       to also log the backtrace instead of disabling the
-            //       panic hook.
-            install_panic_hook: false,
-        })
-        .unwrap();
-    });
+    // TODO[pmk/now] enable fallback logging again
+    // static ONCE: Once = Once::new();
+    // ONCE.call_once(|| {
+    //     logging::initialize_global(&logging::Config {
+    //         file: Some("/tmp/test_global.delme".into()),
+    //         level: LevelFilter::WARN,
+    //         // FIXME If we have json logging do fix the panic logging hook
+    //         //       to also log the backtrace instead of disabling the
+    //         //       panic hook.
+    //         install_panic_hook: false,
+    //     })
+    //     .unwrap();
+    // });
 }
 
-pub fn initialize_local_test_logging() -> Dispatch {
+pub fn initialize_local_test_logging(test_id: &str) -> Dispatch {
     initialize_test_logging_fallback();
     logging::create_trace_dispatch(&logging::Config {
-        file: Some("/tmp/test_local.delme".into()),
+        // TODO[pmk/now] disable file logging
+        file: Some(format!("/tmp/log_${test_id}.delme").as_str().into()),
         level: LevelFilter::INFO,
         install_panic_hook: false,
     })
@@ -155,21 +164,23 @@ pub fn run_async_with_test_logger<F>(test_id: &str, body: F) -> F::Output
 where
     F: Future,
 {
-    let subscriber = initialize_local_test_logging();
+    let subscriber = initialize_local_test_logging(test_id);
     let body = async move {
         // Hint: the `error_span` must be created _inside_ of the future or else it
         //       would mix references of the global and local logging in a way which doesn't work
         body.instrument(error_span!(parent: None, "test", %test_id))
             .await
     }
-    .with_subscriber(subscriber);
+    .with_subscriber(subscriber.clone());
 
-    // more or less what #[tokio::test] does
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .expect("Failed building the Runtime")
-        .block_on(body)
+    dispatcher::with_default(&subscriber, || {
+        // more or less what #[tokio::test] does
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Failed building the Runtime")
+            .block_on(body)
+    })
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
