@@ -17,7 +17,7 @@
 use std::fs::OpenOptions;
 
 use serde::{Deserialize, Serialize};
-use tracing::{error, Level};
+use tracing::{error, Dispatch, Level};
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     layer::SubscriberExt,
@@ -78,15 +78,16 @@ impl Default for Config {
 ///
 /// Even though this returns an error if logging was already initialized you
 /// should only call this function when you expect it to succeed.
-pub fn initialize(log_config: &Config) -> Result<(), TryInitError> {
-    init_tracing_once(log_config)?;
+pub fn initialize_global(log_config: &Config) -> Result<(), TryInitError> {
+    let dispatch = create_trace_dispatch(log_config);
+    dispatch.try_init()?;
     if log_config.install_panic_hook {
         init_panic_logging();
     }
     Ok(())
 }
 
-fn init_tracing_once(log_config: &Config) -> Result<(), TryInitError> {
+pub fn create_trace_dispatch(log_config: &Config) -> Dispatch {
     let subscriber = tracing_subscriber::registry();
 
     let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
@@ -122,7 +123,7 @@ fn init_tracing_once(log_config: &Config) -> Result<(), TryInitError> {
         .with(sqlx_query_no_info)
         .with(file_log)
         .with(log_config.level)
-        .try_init()
+        .into()
 }
 
 fn init_panic_logging() {

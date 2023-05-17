@@ -39,7 +39,7 @@ use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
-use tracing::{error_span, instrument, Instrument};
+use tracing::{error_span, instrument, instrument::WithSubscriber, Dispatch, Instrument};
 use tracing_subscriber::filter::LevelFilter;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, logging, start, AppHandle, Application};
@@ -127,11 +127,11 @@ where
 }
 
 /// Initialize logging in tests.
-pub fn initialize_test_logging() {
+pub fn initialize_test_logging_fallback() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        logging::initialize(&logging::Config {
-            file: None,
+        logging::initialize_global(&logging::Config {
+            file: Some("/tmp/test_global.delme".into()),
             level: LevelFilter::WARN,
             // FIXME If we have json logging do fix the panic logging hook
             //       to also log the backtrace instead of disabling the
@@ -140,6 +140,30 @@ pub fn initialize_test_logging() {
         })
         .unwrap();
     });
+}
+
+pub fn initialize_local_test_logging() -> Dispatch {
+    initialize_test_logging_fallback();
+    logging::create_trace_dispatch(&logging::Config {
+        file: Some("/tmp/test_local.delme".into()),
+        level: LevelFilter::INFO,
+        install_panic_hook: false,
+    })
+}
+
+pub async fn with_local_test_logger<F>(test_id: &str, body: F) -> F::Output
+where
+    F: Future,
+{
+    let subscriber = initialize_local_test_logging();
+    async {
+        // Hint: the `error_span` must be created _inside_ of the future or else it
+        //       would mix references of the global and local logging in a way which doesn't work
+        body.instrument(error_span!(parent: None, "test", %test_id))
+            .await
+    }
+    .with_subscriber(subscriber)
+    .await
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
@@ -163,26 +187,30 @@ pub async fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    initialize_test_logging();
+    let test_id = &generate_test_id();
+    with_local_test_logger(test_id, async {
+        let (configure, enable_legacy_tenant) =
+            configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
-    let (configure, enable_legacy_tenant) =
-        configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
+        let services = setup_web_dev_services(test_id, enable_legacy_tenant)
+            .await
+            .unwrap();
 
-    let services = setup_web_dev_services(enable_legacy_tenant).await.unwrap();
+        let handle = start_test_application::<A>(&services, configure).await;
 
-    let handle = start_test_application::<A>(&services, configure).await;
+        test(
+            build_client(&services),
+            Arc::new(handle.url()),
+            services.clone(),
+        )
+        .await
+        .unwrap();
 
-    test(
-        build_client(&services),
-        Arc::new(handle.url()),
-        services.clone(),
-    )
+        handle.stop_and_wait().await.unwrap();
+
+        services.cleanup_test().await.unwrap();
+    })
     .await
-    .unwrap();
-
-    handle.stop_and_wait().await.unwrap();
-
-    services.cleanup_test().await.unwrap();
 }
 
 /// Like `test_app` but runs two applications in the same test context.
@@ -195,31 +223,36 @@ pub async fn test_two_apps<A1, A2, F>(
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    initialize_test_logging();
+    let test_id = &generate_test_id();
+    with_local_test_logger(test_id, async {
+        let (configure_first, first_wit_legacy) =
+            configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
+        let (configure_second, second_with_legacy) =
+            configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
+        assert_eq!(first_wit_legacy, second_with_legacy);
 
-    let (configure_first, first_wit_legacy) =
-        configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
-    let (configure_second, second_with_legacy) =
-        configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
-    assert_eq!(first_wit_legacy, second_with_legacy);
+        let services = setup_web_dev_services(test_id, first_wit_legacy)
+            .await
+            .unwrap();
+        let first_handle = start_test_application::<A1>(&services, configure_first).await;
+        let second_handle = start_test_application::<A2>(&services, configure_second).await;
 
-    let services = setup_web_dev_services(first_wit_legacy).await.unwrap();
-    let first_handle = start_test_application::<A1>(&services, configure_first).await;
-    let second_handle = start_test_application::<A2>(&services, configure_second).await;
+        test(
+            build_client(&services),
+            Arc::new(first_handle.url()),
+            Arc::new(second_handle.url()),
+            services.clone(),
+        )
+        .await
+        .unwrap();
+        let (res1, res2) =
+            tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait(),);
+        res1.expect("first application to not fail during shutdown");
+        res2.expect("second application to not fail during shutdown");
 
-    test(
-        build_client(&services),
-        Arc::new(first_handle.url()),
-        Arc::new(second_handle.url()),
-        services.clone(),
-    )
+        services.cleanup_test().await.unwrap();
+    })
     .await
-    .unwrap();
-    let (res1, res2) = tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait());
-    res1.expect("first application to not fail during shutdown");
-    res2.expect("second application to not fail during shutdown");
-
-    services.cleanup_test().await.unwrap();
 }
 
 fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bool) {
@@ -325,7 +358,18 @@ pub fn build_test_config_from_parts(
     );
 
     extend_config(&mut config, configure);
-    config
+
+    let args = &[
+        "integration-test",
+        "--bind-to",
+        "127.0.0.1:0",
+        "--config",
+        &format!("inline:{config}"),
+    ];
+
+    let config = config::load_with_args([0u8; 0], args);
+
+    start::<A>(config).await.unwrap()
 }
 
 /// Generates an ID for the test.
@@ -361,14 +405,16 @@ impl Services {
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
 /// A uris usable for accessing the dbs are returned.
-async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, anyhow::Error> {
+async fn setup_web_dev_services(
+    test_id: &str,
+    enable_legacy_tenant: bool,
+) -> Result<Services, anyhow::Error> {
     clear_env();
     start_test_service_containers().unwrap();
 
-    let test_id = generate_test_id();
     let tenant_id = TenantId::try_parse_ascii(test_id.as_ref())?;
 
-    let (pg_config, es_config) = db_configs_for_testing(&test_id);
+    let (pg_config, es_config) = db_configs_for_testing(test_id);
 
     create_db(&pg_config, MANAGEMENT_DB).await?;
 
@@ -386,7 +432,7 @@ async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, 
         .await?;
 
     Ok(Services {
-        test_id,
+        test_id: test_id.to_owned(),
         silo,
         tenant,
     })

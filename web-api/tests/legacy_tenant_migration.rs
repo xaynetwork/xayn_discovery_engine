@@ -27,7 +27,7 @@ use xayn_integration_tests::{
     create_db,
     db_configs_for_testing,
     generate_test_id,
-    initialize_test_logging,
+    initialize_test_logging_fallback,
     send_assert,
     send_assert_json,
     start_test_service_containers,
@@ -44,7 +44,7 @@ use xayn_web_api_shared::{
 
 async fn legacy_test_setup() -> Result<(postgres::Config, elastic::Config), Error> {
     clear_env();
-    initialize_test_logging();
+    initialize_test_logging_fallback();
     start_test_service_containers()?;
 
     let test_id = generate_test_id();

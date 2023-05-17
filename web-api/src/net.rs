@@ -20,7 +20,7 @@ use std::{
 
 use actix_cors::Cors;
 use actix_web::{
-    dev::{ServerHandle, ServiceFactory, ServiceRequest, ServiceResponse},
+    dev::{ServerHandle, Service, ServiceFactory, ServiceRequest, ServiceResponse},
     middleware,
     web::{self, JsonConfig},
     App,
@@ -31,7 +31,7 @@ use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
-use tracing::{info, info_span, Instrument, Span};
+use tracing::{dispatcher, error_span, info, instrument::WithSubscriber, Dispatch, Instrument};
 use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 
 use crate::middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context};
@@ -80,8 +80,10 @@ where
 {
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
+    let subscriber = dispatcher::get_default(Dispatch::clone);
     let server = HttpServer::new(move || {
         let legacy_tenant = legacy_tenant.clone();
+        let subscriber = subscriber.clone();
         mk_base_app()
             .app_data(json_config.clone())
             .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
@@ -89,6 +91,14 @@ where
             .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
             .wrap(middleware::Compress::default())
             .wrap(Cors::permissive())
+            .wrap_fn(move |r, s| {
+                let fut = s.call(r);
+                async {
+                    // TODO[pmk/now] proper message and service type
+                    fut.instrument(error_span!(parent: None, "decouple")).await
+                }
+                .with_subscriber(subscriber.clone())
+            })
     })
     .keep_alive(net_config.keep_alive)
     .client_request_timeout(net_config.client_request_timeout)
@@ -105,9 +115,8 @@ where
     // `spawn` it on the tokio runtime. This hands off the responsibility to poll the server to
     // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
     // stop and get it's return value (we don't have to await `term_handle`).
-    let span = info_span!(parent: None, "web-api");
-    span.follows_from(Span::current());
-    let term_handle = tokio::spawn(server.instrument(span));
+    // TODO[pmk/now] instrument appropriately
+    let term_handle = tokio::spawn(server.with_current_subscriber());
     Ok(AppHandle {
         on_shutdown,
         server_handle,
