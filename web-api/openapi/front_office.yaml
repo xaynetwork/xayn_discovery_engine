@@ -5,7 +5,13 @@ info:
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
-    With this SDK, you can handle interactions with documents and request a list of personalized documents.
+    With this API, you can handle interactions with documents and request a list of personalized documents.
+
+    ## Format
+    All the request's body in this API are JSON encoded and their `Content-Type` header should be set to `application/json`.
+
+    ## Auth
+    The API requires to set the `authenticationToken` when used with the provided token.
 
     ## User
     Each method requires a `user_id`.
@@ -17,10 +23,6 @@ info:
     In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
     For example, it could contain an image url, a full article url, the publication date, the author or much more.
     The properties that were added when the document was submitted to us, are just mirrored here.
-
-    ## Auth
-    The API requires an authenticationToken when used.
-    Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
     \
 tags:
   - name: front office

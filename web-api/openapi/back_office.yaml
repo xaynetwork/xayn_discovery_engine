@@ -4,8 +4,13 @@ info:
   version: 1.0.0
   description: |-
     # Back Office
-    The back office is typically used within server-side apps.
-    This SDK acts as a create/read/update/delete interface for anything related to documents.
+    This API acts as a create/read/update/delete interface for anything related to documents.
+
+    ## Format
+    All the request's body in this API are JSON encoded and their `Content-Type` header should be set to `application/json`.
+
+    ## Auth
+    The API requires to set the `authenticationToken` when used with the provided token.
 
     ## Document
     By document, we refer to a cohesive text, for example a complete news article.
@@ -29,10 +34,6 @@ info:
     If for example, you'd wish to integrate a type of carousel view, listing a total of 10 personalized documents in a "for you"-section, then you might choose to display each document as an image and title, with a url to link the user to when pressed.
     For this, you would need three document properties: `image`, `link` and `title`.
     You are free to add as many properties as needed.
-
-    ## Auth
-    The API requires an authentication token when used.
-    Please see further down in this README.md file, or refer to the test included in this SDK's codebase, on how to set this token correctly.
     \
 tags:
   - name: back office
