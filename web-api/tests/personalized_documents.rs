@@ -171,8 +171,8 @@ macro_rules! assert_order {
     };
 }
 
-#[tokio::test]
-async fn test_personalization_all_dates() {
+#[test]
+fn test_personalization_all_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -186,12 +186,11 @@ async fn test_personalization_all_dates() {
             );
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_personalization_limited_dates() {
+#[test]
+fn test_personalization_limited_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -211,12 +210,11 @@ async fn test_personalization_limited_dates() {
             );
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_personalization_with_query() {
+#[test]
+fn test_personalization_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -236,12 +234,11 @@ async fn test_personalization_with_query() {
             );
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_personalization_with_tags() {
+#[test]
+fn test_personalization_with_tags() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -255,6 +252,5 @@ async fn test_personalization_with_tags() {
             );
             Ok(())
         },
-    )
-    .await;
+    );
 }

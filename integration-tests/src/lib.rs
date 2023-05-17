@@ -151,19 +151,25 @@ pub fn initialize_local_test_logging() -> Dispatch {
     })
 }
 
-pub async fn with_local_test_logger<F>(test_id: &str, body: F) -> F::Output
+pub fn run_async_with_test_logger<F>(test_id: &str, body: F) -> F::Output
 where
     F: Future,
 {
     let subscriber = initialize_local_test_logging();
-    async {
+    let body = async move {
         // Hint: the `error_span` must be created _inside_ of the future or else it
         //       would mix references of the global and local logging in a way which doesn't work
         body.instrument(error_span!(parent: None, "test", %test_id))
             .await
     }
-    .with_subscriber(subscriber)
-    .await
+    .with_subscriber(subscriber);
+
+    // more or less what #[tokio::test] does
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .expect("Failed building the Runtime")
+        .block_on(body)
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
@@ -180,7 +186,7 @@ where
 /// - the config is pre-populated with the elastic search, embedding and postgres info
 ///   - you can update it using the `configure` callback
 /// - the service info including an url to the application is passed to the test
-pub async fn test_app<A, F>(
+pub fn test_app<A, F>(
     configure: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
 ) where
@@ -188,7 +194,7 @@ pub async fn test_app<A, F>(
     A: Application + 'static,
 {
     let test_id = &generate_test_id();
-    with_local_test_logger(test_id, async {
+    run_async_with_test_logger(test_id, async {
         let (configure, enable_legacy_tenant) =
             configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
@@ -210,11 +216,10 @@ pub async fn test_app<A, F>(
 
         services.cleanup_test().await.unwrap();
     })
-    .await
 }
 
 /// Like `test_app` but runs two applications in the same test context.
-pub async fn test_two_apps<A1, A2, F>(
+pub fn test_two_apps<A1, A2, F>(
     configure_first: Option<Table>,
     configure_second: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
@@ -224,7 +229,7 @@ pub async fn test_two_apps<A1, A2, F>(
     A2: Application + 'static,
 {
     let test_id = &generate_test_id();
-    with_local_test_logger(test_id, async {
+    run_async_with_test_logger(test_id, async {
         let (configure_first, first_wit_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
         let (configure_second, second_with_legacy) =
@@ -252,7 +257,6 @@ pub async fn test_two_apps<A1, A2, F>(
 
         services.cleanup_test().await.unwrap();
     })
-    .await
 }
 
 fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bool) {
