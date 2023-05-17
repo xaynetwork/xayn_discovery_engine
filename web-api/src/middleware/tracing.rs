@@ -12,42 +12,36 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use actix_web::{
-    body::MessageBody,
-    dev::{Service, ServiceRequest, ServiceResponse},
-};
-use futures_util::{future::LocalBoxFuture, FutureExt};
-use tracing::{dispatcher, instrument::WithSubscriber, Dispatch};
-
-/// Creates a wrapper which can be passed to `wrap_fn` which setup up local trace event dispatch.
+/// Like [`HttpServer.new()`] but sets things up to use a given non-global tracing subscriber.
 ///
-/// When building a actix http server app apply this last, i.e. make it the
-/// "outer most" wrapper.
+/// The wrapper will do following things:
 ///
-/// The wrapper will do two things:
-///
-/// 1. Sync wrap `service.call(request)` call to make sure future middleware
-///    has the right logging context when being called (e.g. more inner `wrap_fn`
-///    function calls).
-///
-/// 2. Async wrap the result of `service.call(request)` to make sure all  requests
-///     and wrapped post-request middleware handling hath the right logging context.
-pub(crate) fn create_wrapper_for_local_trace_event_dispatch<S, B>(
-    subscriber: impl Into<Dispatch>,
-) -> impl Fn(
-    ServiceRequest,
-    &S,
-) -> LocalBoxFuture<'static, Result<ServiceResponse<B>, actix_web::Error>>
-       + Clone
-       + 'static
-where
-    B: MessageBody,
-    S: Service<ServiceRequest, Response = ServiceResponse<B>, Error = actix_web::Error>,
-    S::Future: 'static,
-{
-    let subscriber = subscriber.into();
-    move |r, s| {
-        let fut = dispatcher::with_default(&subscriber, || s.call(r));
-        fut.with_subscriber(subscriber.clone()).boxed_local()
-    }
+/// 1. wrap the call of the factory function passed to [`HttpServer.new()`] so that
+///    the right subscriber is active during that call.
+/// 2. add a middleware which
+///     a. provides the right subscriber to all middleware calls (e.g. a `warp_fn` function
+///         will have the right logging context even before calling `service.call(request)`)
+///     b. wraps the build request future so that it has the right logging context when resolving
+// Hint: Making this a macro saves us very complex nightmare of type annotations (and also way less lines of code).
+macro_rules! new_http_server_with_subscriber {
+    ($subscriber:expr, move || $factory:block) => {{
+        use actix_web::dev::Service;
+        use tracing::{dispatcher, instrument::WithSubscriber, Dispatch};
+        let subscriber = Dispatch::from($subscriber);
+        HttpServer::new(move || {
+            // Hint: Makes sure the factory has the right dispatcher.
+            dispatcher::with_default(&subscriber, || {
+                let subscriber = subscriber.clone();
+                $factory.wrap_fn(move |r, s| {
+                    // Hint: Makes sure the middleware code wrapping the request
+                    //       have the right dispatcher.
+                    let fut = dispatcher::with_default(&subscriber, || s.call(r));
+                    // Hint: Makes sure the wrapped request has the right dispatcher.
+                    fut.with_subscriber(subscriber.clone())
+                })
+            })
+        })
+    }};
 }
+
+pub(crate) use new_http_server_with_subscriber;

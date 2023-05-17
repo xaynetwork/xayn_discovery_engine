@@ -37,7 +37,7 @@ use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 use crate::middleware::{
     json_error::wrap_non_json_errors,
     request_context::setup_request_context,
-    tracing::create_wrapper_for_local_trace_event_dispatch,
+    tracing::new_http_server_with_subscriber,
 };
 
 /// Configuration for roughly network/connection layer specific configurations.
@@ -85,20 +85,15 @@ where
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
     let subscriber = dispatcher::get_default(Dispatch::clone);
-    let server = HttpServer::new(move || {
+    let server = new_http_server_with_subscriber!(subscriber, move || {
         let legacy_tenant = legacy_tenant.clone();
-        // TODO[pmk/now] is this needed or are we already running in the right context.
-        dispatcher::with_default(&subscriber, || {
-            let subscriber = subscriber.clone();
-            mk_base_app()
-                .app_data(json_config.clone())
-                .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
-                .wrap_fn(wrap_non_json_errors)
-                .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
-                .wrap(middleware::Compress::default())
-                .wrap(Cors::permissive())
-                .wrap_fn(create_wrapper_for_local_trace_event_dispatch(subscriber))
-        })
+        mk_base_app()
+            .app_data(json_config.clone())
+            .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
+            .wrap_fn(wrap_non_json_errors)
+            .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
+            .wrap(middleware::Compress::default())
+            .wrap(Cors::permissive())
     })
     .keep_alive(net_config.keep_alive)
     .client_request_timeout(net_config.client_request_timeout)
