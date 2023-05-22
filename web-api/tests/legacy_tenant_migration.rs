@@ -26,11 +26,11 @@ use xayn_integration_tests::{
     build_test_config_from_parts,
     create_db,
     db_configs_for_testing,
-    generate_test_id,
     run_async_with_test_logger,
     send_assert,
     send_assert_json,
     start_test_service_containers,
+    TestId,
     MANAGEMENT_DB,
 };
 use xayn_test_utils::env::clear_env;
@@ -42,7 +42,7 @@ use xayn_web_api_shared::{
     request::TenantId,
 };
 
-async fn legacy_test_setup(test_id: &str) -> Result<(postgres::Config, elastic::Config), Error> {
+async fn legacy_test_setup(test_id: &TestId) -> Result<(postgres::Config, elastic::Config), Error> {
     clear_env();
     start_test_service_containers();
 
@@ -55,7 +55,7 @@ async fn legacy_test_setup(test_id: &str) -> Result<(postgres::Config, elastic::
 
 #[test]
 fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(), Error> {
-    let test_id = &generate_test_id();
+    let test_id = &TestId::generate();
     run_async_with_test_logger(test_id, async {
         let (pg_config, es_config) = legacy_test_setup(test_id).await?;
 
@@ -113,7 +113,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(),
 
 #[test]
 fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() -> Result<(), Error> {
-    let test_id = &generate_test_id();
+    let test_id = &TestId::generate();
     run_async_with_test_logger(test_id, async {
         let (pg_config, es_config) = legacy_test_setup(test_id).await?;
 

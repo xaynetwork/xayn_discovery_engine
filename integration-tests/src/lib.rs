@@ -32,6 +32,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Error};
 use chrono::Utc;
+use derive_more::{AsRef, Display};
 use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
@@ -164,7 +165,7 @@ static LOG_ENV_FILTER: Lazy<String> = Lazy::new(|| {
         .unwrap_or_else(|| "info,sqlx::query=warn".into())
 });
 
-pub fn initialize_local_test_logging(_test_id: &str) -> Dispatch {
+pub fn initialize_local_test_logging(_test_id: &TestId) -> Dispatch {
     initialize_test_logging_fallback();
     //FIXME create a test{%test_id} span valid for the duration of the Dispatch
     //      and automatically "recreated" on any new threads.
@@ -179,7 +180,7 @@ pub fn initialize_local_test_logging(_test_id: &str) -> Dispatch {
         .into()
 }
 
-pub fn run_async_with_test_logger<F>(test_id: &str, body: F) -> F::Output
+pub fn run_async_with_test_logger<F>(test_id: &TestId, body: F) -> F::Output
 where
     F: Future,
 {
@@ -221,7 +222,7 @@ pub fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    let test_id = &generate_test_id();
+    let test_id = &TestId::generate();
     run_async_with_test_logger(test_id, async {
         let (configure, enable_legacy_tenant) =
             configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
@@ -256,7 +257,7 @@ pub fn test_two_apps<A1, A2, F>(
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    let test_id = &generate_test_id();
+    let test_id = &TestId::generate();
     run_async_with_test_logger(test_id, async {
         let (configure_first, first_wit_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
@@ -394,19 +395,29 @@ pub fn build_test_config_from_parts(
     config
 }
 
-/// Generates an ID for the test.
-///
-/// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
-pub fn generate_test_id() -> String {
-    let date = Utc::now().format("%y%m%d_%H%M%S");
-    let random = random::<u16>();
-    format!("t{date}_{random:0>4x}")
+#[derive(Clone, Debug, Display, AsRef)]
+#[as_ref(forward)]
+pub struct TestId(String);
+
+impl TestId {
+    /// Generates an ID for the test.
+    ///
+    /// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
+    pub fn generate() -> Self {
+        let date = Utc::now().format("%y%m%d_%H%M%S");
+        let random = random::<u16>();
+        Self(format!("t{date}_{random:0>4x}"))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.as_ref()
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Services {
-    /// Id of the test
-    pub test_id: String,
+    /// Id of the test.
+    pub test_id: TestId,
     /// Silo management API
     pub silo: Silo,
     /// Tenant created for the test
@@ -428,7 +439,7 @@ impl Services {
 ///
 /// A uris usable for accessing the dbs are returned.
 async fn setup_web_dev_services(
-    test_id: &str,
+    test_id: &TestId,
     enable_legacy_tenant: bool,
 ) -> Result<Services, anyhow::Error> {
     clear_env();
@@ -460,7 +471,7 @@ async fn setup_web_dev_services(
     })
 }
 
-pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Config) {
+pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::Config) {
     let pg_db = Some(test_id.to_string());
     let es_index_name = format!("{test_id}_default");
     let pg_config;
@@ -547,9 +558,9 @@ mod tests {
     fn test_random_id_generation_has_expected_format() -> Result<(), Panic> {
         let regex = Regex::new("^t[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
         for _ in 0..100 {
-            let id = generate_test_id();
+            let id = TestId::generate();
             assert!(
-                regex.is_match(&id),
+                regex.is_match(id.as_str()),
                 "id does not have expected format: {id:?}",
             );
         }
