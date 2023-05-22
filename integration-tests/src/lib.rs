@@ -126,24 +126,50 @@ where
     }
 }
 
-/// Initialize logging in tests.
+/// Initializes fallback logging.
+///
+/// This only exist to make sure all logs are always logged
+/// even if there is an accident and the global dispatch is
+/// used instead of the per-test dispatch.
+///
+/// There are a small number of logs where this is always the
+/// case (but we also normally don't care about) like when actix
+/// logs that it started a new worker thread.
 pub fn initialize_test_logging_fallback() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
+        let var = env::var_os("XAYN_TEST_FALLBACK_LOG");
+        let directives = var
+            .as_deref()
+            .map(|s| {
+                s.to_str()
+                    .expect("XAYN_TEST_FALLBACK_LOG must only contain utf-8")
+            })
+            .unwrap_or("warn");
         tracing_subscriber::fmt()
             .with_ansi(false)
             .with_writer(TestWriter::default())
-            .with_env_filter("info")
+            .with_env_filter(directives)
             .init()
     });
 }
+
+static LOG_ENV_FILTER: Lazy<String> = Lazy::new(|| {
+    env::var_os("XAYN_TEST_LOG")
+        .map(|s| {
+            s.to_str()
+                .expect("XAYN_TEST_LOG must only contain utf-8")
+                .into()
+        })
+        .unwrap_or_else(|| "info,sqlx::query=warn".into())
+});
 
 pub fn initialize_local_test_logging() -> Dispatch {
     initialize_test_logging_fallback();
     tracing_subscriber::fmt()
         .with_ansi(false)
         .with_writer(TestWriter::default())
-        .with_env_filter("info")
+        .with_env_filter(LOG_ENV_FILTER.as_str())
         .finish()
         .into()
 }
