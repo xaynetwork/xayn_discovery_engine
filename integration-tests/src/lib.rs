@@ -75,22 +75,22 @@ mod env_vars {
     ///
     /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
     ///
-    /// If set to `""` or `"false"` logging to stdout is disabled.
+    /// If set to `"false"` logging to stdout is disabled.
     ///
     /// If set to another string the string is used as directives.
     ///
-    /// Defaults to `true`.
+    /// Defaults to `"true"`, `""` is treated as if it's the default.
     pub(super) const XAYN_TEST_STDOUT_LOG: &str = "XAYN_TEST_STDOUT_LOG";
 
     /// The [`EnvFilter`] directives used for logging to a file.
     ///
     /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
     ///
-    /// If set to `""` or `"false"` logging to a file is disabled.
+    /// If set to `"false"` logging to a file is disabled.
     ///
     /// If set to another string the string is used as directives.
     ///
-    /// Defaults to `"false"`.
+    /// Defaults to `"false"`, `""` is treated as if it's the default.
     pub(super) const XAYN_TEST_FILE_LOG: &str = "XAYN_TEST_FILE_LOG";
 
     /// Used to detect if we run in a action and in turn services are externally provided.
@@ -228,20 +228,26 @@ pub fn initialize_test_logging_fallback() {
 }
 
 fn env_opt_var_os(var: &str) -> Option<String> {
-    env::var(var).map_or_else(
-        |error| match error {
-            VarError::NotPresent => None,
-            VarError::NotUnicode(err) => panic!("{var} must only contain utf-8: {err:?}"),
-        },
-        Some,
-    )
+    env::var(var)
+        .map_or_else(
+            |error| match error {
+                VarError::NotPresent => None,
+                VarError::NotUnicode(err) => panic!("{var} must only contain utf-8: {err:?}"),
+            },
+            Some,
+        )
+        .filter(|v| !v.trim().is_empty())
 }
 
-fn select_filter_directives(directives: String, default: &str) -> Option<String> {
-    match directives.as_str() {
-        "" | "false" => None,
-        "true" => Some(default.to_owned()),
-        _ => Some(directives),
+fn env_var_os_with_default(var: &str, default: &str) -> String {
+    env_opt_var_os(var).unwrap_or_else(|| default.into())
+}
+
+fn select_filter_directives(input: String, default_directives: &str) -> Option<String> {
+    match input.as_str() {
+        "false" => None,
+        "true" => Some(default_directives.to_owned()),
+        _ => Some(input),
     }
 }
 
@@ -256,26 +262,30 @@ fn directives_with_level_filter(
     (directives, hint)
 }
 
+fn additional_env_filter(
+    var_name: &str,
+    default_state: &str,
+    default_value: &str,
+) -> Option<(String, Option<LevelFilter>)> {
+    select_filter_directives(
+        env_var_os_with_default(var_name, default_state),
+        default_value,
+    )
+    .map(|directives| directives_with_level_filter(directives, var_name))
+}
+
 static LOG_ENV_FILTER: Lazy<(String, Option<LevelFilter>)> = Lazy::new(|| {
-    let directives =
-        env_opt_var_os(XAYN_TEST_LOG).unwrap_or_else(|| "info,sqlx::query=warn".into());
-    directives_with_level_filter(directives, XAYN_TEST_LOG)
+    directives_with_level_filter(
+        env_var_os_with_default(XAYN_TEST_STDOUT_LOG, "info,sqlx::query=warn"),
+        XAYN_TEST_LOG,
+    )
 });
 
-static LOG_STDOUT_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> = Lazy::new(|| {
-    if let Some(directives) = env_opt_var_os(XAYN_TEST_STDOUT_LOG) {
-        select_filter_directives(directives, &LOG_ENV_FILTER.0)
-            .map(|directives| directives_with_level_filter(directives, XAYN_TEST_STDOUT_LOG))
-    } else {
-        Some(LOG_ENV_FILTER.clone())
-    }
-});
+static LOG_STDOUT_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
+    Lazy::new(|| additional_env_filter(XAYN_TEST_STDOUT_LOG, "true", &LOG_ENV_FILTER.0));
 
-static LOG_FILE_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> = Lazy::new(|| {
-    env_opt_var_os(XAYN_TEST_FILE_LOG)
-        .and_then(|directives| select_filter_directives(directives, &LOG_ENV_FILTER.0))
-        .map(|directives| directives_with_level_filter(directives, XAYN_TEST_FILE_LOG))
-});
+static LOG_FILE_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
+    Lazy::new(|| additional_env_filter(XAYN_TEST_FILE_LOG, "false", &LOG_ENV_FILTER.0));
 
 pub fn initialize_local_test_logging(_test_id: &TestId, log_file_dir: &Path) -> Dispatch {
     initialize_test_logging_fallback();
