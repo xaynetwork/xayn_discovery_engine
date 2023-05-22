@@ -636,13 +636,20 @@ pub fn build_test_config_from_parts(
     let pg_config = Value::try_from(pg_config).unwrap();
     let es_config = Value::try_from(es_config).unwrap();
 
+    // Hint: Relative path doesn't work with `cargo flamegraph`
+    let embedding_dir = PROJECT_ROOT
+        .join("assets")
+        .join("smbert_v0003")
+        .display()
+        .to_string();
+
     let mut config = toml! {
         [storage]
         postgres = pg_config
         elastic = es_config
 
         [embedding]
-        directory = "../assets/smbert_v0003"
+        directory = embedding_dir
     };
 
     //the password was serialized as REDACTED in to_toml_value
