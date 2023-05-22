@@ -26,7 +26,7 @@ use xayn_integration_tests::{
     build_test_config_from_parts,
     create_db,
     db_configs_for_testing,
-    run_async_with_test_logger,
+    run_async_test,
     send_assert,
     send_assert_json,
     start_test_service_containers,
@@ -55,7 +55,7 @@ async fn legacy_test_setup(test_id: &TestId) -> Result<(postgres::Config, elasti
 
 #[test]
 fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(), Error> {
-    run_async_with_test_logger(|test_id| async move {
+    run_async_test(|test_id| async move {
         let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;
@@ -112,7 +112,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(),
 
 #[test]
 fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() -> Result<(), Error> {
-    run_async_with_test_logger(|test_id| async move {
+    run_async_test(|test_id| async move {
         let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;

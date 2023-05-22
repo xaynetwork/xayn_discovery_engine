@@ -180,7 +180,7 @@ pub fn initialize_local_test_logging(_test_id: &TestId) -> Dispatch {
         .into()
 }
 
-pub fn run_async_with_test_logger<F>(test: impl FnOnce(TestId) -> F) -> F::Output
+pub fn run_async_test<F>(test: impl FnOnce(TestId) -> F) -> F::Output
 where
     F: Future,
 {
@@ -224,7 +224,7 @@ pub fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    run_async_with_test_logger(|test_id| async move {
+    run_async_test(|test_id| async move {
         let (configure, enable_legacy_tenant) =
             configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
@@ -258,7 +258,7 @@ pub fn test_two_apps<A1, A2, F>(
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    run_async_with_test_logger(|test_id| async move {
+    run_async_test(|test_id| async move {
         let (configure_first, first_wit_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
         let (configure_second, second_with_legacy) =
