@@ -417,7 +417,8 @@ where
         };
 
         let span = error_span!(parent: None, "test", %test_id);
-        let body = test(test_id).instrument(span);
+        span.in_scope(|| {
+            let body = test(test_id);
 
         // more or less what #[tokio::test] does
         // Hint: If we use a "non-current-thread" runtime in the future

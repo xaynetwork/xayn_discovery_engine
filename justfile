@@ -264,9 +264,11 @@ flamegraph *args:
     export XAYN_TEST_FLAME_LOG="${XAYN_TEST_FLAME_LOG:-info}"
     cargo test -- {{args}}
     for d in ./test-artifacts/*; do
-        if [ -e "$d/tracing.folded" ]; then
+        if [[ -e "$d/tracing.folded" && ! -e "$d/tracing.flamegraph.svg" ]]; then
             inferno-flamegraph "$d/tracing.folded" > "$d/tracing.flamegraph.svg"
             echo "Flamegraph stored at: $d/tracing.flamegraph.svg"
+            inferno-flamegraph --flamechart  "$d/tracing.folded" > "$d/tracing.flamechart.svg"
+            echo "Flamegraph stored at: $d/tracing.flamechart.svg"
         fi
     done
 
