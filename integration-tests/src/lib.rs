@@ -25,7 +25,7 @@ use std::{
     env,
     future::Future,
     path::PathBuf,
-    process::{Command, Output, Stdio},
+    process::{abort, Command, Output, Stdio},
     sync::{Arc, Once},
     time::Duration,
 };
@@ -437,7 +437,7 @@ async fn setup_web_dev_services(
     enable_legacy_tenant: bool,
 ) -> Result<Services, anyhow::Error> {
     clear_env();
-    start_test_service_containers().unwrap();
+    start_test_service_containers();
 
     let tenant_id = TenantId::try_parse_ascii(test_id.as_ref())?;
 
@@ -527,18 +527,19 @@ pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result
 /// Start service containers.
 ///
 /// Does nothing on CI where they have to be started from the outside.
-pub fn start_test_service_containers() -> Result<(), anyhow::Error> {
+pub fn start_test_service_containers() {
     static ONCE: Once = Once::new();
-    let mut res = Ok(());
     ONCE.call_once(|| {
         if !std::env::var("CI")
             .map(|value| value == "true")
             .unwrap_or_default()
         {
-            res = just(&["web-dev-up"]).map(drop);
+            if let Err(err) = just(&["web-dev-up"]) {
+                eprintln!("Can not start web-dev services: {err}");
+                abort();
+            }
         }
     });
-    res
 }
 
 #[cfg(test)]

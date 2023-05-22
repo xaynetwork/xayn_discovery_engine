@@ -44,7 +44,7 @@ use xayn_web_api_shared::{
 
 async fn legacy_test_setup(test_id: &str) -> Result<(postgres::Config, elastic::Config), Error> {
     clear_env();
-    start_test_service_containers()?;
+    start_test_service_containers();
 
     let (pg_config, es_config) = db_configs_for_testing(test_id);
 
