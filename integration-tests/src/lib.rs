@@ -59,7 +59,7 @@ use xayn_web_api_shared::{
 
 /// Module to document env variables which affect testing.
 mod env_vars {
-    /// The [`EnvFilter`] directives used for the fallback logging setup.
+    /// The [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for the fallback logging setup.
     ///
     /// This is used if for whatever reason the test specific logging
     /// setup is not used.
@@ -67,12 +67,12 @@ mod env_vars {
     /// Defaults to `warn`.
     pub(super) const XAYN_TEST_FALLBACK_LOG: &str = "XAYN_TEST_FALLBACK_LOG";
 
-    /// The default [`EnvFilter`] directives used for logging.
+    /// The default [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for logging.
     ///
     /// Defaults to `info,sqlx::query=warn`.
     pub(super) const XAYN_TEST_LOG: &str = "XAYN_TEST_LOG";
 
-    /// The [`EnvFilter`] directives used for logging to stdout.
+    /// The [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for logging to stdout.
     ///
     /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
     ///
@@ -83,7 +83,7 @@ mod env_vars {
     /// Defaults to `"true"`, `""` is treated as if it's the default.
     pub(super) const XAYN_TEST_STDOUT_LOG: &str = "XAYN_TEST_STDOUT_LOG";
 
-    /// The [`EnvFilter`] directives used for logging to a file.
+    /// The [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for logging to a file.
     ///
     /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
     ///
