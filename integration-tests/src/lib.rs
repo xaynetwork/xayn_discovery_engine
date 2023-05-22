@@ -118,7 +118,7 @@ mod env_vars {
     /// Defaults to `"NONE"`.
     pub(super) const XAYN_TEST_FILE_LOG_SPAN_EVENTS: &str = "XAYN_TEST_FILE_LOG_SPAN_EVENTS";
 
-    /// The [`EnvFilter`] directives used for creating a flame graph.
+    /// The [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for creating a flame graph.
     ///
     /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
     ///
