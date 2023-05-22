@@ -155,8 +155,8 @@ struct SemanticSearchResponse {
 //FIXME Once the "old" version we test migration against is the version where this
 //      test was added we can simplify it a lot by using the Silo API and the additional
 //      integration test utils added in this and the previous PR.
-#[tokio::test]
-async fn test_full_migration() -> Result<(), Error> {
+#[test]
+fn test_full_migration() {
     use old_xayn_web_api::{
         config as old_config,
         start as start_old,
@@ -165,137 +165,139 @@ async fn test_full_migration() -> Result<(), Error> {
         ELASTIC_MAPPING,
     };
 
-    let (pg_config, es_config) = legacy_test_setup(todo!()).await?;
-    let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
+    run_async_test(|test_id| async move {
+        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
+        let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()?;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()?;
 
-    let es_mapping: Value = serde_json::from_str(ELASTIC_MAPPING)?;
-    // the old setup didn't setup elastic search itself, nor has the config pub fields
-    send_assert(
-        &client,
-        client
-            .put(format!("{}/{}", es_config.url, es_config.index_name))
-            .json(&es_mapping)
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
+        let es_mapping: Value = serde_json::from_str(ELASTIC_MAPPING)?;
+        // the old setup didn't setup elastic search itself, nor has the config pub fields
+        send_assert(
+            &client,
+            client
+                .put(format!("{}/{}", es_config.url, es_config.index_name))
+                .json(&es_mapping)
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
 
-    let args = &[
-        "integration-test",
-        "--bind-to",
-        "127.0.0.1:0",
-        "--config",
-        &format!("inline:{config}"),
-    ];
+        let args = &[
+            "integration-test",
+            "--bind-to",
+            "127.0.0.1:0",
+            "--config",
+            &format!("inline:{config}"),
+        ];
 
-    let config = old_config::load_with_args([""; 0], args);
-    let ingestion = start_old::<OldIngestion>(config).await?;
-    let ingestion_url = ingestion.url();
-    let config = old_config::load_with_args([""; 0], args);
-    let personalization = start_old::<OldPersonalization>(config).await?;
-    let personalization_url = personalization.url();
+        let config = old_config::load_with_args([""; 0], args);
+        let ingestion = start_old::<OldIngestion>(config).await?;
+        let ingestion_url = ingestion.url();
+        let config = old_config::load_with_args([""; 0], args);
+        let personalization = start_old::<OldPersonalization>(config).await?;
+        let personalization_url = personalization.url();
 
-    send_assert(
-        &client,
-        client
-            .post(ingestion_url.join("/documents")?)
-            .json(&json!({
-                "documents": [
-                    { "id": "d1", "snippet": "snippet 1" },
-                    { "id": "d2", "snippet": "snippet 2" }
-                ]
-            }))
-            .build()?,
-        StatusCode::CREATED,
-    )
-    .await;
+        send_assert(
+            &client,
+            client
+                .post(ingestion_url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1" },
+                        { "id": "d2", "snippet": "snippet 2" }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
 
-    let SemanticSearchResponse { documents } = send_assert_json(
-        &client,
-        client
-            .post(personalization_url.join("/semantic_search")?)
-            .json(&json!({ "document": { "query": "snippet" } }))
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
-    assert_eq!(
-        documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect::<HashSet<_>>(),
-        ["d1", "d2"].into(),
-    );
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(personalization_url.join("/semantic_search")?)
+                .json(&json!({ "document": { "query": "snippet" } }))
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2"].into(),
+        );
 
-    ingestion.stop_and_wait(Duration::from_secs(1)).await?;
-    personalization
-        .stop_and_wait(Duration::from_secs(1))
-        .await?;
+        ingestion.stop_and_wait(Duration::from_secs(1)).await?;
+        personalization
+            .stop_and_wait(Duration::from_secs(1))
+            .await?;
 
-    let pg_options = pg_config.to_connection_options()?;
-    let mut conn = PgConnection::connect_with(&pg_options).await?;
-    conn.execute("REVOKE ALL ON SCHEMA public FROM PUBLIC")
-        .await?;
-    conn.close().await?;
+        let pg_options = pg_config.to_connection_options()?;
+        let mut conn = PgConnection::connect_with(&pg_options).await?;
+        conn.execute("REVOKE ALL ON SCHEMA public FROM PUBLIC")
+            .await?;
+        conn.close().await?;
 
-    let config = config::load_with_args([""; 0], args);
-    let ingestion = start::<Ingestion>(config).await?;
-    let ingestion_url = ingestion.url();
-    let config = config::load_with_args([""; 0], args);
-    let personalization = start::<Personalization>(config).await?;
-    let personalization_url = personalization.url();
+        let config = config::load_with_args([""; 0], args);
+        let ingestion = start::<Ingestion>(config).await?;
+        let ingestion_url = ingestion.url();
+        let config = config::load_with_args([""; 0], args);
+        let personalization = start::<Personalization>(config).await?;
+        let personalization_url = personalization.url();
 
-    let SemanticSearchResponse { documents } = send_assert_json(
-        &client,
-        client
-            .post(personalization_url.join("/semantic_search")?)
-            .json(&json!({ "document": { "query": "snippet" } }))
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
-    assert_eq!(
-        documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect::<HashSet<_>>(),
-        ["d1", "d2"].into(),
-    );
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(personalization_url.join("/semantic_search")?)
+                .json(&json!({ "document": { "query": "snippet" } }))
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2"].into(),
+        );
 
-    send_assert(
-        &client,
-        client
-            .post(ingestion_url.join("/documents")?)
-            .json(&json!({
-                "documents": [ { "id": "d3", "snippet": "snippet 3" } ]
-            }))
-            .build()?,
-        StatusCode::CREATED,
-    )
-    .await;
-    let SemanticSearchResponse { documents } = send_assert_json(
-        &client,
-        client
-            .post(personalization_url.join("/semantic_search")?)
-            .json(&json!({ "document": { "query": "snippet" } }))
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
-    assert_eq!(
-        documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect::<HashSet<_>>(),
-        ["d1", "d2", "d3"].into(),
-    );
+        send_assert(
+            &client,
+            client
+                .post(ingestion_url.join("/documents")?)
+                .json(&json!({
+                    "documents": [ { "id": "d3", "snippet": "snippet 3" } ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(personalization_url.join("/semantic_search")?)
+                .json(&json!({ "document": { "query": "snippet" } }))
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2", "d3"].into(),
+        );
 
-    ingestion.stop_and_wait().await?;
-    personalization.stop_and_wait().await?;
+        ingestion.stop_and_wait().await?;
+        personalization.stop_and_wait().await?;
 
-    Ok(())
+        Ok(())
+    });
 }
