@@ -164,8 +164,13 @@ static LOG_ENV_FILTER: Lazy<String> = Lazy::new(|| {
         .unwrap_or_else(|| "info,sqlx::query=warn".into())
 });
 
-pub fn initialize_local_test_logging() -> Dispatch {
+pub fn initialize_local_test_logging(_test_id: &str) -> Dispatch {
     initialize_test_logging_fallback();
+    //FIXME create a test{%test_id} span valid for the duration of the Dispatch
+    //      and automatically "recreated" on any new threads.
+    //FIXME add `XAYN_TEST_WRITE_LOGS` which will write logs as jsons to files
+    //      and uses a different env filter (env var `XAYN_TEST_FILE_LOG`).
+    //FIXME add support for writing flame graphs
     tracing_subscriber::fmt()
         .with_ansi(false)
         .with_writer(TestWriter::default())
@@ -178,7 +183,7 @@ pub fn run_async_with_test_logger<F>(test_id: &str, body: F) -> F::Output
 where
     F: Future,
 {
-    let subscriber = initialize_local_test_logging();
+    let subscriber = initialize_local_test_logging(test_id);
 
     dispatcher::with_default(&subscriber, || {
         let body = body.instrument(error_span!(parent: None, "test", %test_id));
