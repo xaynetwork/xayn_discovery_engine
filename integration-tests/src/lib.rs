@@ -180,14 +180,16 @@ pub fn initialize_local_test_logging(_test_id: &TestId) -> Dispatch {
         .into()
 }
 
-pub fn run_async_with_test_logger<F>(test_id: &TestId, body: F) -> F::Output
+pub fn run_async_with_test_logger<F>(test: impl FnOnce(TestId) -> F) -> F::Output
 where
     F: Future,
 {
-    let subscriber = initialize_local_test_logging(test_id);
+    let test_id = TestId::generate();
+    let subscriber = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
-        let body = body.instrument(error_span!(parent: None, "test", %test_id));
+        let span = error_span!(parent: None, "test", %test_id);
+        let body = test(test_id).instrument(span);
 
         // more or less what #[tokio::test] does
         // Hint: If we use a "non-current-thread" runtime in the future
@@ -222,12 +224,11 @@ pub fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    let test_id = &TestId::generate();
-    run_async_with_test_logger(test_id, async {
+    run_async_with_test_logger(|test_id| async move {
         let (configure, enable_legacy_tenant) =
             configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
-        let services = setup_web_dev_services(test_id, enable_legacy_tenant)
+        let services = setup_web_dev_services(&test_id, enable_legacy_tenant)
             .await
             .unwrap();
 
@@ -257,15 +258,14 @@ pub fn test_two_apps<A1, A2, F>(
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    let test_id = &TestId::generate();
-    run_async_with_test_logger(test_id, async {
+    run_async_with_test_logger(|test_id| async move {
         let (configure_first, first_wit_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
         let (configure_second, second_with_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
         assert_eq!(first_wit_legacy, second_with_legacy);
 
-        let services = setup_web_dev_services(test_id, first_wit_legacy)
+        let services = setup_web_dev_services(&test_id, first_wit_legacy)
             .await
             .unwrap();
         let first_handle = start_test_application::<A1>(&services, configure_first).await;

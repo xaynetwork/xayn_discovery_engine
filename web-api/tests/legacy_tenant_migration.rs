@@ -55,9 +55,8 @@ async fn legacy_test_setup(test_id: &TestId) -> Result<(postgres::Config, elasti
 
 #[test]
 fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(), Error> {
-    let test_id = &TestId::generate();
-    run_async_with_test_logger(test_id, async {
-        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
+    run_async_with_test_logger(|test_id| async move {
+        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;
         let mut conn = PgConnection::connect_with(&pg_options).await?;
@@ -113,9 +112,8 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(),
 
 #[test]
 fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() -> Result<(), Error> {
-    let test_id = &TestId::generate();
-    run_async_with_test_logger(test_id, async {
-        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
+    run_async_with_test_logger(|test_id| async move {
+        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;
 
