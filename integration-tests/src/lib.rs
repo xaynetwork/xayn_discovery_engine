@@ -39,18 +39,11 @@ use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
-use tracing::{
-    dispatcher,
-    error_span,
-    instrument,
-    instrument::WithSubscriber,
-    Dispatch,
-    Instrument,
-};
-use tracing_subscriber::filter::LevelFilter;
+use tracing::{dispatcher, error_span, instrument, Dispatch, Instrument};
+use tracing_subscriber::fmt::TestWriter;
 use xayn_test_utils::{env::clear_env, error::Panic};
-use xayn_web_api::{config, logging, start, AppHandle, Application};
-use xayn_web_api_db_ctrl::{Silo, Tenant};
+use xayn_web_api::{config, start, AppHandle, Application};
+use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
@@ -137,25 +130,22 @@ where
 pub fn initialize_test_logging_fallback() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        logging::initialize_global(&logging::Config {
-            file: None,
-            level: LevelFilter::WARN,
-            // FIXME If we have json logging do fix the panic logging hook
-            //       to also log the backtrace instead of disabling the
-            //       panic hook.
-            install_panic_hook: false,
-        })
-        .unwrap();
+        tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_writer(TestWriter::default())
+            .with_env_filter("info")
+            .init()
     });
 }
 
 pub fn initialize_local_test_logging() -> Dispatch {
     initialize_test_logging_fallback();
-    logging::create_trace_dispatch(&logging::Config {
-        file: None,
-        level: LevelFilter::INFO,
-        install_panic_hook: false,
-    })
+    tracing_subscriber::fmt()
+        .with_ansi(false)
+        .with_writer(TestWriter::default())
+        .with_env_filter("info")
+        .finish()
+        .into()
 }
 
 pub fn run_async_with_test_logger<F>(test_id: &str, body: F) -> F::Output
@@ -163,16 +153,14 @@ where
     F: Future,
 {
     let subscriber = initialize_local_test_logging();
-    let body = async move {
-        // Hint: the `error_span` must be created _inside_ of the future or else it
-        //       would mix references of the global and local logging in a way which doesn't work
-        body.instrument(error_span!(parent: None, "test", %test_id))
-            .await
-    }
-    .with_subscriber(subscriber.clone());
 
     dispatcher::with_default(&subscriber, || {
+        let body = body.instrument(error_span!(parent: None, "test", %test_id));
+
         // more or less what #[tokio::test] does
+        // Hint: If we use a "non-current-thread" runtime in the future
+        //       make sure to attach the subscriber to the body future
+        //       using `WithSubscriber.with_current_subscriber()`.
         tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
