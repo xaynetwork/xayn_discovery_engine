@@ -30,6 +30,7 @@ use std::{
     path::{Path, PathBuf},
     process::{abort, Command, Output, Stdio},
     sync::{Arc, Once},
+    thread::panicking,
     time::Duration,
 };
 
@@ -276,7 +277,7 @@ fn additional_env_filter(
 
 static LOG_ENV_FILTER: Lazy<(String, Option<LevelFilter>)> = Lazy::new(|| {
     directives_with_level_filter(
-        env_var_os_with_default(XAYN_TEST_STDOUT_LOG, "info,sqlx::query=warn"),
+        env_var_os_with_default(XAYN_TEST_LOG, "info,sqlx::query=warn"),
         XAYN_TEST_LOG,
     )
 });
@@ -328,8 +329,10 @@ where
     let subscriber = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
+        let _guard = DeleteTemptDirIfNoPanic(test_id.clone());
+
         let span = error_span!(parent: None, "test", %test_id);
-        let body = test(test_id.clone()).instrument(span);
+        let body = test(test_id).instrument(span);
 
         // more or less what #[tokio::test] does
         // Hint: If we use a "non-current-thread" runtime in the future
@@ -341,9 +344,22 @@ where
             .expect("Failed building the Runtime")
             .block_on(body)
             .unwrap();
-
-        test_id.remove_temp_dir().unwrap();
     });
+}
+
+struct DeleteTemptDirIfNoPanic(TestId);
+
+impl Drop for DeleteTemptDirIfNoPanic {
+    fn drop(&mut self) {
+        if panicking() {
+            let temp_dir = self.0.temp_dir();
+            if temp_dir.exists() {
+                eprint!("Temp dir was not deleted: {}", self.0.temp_dir().display());
+            }
+        } else {
+            self.0.remove_temp_dir().unwrap();
+        }
+    }
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
@@ -555,7 +571,7 @@ impl TestId {
 
     pub fn temp_dir(&self) -> PathBuf {
         let mut temp_dir = env::temp_dir();
-        temp_dir.push(&self.0);
+        temp_dir.push(format!("web-api.{}", self.0));
         temp_dir
     }
 
@@ -567,7 +583,12 @@ impl TestId {
     }
 
     pub fn remove_temp_dir(&self) -> Result<(), io::Error> {
-        remove_dir_all(self.temp_dir())
+        let temp_dir = self.temp_dir();
+        if temp_dir.exists() {
+            remove_dir_all(self.temp_dir())
+        } else {
+            Ok(())
+        }
     }
 }
 
