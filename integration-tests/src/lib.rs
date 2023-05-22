@@ -36,6 +36,7 @@ use std::{
 use anyhow::{anyhow, bail, Error};
 use chrono::Utc;
 use derive_more::{AsRef, Display};
+use env_vars::*;
 use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
@@ -55,6 +56,47 @@ use xayn_web_api_shared::{
     request::TenantId,
 };
 
+/// Module to document env variables which affect testing.
+mod env_vars {
+    /// The [`EnvFilter`] directives used for the fallback logging setup.
+    ///
+    /// This is used if for whatever reason the test specific logging
+    /// setup is not used.
+    ///
+    /// Defaults to `warn`.
+    pub(super) const XAYN_TEST_FALLBACK_LOG: &str = "XAYN_TEST_FALLBACK_LOG";
+
+    /// The default [`EnvFilter`] directives used for logging.
+    ///
+    /// Defaults to `info,sqlx::query=warn`.
+    pub(super) const XAYN_TEST_LOG: &str = "XAYN_TEST_LOG";
+
+    /// The [`EnvFilter`] directives used for logging to stdout.
+    ///
+    /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
+    ///
+    /// If set to `""` or `"false"` logging to stdout is disabled.
+    ///
+    /// If set to another string the string is used as directives.
+    ///
+    /// Defaults to `true`.
+    pub(super) const XAYN_TEST_STDOUT_LOG: &str = "XAYN_TEST_STDOUT_LOG";
+
+    /// The [`EnvFilter`] directives used for logging to a file.
+    ///
+    /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
+    ///
+    /// If set to `""` or `"false"` logging to a file is disabled.
+    ///
+    /// If set to another string the string is used as directives.
+    ///
+    /// Defaults to `"false"`.
+    pub(super) const XAYN_TEST_FILE_LOG: &str = "XAYN_TEST_FILE_LOG";
+
+    /// Used to detect if we run in a action and in turn services are externally provided.
+    pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
+}
+
 /// Absolute path to the root of the project as determined by `just`.
 pub static PROJECT_ROOT: Lazy<PathBuf> =
     Lazy::new(|| just(&["_test-project-root"]).unwrap().into());
@@ -70,7 +112,7 @@ pub static PROJECT_ROOT: Lazy<PathBuf> =
 /// should not.
 pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
     //FIXME more generic detection
-    env::var("GITHUB_ACTIONS") == Ok("true".into())
+    env::var(GITHUB_ACTIONS) == Ok("true".into())
 });
 
 /// DB name used for the db we use to create other dbs.
@@ -143,7 +185,7 @@ where
 pub fn initialize_test_logging_fallback() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        let env_filter = env_opt_var_os("XAYN_TEST_FALLBACK_LOG")
+        let env_filter = env_opt_var_os(XAYN_TEST_FALLBACK_LOG)
             .unwrap_or_else(|| "warn".into())
             .parse::<EnvFilter>()
             .expect("XAYN_TEST_FALLBACK_LOG has invalid EnvFilter directives");
@@ -216,23 +258,23 @@ fn directives_with_level_filter(
 
 static LOG_ENV_FILTER: Lazy<(String, Option<LevelFilter>)> = Lazy::new(|| {
     let directives =
-        env_opt_var_os("XAYN_TEST_LOG").unwrap_or_else(|| "info,sqlx::query=warn".into());
-    directives_with_level_filter(directives, "XAYN_TEST_LOG")
+        env_opt_var_os(XAYN_TEST_LOG).unwrap_or_else(|| "info,sqlx::query=warn".into());
+    directives_with_level_filter(directives, XAYN_TEST_LOG)
 });
 
 static LOG_STDOUT_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> = Lazy::new(|| {
-    if let Some(directives) = env_opt_var_os("XAYN_TEST_STDOUT_LOG") {
+    if let Some(directives) = env_opt_var_os(XAYN_TEST_STDOUT_LOG) {
         select_filter_directives(directives, &LOG_ENV_FILTER.0)
-            .map(|directives| directives_with_level_filter(directives, "XAYN_TEST_STDOUT_LOG"))
+            .map(|directives| directives_with_level_filter(directives, XAYN_TEST_STDOUT_LOG))
     } else {
         Some(LOG_ENV_FILTER.clone())
     }
 });
 
 static LOG_FILE_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> = Lazy::new(|| {
-    env_opt_var_os("XAYN_TEST_FILE_LOG")
+    env_opt_var_os(XAYN_TEST_FILE_LOG)
         .and_then(|directives| select_filter_directives(directives, &LOG_ENV_FILTER.0))
-        .map(|directives| directives_with_level_filter(directives, "XAYN_TEST_FILE_LOG"))
+        .map(|directives| directives_with_level_filter(directives, XAYN_TEST_FILE_LOG))
 });
 
 pub fn initialize_local_test_logging(_test_id: &TestId, log_file_dir: &Path) -> Dispatch {
@@ -653,10 +695,7 @@ pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result
 pub fn start_test_service_containers() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        if !std::env::var("CI")
-            .map(|value| value == "true")
-            .unwrap_or_default()
-        {
+        if !*RUNS_IN_CONTAINER {
             if let Err(err) = just(&["web-dev-up"]) {
                 eprintln!("Can not start web-dev services: {err}");
                 abort();
