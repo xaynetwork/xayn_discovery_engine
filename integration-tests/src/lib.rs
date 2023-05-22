@@ -202,6 +202,7 @@ pub fn just(args: &[&str]) -> Result<String, Error> {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn send_assert(client: &Client, req: Request, expected: StatusCode) -> Response {
     let method = req.method().clone();
     let target = req.url().clone();
@@ -217,6 +218,7 @@ pub async fn send_assert(client: &Client, req: Request, expected: StatusCode) ->
     response
 }
 
+#[instrument(skip_all)]
 pub async fn send_assert_json<O>(client: &Client, req: Request, expected: StatusCode) -> O
 where
     O: DeserializeOwned,

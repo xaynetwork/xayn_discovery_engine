@@ -21,7 +21,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::{Connection, Executor, PgConnection};
 use toml::Table;
-use tracing::info;
+use tracing::{info, instrument};
 use xayn_integration_tests::{
     build_test_config_from_parts,
     create_db,
@@ -42,6 +42,7 @@ use xayn_web_api_shared::{
     request::TenantId,
 };
 
+#[instrument(skip_all)]
 async fn legacy_test_setup(test_id: &TestId) -> Result<(postgres::Config, elastic::Config), Error> {
     clear_env();
     start_test_service_containers();
