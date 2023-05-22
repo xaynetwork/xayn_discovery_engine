@@ -48,7 +48,7 @@ use toml::{toml, Table, Value};
 use tracing::{dispatcher, error_span, instrument, metadata::LevelFilter, Dispatch, Instrument};
 use tracing_log::{log::LevelFilter as LogFacilityLevelFilter, LogTracer};
 use tracing_subscriber::{fmt::TestWriter, layer::SubscriberExt, EnvFilter, Layer};
-use xayn_test_utils::{env::clear_env, error::Panic};
+use xayn_test_utils::env::clear_env;
 use xayn_web_api::{config, start, AppHandle, Application};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
@@ -380,7 +380,7 @@ pub fn test_app<A, F>(
     configure: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
 ) where
-    F: Future<Output = Result<(), Panic>>,
+    F: Future<Output = Result<(), Error>>,
     A: Application + 'static,
 {
     run_async_test(|test_id| async move {
@@ -396,8 +396,7 @@ pub fn test_app<A, F>(
             Arc::new(handle.url()),
             services.clone(),
         )
-        .await
-        .unwrap();
+        .await?;
 
         handle.stop_and_wait().await?;
 
@@ -730,7 +729,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_random_id_generation_has_expected_format() -> Result<(), Panic> {
+    fn test_random_id_generation_has_expected_format() -> Result<(), Error> {
         let regex = Regex::new("^t[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
         for _ in 0..100 {
             let id = TestId::generate();
