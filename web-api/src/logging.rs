@@ -90,7 +90,7 @@ pub fn initialize_global(config: &Config) -> Result<(), TryInitError> {
     Ok(())
 }
 
-pub fn create_trace_dispatch(level: LevelFilter, file: Option<&Path>) -> Dispatch {
+fn create_trace_dispatch(level: LevelFilter, file: Option<&Path>) -> Dispatch {
     let subscriber = tracing_subscriber::registry();
 
     let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
