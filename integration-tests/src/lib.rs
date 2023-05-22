@@ -22,11 +22,14 @@
 //! integration testing.
 
 use std::{
-    env,
+    cmp,
+    env::{self, VarError},
+    fs::OpenOptions,
     future::Future,
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{abort, Command, Output, Stdio},
     sync::{Arc, Once},
+    thread::panicking,
     time::Duration,
 };
 
@@ -40,8 +43,9 @@ use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
-use tracing::{dispatcher, error_span, instrument, Dispatch, Instrument};
-use tracing_subscriber::fmt::TestWriter;
+use tracing::{dispatcher, error_span, instrument, metadata::LevelFilter, Dispatch, Instrument};
+use tracing_log::{log::LevelFilter as LogFacilityLevelFilter, LogTracer};
+use tracing_subscriber::{fmt::TestWriter, layer::SubscriberExt, EnvFilter, Layer};
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
@@ -139,57 +143,143 @@ where
 pub fn initialize_test_logging_fallback() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        let var = env::var_os("XAYN_TEST_FALLBACK_LOG");
-        let directives = var
-            .as_deref()
-            .map(|s| {
-                s.to_str()
-                    .expect("XAYN_TEST_FALLBACK_LOG must only contain utf-8")
-            })
-            .unwrap_or("warn");
-        tracing_subscriber::fmt()
-            .with_ansi(false)
-            .with_writer(TestWriter::default())
-            .with_env_filter(directives)
-            .init()
+        let env_filter = env_opt_var_os("XAYN_TEST_FALLBACK_LOG")
+            .unwrap_or_else(|| "warn".into())
+            .parse::<EnvFilter>()
+            .expect("XAYN_TEST_FALLBACK_LOG has invalid EnvFilter directives");
+
+        let max_level = env_filter.max_level_hint();
+
+        // WARNING: You can not use `.init()` here as it will setup the log=>tracing
+        //          facade in a way which yields incorrect results.
+        dispatcher::set_global_default(
+            tracing_subscriber::fmt()
+                .with_ansi(false)
+                .with_writer(TestWriter::default())
+                .with_env_filter(env_filter)
+                .into(),
+        )
+        .unwrap();
+
+        let max_level = cmp::max(
+            max_level,
+            cmp::max(
+                LOG_FILE_ENV_FILTER.as_ref().and_then(|(_, level)| *level),
+                LOG_STDOUT_ENV_FILTER.as_ref().and_then(|(_, level)| *level),
+            ),
+        );
+
+        let mut builder = LogTracer::builder();
+        if let Some(max_level) = max_level {
+            let filter = match max_level {
+                LevelFilter::TRACE => LogFacilityLevelFilter::Trace,
+                LevelFilter::DEBUG => LogFacilityLevelFilter::Debug,
+                LevelFilter::INFO => LogFacilityLevelFilter::Info,
+                LevelFilter::WARN => LogFacilityLevelFilter::Warn,
+                LevelFilter::ERROR => LogFacilityLevelFilter::Error,
+                LevelFilter::OFF => LogFacilityLevelFilter::Off,
+            };
+            builder = builder.with_max_level(filter);
+        }
+        builder.init().unwrap();
     });
 }
 
-static LOG_ENV_FILTER: Lazy<String> = Lazy::new(|| {
-    env::var_os("XAYN_TEST_LOG")
-        .map(|s| {
-            s.to_str()
-                .expect("XAYN_TEST_LOG must only contain utf-8")
-                .into()
-        })
-        .unwrap_or_else(|| "info,sqlx::query=warn".into())
+fn env_opt_var_os(var: &str) -> Option<String> {
+    env::var(var).map_or_else(
+        |error| match error {
+            VarError::NotPresent => None,
+            VarError::NotUnicode(err) => panic!("{var} must only contain utf-8: {err:?}"),
+        },
+        Some,
+    )
+}
+
+fn select_filter_directives(directives: String, default: &str) -> Option<String> {
+    match directives.as_str() {
+        "" | "false" => None,
+        "true" => Some(default.to_owned()),
+        _ => Some(directives),
+    }
+}
+
+fn directives_with_level_filter(
+    directives: String,
+    var_name: &str,
+) -> (String, Option<LevelFilter>) {
+    let hint = directives
+        .parse::<EnvFilter>()
+        .unwrap_or_else(|err| panic!("{var_name} contains invalid EnvFilter directives: {err}"))
+        .max_level_hint();
+    (directives, hint)
+}
+
+static LOG_ENV_FILTER: Lazy<(String, Option<LevelFilter>)> = Lazy::new(|| {
+    let directives =
+        env_opt_var_os("XAYN_TEST_LOG").unwrap_or_else(|| "info,sqlx::query=warn".into());
+    directives_with_level_filter(directives, "XAYN_TEST_LOG")
 });
 
-pub fn initialize_local_test_logging(_test_id: &TestId) -> Dispatch {
+static LOG_STDOUT_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> = Lazy::new(|| {
+    if let Some(directives) = env_opt_var_os("XAYN_TEST_STDOUT_LOG") {
+        select_filter_directives(directives, &LOG_ENV_FILTER.0)
+            .map(|directives| directives_with_level_filter(directives, "XAYN_TEST_STDOUT_LOG"))
+    } else {
+        Some(LOG_ENV_FILTER.clone())
+    }
+});
+
+static LOG_FILE_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> = Lazy::new(|| {
+    env_opt_var_os("XAYN_TEST_FILE_LOG")
+        .and_then(|directives| select_filter_directives(directives, &LOG_ENV_FILTER.0))
+        .map(|directives| directives_with_level_filter(directives, "XAYN_TEST_FILE_LOG"))
+});
+
+pub fn initialize_local_test_logging(_test_id: &TestId, log_file_dir: &Path) -> Dispatch {
     initialize_test_logging_fallback();
     //FIXME create a test{%test_id} span valid for the duration of the Dispatch
     //      and automatically "recreated" on any new threads.
-    //FIXME add `XAYN_TEST_WRITE_LOGS` which will write logs as jsons to files
-    //      and uses a different env filter (env var `XAYN_TEST_FILE_LOG`).
     //FIXME add support for writing flame graphs
-    tracing_subscriber::fmt()
-        .with_ansi(false)
-        .with_writer(TestWriter::default())
-        .with_env_filter(LOG_ENV_FILTER.as_str())
-        .finish()
-        .into()
+
+    let subscriber = tracing_subscriber::registry();
+
+    let stdout_log = LOG_STDOUT_ENV_FILTER.as_ref().map(|(filter, _)| {
+        tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_writer(TestWriter::default())
+            .with_filter(filter.parse::<EnvFilter>().unwrap())
+    });
+
+    let file_log = LOG_FILE_ENV_FILTER.as_ref().map(|(filter, _)| {
+        let path = log_file_dir.join("log.json");
+        eprintln!("Logs written to: {}", path.display());
+        let writer = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(path)
+            .unwrap();
+        tracing_subscriber::fmt::layer()
+            .with_writer(writer)
+            .json()
+            .with_filter(filter.parse::<EnvFilter>().unwrap())
+    });
+
+    subscriber.with(stdout_log).with(file_log).into()
 }
 
-pub fn run_async_test<F>(test: impl FnOnce(TestId) -> F) -> F::Output
+pub fn run_async_test<F>(test: impl FnOnce(TestId, PathBuf) -> F) -> F::Output
 where
     F: Future,
 {
     let test_id = TestId::generate();
-    let subscriber = initialize_local_test_logging(&test_id);
+    let dir = TempDir::new();
+    let dir = dir.path();
+    let subscriber = initialize_local_test_logging(&test_id, dir);
 
     dispatcher::with_default(&subscriber, || {
         let span = error_span!(parent: None, "test", %test_id);
-        let body = test(test_id).instrument(span);
+        let body = test(test_id, dir.to_owned()).instrument(span);
 
         // more or less what #[tokio::test] does
         // Hint: If we use a "non-current-thread" runtime in the future
@@ -201,6 +291,33 @@ where
             .expect("Failed building the Runtime")
             .block_on(body)
     })
+}
+
+struct TempDir(Option<temp_dir::TempDir>);
+
+impl TempDir {
+    fn new() -> Self {
+        Self(Some(
+            temp_dir::TempDir::new().expect("failed to create temp dire for integration test"),
+        ))
+    }
+    fn path(&self) -> &Path {
+        self.0.as_ref().unwrap().path()
+    }
+}
+
+impl Drop for TempDir {
+    fn drop(&mut self) {
+        if panicking() {
+            if let Some(temp_dir) = self.0.take() {
+                eprintln!(
+                    "Files of failed test can be found here: {}",
+                    temp_dir.path().display()
+                );
+                temp_dir.leak();
+            }
+        }
+    }
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
@@ -224,7 +341,7 @@ pub fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    run_async_test(|test_id| async move {
+    run_async_test(|test_id, _| async move {
         let (configure, enable_legacy_tenant) =
             configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
@@ -258,7 +375,7 @@ pub fn test_two_apps<A1, A2, F>(
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    run_async_test(|test_id| async move {
+    run_async_test(|test_id, _| async move {
         let (configure_first, first_wit_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
         let (configure_second, second_with_legacy) =
