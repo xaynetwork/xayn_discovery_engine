@@ -22,6 +22,7 @@
 //! integration testing.
 
 use std::{
+    any::Any,
     env::{self, VarError},
     fs::{create_dir_all, remove_dir_all, OpenOptions},
     future::Future,
@@ -43,7 +44,16 @@ use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
-use tracing::{dispatcher, error_span, instrument, metadata::LevelFilter, Dispatch, Instrument};
+use tracing::{
+    dispatcher,
+    error_span,
+    info_span,
+    instrument,
+    metadata::LevelFilter,
+    Dispatch,
+    Instrument,
+};
+use tracing_flame::FlameLayer;
 use tracing_log::{log::LevelFilter as LogFacilityLevelFilter, LogTracer};
 use tracing_subscriber::{
     fmt::{format::FmtSpan, TestWriter},
@@ -107,6 +117,17 @@ mod env_vars {
     ///
     /// Defaults to `"NONE"`.
     pub(super) const XAYN_TEST_FILE_LOG_SPAN_EVENTS: &str = "XAYN_TEST_FILE_LOG_SPAN_EVENTS";
+
+    /// The [`EnvFilter`] directives used for creating a flame graph.
+    ///
+    /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
+    ///
+    /// If set to `"false"` no flame graph data will be collected.
+    ///
+    /// If set to another string the string is used as directives.
+    ///
+    /// Defaults to `"false"`, `""` is treated as if it's the default.
+    pub(super) const XAYN_TEST_FLAME_LOG: &str = "XAYN_TEST_FLAME_LOG";
 
     /// If set to `"true"` the per-test temp. dir will not be deleted even if the test succeeds.
     pub(super) const XAYN_TEST_KEEP_TEMP_DIRS: &str = "XAYN_TEST_KEEP_TEMP_DIRS";
@@ -233,7 +254,8 @@ pub fn initialize_test_logging_fallback() {
         let max_level = env_filter
             .max_level_hint()
             .max(LOG_FILE_ENV_FILTER.as_ref().and_then(|(_, level)| *level))
-            .max(LOG_STDOUT_ENV_FILTER.as_ref().and_then(|(_, level)| *level));
+            .max(LOG_STDOUT_ENV_FILTER.as_ref().and_then(|(_, level)| *level))
+            .max(LOG_FLAME_ENV_FILTER.as_ref().and_then(|(_, level)| *level));
 
         // WARNING: You can not use `.init()` here as it will setup the log=>tracing
         //          facade in a way which yields incorrect results.
@@ -322,7 +344,10 @@ static LOG_STDOUT_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
 static LOG_FILE_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
     Lazy::new(|| additional_env_filter(XAYN_TEST_FILE_LOG, "false", &LOG_ENV_FILTER.0));
 
-pub fn initialize_local_test_logging(test_id: &TestId) -> Dispatch {
+static LOG_FLAME_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
+    Lazy::new(|| additional_env_filter(XAYN_TEST_FLAME_LOG, "false", &LOG_ENV_FILTER.0));
+
+pub fn initialize_local_test_logging(test_id: &TestId) -> (Dispatch, impl Any) {
     initialize_test_logging_fallback();
     //FIXME create a test{%test_id} span valid for the duration of the Dispatch
     //      and automatically "recreated" on any new threads.
@@ -353,7 +378,27 @@ pub fn initialize_local_test_logging(test_id: &TestId) -> Dispatch {
             .with_filter(filter.parse::<EnvFilter>().unwrap())
     });
 
-    subscriber.with(stdout_log).with(file_log).into()
+    let (flame_log, guard) = LOG_FLAME_ENV_FILTER
+        .as_ref()
+        .map(|(filter, _)| {
+            let path = test_id.make_artifact_file_path("tracing.folded").unwrap();
+            eprintln!("Flamegraph data written to: {}", path.display());
+            let (layer, guard) = FlameLayer::with_file(path).unwrap();
+
+            (
+                layer.with_filter(filter.parse::<EnvFilter>().unwrap()),
+                guard,
+            )
+        })
+        .unzip();
+
+    let dispatch = subscriber
+        .with(stdout_log)
+        .with(file_log)
+        .with(flame_log)
+        .into();
+
+    (dispatch, guard)
 }
 
 pub fn run_async_test<F>(test: impl FnOnce(TestId) -> F)
@@ -361,7 +406,7 @@ where
     F: Future<Output = Result<(), Error>>,
 {
     let test_id = TestId::generate();
-    let subscriber = initialize_local_test_logging(&test_id);
+    let (subscriber, _guard) = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
         let guard = DeleteTempDirIfNoPanic {
@@ -445,9 +490,13 @@ pub fn test_app<A, F>(
             Arc::new(handle.url()),
             services.clone(),
         )
+        .instrument(info_span!("call_test"))
         .await?;
 
-        handle.stop_and_wait().await?;
+        handle
+            .stop_and_wait()
+            .instrument(info_span!("shutdown_server"))
+            .await?;
 
         services.cleanup_test().await?;
         Ok(())
@@ -481,9 +530,16 @@ pub fn test_two_apps<A1, A2, F>(
             Arc::new(second_handle.url()),
             services.clone(),
         )
+        .instrument(info_span!("call_test"))
         .await?;
-        let (res1, res2) =
-            tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait());
+        let (res1, res2) = tokio::join!(
+            first_handle
+                .stop_and_wait()
+                .instrument(info_span!("shutdown_first_server")),
+            second_handle
+                .stop_and_wait()
+                .instrument(info_span!("shutdown_second_server"))
+        );
         res1.expect("first application to not fail during shutdown");
         res2.expect("second application to not fail during shutdown");
 
@@ -541,6 +597,7 @@ pub fn extend_config(current: &mut Table, extension: Table) {
     }
 }
 
+#[instrument]
 pub async fn start_test_application<A>(services: &Services, configure: Table) -> AppHandle
 where
     A: Application + 'static,
@@ -634,6 +691,15 @@ impl TestId {
             Ok(())
         }
     }
+
+    pub fn make_artifact_file_path(&self, name: &str) -> Result<PathBuf, io::Error> {
+        let mut path = PROJECT_ROOT.clone();
+        path.push("test-artifacts");
+        path.push(format!("web-api.{}", &self.0));
+        create_dir_all(&path)?;
+        path.push(name);
+        Ok(path)
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -660,6 +726,7 @@ impl Services {
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
 /// A uris usable for accessing the dbs are returned.
+#[instrument]
 async fn setup_web_dev_services(
     test_id: &TestId,
     enable_legacy_tenant: bool,
@@ -693,6 +760,7 @@ async fn setup_web_dev_services(
     })
 }
 
+#[instrument]
 pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::Config) {
     let pg_db = Some(test_id.to_string());
     let es_index_name = format!("{test_id}_default");
@@ -724,6 +792,7 @@ pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::C
     (pg_config, es_config)
 }
 
+#[instrument]
 pub async fn create_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
     let target_options = target.to_connection_options()?;
     let target_db: QuotedIdentifier = target_options
@@ -738,6 +807,7 @@ pub async fn create_db(target: &postgres::Config, management_db: &str) -> Result
     Ok(())
 }
 
+#[instrument]
 pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
     let target_options = target.to_connection_options()?;
     let target_db: QuotedIdentifier = target_options
@@ -755,6 +825,7 @@ pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result
 /// Start service containers.
 ///
 /// Does nothing on CI where they have to be started from the outside.
+#[instrument]
 pub fn start_test_service_containers() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {

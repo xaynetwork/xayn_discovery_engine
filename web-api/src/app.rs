@@ -20,7 +20,7 @@ use actix_web::{web::ServiceConfig, App};
 use async_trait::async_trait;
 use futures_util::FutureExt;
 use serde::{de::DeserializeOwned, Serialize};
-use tracing::info;
+use tracing::{info, instrument};
 
 pub(crate) use self::state::{AppState, TenantState};
 use crate::{
@@ -64,6 +64,7 @@ pub type SetupError = anyhow::Error;
 /// Run the server with using given endpoint configuration functions.
 ///
 /// The return value is the exit code which should be used.
+#[instrument(skip_all)]
 pub async fn start<A>(config: A::Config) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,

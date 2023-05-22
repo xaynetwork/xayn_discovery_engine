@@ -31,13 +31,16 @@ macro_rules! new_http_server_with_subscriber {
         HttpServer::new(move || {
             // Hint: Makes sure the factory has the right dispatcher.
             dispatcher::with_default(&subscriber, || {
-                let subscriber = subscriber.clone();
-                $factory.wrap_fn(move |r, s| {
-                    // Hint: Makes sure the middleware code wrapping the request
-                    //       have the right dispatcher.
-                    let fut = dispatcher::with_default(&subscriber, || s.call(r));
-                    // Hint: Makes sure the wrapped request has the right dispatcher.
-                    fut.with_subscriber(subscriber.clone())
+                let span = info_span!("build_actix_app");
+                span.in_scope(|| {
+                    let subscriber = subscriber.clone();
+                    $factory.wrap_fn(move |r, s| {
+                        // Hint: Makes sure the middleware code wrapping the request
+                        //       have the right dispatcher.
+                        let fut = dispatcher::with_default(&subscriber, || s.call(r));
+                        // Hint: Makes sure the wrapped request has the right dispatcher.
+                        fut.with_subscriber(subscriber.clone())
+                    })
                 })
             })
         })

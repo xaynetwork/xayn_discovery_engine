@@ -259,6 +259,17 @@ mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
+flamegraph *args:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    export XAYN_TEST_FLAME_LOG="${XAYN_TEST_FLAME_LOG:-info}"
+    cargo test -- {{args}}
+    for d in ./test-artifacts/*; do
+        if [ -e "$d/tracing.folded" ]; then
+            inferno-flamegraph "$d/tracing.folded" > "$d/tracing.flamegraph.svg"
+            echo "Flamegraph stored at: $d/tracing.flamegraph.svg"
+        fi
+    done
+
 aws-login:
     #!/usr/bin/env bash
     {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"" } else { "" } }}

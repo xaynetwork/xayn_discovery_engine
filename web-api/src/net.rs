@@ -31,7 +31,15 @@ use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
-use tracing::{dispatcher, info, instrument::WithSubscriber, Dispatch};
+use tracing::{
+    dispatcher,
+    info,
+    info_span,
+    instrument,
+    instrument::WithSubscriber,
+    Dispatch,
+    Instrument,
+};
 use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 
 use crate::middleware::{
@@ -67,6 +75,7 @@ impl Default for Config {
     }
 }
 
+#[instrument(skip_all)]
 pub(crate) fn start_actix_server<T>(
     net_config: Config,
     legacy_tenant: Option<TenantId>,
@@ -111,7 +120,11 @@ where
     // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
     // stop and get it's return value (we don't have to await `term_handle`).
     // FIXME: instrument with service name, do same for all requests
-    let term_handle = tokio::spawn(server.with_current_subscriber());
+    let term_handle = tokio::spawn(
+        //Hint: make sure to create span after spawning.
+        async move { server.instrument(info_span!("polling_server")).await }
+            .with_current_subscriber(),
+    );
     Ok(AppHandle {
         on_shutdown,
         server_handle,
