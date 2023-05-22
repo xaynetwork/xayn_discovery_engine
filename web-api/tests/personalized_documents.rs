@@ -12,15 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::Error;
 use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
-async fn ingest_with_dates(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
+async fn ingest_with_dates(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -45,7 +45,7 @@ async fn ingest_with_dates(client: &Client, ingestion_url: &Url) -> Result<(), P
     Ok(())
 }
 
-async fn ingest_with_tags(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
+async fn ingest_with_tags(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -70,7 +70,7 @@ async fn ingest_with_tags(client: &Client, ingestion_url: &Url) -> Result<(), Pa
     Ok(())
 }
 
-async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Panic> {
+async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -114,7 +114,7 @@ async fn personalize(
     personalization_url: &Url,
     published_after: Option<&str>,
     query: Option<&str>,
-) -> Result<Vec<PersonalizedDocumentData>, Panic> {
+) -> Result<Vec<PersonalizedDocumentData>, Error> {
     let mut request = client
         .get(personalization_url.join("/users/u1/personalized_documents")?)
         .query(&[("count", "5")]);

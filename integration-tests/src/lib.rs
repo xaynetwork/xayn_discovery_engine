@@ -24,12 +24,12 @@
 use std::{
     cmp,
     env::{self, VarError},
-    fs::OpenOptions,
+    fs::{create_dir_all, remove_dir_all, OpenOptions},
     future::Future,
+    io,
     path::{Path, PathBuf},
     process::{abort, Command, Output, Stdio},
     sync::{Arc, Once},
-    thread::panicking,
     time::Duration,
 };
 
@@ -126,7 +126,7 @@ pub const MANAGEMENT_DB: &str = "xayn";
 /// This will capture stdout, but not stderr so warnings, errors, traces
 /// and similar will be printed like normal. In case it fails it will also
 /// print the previously captured stdout.
-pub fn just(args: &[&str]) -> Result<String, anyhow::Error> {
+pub fn just(args: &[&str]) -> Result<String, Error> {
     let Output { status, stdout, .. } = Command::new("just")
         .args(args)
         .stdout(Stdio::piped())
@@ -287,7 +287,7 @@ static LOG_STDOUT_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
 static LOG_FILE_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
     Lazy::new(|| additional_env_filter(XAYN_TEST_FILE_LOG, "false", &LOG_ENV_FILTER.0));
 
-pub fn initialize_local_test_logging(_test_id: &TestId, log_file_dir: &Path) -> Dispatch {
+pub fn initialize_local_test_logging(test_id: &TestId) -> Dispatch {
     initialize_test_logging_fallback();
     //FIXME create a test{%test_id} span valid for the duration of the Dispatch
     //      and automatically "recreated" on any new threads.
@@ -303,7 +303,7 @@ pub fn initialize_local_test_logging(_test_id: &TestId, log_file_dir: &Path) -> 
     });
 
     let file_log = LOG_FILE_ENV_FILTER.as_ref().map(|(filter, _)| {
-        let path = log_file_dir.join("log.json");
+        let path = test_id.make_temp_file_path("log.json").unwrap();
         eprintln!("Logs written to: {}", path.display());
         let writer = OpenOptions::new()
             .write(true)
@@ -320,18 +320,16 @@ pub fn initialize_local_test_logging(_test_id: &TestId, log_file_dir: &Path) -> 
     subscriber.with(stdout_log).with(file_log).into()
 }
 
-pub fn run_async_test<F>(test: impl FnOnce(TestId, PathBuf) -> F) -> F::Output
+pub fn run_async_test<F>(test: impl FnOnce(TestId) -> F)
 where
-    F: Future,
+    F: Future<Output = Result<(), Error>>,
 {
     let test_id = TestId::generate();
-    let dir = TempDir::new();
-    let dir = dir.path();
-    let subscriber = initialize_local_test_logging(&test_id, dir);
+    let subscriber = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
         let span = error_span!(parent: None, "test", %test_id);
-        let body = test(test_id, dir.to_owned()).instrument(span);
+        let body = test(test_id.clone()).instrument(span);
 
         // more or less what #[tokio::test] does
         // Hint: If we use a "non-current-thread" runtime in the future
@@ -342,34 +340,10 @@ where
             .build()
             .expect("Failed building the Runtime")
             .block_on(body)
-    })
-}
+            .unwrap();
 
-struct TempDir(Option<temp_dir::TempDir>);
-
-impl TempDir {
-    fn new() -> Self {
-        Self(Some(
-            temp_dir::TempDir::new().expect("failed to create temp dire for integration test"),
-        ))
-    }
-    fn path(&self) -> &Path {
-        self.0.as_ref().unwrap().path()
-    }
-}
-
-impl Drop for TempDir {
-    fn drop(&mut self) {
-        if panicking() {
-            if let Some(temp_dir) = self.0.take() {
-                eprintln!(
-                    "Files of failed test can be found here: {}",
-                    temp_dir.path().display()
-                );
-                temp_dir.leak();
-            }
-        }
-    }
+        test_id.remove_temp_dir().unwrap();
+    });
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
@@ -393,13 +367,11 @@ pub fn test_app<A, F>(
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    run_async_test(|test_id, _| async move {
+    run_async_test(|test_id| async move {
         let (configure, enable_legacy_tenant) =
             configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
-        let services = setup_web_dev_services(&test_id, enable_legacy_tenant)
-            .await
-            .unwrap();
+        let services = setup_web_dev_services(&test_id, enable_legacy_tenant).await?;
 
         let handle = start_test_application::<A>(&services, configure).await;
 
@@ -411,9 +383,10 @@ pub fn test_app<A, F>(
         .await
         .unwrap();
 
-        handle.stop_and_wait().await.unwrap();
+        handle.stop_and_wait().await?;
 
-        services.cleanup_test().await.unwrap();
+        services.cleanup_test().await?;
+        Ok(())
     })
 }
 
@@ -423,20 +396,18 @@ pub fn test_two_apps<A1, A2, F>(
     configure_second: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
 ) where
-    F: Future<Output = Result<(), Panic>>,
+    F: Future<Output = Result<(), Error>>,
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    run_async_test(|test_id, _| async move {
+    run_async_test(|test_id| async move {
         let (configure_first, first_wit_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
         let (configure_second, second_with_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
         assert_eq!(first_wit_legacy, second_with_legacy);
 
-        let services = setup_web_dev_services(&test_id, first_wit_legacy)
-            .await
-            .unwrap();
+        let services = setup_web_dev_services(&test_id, first_wit_legacy).await?;
         let first_handle = start_test_application::<A1>(&services, configure_first).await;
         let second_handle = start_test_application::<A2>(&services, configure_second).await;
 
@@ -446,14 +417,14 @@ pub fn test_two_apps<A1, A2, F>(
             Arc::new(second_handle.url()),
             services.clone(),
         )
-        .await
-        .unwrap();
+        .await?;
         let (res1, res2) =
-            tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait(),);
+            tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait());
         res1.expect("first application to not fail during shutdown");
         res2.expect("second application to not fail during shutdown");
 
-        services.cleanup_test().await.unwrap();
+        services.cleanup_test().await?;
+        Ok(())
     })
 }
 
@@ -581,6 +552,23 @@ impl TestId {
     pub fn as_str(&self) -> &str {
         self.as_ref()
     }
+
+    pub fn temp_dir(&self) -> PathBuf {
+        let mut temp_dir = env::temp_dir();
+        temp_dir.push(&self.0);
+        temp_dir
+    }
+
+    pub fn make_temp_file_path(&self, arg: impl AsRef<Path>) -> Result<PathBuf, io::Error> {
+        let mut temp_dir = self.temp_dir();
+        create_dir_all(&temp_dir)?;
+        temp_dir.push(arg);
+        Ok(temp_dir)
+    }
+
+    pub fn remove_temp_dir(&self) -> Result<(), io::Error> {
+        remove_dir_all(self.temp_dir())
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -610,7 +598,7 @@ impl Services {
 async fn setup_web_dev_services(
     test_id: &TestId,
     enable_legacy_tenant: bool,
-) -> Result<Services, anyhow::Error> {
+) -> Result<Services, Error> {
     clear_env();
     start_test_service_containers();
 
