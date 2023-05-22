@@ -294,12 +294,12 @@ pub(super) async fn create_tenant(
     tenant_id: &TenantId,
     is_legacy_tenant: bool,
 ) -> Result<(), Error> {
-    let legcy_hint = if is_legacy_tenant {
+    let legacy_hint = if is_legacy_tenant {
         LegacyHint::NewSchema
     } else {
         LegacyHint::NotLegacy
     };
-    create_tenant_role_and_schema(tx, tenant_id, legcy_hint).await?;
+    create_tenant_role_and_schema(tx, tenant_id, legacy_hint).await?;
     run_db_migration_for(tx, tenant_id, true).await?;
     Ok(())
 }

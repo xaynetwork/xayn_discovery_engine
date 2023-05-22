@@ -76,7 +76,7 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::put().to(put_document_property))
                 .route(web::delete().to(delete_document_property)),
         )
-        .service(web::resource("/_silo_management_api").route(web::post().to(silo_management_api)));
+        .service(web::resource("/_silo_management").route(web::post().to(silo_management)));
 }
 
 fn deserialize_string_not_empty_or_zero_bytes<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -563,12 +563,15 @@ struct ManagementRequest {
 }
 
 #[instrument(skip(silo))]
-async fn silo_management_api(
+async fn silo_management(
     Json(request): Json<ManagementRequest>,
     silo: Data<Silo>,
 ) -> Result<impl Responder, Error> {
     let results = silo.run_operations(false, request.operations).await?;
-    let results: Vec<_> = results.iter().map(serde_json::to_value).try_collect()?;
+    let results = results
+        .iter()
+        .map(serde_json::to_value)
+        .try_collect::<_, Vec<_>, _>()?;
 
     Ok(Json(json!({ "results": results })))
 }
