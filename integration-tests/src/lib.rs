@@ -98,7 +98,7 @@ mod env_vars {
     pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
 
     /// If set to `"true"` the per-test temp. dir will not be deleted even if the test succeeds.
-    pub(super) const XAYN_TEST_KEEP_TEMP_DIR: &str = "XAYN_TEST_KEEP_TEMP_DIR";
+    pub(super) const XAYN_TEST_KEEP_TEMP_DIRS: &str = "XAYN_TEST_KEEP_TEMP_DIRS";
 }
 
 /// Absolute path to the root of the project as determined by `just`.
@@ -120,7 +120,7 @@ pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
 });
 
 static KEEP_TEMP_DIR: Lazy<bool> =
-    Lazy::new(|| env::var(XAYN_TEST_KEEP_TEMP_DIR) == Ok("true".into()));
+    Lazy::new(|| env::var(XAYN_TEST_KEEP_TEMP_DIRS) == Ok("true".into()));
 
 /// DB name used for the db we use to create other dbs.
 pub const MANAGEMENT_DB: &str = "xayn";
