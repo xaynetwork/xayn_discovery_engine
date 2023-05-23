@@ -26,7 +26,7 @@ use std::{
     env::{self, VarError},
     fs::{create_dir_all, remove_dir_all, OpenOptions},
     future::Future,
-    io,
+    io::{self, Write},
     path::{Path, PathBuf},
     process::{abort, Command, Output, Stdio},
     sync::{Arc, Once},
@@ -96,6 +96,9 @@ mod env_vars {
 
     /// Used to detect if we run in a action and in turn services are externally provided.
     pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
+
+    /// If set to `"true"` the per-test temp. dir will not be deleted even if the test succeeds.
+    pub(super) const XAYN_TEST_KEEP_TEMP_DIR: &str = "XAYN_TEST_KEEP_TEMP_DIR";
 }
 
 /// Absolute path to the root of the project as determined by `just`.
@@ -115,6 +118,9 @@ pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
     //FIXME more generic detection
     env::var(GITHUB_ACTIONS) == Ok("true".into())
 });
+
+static KEEP_TEMP_DIR: Lazy<bool> =
+    Lazy::new(|| env::var(XAYN_TEST_KEEP_TEMP_DIR) == Ok("true".into()));
 
 /// DB name used for the db we use to create other dbs.
 pub const MANAGEMENT_DB: &str = "xayn";
@@ -329,7 +335,10 @@ where
     let subscriber = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
-        let _guard = DeleteTemptDirIfNoPanic(test_id.clone());
+        let _guard = DeleteTemptDirIfNoPanic {
+            test_id: test_id.clone(),
+            disable_cleanup: *KEEP_TEMP_DIR,
+        };
 
         let span = error_span!(parent: None, "test", %test_id);
         let body = test(test_id).instrument(span);
@@ -347,17 +356,26 @@ where
     });
 }
 
-struct DeleteTemptDirIfNoPanic(TestId);
+struct DeleteTemptDirIfNoPanic {
+    test_id: TestId,
+    disable_cleanup: bool,
+}
 
 impl Drop for DeleteTemptDirIfNoPanic {
     fn drop(&mut self) {
-        if panicking() {
-            let temp_dir = self.0.temp_dir();
+        if self.disable_cleanup || panicking() {
+            let temp_dir = self.test_id.temp_dir();
             if temp_dir.exists() {
-                eprint!("Temp dir was not deleted: {}", self.0.temp_dir().display());
+                let string = format!("Temp dir was not deleted: {}\n", temp_dir.display());
+                if self.disable_cleanup {
+                    // intentionally sidestep output capturing
+                    io::stdout().write_all(string.as_bytes()).ok();
+                } else {
+                    print!("{}", string);
+                }
             }
         } else {
-            self.0.remove_temp_dir().unwrap();
+            self.test_id.remove_temp_dir().unwrap();
         }
     }
 }
