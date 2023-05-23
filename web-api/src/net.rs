@@ -33,6 +33,7 @@ use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
 use tracing::{
     dispatcher,
+    error,
     info,
     info_span,
     instrument,
@@ -167,6 +168,7 @@ impl AppHandle {
     }
 
     /// Stops the app gracefully and escalates to non-graceful stopping on timeout, then awaits the apps result.
+    #[instrument]
     pub async fn stop_and_wait(self) -> Result<(), anyhow::Error> {
         //FIXME find out why graceful shutdown on a idle actix server is broken
         self.stop().await;
@@ -178,6 +180,7 @@ impl AppHandle {
     /// To make sure the application is fully stopped and to handle the result of
     /// the application execution you needs to await [`AppHandle.wait_for_termination()`]
     /// afterwards.
+    #[instrument(name = "stop_actix_server", skip(self))]
     pub async fn stop(&self) {
         self.server_handle.stop(false).await;
     }
@@ -185,9 +188,14 @@ impl AppHandle {
     /// Waits for the server/app to have stopped and returns it's return value.
     ///
     /// It is recommended but not required to call this.
+    #[instrument(skip_all)]
     pub async fn wait_for_termination(self) -> Result<(), anyhow::Error> {
-        self.term_handle.await??;
-        (self.on_shutdown)().await;
+        self.term_handle
+            .instrument(info_span!("awaiting termination"))
+            .await??;
+        (self.on_shutdown)()
+            .instrument(info_span!("on_shutdown_callback"))
+            .await;
         Ok(())
     }
 }
