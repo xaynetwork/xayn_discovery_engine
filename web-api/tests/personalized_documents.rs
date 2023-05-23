@@ -12,16 +12,15 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
-
+use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
+use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
-async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
+async fn ingest_with_dates(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
     send_assert(
         client,
         client
@@ -33,10 +32,35 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
                     { "id": "d3", "snippet": "Politic", "properties": { "publication_date": "2023-02-12T20:20:20Z" } },
                     { "id": "d4", "snippet": "Laptop", "properties": { "publication_date": "2100-01-01T00:00:00Z" } },
                     { "id": "d5", "snippet": "Smartphone", "properties": { "publication_date": "2023-08-12T20:20:20Z" } },
-                    { "id": "d6", "snippet": "Computer", "properties": { "publication_date": "2021-05-12T20:20:20Z" } },
+                    { "id": "d6", "snippet": "Computers", "properties": { "publication_date": "2021-05-12T20:20:20Z" } },
                     { "id": "d7", "snippet": "Dogs" },
                     { "id": "d8", "snippet": "Chicken" },
                     { "id": "d9", "snippet": "Robot Chicken" }
+                ]
+            }))
+            .build()?,
+        StatusCode::CREATED,
+    )
+    .await;
+    Ok(())
+}
+
+async fn ingest_with_tags(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
+    send_assert(
+        client,
+        client
+            .post(ingestion_url.join("/documents")?)
+            .json(&json!({
+                "documents": [
+                    { "id": "d1", "snippet": "Computer", "tags": ["tec"] },
+                    { "id": "d2", "snippet": "Technology", "tags": ["tec", "soc"] },
+                    { "id": "d3", "snippet": "Politic", "tags": ["soc"] },
+                    { "id": "d4", "snippet": "Laptop", "tags": ["tec"] },
+                    { "id": "d5", "snippet": "Smartphone", "tags": ["tec", "soc"] },
+                    { "id": "d6", "snippet": "Computers", "tags": ["tec"] },
+                    { "id": "d7", "snippet": "Dogs" ,"tags": ["nat"] },
+                    { "id": "d8", "snippet": "Chicken", "tags": ["nat"] },
+                    { "id": "d9", "snippet": "Robot Chicken", "tags": ["nat", "tec"] }
                 ]
             }))
             .build()?,
@@ -87,13 +111,10 @@ enum PersonalizedDocumentsResponse {
 
 async fn personalize(
     client: &Client,
-    ingestion_url: &Url,
     personalization_url: &Url,
     published_after: Option<&str>,
     query: Option<&str>,
 ) -> Result<Vec<PersonalizedDocumentData>, Panic> {
-    ingest(client, ingestion_url).await?;
-
     let mut request = client
         .get(personalization_url.join("/users/u1/personalized_documents")?)
         .query(&[("count", "5")]);
@@ -101,7 +122,7 @@ async fn personalize(
         request = request.query(&[("published_after", published_after)]);
     }
     if let Some(query) = query {
-        request = request.query(&[("query", query)]);
+        request = request.query(&[("query", query), ("enable_hybrid_search", "true")]);
     }
     let request = request.build()?;
 
@@ -131,57 +152,63 @@ async fn personalize(
     Ok(documents)
 }
 
+macro_rules! assert_order {
+    ($documents: expr, $ids: expr, $($arg: tt)*) => {
+        assert_eq!(
+            $documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect_vec(),
+            $ids,
+            $($arg)*
+        );
+        for documents in $documents.windows(2) {
+            let [d1, d2] = documents else { unreachable!() };
+            assert!(1. >= d1.score, $($arg)*);
+            assert!(d1.score > d2.score, $($arg)*);
+            assert!(d2.score >= 0., $($arg)*);
+        }
+    };
+}
+
 #[tokio::test]
 async fn test_personalization_all_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
-            let documents =
-                personalize(&client, &ingestion_url, &personalization_url, None, None).await?;
-            assert_eq!(
-                documents
-                    .iter()
-                    .map(|document| document.id.as_str())
-                    .collect::<HashSet<_>>(),
-                ["d1", "d3", "d6", "d7", "d8"].into(),
+            ingest_with_dates(&client, &ingestion_url).await?;
+            let documents = personalize(&client, &personalization_url, None, None).await?;
+            assert_order!(
+                &documents,
+                ["d8", "d6", "d1", "d7", "d3"],
+                "unexpected personalized documents: {documents:?}",
             );
-            assert!(documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
-
             Ok(())
         },
     )
     .await;
-    panic!();
 }
 
 #[tokio::test]
 async fn test_personalization_limited_dates() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
+            ingest_with_dates(&client, &ingestion_url).await?;
             let documents = personalize(
                 &client,
-                &ingestion_url,
                 &personalization_url,
                 Some("2022-01-01T00:00:00Z"),
                 None,
             )
             .await?;
-            assert_eq!(
-                documents
-                    .iter()
-                    .map(|document| document.id.as_str())
-                    .collect::<HashSet<_>>(),
-                ["d1", "d3"].into(),
+            assert_order!(
+                &documents,
+                ["d1", "d3"],
+                "unexpected personalized documents: {documents:?}",
             );
-            assert!(documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
-
             Ok(())
         },
     )
@@ -191,28 +218,41 @@ async fn test_personalization_limited_dates() {
 #[tokio::test]
 async fn test_personalization_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
+            ingest_with_dates(&client, &ingestion_url).await?;
             let documents = personalize(
                 &client,
-                &ingestion_url,
                 &personalization_url,
                 None,
                 Some("Robot Technology Chicken"),
             )
             .await?;
-            assert_eq!(
-                documents
-                    .iter()
-                    .map(|document| document.id.as_str())
-                    .collect::<HashSet<_>>(),
-                ["d1", "d6", "d7", "d8"].into(),
+            assert_order!(
+                &documents,
+                ["d8", "d6", "d1", "d7"],
+                "unexpected personalized documents: {documents:?}",
             );
-            assert!(documents
-                .iter()
-                .all(|document| (0.0..=1.0).contains(&document.score)));
+            Ok(())
+        },
+    )
+    .await;
+}
 
+#[tokio::test]
+async fn test_personalization_with_tags() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest_with_tags(&client, &ingestion_url).await?;
+            let documents = personalize(&client, &personalization_url, None, None).await?;
+            assert_order!(
+                &documents,
+                ["d5", "d6", "d4", "d1", "d8"],
+                "unexpected personalized documents: {documents:?}",
+            );
             Ok(())
         },
     )

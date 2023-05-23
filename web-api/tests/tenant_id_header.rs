@@ -15,23 +15,18 @@
 use reqwest::{Client, StatusCode};
 use serde_json::json;
 use toml::toml;
-use xayn_integration_tests::{extend_config, send_assert, test_app};
+use xayn_integration_tests::{send_assert, test_app};
 use xayn_web_api::Ingestion;
 
 #[tokio::test]
 async fn test_tenant_id_is_required_if_legacy_tenant_is_disabled() {
     test_app::<Ingestion, _>(
-        |config| {
-            extend_config(
-                config,
-                toml! {
-                    [tenants]
-                    enable_legacy_tenant = false
-                },
-            );
-        },
+        Some(toml! {
+            [tenants]
+            enable_legacy_tenant = false
+        }),
         |_, url, _| async move {
-            // don't use injected "X-Tenant-Id" header
+            // don't use injected "X-Xayn-Tenant-Id" header
             let client = Client::new();
             send_assert(
                 &client,
@@ -55,17 +50,12 @@ async fn test_tenant_id_is_required_if_legacy_tenant_is_disabled() {
 #[tokio::test]
 async fn test_tenant_id_is_not_required_if_legacy_tenant_is_enabled() {
     test_app::<Ingestion, _>(
-        |config| {
-            extend_config(
-                config,
-                toml! {
-                    [tenants]
-                    enable_legacy_tenant = true
-                },
-            )
-        },
+        Some(toml! {
+            [tenants]
+            enable_legacy_tenant = true
+        }),
         |_, url, _| async move {
-            // don't use injected "X-Tenant-Id" header
+            // don't use injected "X-Xayn-Tenant-Id" header
             let client = Client::new();
             send_assert(
                 &client,

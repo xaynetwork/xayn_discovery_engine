@@ -12,71 +12,59 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, collections::HashMap, hash::BuildHasher};
+use std::{collections::HashMap, hash::BuildHasher};
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{nan_safe_f32_cmp, nan_safe_f32_cmp_desc, CoiSystem, UserInterests};
+use xayn_ai_coi::{CoiSystem, UserInterests};
 
 use crate::{
     models::{DocumentId, DocumentProperties, DocumentTag, PersonalizedDocument},
     personalization::PersonalizationConfig,
 };
 
-fn rank_keys_by_score<K, S>(
-    keys_with_score: impl IntoIterator<Item = (K, S)>,
-    mut sort_by: impl FnMut(&S, &S) -> Ordering,
-) -> impl Iterator<Item = (K, f32)> {
-    keys_with_score
-        .into_iter()
-        .sorted_unstable_by(|(_, s1), (_, s2)| sort_by(s1, s2))
-        .enumerate()
-        .map(
-            #[allow(clippy::cast_precision_loss)] // index is small enough
-            |(index, (key, _))| (key, 1. / (1 + index) as f32),
-        )
-}
-
-fn rerank_by_interest(
+fn rerank_by_interest<'a>(
     coi_system: &CoiSystem,
-    documents: &[PersonalizedDocument],
+    documents: &'a [PersonalizedDocument],
     interests: &UserInterests,
     time: DateTime<Utc>,
-) -> HashMap<DocumentId, f32> {
-    let scores = coi_system.score(documents, interests, time);
-    rank_keys_by_score(
-        documents
-            .iter()
-            .map(|document| document.id.clone())
-            .zip(scores),
-        nan_safe_f32_cmp_desc,
-    )
-    .collect()
+) -> HashMap<&'a DocumentId, f32> {
+    coi_system
+        .score(documents, interests, time)
+        .map(|scores| {
+            documents
+                .iter()
+                .map(|document| &document.id)
+                .zip(scores)
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
-fn rerank_by_tag_weight(
-    documents: &[PersonalizedDocument],
+fn rerank_by_tag_weight<'a>(
+    documents: &'a [PersonalizedDocument],
     tag_weights: &HashMap<DocumentTag, usize>,
-) -> HashMap<DocumentId, f32> {
-    let mut weights = HashMap::<_, Vec<_>>::with_capacity(documents.len());
-    for document in documents {
-        let weight = document
-            .tags
-            .iter()
-            .map(|tag| tag_weights.get(tag).copied().unwrap_or_default())
-            .sum::<usize>();
-        weights.entry(weight).or_default().push(document.id.clone());
+) -> HashMap<&'a DocumentId, f32> {
+    let total_tag_weight = tag_weights.values().sum::<usize>();
+    if total_tag_weight == 0 {
+        return HashMap::new();
     }
+    #[allow(clippy::cast_precision_loss)]
+    let total_tag_weight = total_tag_weight as f32;
 
-    rank_keys_by_score(
-        weights
-            .into_iter()
-            .map(|(weight, documents)| (documents, weight)),
-        |w1, w2| w1.cmp(w2).reverse(),
-    )
-    .flat_map(|(documents, score)| documents.into_iter().map(move |document| (document, score)))
-    .collect()
+    documents
+        .iter()
+        .map(|document| {
+            #[allow(clippy::cast_precision_loss)]
+            let weight = document
+                .tags
+                .iter()
+                .map(|tag| tag_weights.get(tag).copied().unwrap_or_default())
+                .sum::<usize>() as f32;
+            (&document.id, weight / total_tag_weight)
+        })
+        .collect()
 }
 
 /// Reranks documents based on a combination of their interest, tag weight and elasticsearch scores.
@@ -94,35 +82,28 @@ pub(super) fn rerank_by_scores(
 ) {
     let interest_scores = rerank_by_interest(coi_system, documents, interests, time);
     let tag_weight_scores = rerank_by_tag_weight(documents, tag_weights);
-    tracing::error!("tag_weight_scores: {:#?}", tag_weight_scores);
-    let mut elasticsearch_scores = HashMap::with_capacity(documents.len());
 
-    for document in documents.iter_mut() {
-        elasticsearch_scores.insert(document.id.clone(), document.score);
-        document.score = score_weights[0] * interest_scores[&document.id]
-            + score_weights[1] * tag_weight_scores[&document.id]
-            + score_weights[2] * document.score;
+    let scores = documents
+        .iter()
+        .map(|document| {
+            let interest_score = interest_scores
+                .get(&document.id)
+                .copied()
+                .unwrap_or_default();
+            let tag_weight_score = tag_weight_scores
+                .get(&document.id)
+                .copied()
+                .unwrap_or_default();
+            score_weights[0] * interest_score
+                + score_weights[1] * tag_weight_score
+                + score_weights[2] * document.score
+        })
+        .collect_vec();
+    for (document, score) in documents.iter_mut().zip(scores) {
+        document.score = score;
     }
 
-    let max_score_weight = score_weights.into_iter().max_by(nan_safe_f32_cmp);
-    let secondary_sorting_factor = match score_weights
-        .into_iter()
-        .position(|score_weight| Some(score_weight) >= max_score_weight)
-    {
-        Some(0) => interest_scores,
-        Some(1) => tag_weight_scores,
-        Some(2) => elasticsearch_scores,
-        _ => unreachable!(),
-    };
-
-    documents.sort_unstable_by(|a, b| {
-        nan_safe_f32_cmp_desc(&a.score, &b.score).then_with(|| {
-            nan_safe_f32_cmp_desc(
-                &secondary_sorting_factor[&a.id],
-                &secondary_sorting_factor[&b.id],
-            )
-        })
-    });
+    documents.sort_unstable_by(|d1, d2| d1.score.total_cmp(&d2.score).reverse());
 }
 
 #[doc(hidden)]
@@ -141,7 +122,7 @@ pub fn bench_rerank<S>(
         .enumerate()
         .map(|(id, (embedding, tags))| PersonalizedDocument {
             id: id.to_string().try_into().unwrap(),
-            score: 1.0,
+            score: 1.,
             embedding,
             properties: DocumentProperties::default(),
             tags: tags
@@ -167,7 +148,7 @@ pub fn bench_rerank<S>(
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashSet, time::Duration};
+    use std::time::Duration;
 
     use xayn_ai_bert::Embedding1;
     use xayn_ai_coi::{CoiConfig, CoiId, CoiStats, PositiveCoi};
@@ -180,8 +161,8 @@ mod tests {
             .map(|i| {
                 let id = i.to_string().try_into().unwrap();
 
-                let mut embedding = vec![1.0; n];
-                embedding[i] = 10.0;
+                let mut embedding = vec![1.; n];
+                embedding[i] = 10.;
                 let embedding = Embedding1::from(embedding).normalize().unwrap();
 
                 let tags = if i % 2 == 0 {
@@ -195,7 +176,7 @@ mod tests {
 
                 PersonalizedDocument {
                     id,
-                    score: 1.0,
+                    score: 1.,
                     embedding,
                     properties: DocumentProperties::default(),
                     tags,
@@ -207,8 +188,8 @@ mod tests {
     fn mock_coi(i: usize, n: usize, time: DateTime<Utc>) -> PositiveCoi {
         let id = CoiId::new();
 
-        let mut point = vec![0.0; n];
-        point[i] = 1.0;
+        let mut point = vec![0.; n];
+        point[i] = 1.;
         let point = Embedding1::from(point).normalize().unwrap();
 
         let stats = CoiStats {
@@ -218,48 +199,6 @@ mod tests {
         };
 
         PositiveCoi { id, point, stats }
-    }
-
-    fn ids_by_score(scores: &HashMap<DocumentId, f32>) -> Vec<&str> {
-        scores
-            .iter()
-            .sorted_by(|(_, s1), (_, s2)| nan_safe_f32_cmp_desc(s1, s2))
-            .map(|(document, _)| document.as_ref().as_str())
-            .collect()
-    }
-
-    #[test]
-    fn test_rank_keys_by_score_empty() {
-        assert!(rank_keys_by_score::<(), ()>([], |_, _| unreachable!())
-            .next()
-            .is_none());
-    }
-
-    #[test]
-    fn test_rank_keys_by_similar_scores() {
-        let scores = [("0", 0), ("1", 0), ("2", 0), ("3", 1), ("4", 2), ("5", 2)];
-        let keys = rank_keys_by_score(scores, |s1, s2| s1.cmp(s2).reverse())
-            .map(|(key, _)| key)
-            .collect_vec();
-        assert_eq!(keys.len(), 6);
-        assert_eq!(
-            keys[0..=1].iter().copied().collect::<HashSet<_>>(),
-            ["4", "5"].into(),
-        );
-        assert_eq!(keys[2], "3");
-        assert_eq!(
-            keys[3..=5].iter().copied().collect::<HashSet<_>>(),
-            ["0", "1", "2"].into(),
-        );
-    }
-
-    #[test]
-    fn test_rank_key_by_different_scores() {
-        let scores = [("0", 0), ("1", 2), ("2", 1), ("3", 4), ("4", 3), ("5", 5)];
-        let keys = rank_keys_by_score(scores, |s1, s2| s1.cmp(s2).reverse())
-            .map(|(key, _)| key)
-            .collect_vec();
-        assert_eq!(keys, ["5", "3", "4", "1", "2", "0"]);
     }
 
     #[test]
@@ -279,8 +218,7 @@ mod tests {
         let interests = UserInterests::default();
         let time = Utc::now();
 
-        let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
-        assert_eq!(ids_by_score(&reranked), ["0", "1", "2", "3", "4"]);
+        assert!(rerank_by_interest(&coi_system, &documents, &interests, time).is_empty());
     }
 
     #[test]
@@ -295,13 +233,28 @@ mod tests {
         };
 
         let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
-        assert_eq!(ids_by_score(&reranked), ["4", "1", "0", "2", "3"]);
+        let zero = "0".try_into().unwrap();
+        let one = "1".try_into().unwrap();
+        let two = "2".try_into().unwrap();
+        let three = "3".try_into().unwrap();
+        let four = "4".try_into().unwrap();
+        assert!(0. <= reranked[&&zero]);
+        assert_approx_eq!(f32, reranked[&&zero], reranked[&&two]);
+        assert_approx_eq!(f32, reranked[&&zero], reranked[&&three]);
+        assert!(reranked[&&zero] < reranked[&&one]);
+        assert!(reranked[&&one] < reranked[&&four]);
+        assert!(reranked[&&four] <= 1.);
     }
 
     #[test]
     fn test_rerank_by_tag_weight_empty() {
         let documents = Vec::default();
-        let tag_weights = HashMap::default();
+        let tag_weights = [
+            ("general".try_into().unwrap(), 4),
+            ("specific".try_into().unwrap(), 1),
+            ("other".try_into().unwrap(), 3),
+        ]
+        .into();
 
         assert!(rerank_by_tag_weight(&documents, &tag_weights).is_empty());
     }
@@ -312,14 +265,7 @@ mod tests {
         let documents = mock_documents(n);
         let tag_weights = HashMap::default();
 
-        let reranked = rerank_by_tag_weight(&documents, &tag_weights);
-        for i in 1..n {
-            assert_approx_eq!(
-                f32,
-                reranked[&"0".try_into().unwrap()],
-                reranked[&i.to_string().try_into().unwrap()],
-            );
-        }
+        assert!(rerank_by_tag_weight(&documents, &tag_weights).is_empty());
     }
 
     #[test]
@@ -334,20 +280,16 @@ mod tests {
         .into();
 
         let reranked = rerank_by_tag_weight(&documents, &tag_weights);
-        assert!(reranked[&"0".try_into().unwrap()] < reranked[&"1".try_into().unwrap()]);
+        let zero = "0".try_into().unwrap();
+        let one = "1".try_into().unwrap();
+        assert!(reranked[&&zero] < reranked[&&one]);
         for i in (2..n).step_by(2) {
-            assert_approx_eq!(
-                f32,
-                reranked[&"0".try_into().unwrap()],
-                reranked[&i.to_string().try_into().unwrap()],
-            );
+            let id = i.to_string().try_into().unwrap();
+            assert_approx_eq!(f32, reranked[&&zero], reranked[&&id]);
         }
         for i in (3..n).step_by(2) {
-            assert_approx_eq!(
-                f32,
-                reranked[&"1".try_into().unwrap()],
-                reranked[&i.to_string().try_into().unwrap()],
-            );
+            let id = i.to_string().try_into().unwrap();
+            assert_approx_eq!(f32, reranked[&&one], reranked[&&id]);
         }
     }
 }

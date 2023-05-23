@@ -25,6 +25,7 @@ use crate::{
     stats::{compute_coi_decay_factor, compute_coi_relevances},
 };
 
+/// The score ranges in the interval `[-1., 3.]` if a positive coi exists.
 fn compute_score_for_closest_positive_coi(
     embedding: &NormalizedEmbedding,
     cois: &[PositiveCoi],
@@ -38,6 +39,7 @@ fn compute_score_for_closest_positive_coi(
     })
 }
 
+/// The score ranges in the interval `[-1., 1.]` if a negative coi exists.
 fn compute_score_for_closest_negative_coi(
     embedding: &NormalizedEmbedding,
     cois: &[NegativeCoi],
@@ -63,6 +65,7 @@ impl UserInterests {
             && self.negative.len() >= config.min_negative_cois()
     }
 
+    /// The score ranges in the interval `[0., 1.]` if a coi exists.
     fn compute_score_for_embedding(
         &self,
         embedding: &NormalizedEmbedding,
@@ -73,20 +76,19 @@ impl UserInterests {
             compute_score_for_closest_positive_coi(embedding, &self.positive, horizon, time),
             compute_score_for_closest_negative_coi(embedding, &self.negative, horizon, time),
         ) {
-            (Some(positive), Some(negative)) => Some(positive - negative),
-            (Some(positive), None) => Some(positive),
-            (None, Some(negative)) => Some(-negative),
+            (Some(positive), Some(negative)) => Some((positive - negative + 2.) / 6.),
+            (Some(positive), None) => Some((positive + 1.) / 4.),
+            (None, Some(negative)) => Some((-negative + 1.) / 2.),
             (None, None) => None,
         }
     }
 
     /// Computes the scores for all documents.
     ///
-    /// If the cois are empty, then `None` is returned as no scores can be computed. Otherwise the
-    /// map contains a score for each document.
+    /// Each score ranges in the interval `[0., 1.]` if a coi exists. The [coi weighting] outlines
+    /// parts of the score calculation.
     ///
-    /// <https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI>
-    /// outlines parts of the score calculation.
+    /// [coi weighting]: https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI
     pub(crate) fn compute_scores_for_docs<D>(
         &self,
         documents: &[D],
@@ -118,14 +120,15 @@ mod tests {
         let config = Config::default();
         let cois = UserInterests::default();
         assert!(!cois.has_enough(&config));
+        let now = Utc::now();
         let cois = UserInterests {
-            positive: create_pos_cois([[1., 2., 3.]]),
+            positive: create_pos_cois([[1., 2., 3.]], now),
             negative: Vec::new(),
         };
         assert!(cois.has_enough(&config));
         let cois = UserInterests {
             positive: Vec::new(),
-            negative: create_neg_cois([[1., 2., 3.]]),
+            negative: create_neg_cois([[1., 2., 3.]], now),
         };
         assert!(!cois.has_enough(&config));
     }
@@ -133,10 +136,10 @@ mod tests {
     #[test]
     fn test_compute_score_for_embedding() {
         let now = Utc::now();
-        let mut positive = create_pos_cois([[62., 55., 11.], [76., 30., 80.]]);
+        let mut positive = create_pos_cois([[62., 55., 11.], [76., 30., 80.]], now);
         positive[0].stats.last_view = now - Duration::hours(12);
         positive[1].stats.last_view = now - Duration::hours(36);
-        let mut negative = create_neg_cois([[6., 61., 6.]]);
+        let mut negative = create_neg_cois([[6., 61., 6.]], now);
         negative[0].last_view = now - Duration::days(1);
         let cois = UserInterests { positive, negative };
 
@@ -149,10 +152,12 @@ mod tests {
             f32,
             score,
             // positive[1]: similarity * decay + relevance
-            0.785_516_44 * 0.231_573_88 + 0.115_786_94
+            (0.785_516_44 * 0.231_573_88 + 0.115_786_94
             // negative[0]: similarity * decay
-            - 0.774_465_7 * 0.475_020_83,
-            epsilon = 1e-6,
+            - 0.774_465_7 * 0.475_020_83
+            // normalize
+            + 2.)
+                / 6.,
         );
     }
 

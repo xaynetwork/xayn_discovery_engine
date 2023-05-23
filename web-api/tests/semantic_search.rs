@@ -15,7 +15,7 @@
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, unchanged_config};
+use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
@@ -60,8 +60,8 @@ struct SemanticSearchResponse {
 #[tokio::test]
 async fn test_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest(
                 &client,
@@ -120,8 +120,8 @@ async fn test_semantic_search() {
 #[tokio::test]
 async fn test_semantic_search_min_similarity() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest(
                 &client,
@@ -175,8 +175,8 @@ async fn test_semantic_search_min_similarity() {
 #[tokio::test]
 async fn test_semantic_search_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
-        unchanged_config,
-        unchanged_config,
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest(
                 &client,
@@ -207,6 +207,7 @@ async fn test_semantic_search_with_query() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true
                     }))
                     .build()?,
                 StatusCode::OK,

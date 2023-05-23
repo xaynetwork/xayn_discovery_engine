@@ -25,16 +25,14 @@ use futures_util::{
     future::{self, Either},
     FutureExt,
 };
-use once_cell::sync::Lazy;
-use regex::bytes;
-use serde::{Deserialize, Serialize};
-use sqlx::Type;
+use serde::Serialize;
 use thiserror::Error;
 use tokio::{task::futures::TaskLocalFuture, task_local};
 use tracing::{error_span, instrument, trace, Instrument, Level};
 use uuid::Uuid;
+use xayn_web_api_shared::request::TenantId;
 
-use crate::{error::early_failure::middleware_failure, tenants};
+use crate::error::early_failure::middleware_failure;
 
 pub(crate) struct RequestContext {
     #[allow(unused)]
@@ -64,56 +62,6 @@ impl RequestContext {
 #[error("Failed to access expected context value in: {method}")]
 pub(crate) struct AccessError {
     method: &'static str,
-}
-
-#[derive(
-    Clone,
-    Debug,
-    derive_more::Display,
-    derive_more::From,
-    PartialEq,
-    Eq,
-    Hash,
-    Deserialize,
-    Serialize,
-    Type,
-)]
-#[serde(transparent)]
-#[sqlx(transparent)]
-pub(crate) struct TenantId(Arc<str>);
-
-#[derive(Debug, Error)]
-#[error("TenantId is not valid: {hint:?}")]
-pub(crate) struct InvalidTenantId {
-    hint: String,
-}
-
-impl TenantId {
-    pub(crate) fn missing() -> Self {
-        static MISSING: Lazy<Arc<str>> = Lazy::new(|| "missing".into());
-        Self(MISSING.clone())
-    }
-
-    #[allow(dead_code)]
-    fn random_legacy_tenant_id() -> Self {
-        let random_id: u64 = rand::random();
-        Self(format!("legacy.{random_id:0>16x}").as_str().into())
-    }
-
-    fn try_parse_ascii(ascii: &[u8]) -> Result<Self, InvalidTenantId> {
-        static RE: Lazy<bytes::Regex> =
-            Lazy::new(|| bytes::Regex::new(r"^[a-zA-Z0-9_:@.-]{1,50}$").unwrap());
-
-        if RE.is_match(ascii) {
-            Ok(Self(
-                str::from_utf8(ascii).unwrap(/*regex guarantees valid utf-8*/).into(),
-            ))
-        } else {
-            Err(InvalidTenantId {
-                hint: String::from_utf8_lossy(ascii).into_owned(),
-            })
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, derive_more::Display, Serialize)]
@@ -155,7 +103,7 @@ impl RequestId {
 ///
 /// The `TenantId` is required.
 pub(crate) fn setup_request_context<S>(
-    config: &tenants::Config,
+    legacy_tenant: Option<&TenantId>,
     request: ServiceRequest,
     service: &S,
 ) -> impl Future<Output = Result<ServiceResponse<BoxBody>, actix_web::Error>> + 'static
@@ -165,7 +113,7 @@ where
 {
     let request_id = RequestId::generate();
 
-    let tenant_id = match extract_tenant_id(config, &request) {
+    let tenant_id = match extract_tenant_id(legacy_tenant, &request) {
         Ok(id) => id,
         Err(error) => {
             let response = middleware_failure(
@@ -209,14 +157,14 @@ where
     )
 }
 
-const TENANT_ID_HEADER: &str = "X-Tenant-Id";
+const TENANT_ID_HEADER: &str = "X-Xayn-Tenant-Id";
 
 fn extract_tenant_id(
-    config: &tenants::Config,
+    legacy_tenant: Option<&TenantId>,
     request: &ServiceRequest,
 ) -> Result<TenantId, anyhow::Error> {
-    if config.enable_legacy_tenant {
-        return Ok(TenantId::missing());
+    if let Some(id) = legacy_tenant {
+        return Ok(id.clone());
     }
 
     let header_value = request

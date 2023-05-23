@@ -26,10 +26,11 @@ use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{PositiveCoi, UserInterests};
+use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
+use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 
 use crate::{
     app::SetupError,
-    middleware::request_context::TenantId,
     models::{
         self,
         DocumentId,
@@ -42,6 +43,7 @@ use crate::{
         UserId,
         UserInteractionType,
     },
+    tenants,
     Error,
 };
 
@@ -226,7 +228,7 @@ pub(crate) trait Tag {
 #[serde(default)]
 pub struct Config {
     elastic: elastic::Config,
-    postgres: postgres::Config,
+    postgres: postgres_shared::Config,
 }
 
 pub(crate) struct Storage {
@@ -237,12 +239,40 @@ pub(crate) struct Storage {
 impl Storage {
     pub(crate) async fn builder(
         config: &Config,
-        enable_legacy_tenant: bool,
+        tenant_config: &tenants::Config,
     ) -> Result<StorageBuilder, SetupError> {
+        let legacy_tenant = Self::initialize(config, tenant_config).await?;
+
         Ok(StorageBuilder {
-            elastic: elastic::Client::builder(&config.elastic)?,
-            postgres: postgres::Database::builder(&config.postgres, enable_legacy_tenant).await?,
+            elastic: elastic::Client::builder(config.elastic.clone())?,
+            postgres: postgres::Database::builder(&config.postgres, legacy_tenant).await?,
         })
+    }
+
+    // FIXME: long term this should be run by the control plane,
+    //        in a different binary/lambda or similar before we
+    //        start updating the instances.
+    async fn initialize(
+        config: &Config,
+        tenant_config: &tenants::Config,
+    ) -> Result<Option<TenantId>, SetupError> {
+        let silo = Silo::new(
+            config.postgres.clone(),
+            config.elastic.clone(),
+            tenant_config
+                .enable_legacy_tenant
+                .then(|| LegacyTenantInfo {
+                    es_index: config.elastic.index_name.clone(),
+                }),
+        )
+        .await?;
+
+        // FIXME: remove this once we have a proper separation between
+        //        a admin pg user owning the db structure and a web-api-mt
+        //        user which can only use tables but nothing more.
+        silo.admin_as_mt_user_hack().await?;
+
+        silo.initialize().await
     }
 }
 
@@ -253,14 +283,18 @@ pub(crate) struct StorageBuilder {
 }
 
 impl StorageBuilder {
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Result<Storage, Error> {
-        Ok(Storage {
-            elastic: self.elastic.build(),
-            postgres: self.postgres.build_for(tenant_id)?,
-        })
+    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Storage {
+        Storage {
+            elastic: self.elastic.build_for(tenant_id),
+            postgres: self.postgres.build_for(tenant_id),
+        }
     }
 
     pub(crate) async fn close(&self) {
         self.postgres.close().await;
+    }
+
+    pub(crate) fn legacy_tenant(&self) -> Option<&TenantId> {
+        self.postgres.legacy_tenant()
     }
 }

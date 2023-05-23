@@ -25,7 +25,6 @@ use tracing::info;
 pub(crate) use self::state::{AppState, TenantState};
 use crate::{
     logging,
-    logging::init_tracing,
     net::{self, AppHandle},
     storage,
     tenants,
@@ -69,16 +68,14 @@ pub async fn start<A>(config: A::Config) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,
 {
-    init_tracing(config.as_ref());
-
     info!({ ?config }, "starting service");
 
     let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
     info!(pwd=?pwd);
 
     let net_config = net::Config::clone(config.as_ref());
-    let tenants_config = tenants::Config::clone(config.as_ref());
     let app_state = Arc::new(AppState::<A>::create(config).await?);
+    let legacy_tenant = app_state.legacy_tenant().cloned();
     let mk_base_app = {
         let app_state = app_state.clone();
         // This clone below is to make sure this is a `Fn` instead of an `FnOnce`.
@@ -86,7 +83,7 @@ where
     };
     let shutdown = Box::new(move || async { app_state.close().await }.boxed());
 
-    net::start_actix_server(net_config, tenants_config, mk_base_app, shutdown)
+    net::start_actix_server(net_config, legacy_tenant, mk_base_app, shutdown)
 }
 
 /// Generate application names/env prefixes for the given application.

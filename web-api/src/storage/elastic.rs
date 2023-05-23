@@ -16,13 +16,13 @@ mod client;
 
 use std::collections::HashMap;
 
-pub(crate) use client::{Client, ClientBuilder, Config, Error as ElasticError};
+pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use xayn_ai_bert::NormalizedEmbedding;
+pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 
-use self::client::BulkInstruction;
 use crate::{
     models::{
         self,
@@ -95,7 +95,6 @@ impl Client {
             unreachable!(/* filter is a json object */);
         };
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/knn-search.html#approximate-knn
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
         let Value::Object(mut body) = json!({
             "knn": {
@@ -115,79 +114,38 @@ impl Client {
         if let Some(min_similarity) = params.min_similarity {
             body.insert("min_score".to_string(), json!(min_similarity));
         }
+        let mut knn_scores = self.search_request(&body).await?;
+
         if let Some(query) = params.query {
+            body.remove("knn");
             filter.insert("must".to_string(), json!({ "match": { "snippet": query }}));
             body.insert("query".to_string(), json!({ "bool": filter }));
-            body.insert("explain".to_string(), json!(true));
+
+            let bm25_scores = self.search_request(body).await?;
+            let max_bm25_score = bm25_scores
+                .values()
+                .max_by(|s1, s2| s1.total_cmp(s2))
+                .copied()
+                .unwrap_or_default()
+                .max(1.0);
+
+            // mixed knn and bm25 scores need to be normalized
+            for (id, bm25_score) in bm25_scores {
+                let bm25_score = bm25_score / max_bm25_score;
+                knn_scores
+                    .entry(id)
+                    .and_modify(|knn_score| *knn_score = 0.5 * *knn_score + 0.5 * bm25_score)
+                    .or_insert(bm25_score);
+            }
+
+            knn_scores = knn_scores
+                .into_iter()
+                .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+                .take(params.count)
+                .collect();
         }
 
-        let scores = self
-            .query_with_json::<_, SearchResponse<NoSource>>(
-                self.create_resource_path(["_search"], None),
-                Some(body),
-            )
-            .await?
-            .map(|response| {
-                if params.query.is_some() {
-                    // mixed knn and bm25 scores need to be normalized
-                    const KNN_DESCRIPTION: &str = "within top k documents";
-                    let mut max_bm25_score = None;
-                    let scores = response
-                        .hits
-                        .hits
-                        .into_iter()
-                        .map(|hit| {
-                            // details has exactly one or two elements: knn or bm25 or both
-                            let mut knn_score = None;
-                            let mut bm25_score = None;
-                            let detail = &hit.explanation.details[0];
-                            if detail.description == KNN_DESCRIPTION {
-                                knn_score = Some(detail.value);
-                            } else {
-                                bm25_score = Some(detail.value);
-                            }
-                            if let Some(detail) = hit.explanation.details.get(1) {
-                                if detail.description == KNN_DESCRIPTION {
-                                    knn_score = Some(detail.value);
-                                } else {
-                                    bm25_score = Some(detail.value);
-                                }
-                            }
-                            if bm25_score > max_bm25_score {
-                                max_bm25_score = bm25_score;
-                            }
-                            (hit.id, knn_score, bm25_score)
-                        })
-                        .collect_vec();
-
-                    let max_bm25_score = max_bm25_score.unwrap_or_default().max(1.0);
-                    scores
-                        .into_iter()
-                        .map(|(id, knn_score, bm25_score)| {
-                            let score = match (knn_score, bm25_score) {
-                                (Some(knn_score), Some(bm25_score)) => {
-                                    0.5 * knn_score + 0.5 * bm25_score / max_bm25_score
-                                }
-                                (Some(knn_score), None) => knn_score,
-                                (None, Some(bm25_score)) => bm25_score / max_bm25_score,
-                                (None, None) => unreachable!(),
-                            };
-                            (id, score)
-                        })
-                        .collect::<HashMap<_, _>>()
-                } else {
-                    // only knn scores are already normalized
-                    response
-                        .hits
-                        .hits
-                        .into_iter()
-                        .map(|hit| (hit.id, hit.score))
-                        .collect::<HashMap<_, _>>()
-                }
-            })
-            .unwrap_or_default();
-
-        Ok(scores)
+        Ok(knn_scores)
     }
 
     pub(super) async fn insert_documents(
@@ -239,7 +197,7 @@ impl Client {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<(), Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
-        let url = self.create_resource_path(["_delete_by_query"], [("refresh", None)]);
+        let url = self.create_url(["_delete_by_query"], [("refresh", None)]);
         let body = json!({
             "query": {
                 "bool": {
@@ -263,7 +221,7 @@ impl Client {
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties = params.properties",
@@ -285,7 +243,7 @@ impl Client {
         id: &DocumentId,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties = params.properties",
@@ -309,7 +267,7 @@ impl Client {
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", document_id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties.put(params.prop_id, params.property)",
@@ -333,7 +291,7 @@ impl Client {
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<()>>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", document_id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties.remove(params.prop_id)",
@@ -356,7 +314,7 @@ impl Client {
         tags: &[DocumentTag],
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_resource_path(["_update", id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.tags = params.tags",
@@ -371,53 +329,6 @@ impl Client {
             .query_with_json::<_, IgnoredResponse>(url, body)
             .await?
             .map(|_| ()))
-    }
-}
-
-#[derive(Debug, Deserialize)]
-struct Detail {
-    description: String,
-    value: f32,
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct Explanation {
-    details: Vec<Detail>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Hit<T> {
-    #[serde(rename = "_id")]
-    id: DocumentId,
-    #[allow(dead_code)]
-    #[serde(rename = "_source")]
-    source: T,
-    #[serde(rename = "_score")]
-    score: f32,
-    #[serde(default)]
-    #[serde(rename = "_explanation")]
-    explanation: Explanation,
-}
-
-#[derive(Debug, Deserialize)]
-struct Hits<T> {
-    hits: Vec<Hit<T>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct SearchResponse<T> {
-    hits: Hits<T>,
-}
-
-#[derive(Debug)]
-struct NoSource;
-
-impl<'de> Deserialize<'de> for NoSource {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        Ok(Self)
     }
 }
 

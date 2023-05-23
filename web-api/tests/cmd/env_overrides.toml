@@ -6,7 +6,8 @@ stdout = """
 {
   "logging": {
     "file": "[CWD]/tests/cmd/assets/foo/bar.log",
-    "level": "trace"
+    "level": "trace",
+    "install_panic_hook": true
   },
   "net": {
     "bind_to": "127.0.1.1:3040",
@@ -18,7 +19,8 @@ stdout = """
       "url": "http://localhost:3219",
       "user": "tic",
       "password": "[REDACTED]",
-      "index_name": "other_index"
+      "index_name": "other_index",
+      "timeout": 2
     },
     "postgres": {
       "base_url": "postgres://user:pw@localhost:5432/xayn",

@@ -13,7 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod client;
-mod utils;
 
 use std::{
     collections::{HashMap, HashSet},
@@ -22,7 +21,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-pub(crate) use client::{Config, Database, DatabaseBuilder};
+pub(crate) use client::{Database, DatabaseBuilder};
 use either::Either;
 use itertools::Itertools;
 use sqlx::{
@@ -38,14 +37,7 @@ use sqlx::{
 };
 use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{
-    nan_safe_f32_cmp_desc,
-    CoiId,
-    CoiStats,
-    NegativeCoi,
-    PositiveCoi,
-    UserInterests,
-};
+use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
 
 use super::{InteractionUpdateContext, TagWeights};
 use crate::{
@@ -283,8 +275,11 @@ impl Database {
                     .await?,
             );
         }
-        documents.sort_unstable_by(|a, b| {
-            nan_safe_f32_cmp_desc(&scores(&a.id).unwrap(), &scores(&b.id).unwrap())
+        documents.sort_unstable_by(|d1, d2| {
+            scores(&d1.id)
+                .unwrap()
+                .total_cmp(&scores(&d2.id).unwrap())
+                .reverse()
         });
 
         Ok(documents)

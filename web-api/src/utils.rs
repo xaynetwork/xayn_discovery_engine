@@ -13,12 +13,11 @@
 
 use derive_more::Deref;
 use figment::value::magic::RelativePathBuf as FigmentRelativePathBuf;
-use secrecy::Secret;
-use serde::{Deserialize, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Deref)]
 #[serde(transparent)]
-pub(crate) struct RelativePathBuf {
+pub struct RelativePathBuf {
     #[serde(serialize_with = "FigmentRelativePathBuf::serialize_relative")]
     inner: FigmentRelativePathBuf,
 }
@@ -29,27 +28,4 @@ impl From<&str> for RelativePathBuf {
             inner: FigmentRelativePathBuf::from(s),
         }
     }
-}
-
-/// Serialize a `Secret<String>` as `"[REDACTED]"`.
-pub(crate) fn serialize_redacted<S>(
-    _secret: &Secret<String>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    serializer.serialize_str("[REDACTED]")
-}
-
-/// Serialize a sequence of serializable items into ndjson.
-pub(crate) fn serialize_to_ndjson(
-    items: impl IntoIterator<Item = Result<impl Serialize, serde_json::Error>>,
-) -> Result<Vec<u8>, serde_json::Error> {
-    let mut body = Vec::new();
-    for item in items {
-        serde_json::to_writer(&mut body, &item?)?;
-        body.push(b'\n');
-    }
-    Ok(body)
 }
