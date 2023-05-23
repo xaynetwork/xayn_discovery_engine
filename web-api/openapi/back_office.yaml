@@ -7,7 +7,7 @@ info:
     This API acts as a create/read/update/delete interface for anything related to documents.
 
     ## Format
-    All the request's body in this API are JSON encoded and their `Content-Type` header should be set to `application/json`.
+    All the request bodies in this API are JSON encoded and their `Content-Type` headers should be set to `application/json`.
 
     ## Auth
     The API requires to set the `authenticationToken` when used with the provided token.
