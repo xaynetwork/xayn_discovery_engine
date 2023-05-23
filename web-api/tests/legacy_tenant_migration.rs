@@ -243,12 +243,13 @@ fn test_full_migration() {
         );
 
         info!("checked ingested documents");
-
-        ingestion.stop_and_wait(Duration::from_secs(1)).await?;
+        //FIXME use stop and wait once we test against
+        //      a version where this is fixed
+        ingestion.stop(false).await;
+        ingestion.wait_for_termination().await?;
         info!("stopped old ingestion");
-        personalization
-            .stop_and_wait(Duration::from_secs(1))
-            .await?;
+        personalization.stop(false).await;
+        personalization.wait_for_termination().await?;
         info!("stopped old personalization");
 
         let pg_options = pg_config.to_connection_options()?;
