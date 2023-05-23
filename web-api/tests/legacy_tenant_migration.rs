@@ -21,7 +21,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use sqlx::{Connection, Executor, PgConnection};
 use toml::Table;
-use tracing::instrument;
+use tracing::{info, instrument};
 use xayn_integration_tests::{
     build_test_config_from_parts,
     create_db,
@@ -166,8 +166,12 @@ fn test_full_migration() {
     };
 
     run_async_test(|test_id| async move {
+        info!("entered async test");
+
         let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
         let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
+
+        info!("test setup done");
 
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
@@ -185,6 +189,8 @@ fn test_full_migration() {
         )
         .await;
 
+        info!("legacy es setup done");
+
         let args = &[
             "integration-test",
             "--bind-to",
@@ -195,9 +201,11 @@ fn test_full_migration() {
 
         let config = old_config::load_with_args([""; 0], args);
         let ingestion = start_old::<OldIngestion>(config).await?;
+        info!("started old ingestion");
         let ingestion_url = ingestion.url();
         let config = old_config::load_with_args([""; 0], args);
         let personalization = start_old::<OldPersonalization>(config).await?;
+        info!("started old personalization");
         let personalization_url = personalization.url();
 
         send_assert(
@@ -215,6 +223,8 @@ fn test_full_migration() {
         )
         .await;
 
+        info!("ingested documents");
+
         let SemanticSearchResponse { documents } = send_assert_json(
             &client,
             client
@@ -232,10 +242,14 @@ fn test_full_migration() {
             ["d1", "d2"].into(),
         );
 
+        info!("checked ingested documents");
+
         ingestion.stop_and_wait(Duration::from_secs(1)).await?;
+        info!("stopped old ingestion");
         personalization
             .stop_and_wait(Duration::from_secs(1))
             .await?;
+        info!("stopped old personalization");
 
         let pg_options = pg_config.to_connection_options()?;
         let mut conn = PgConnection::connect_with(&pg_options).await?;
@@ -245,9 +259,11 @@ fn test_full_migration() {
 
         let config = config::load_with_args([""; 0], args);
         let ingestion = start::<Ingestion>(config).await?;
+        info!("started new ingestion");
         let ingestion_url = ingestion.url();
         let config = config::load_with_args([""; 0], args);
         let personalization = start::<Personalization>(config).await?;
+        info!("started new personalization");
         let personalization_url = personalization.url();
 
         let SemanticSearchResponse { documents } = send_assert_json(
@@ -267,6 +283,8 @@ fn test_full_migration() {
             ["d1", "d2"].into(),
         );
 
+        info!("checked ingested documents");
+
         send_assert(
             &client,
             client
@@ -278,6 +296,9 @@ fn test_full_migration() {
             StatusCode::CREATED,
         )
         .await;
+
+        info!("ingested additional documents");
+
         let SemanticSearchResponse { documents } = send_assert_json(
             &client,
             client
@@ -295,9 +316,11 @@ fn test_full_migration() {
             ["d1", "d2", "d3"].into(),
         );
 
+        info!("checked documents");
         ingestion.stop_and_wait().await?;
+        info!("stopped new ingestion");
         personalization.stop_and_wait().await?;
-
+        info!("stopped new personalization");
         Ok(())
     });
 }
