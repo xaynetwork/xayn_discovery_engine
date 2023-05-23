@@ -103,7 +103,7 @@ mod env_vars {
     ///
     /// It's a case insensitive comma separated list of span event mask names.
     ///
-    /// See [`tracing_subscriber::fmt::Layer.with_span_events()`] for possible mask names.
+    /// See [`tracing_subscriber::fmt::format::FmtSpan`] for possible mask names.
     ///
     /// Defaults to `"NONE"`.
     pub(super) const XAYN_TEST_FILE_LOG_SPAN_EVENTS: &str = "XAYN_TEST_FILE_LOG_SPAN_EVENTS";
