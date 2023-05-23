@@ -47,7 +47,12 @@ use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
 use tracing::{dispatcher, error_span, instrument, metadata::LevelFilter, Dispatch, Instrument};
 use tracing_log::{log::LevelFilter as LogFacilityLevelFilter, LogTracer};
-use tracing_subscriber::{fmt::TestWriter, layer::SubscriberExt, EnvFilter, Layer};
+use tracing_subscriber::{
+    fmt::{format::FmtSpan, TestWriter},
+    layer::SubscriberExt,
+    EnvFilter,
+    Layer,
+};
 use xayn_test_utils::env::clear_env;
 use xayn_web_api::{config, start, AppHandle, Application};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
@@ -94,11 +99,20 @@ mod env_vars {
     /// Defaults to `"false"`, `""` is treated as if it's the default.
     pub(super) const XAYN_TEST_FILE_LOG: &str = "XAYN_TEST_FILE_LOG";
 
-    /// Used to detect if we run in a action and in turn services are externally provided.
-    pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
+    /// Select which span events to log, default is none.
+    ///
+    /// It's a case insensitive comma separated list of span event mask names.
+    ///
+    /// See [`tracing_subscriber::fmt::Layer.with_span_events()`] for possible mask names.
+    ///
+    /// Defaults to `"NONE"`.
+    pub(super) const XAYN_TEST_FILE_LOG_SPAN_EVENTS: &str = "XAYN_TEST_FILE_LOG_SPAN_EVENTS";
 
     /// If set to `"true"` the per-test temp. dir will not be deleted even if the test succeeds.
     pub(super) const XAYN_TEST_KEEP_TEMP_DIRS: &str = "XAYN_TEST_KEEP_TEMP_DIRS";
+
+    /// Used to detect if we run in a action and in turn services are externally provided.
+    pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
 }
 
 /// Absolute path to the root of the project as determined by `just`.
@@ -119,8 +133,27 @@ pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
     env::var(GITHUB_ACTIONS) == Ok("true".into())
 });
 
-static KEEP_TEMP_DIR: Lazy<bool> =
+static KEEP_TEMP_DIRS: Lazy<bool> =
     Lazy::new(|| env::var(XAYN_TEST_KEEP_TEMP_DIRS) == Ok("true".into()));
+
+static FILE_LOG_SPAN_EVENTS: Lazy<FmtSpan> = Lazy::new(|| {
+    let span_events = env_var_os_with_default(XAYN_TEST_FILE_LOG_SPAN_EVENTS, "");
+    span_events
+        .split(',')
+        .filter(|e| !e.trim().is_empty())
+        .fold(FmtSpan::NONE, |mask, span_event| {
+            mask | match span_event.to_ascii_uppercase().as_str() {
+                "NEW" => FmtSpan::NEW,
+                "ENTER" => FmtSpan::ENTER,
+                "EXIT" => FmtSpan::EXIT,
+                "CLOSE" => FmtSpan::CLOSE,
+                "NONE" => FmtSpan::NONE,
+                "ACTIVE" => FmtSpan::ACTIVE,
+                "FULL" => FmtSpan::FULL,
+                other => panic!("Unexpected FmtSpan option: {other}"),
+            }
+        })
+});
 
 /// DB name used for the db we use to create other dbs.
 pub const MANAGEMENT_DB: &str = "xayn";
@@ -320,6 +353,7 @@ pub fn initialize_local_test_logging(test_id: &TestId) -> Dispatch {
             .unwrap();
         tracing_subscriber::fmt::layer()
             .with_writer(writer)
+            .with_span_events(FILE_LOG_SPAN_EVENTS.clone())
             .json()
             .with_filter(filter.parse::<EnvFilter>().unwrap())
     });
@@ -337,7 +371,7 @@ where
     dispatcher::with_default(&subscriber, || {
         let _guard = DeleteTemptDirIfNoPanic {
             test_id: test_id.clone(),
-            disable_cleanup: *KEEP_TEMP_DIR,
+            disable_cleanup: *KEEP_TEMP_DIRS,
         };
 
         let span = error_span!(parent: None, "test", %test_id);
