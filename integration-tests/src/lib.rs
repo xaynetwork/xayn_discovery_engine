@@ -214,7 +214,7 @@ pub async fn test_two_apps<A1, A2, F>(
     )
     .await
     .unwrap();
-    let (res1, res2) = tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait(),);
+    let (res1, res2) = tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait());
     res1.expect("first application to not fail during shutdown");
     res2.expect("second application to not fail during shutdown");
 
