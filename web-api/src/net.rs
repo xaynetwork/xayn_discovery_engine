@@ -30,7 +30,7 @@ use actix_web::{
 use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
-use tokio::{task::JoinHandle, time::timeout};
+use tokio::task::JoinHandle;
 use tracing::{info, info_span, Instrument, Span};
 use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 
@@ -150,10 +150,9 @@ impl AppHandle {
     }
 
     /// Stops the app gracefully and escalates to non-graceful stopping on timeout, then awaits the apps result.
-    pub async fn stop_and_wait(self, graceful_timeout: Duration) -> Result<(), anyhow::Error> {
-        if timeout(graceful_timeout, self.stop(true)).await.is_err() {
-            self.stop(false).await;
-        }
+    pub async fn stop_and_wait(self) -> Result<(), anyhow::Error> {
+        //FIXME find out why graceful shutdown on a idle actix server is broken
+        self.stop().await;
         self.wait_for_termination().await
     }
 
@@ -162,8 +161,8 @@ impl AppHandle {
     /// To make sure the application is fully stopped and to handle the result of
     /// the application execution you needs to await [`AppHandle.wait_for_termination()`]
     /// afterwards.
-    pub async fn stop(&self, graceful: bool) {
-        self.server_handle.stop(graceful).await;
+    pub async fn stop(&self) {
+        self.server_handle.stop(false).await;
     }
 
     /// Waits for the server/app to have stopped and returns it's return value.
