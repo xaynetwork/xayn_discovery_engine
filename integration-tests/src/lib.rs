@@ -27,7 +27,6 @@ use std::{
     path::PathBuf,
     process::{Command, Output, Stdio},
     sync::{Arc, Once},
-    time::Duration,
 };
 
 use anyhow::{anyhow, bail, Error};
@@ -70,8 +69,6 @@ pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
 
 /// DB name used for the db we use to create other dbs.
 pub const MANAGEMENT_DB: &str = "xayn";
-
-const APP_STOP_TIMEOUT: Duration = Duration::from_secs(1);
 
 /// Runs `just` with given arguments returning `stdout` as string.
 ///
@@ -182,7 +179,7 @@ pub async fn test_app<A, F>(
     .await
     .unwrap();
 
-    handle.stop_and_wait(APP_STOP_TIMEOUT).await.unwrap();
+    handle.stop_and_wait().await.unwrap();
 
     services.cleanup_test().await.unwrap();
 }
@@ -217,10 +214,7 @@ pub async fn test_two_apps<A1, A2, F>(
     )
     .await
     .unwrap();
-    let (res1, res2) = tokio::join!(
-        first_handle.stop_and_wait(APP_STOP_TIMEOUT),
-        second_handle.stop_and_wait(APP_STOP_TIMEOUT),
-    );
+    let (res1, res2) = tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait());
     res1.expect("first application to not fail during shutdown");
     res2.expect("second application to not fail during shutdown");
 
