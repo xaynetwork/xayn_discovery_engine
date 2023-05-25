@@ -27,6 +27,7 @@ use std::{
     path::PathBuf,
     process::{Command, Output, Stdio},
     sync::{Arc, Once},
+    time::Duration,
 };
 
 use anyhow::{anyhow, bail, Error};
