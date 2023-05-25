@@ -9,7 +9,7 @@ publish = false
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
 chrono = { workspace = true }
-derive_more = "0.99.17"
+derive_more = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }

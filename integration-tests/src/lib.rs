@@ -37,7 +37,7 @@ use std::{
 use anyhow::{anyhow, bail, Error};
 use chrono::Utc;
 use derive_more::{AsRef, Display};
-use env_vars::*;
+use self::env_vars::*;
 use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
@@ -111,7 +111,7 @@ mod env_vars {
     /// If set to `"true"` the per-test temp. dir will not be deleted even if the test succeeds.
     pub(super) const XAYN_TEST_KEEP_TEMP_DIRS: &str = "XAYN_TEST_KEEP_TEMP_DIRS";
 
-    /// Used to detect if we run in a action and in turn services are externally provided.
+    /// Used to detect if we run in an action and in turn services are externally provided.
     pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
 }
 
