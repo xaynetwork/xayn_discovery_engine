@@ -159,7 +159,7 @@ struct SemanticSearchResponse {
 //      test was added we can simplify it a lot by using the Silo API and the additional
 //      integration test utils added in this and the previous PR.
 #[test]
-fn test_full_migration() -> Result<(), Error> {
+fn test_full_migration() {
     use old_xayn_web_api::{
         config as old_config,
         start as start_old,
@@ -168,11 +168,10 @@ fn test_full_migration() -> Result<(), Error> {
         ELASTIC_MAPPING,
     };
 
-    let test_id = &generate_test_id();
-    run_async_with_test_logger(test_id, async {
+    run_async_test(|test_id| async move {
         info!("entered async test");
 
-        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
+        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
         let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
 
         info!("test setup done");
