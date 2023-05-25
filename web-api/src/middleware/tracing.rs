@@ -25,8 +25,8 @@
 // Hint: Making this a macro saves us very complex nightmare of type annotations (and also way less lines of code).
 macro_rules! new_http_server_with_subscriber {
     ($subscriber:expr, move || $factory:block) => {{
-        use actix_web::dev::Service;
-        use tracing::{dispatcher, instrument::WithSubscriber, Dispatch};
+        use ::actix_web::dev::Service;
+        use ::tracing::{dispatcher, instrument::WithSubscriber, Dispatch};
         let subscriber = Dispatch::from($subscriber);
         HttpServer::new(move || {
             // Hint: Makes sure the factory has the right dispatcher.
