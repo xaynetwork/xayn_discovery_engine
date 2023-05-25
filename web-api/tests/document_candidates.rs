@@ -14,6 +14,7 @@
 
 use std::collections::HashSet;
 
+use anyhow::Error;
 use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
@@ -21,7 +22,7 @@ use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
 use xayn_web_api::Ingestion;
 
-async fn ingest(client: &Client, url: &Url) -> Result<(), anyhow::Error> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -51,18 +52,14 @@ impl DocumentCandidatesResponse {
     }
 }
 
-async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, anyhow::Error> {
+async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, Error> {
     let request = client.get(url.join("/documents/candidates")?).build()?;
     let response = send_assert_json(client, request, StatusCode::OK).await;
 
     Ok(response)
 }
 
-async fn set(
-    client: &Client,
-    url: &Url,
-    ids: impl IntoIterator<Item = &str>,
-) -> Result<(), anyhow::Error> {
+async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) -> Result<(), Error> {
     let request = client
         .put(url.join("/documents/candidates")?)
         .json(&json!({ "documents": ids.into_iter().map(|id| json!({ "id": id })).collect_vec() }))

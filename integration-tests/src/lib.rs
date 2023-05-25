@@ -22,7 +22,6 @@
 //! integration testing.
 
 use std::{
-    cmp,
     env::{self, VarError},
     fs::{create_dir_all, remove_dir_all, OpenOptions},
     future::Future,
@@ -36,8 +35,7 @@ use std::{
 
 use anyhow::{anyhow, bail, Error};
 use chrono::Utc;
-use derive_more::{AsRef, Display};
-use self::env_vars::*;
+use derive_more::{AsRef, Deref, Display};
 use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
@@ -61,6 +59,8 @@ use xayn_web_api_shared::{
     postgres::{self, QuotedIdentifier},
     request::TenantId,
 };
+
+use self::env_vars::*;
 
 /// Module to document env variables which affect testing.
 mod env_vars {
@@ -230,7 +230,10 @@ pub fn initialize_test_logging_fallback() {
             .parse::<EnvFilter>()
             .expect("XAYN_TEST_FALLBACK_LOG has invalid EnvFilter directives");
 
-        let max_level = env_filter.max_level_hint();
+        let max_level = env_filter
+            .max_level_hint()
+            .max(LOG_FILE_ENV_FILTER.as_ref().and_then(|(_, level)| *level))
+            .max(LOG_STDOUT_ENV_FILTER.as_ref().and_then(|(_, level)| *level));
 
         // WARNING: You can not use `.init()` here as it will setup the log=>tracing
         //          facade in a way which yields incorrect results.
@@ -242,14 +245,6 @@ pub fn initialize_test_logging_fallback() {
                 .into(),
         )
         .unwrap();
-
-        let max_level = cmp::max(
-            max_level,
-            cmp::max(
-                LOG_FILE_ENV_FILTER.as_ref().and_then(|(_, level)| *level),
-                LOG_STDOUT_ENV_FILTER.as_ref().and_then(|(_, level)| *level),
-            ),
-        );
 
         let mut builder = LogTracer::builder();
         if let Some(max_level) = max_level {
@@ -369,7 +364,7 @@ where
     let subscriber = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
-        let _guard = DeleteTemptDirIfNoPanic {
+        let guard = DeleteTempDirIfNoPanic {
             test_id: test_id.clone(),
             disable_cleanup: *KEEP_TEMP_DIRS,
         };
@@ -387,15 +382,17 @@ where
             .expect("Failed building the Runtime")
             .block_on(body)
             .unwrap();
+
+        drop(guard);
     });
 }
 
-struct DeleteTemptDirIfNoPanic {
+struct DeleteTempDirIfNoPanic {
     test_id: TestId,
     disable_cleanup: bool,
 }
 
-impl Drop for DeleteTemptDirIfNoPanic {
+impl Drop for DeleteTempDirIfNoPanic {
     fn drop(&mut self) {
         if self.disable_cleanup || panicking() {
             let temp_dir = self.test_id.temp_dir();
@@ -602,7 +599,7 @@ pub fn build_test_config_from_parts(
     config
 }
 
-#[derive(Clone, Debug, Display, AsRef)]
+#[derive(Clone, Debug, Display, Deref, AsRef)]
 #[as_ref(forward)]
 pub struct TestId(String);
 
@@ -614,10 +611,6 @@ impl TestId {
         let date = Utc::now().format("%y%m%d_%H%M%S");
         let random = random::<u16>();
         Self(format!("t{date}_{random:0>4x}"))
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.as_ref()
     }
 
     pub fn temp_dir(&self) -> PathBuf {
@@ -786,7 +779,7 @@ mod tests {
         for _ in 0..100 {
             let id = TestId::generate();
             assert!(
-                regex.is_match(id.as_str()),
+                regex.is_match(&id),
                 "id does not have expected format: {id:?}",
             );
         }
