@@ -145,7 +145,7 @@ enum Details {
 }
 
 #[derive(Deserialize)]
-struct Error {
+struct ServerError {
     kind: Kind,
     details: Details,
 }
@@ -156,7 +156,7 @@ fn test_candidates_warning() {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
-        let error = send_assert_json::<Error>(
+        let error = send_assert_json::<ServerError>(
             &client,
             client
                 .put(url.join("/documents/candidates")?)
