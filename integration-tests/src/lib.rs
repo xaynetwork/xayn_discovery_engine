@@ -567,6 +567,9 @@ where
         .unwrap()
 }
 
+/// Embedding size used by the `Embedder` used for testing.
+pub const TEST_EMBEDDING_SIZE: usize = 128;
+
 pub fn build_test_config_from_parts(
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
@@ -674,10 +677,12 @@ async fn setup_web_dev_services(
     create_db(&pg_config, MANAGEMENT_DB).await?;
 
     let silo = Silo::new(
-        pg_config, es_config,
+        pg_config,
+        es_config,
         // we create the legacy tenant using the silo API,
         // there are separate tests for the testing the migration
-        None, 128,
+        None,
+        TEST_EMBEDDING_SIZE,
     )
     .await?;
     silo.admin_as_mt_user_hack().await?;
