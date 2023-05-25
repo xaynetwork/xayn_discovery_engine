@@ -28,8 +28,8 @@ struct ManagementResponse {
     results: Vec<OperationResult>,
 }
 
-#[tokio::test]
-async fn test_tenants_can_be_created() {
+#[test]
+fn test_tenants_can_be_created() {
     test_app::<Ingestion, _>(
         Some(toml! {
             [tenants]
@@ -130,6 +130,5 @@ async fn test_tenants_can_be_created() {
             assert_eq!(results.next(), None);
             Ok(())
         },
-    )
-    .await;
+    );
 }

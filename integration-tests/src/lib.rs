@@ -43,7 +43,7 @@ use tracing::{dispatcher, error_span, instrument, Dispatch, Instrument};
 use tracing_subscriber::fmt::TestWriter;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, start, AppHandle, Application};
-use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
+use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
@@ -391,17 +391,7 @@ pub fn build_test_config_from_parts(
 
     extend_config(&mut config, configure);
 
-    let args = &[
-        "integration-test",
-        "--bind-to",
-        "127.0.0.1:0",
-        "--config",
-        &format!("inline:{config}"),
-    ];
-
-    let config = config::load_with_args([0u8; 0], args);
-
-    start::<A>(config).await.unwrap()
+    config
 }
 
 /// Generates an ID for the test.
