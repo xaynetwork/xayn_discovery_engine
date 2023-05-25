@@ -12,18 +12,29 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{collections::HashSet, time::Duration};
+
 use anyhow::Error;
 use chrono::{DateTime, TimeZone, Utc};
-use sqlx::{Connection, PgConnection};
+use reqwest::StatusCode;
+use serde::Deserialize;
+use serde_json::{json, Value};
+use sqlx::{Connection, Executor, PgConnection};
+use toml::Table;
+use tracing::info;
 use xayn_integration_tests::{
+    build_test_config_from_parts,
     create_db,
     db_configs_for_testing,
     generate_test_id,
     initialize_test_logging,
+    send_assert,
+    send_assert_json,
     start_test_service_containers,
     MANAGEMENT_DB,
 };
 use xayn_test_utils::env::clear_env;
+use xayn_web_api::{config, start, Ingestion, Personalization};
 use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
     elastic,
@@ -130,5 +141,194 @@ async fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants
     assert_eq!(count, 0);
 
     conn.close().await?;
+    Ok(())
+}
+
+#[derive(Deserialize)]
+struct PersonalizedDocumentData {
+    id: String,
+}
+
+#[derive(Deserialize)]
+struct SemanticSearchResponse {
+    documents: Vec<PersonalizedDocumentData>,
+}
+
+//FIXME Once the "old" version we test migration against is the version where this
+//      test was added we can simplify it a lot by using the Silo API and the additional
+//      integration test utils added in this and the previous PR.
+#[tokio::test]
+async fn test_full_migration() -> Result<(), Error> {
+    use old_xayn_web_api::{
+        config as old_config,
+        start as start_old,
+        Ingestion as OldIngestion,
+        Personalization as OldPersonalization,
+        ELASTIC_MAPPING,
+    };
+
+    info!("entered async test");
+
+    let (pg_config, es_config) = legacy_test_setup().await?;
+    let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
+
+    info!("test setup done");
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+
+    let es_mapping: Value = serde_json::from_str(ELASTIC_MAPPING)?;
+    // the old setup didn't setup elastic search itself, nor has the config pub fields
+    send_assert(
+        &client,
+        client
+            .put(format!("{}/{}", es_config.url, es_config.index_name))
+            .json(&es_mapping)
+            .build()?,
+        StatusCode::OK,
+    )
+    .await;
+
+    info!("legacy es setup done");
+
+    let args = &[
+        "integration-test",
+        "--bind-to",
+        "127.0.0.1:0",
+        "--config",
+        &format!("inline:{config}"),
+    ];
+
+    let config = old_config::load_with_args([""; 0], args);
+    let ingestion = start_old::<OldIngestion>(config).await?;
+    info!("started old ingestion");
+    let ingestion_url = ingestion.url();
+    let config = old_config::load_with_args([""; 0], args);
+    let personalization = start_old::<OldPersonalization>(config).await?;
+    info!("started old personalization");
+    let personalization_url = personalization.url();
+
+    send_assert(
+        &client,
+        client
+            .post(ingestion_url.join("/documents")?)
+            .json(&json!({
+                "documents": [
+                    { "id": "d1", "snippet": "snippet 1" },
+                    { "id": "d2", "snippet": "snippet 2" }
+                ]
+            }))
+            .build()?,
+        StatusCode::CREATED,
+    )
+    .await;
+
+    info!("ingested documents");
+
+    let SemanticSearchResponse { documents } = send_assert_json(
+        &client,
+        client
+            .post(personalization_url.join("/semantic_search")?)
+            .json(&json!({ "document": { "query": "snippet" } }))
+            .build()?,
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(
+        documents
+            .iter()
+            .map(|document| document.id.as_str())
+            .collect::<HashSet<_>>(),
+        ["d1", "d2"].into(),
+    );
+
+    info!("checked ingested documents");
+    let (res1, res2) = tokio::join!(
+        async {
+            //FIXME use stop and wait once we test against
+            //      a version where this is fixed
+            ingestion.stop(false).await;
+            ingestion.wait_for_termination().await
+        },
+        async {
+            personalization.stop(false).await;
+            personalization.wait_for_termination().await
+        }
+    );
+    res1?;
+    res2?;
+    info!("stopped old ingestion & personalization");
+
+    let pg_options = pg_config.to_connection_options()?;
+    let mut conn = PgConnection::connect_with(&pg_options).await?;
+    conn.execute("REVOKE ALL ON SCHEMA public FROM PUBLIC")
+        .await?;
+    conn.close().await?;
+
+    let config = config::load_with_args([""; 0], args);
+    let ingestion = start::<Ingestion>(config).await?;
+    info!("started new ingestion");
+    let ingestion_url = ingestion.url();
+    let config = config::load_with_args([""; 0], args);
+    let personalization = start::<Personalization>(config).await?;
+    info!("started new personalization");
+    let personalization_url = personalization.url();
+
+    let SemanticSearchResponse { documents } = send_assert_json(
+        &client,
+        client
+            .post(personalization_url.join("/semantic_search")?)
+            .json(&json!({ "document": { "query": "snippet" } }))
+            .build()?,
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(
+        documents
+            .iter()
+            .map(|document| document.id.as_str())
+            .collect::<HashSet<_>>(),
+        ["d1", "d2"].into(),
+    );
+
+    info!("checked ingested documents");
+
+    send_assert(
+        &client,
+        client
+            .post(ingestion_url.join("/documents")?)
+            .json(&json!({
+                "documents": [ { "id": "d3", "snippet": "snippet 3" } ]
+            }))
+            .build()?,
+        StatusCode::CREATED,
+    )
+    .await;
+
+    info!("ingested additional documents");
+
+    let SemanticSearchResponse { documents } = send_assert_json(
+        &client,
+        client
+            .post(personalization_url.join("/semantic_search")?)
+            .json(&json!({ "document": { "query": "snippet" } }))
+            .build()?,
+        StatusCode::OK,
+    )
+    .await;
+    assert_eq!(
+        documents
+            .iter()
+            .map(|document| document.id.as_str())
+            .collect::<HashSet<_>>(),
+        ["d1", "d2", "d3"].into(),
+    );
+
+    info!("checked documents");
+    let (res1, res2) = tokio::join!(ingestion.stop_and_wait(), personalization.stop_and_wait(),);
+    res1?;
+    res2?;
+    info!("stopped new ingestion & personalization");
     Ok(())
 }

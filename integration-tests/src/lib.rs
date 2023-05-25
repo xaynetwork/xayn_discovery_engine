@@ -27,6 +27,7 @@ use std::{
     path::PathBuf,
     process::{Command, Output, Stdio},
     sync::{Arc, Once},
+    time::Duration,
 };
 
 use anyhow::{anyhow, bail, Error};
@@ -249,6 +250,7 @@ fn build_client(services: &Services) -> Arc<Client> {
     Arc::new(
         Client::builder()
             .default_headers(default_headers)
+            .timeout(Duration::from_secs(5))
             .build()
             .unwrap(),
     )
@@ -273,10 +275,36 @@ pub async fn start_test_application<A>(services: &Services, configure: Table) ->
 where
     A: Application + 'static,
 {
-    let pg_config = services.silo.postgres_config();
+    let config = build_test_config_from_parts(
+        services.silo.postgres_config(),
+        services.silo.elastic_config(),
+        configure,
+    );
+
+    let args = &[
+        "integration-test",
+        "--bind-to",
+        "127.0.0.1:0",
+        "--config",
+        &format!("inline:{config}"),
+    ];
+
+    let config = config::load_with_args([""; 0], args);
+
+    start::<A>(config)
+        .instrument(error_span!("test", test_id = %services.test_id))
+        .await
+        .unwrap()
+}
+
+pub fn build_test_config_from_parts(
+    pg_config: &postgres::Config,
+    es_config: &elastic::Config,
+    configure: Table,
+) -> Table {
     let pg_password = pg_config.password.expose_secret().as_str();
-    let pg_config = Value::try_from(services.silo.postgres_config()).unwrap();
-    let es_config = Value::try_from(services.silo.elastic_config()).unwrap();
+    let pg_config = Value::try_from(pg_config).unwrap();
+    let es_config = Value::try_from(es_config).unwrap();
 
     let mut config = toml! {
         [storage]
@@ -297,21 +325,7 @@ where
     );
 
     extend_config(&mut config, configure);
-
-    let args = &[
-        "integration-test",
-        "--bind-to",
-        "127.0.0.1:0",
-        "--config",
-        &format!("inline:{config}"),
-    ];
-
-    let config = config::load_with_args([0u8; 0], args);
-
-    start::<A>(config)
-        .instrument(error_span!("test", test_id = %services.test_id))
-        .await
-        .unwrap()
+    config
 }
 
 /// Generates an ID for the test.
