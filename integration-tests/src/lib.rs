@@ -42,7 +42,7 @@ use tracing::{error_span, instrument, Instrument};
 use tracing_subscriber::filter::LevelFilter;
 use xayn_test_utils::{env::clear_env, error::Panic};
 use xayn_web_api::{config, logging, start, AppHandle, Application};
-use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
+use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
@@ -325,18 +325,20 @@ pub fn generate_test_id() -> String {
 
 #[derive(Clone, Debug)]
 pub struct Services {
-    /// Id of the test.
+    /// Id of the test
     pub test_id: String,
     /// Silo management API
     pub silo: Silo,
-    /// Id of the auto generated tenant
-    pub tenant_id: TenantId,
+    /// Tenant created for the test
+    pub tenant: Tenant,
 }
 
 impl Services {
-    #[instrument(skip(self), fields(%test_id=self.tenant_id), err)]
+    #[instrument(skip(self), fields(%test_id=self.tenant.tenant_id), err)]
     pub async fn cleanup_test(self) -> Result<(), Error> {
-        self.silo.delete_tenant(&self.tenant_id).await?;
+        self.silo
+            .delete_tenant(self.tenant.tenant_id.clone())
+            .await?;
         delete_db(self.silo.postgres_config(), MANAGEMENT_DB).await?;
         Ok(())
     }
@@ -356,23 +358,23 @@ async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, 
 
     create_db(&pg_config, MANAGEMENT_DB).await?;
 
-    let default_es_index = es_config.index_name.clone();
     let silo = Silo::new(
-        pg_config,
-        es_config,
-        enable_legacy_tenant.then_some(LegacyTenantInfo {
-            es_index: default_es_index,
-        }),
+        pg_config, es_config,
+        // we create the legacy tenant using the silo API,
+        // there are separate tests for the testing the migration
+        None,
     )
     .await?;
     silo.admin_as_mt_user_hack().await?;
     silo.initialize().await?;
-    silo.create_tenant(&tenant_id).await?;
+    let tenant = silo
+        .create_tenant(tenant_id.clone(), enable_legacy_tenant)
+        .await?;
 
     Ok(Services {
         test_id,
         silo,
-        tenant_id,
+        tenant,
     })
 }
 

@@ -22,9 +22,11 @@ use actix_web::{
 use anyhow::bail;
 use itertools::{Either, Itertools};
 use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_json::json;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
+use xayn_web_api_db_ctrl::{Operation, Silo};
 
 use super::AppState;
 use crate::{
@@ -73,7 +75,8 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::get().to(get_document_property))
                 .route(web::put().to(put_document_property))
                 .route(web::delete().to(delete_document_property)),
-        );
+        )
+        .service(web::resource("/_silo_management").route(web::post().to(silo_management)));
 }
 
 fn deserialize_string_not_empty_or_zero_bytes<'de, D>(deserializer: D) -> Result<String, D::Error>
@@ -552,6 +555,25 @@ async fn delete_document_property(
         .ok_or(DocumentPropertyNotFound)?;
 
     Ok(HttpResponse::NoContent())
+}
+
+#[derive(Deserialize, Debug)]
+struct ManagementRequest {
+    operations: Vec<Operation>,
+}
+
+#[instrument(skip(silo))]
+async fn silo_management(
+    Json(request): Json<ManagementRequest>,
+    silo: Data<Silo>,
+) -> Result<impl Responder, Error> {
+    let results = silo.run_operations(false, request.operations).await?;
+    let results = results
+        .iter()
+        .map(serde_json::to_value)
+        .try_collect::<_, Vec<_>, _>()?;
+
+    Ok(Json(json!({ "results": results })))
 }
 
 #[cfg(test)]
