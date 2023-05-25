@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     app::{self, Application, SetupError},
-    embedding::{self, Embedder},
+    embedding,
     logging,
     net,
     storage,
@@ -41,10 +41,8 @@ impl Application for Ingestion {
         routes::configure_service(config);
     }
 
-    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
-        Ok(Extension {
-            embedder: Embedder::load(&config.embedding)?,
-        })
+    fn create_extension(_config: &Self::Config) -> Result<Self::Extension, SetupError> {
+        Ok(Extension {})
     }
 }
 
@@ -76,6 +74,4 @@ impl Default for IngestionConfig {
 }
 
 #[derive(AsRef)]
-pub struct Extension {
-    pub(crate) embedder: Embedder,
-}
+pub struct Extension {}
