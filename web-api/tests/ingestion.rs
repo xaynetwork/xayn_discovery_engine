@@ -66,8 +66,8 @@ struct Error {
     details: Option<Details>,
 }
 
-#[tokio::test]
-async fn test_ingestion_created() {
+#[test]
+fn test_ingestion_created() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
@@ -91,12 +91,11 @@ async fn test_ingestion_created() {
         assert_eq!(error.kind, Kind::DocumentNotFound);
         assert!(error.details.is_none());
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_ingestion_bad_request() {
+#[test]
+fn test_ingestion_bad_request() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         let error = send_assert_json::<Error>(
             &client,
@@ -124,12 +123,11 @@ async fn test_ingestion_bad_request() {
         )
         .await;
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_deletion() {
+#[test]
+fn test_deletion() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
@@ -153,8 +151,7 @@ async fn test_deletion() {
             Details::Delete(json!([ { "id": "d1" } ])),
         );
         Ok(())
-    })
-    .await;
+    });
 }
 
 #[derive(Deserialize)]
@@ -167,8 +164,8 @@ struct SemanticSearchResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
-#[tokio::test]
-async fn test_reingestion_candidates() {
+#[test]
+fn test_reingestion_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -247,15 +244,14 @@ async fn test_reingestion_candidates() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
 // currently there is no endpoint to actually check the changed snippets/embeddings, but we can at
 // least run the test to see if something crashes and manually check with log level `info` how many
 // new and changed documents have been logged and manually check the databases
-#[tokio::test]
-async fn test_reingestion_snippets() {
+#[test]
+fn test_reingestion_snippets() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
@@ -291,6 +287,5 @@ async fn test_reingestion_snippets() {
         .await;
 
         Ok(())
-    })
-    .await;
+    });
 }

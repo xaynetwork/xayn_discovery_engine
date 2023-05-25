@@ -31,10 +31,14 @@ use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
-use tracing::{info, info_span, Instrument, Span};
+use tracing::{dispatcher, info, instrument::WithSubscriber, Dispatch};
 use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 
-use crate::middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context};
+use crate::middleware::{
+    json_error::wrap_non_json_errors,
+    request_context::setup_request_context,
+    tracing::new_http_server_with_subscriber,
+};
 
 /// Configuration for roughly network/connection layer specific configurations.
 // Hint: this value just happens to be copy, if needed the Copy trait can be removed
@@ -80,7 +84,8 @@ where
 {
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
-    let server = HttpServer::new(move || {
+    let subscriber = dispatcher::get_default(Dispatch::clone);
+    let server = new_http_server_with_subscriber!(subscriber, move || {
         let legacy_tenant = legacy_tenant.clone();
         mk_base_app()
             .app_data(json_config.clone())
@@ -105,9 +110,8 @@ where
     // `spawn` it on the tokio runtime. This hands off the responsibility to poll the server to
     // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
     // stop and get it's return value (we don't have to await `term_handle`).
-    let span = info_span!(parent: None, "web-api");
-    span.follows_from(Span::current());
-    let term_handle = tokio::spawn(server.instrument(span));
+    // FIXME: instrument with service name, do same for all requests
+    let term_handle = tokio::spawn(server.with_current_subscriber());
     Ok(AppHandle {
         on_shutdown,
         server_handle,

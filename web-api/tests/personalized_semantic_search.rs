@@ -97,8 +97,8 @@ macro_rules! assert_order {
     };
 }
 
-#[tokio::test]
-async fn test_full_personalization() {
+#[test]
+fn test_full_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
@@ -168,12 +168,11 @@ async fn test_full_personalization() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_subtle_personalization() {
+#[test]
+fn test_subtle_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
@@ -205,12 +204,11 @@ async fn test_subtle_personalization() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_full_personalization_with_inline_history() {
+#[test]
+fn test_full_personalization_with_inline_history() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
@@ -278,6 +276,5 @@ async fn test_full_personalization_with_inline_history() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }

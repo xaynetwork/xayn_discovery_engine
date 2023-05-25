@@ -27,7 +27,7 @@ use xayn_integration_tests::{
     create_db,
     db_configs_for_testing,
     generate_test_id,
-    initialize_test_logging,
+    run_async_with_test_logger,
     send_assert,
     send_assert_json,
     start_test_service_containers,
@@ -42,106 +42,109 @@ use xayn_web_api_shared::{
     request::TenantId,
 };
 
-async fn legacy_test_setup() -> Result<(postgres::Config, elastic::Config), Error> {
+async fn legacy_test_setup(test_id: &str) -> Result<(postgres::Config, elastic::Config), Error> {
     clear_env();
-    initialize_test_logging();
-    start_test_service_containers()?;
+    start_test_service_containers();
 
-    let test_id = generate_test_id();
-    let (pg_config, es_config) = db_configs_for_testing(&test_id);
+    let (pg_config, es_config) = db_configs_for_testing(test_id);
 
     create_db(&pg_config, MANAGEMENT_DB).await?;
 
     Ok((pg_config, es_config))
 }
 
-#[tokio::test]
-async fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(), Error> {
-    let (pg_config, es_config) = legacy_test_setup().await?;
+#[test]
+fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(), Error> {
+    let test_id = &generate_test_id();
+    run_async_with_test_logger(test_id, async {
+        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
 
-    let pg_options = pg_config.to_connection_options()?;
-    let mut conn = PgConnection::connect_with(&pg_options).await?;
-    let mut tx = conn.begin().await?;
+        let pg_options = pg_config.to_connection_options()?;
+        let mut conn = PgConnection::connect_with(&pg_options).await?;
+        let mut tx = conn.begin().await?;
 
-    sqlx::migrate!("../web-api-db-ctrl/postgres/tenant")
-        .run(&mut tx)
+        sqlx::migrate!("../web-api-db-ctrl/postgres/tenant")
+            .run(&mut tx)
+            .await?;
+
+        let es_client = elastic::Client::new(es_config.clone())?;
+        let legacy_elastic_index_as_tenant_id =
+            TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
+        elastic_create_tenant(&es_client, &legacy_elastic_index_as_tenant_id).await?;
+
+        let user_id = "foo_boar";
+        let last_seen = Utc.with_ymd_and_hms(2023, 2, 2, 3, 3, 3).unwrap();
+        sqlx::query("INSERT INTO users(user_id, last_seen) VALUES ($1, $2)")
+            .bind(user_id)
+            .bind(last_seen)
+            .execute(&mut tx)
+            .await?;
+
+        tx.commit().await?;
+        conn.close().await?;
+
+        let default_es_index = es_config.index_name.clone();
+        let silo = Silo::new(
+            pg_config,
+            es_config,
+            Some(LegacyTenantInfo {
+                es_index: default_es_index,
+            }),
+        )
         .await?;
+        silo.admin_as_mt_user_hack().await?;
+        let Some(legacy_tenant_id) = silo.initialize().await? else {
+            panic!("initialization with legacy tenant didn't return a legacy tenant id");
+        };
+        let tenant_schema = QuotedIdentifier::db_name_for_tenant_id(&legacy_tenant_id);
 
-    let es_client = elastic::Client::new(es_config.clone())?;
-    let legacy_elastic_index_as_tenant_id =
-        TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
-    elastic_create_tenant(&es_client, &legacy_elastic_index_as_tenant_id).await?;
+        let mut conn = PgConnection::connect_with(&pg_options).await?;
+        let query = format!("SELECT user_id, last_seen FROM {tenant_schema}.users;");
+        let (found_user_id, found_last_seen) = sqlx::query_as::<_, (String, DateTime<Utc>)>(&query)
+            .fetch_one(&mut conn)
+            .await?;
 
-    let user_id = "foo_boar";
-    let last_seen = Utc.with_ymd_and_hms(2023, 2, 2, 3, 3, 3).unwrap();
-    sqlx::query("INSERT INTO users(user_id, last_seen) VALUES ($1, $2)")
-        .bind(user_id)
-        .bind(last_seen)
-        .execute(&mut tx)
-        .await?;
-
-    tx.commit().await?;
-    conn.close().await?;
-
-    let default_es_index = es_config.index_name.clone();
-    let silo = Silo::new(
-        pg_config,
-        es_config,
-        Some(LegacyTenantInfo {
-            es_index: default_es_index,
-        }),
-    )
-    .await?;
-    silo.admin_as_mt_user_hack().await?;
-    let Some(legacy_tenant_id) = silo.initialize().await? else {
-        panic!("initialization with legacy tenant didn't return a legacy tenant id");
-    };
-    let tenant_schema = QuotedIdentifier::db_name_for_tenant_id(&legacy_tenant_id);
-
-    let mut conn = PgConnection::connect_with(&pg_options).await?;
-    let query = format!("SELECT user_id, last_seen FROM {tenant_schema}.users;");
-    let (found_user_id, found_last_seen) = sqlx::query_as::<_, (String, DateTime<Utc>)>(&query)
-        .fetch_one(&mut conn)
-        .await?;
-
-    assert_eq!(found_user_id, user_id);
-    assert_eq!(found_last_seen, last_seen);
-    conn.close().await?;
-    Ok(())
+        assert_eq!(found_user_id, user_id);
+        assert_eq!(found_last_seen, last_seen);
+        conn.close().await?;
+        Ok(())
+    })
 }
 
-#[tokio::test]
-async fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants(
-) -> Result<(), anyhow::Error> {
-    let (pg_config, es_config) = legacy_test_setup().await?;
+#[test]
+fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() -> Result<(), Error> {
+    let test_id = &generate_test_id();
+    run_async_with_test_logger(test_id, async {
+        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
 
-    let pg_options = pg_config.to_connection_options()?;
+        let pg_options = pg_config.to_connection_options()?;
 
-    let default_es_index = es_config.index_name.clone();
-    let silo = Silo::new(
-        pg_config,
-        es_config,
-        Some(LegacyTenantInfo {
-            es_index: default_es_index,
-        }),
-    )
-    .await?;
-    silo.admin_as_mt_user_hack().await?;
-    let Some(legacy_tenant_id) = silo.initialize().await? else {
-        panic!("initialization with legacy tenant didn't return a legacy tenant id");
-    };
-    let tenant_schema = QuotedIdentifier::db_name_for_tenant_id(&legacy_tenant_id);
-
-    let mut conn = PgConnection::connect_with(&pg_options).await?;
-    let query = format!("SELECT count(*) FROM {tenant_schema}.users;");
-    let (count,) = sqlx::query_as::<_, (i64,)>(&query)
-        .fetch_one(&mut conn)
+        let default_es_index = es_config.index_name.clone();
+        let silo = Silo::new(
+            pg_config,
+            es_config,
+            Some(LegacyTenantInfo {
+                es_index: default_es_index,
+            }),
+        )
         .await?;
+        silo.admin_as_mt_user_hack().await?;
+        let Some(legacy_tenant_id) = silo.initialize().await? else {
+            panic!("initialization with legacy tenant didn't return a legacy tenant id");
+        };
+        let tenant_schema = QuotedIdentifier::db_name_for_tenant_id(&legacy_tenant_id);
 
-    assert_eq!(count, 0);
+        let mut conn = PgConnection::connect_with(&pg_options).await?;
+        let query = format!("SELECT count(*) FROM {tenant_schema}.users;");
+        let (count,) = sqlx::query_as::<_, (i64,)>(&query)
+            .fetch_one(&mut conn)
+            .await?;
 
-    conn.close().await?;
-    Ok(())
+        assert_eq!(count, 0);
+
+        conn.close().await?;
+        Ok(())
+    })
 }
 
 #[derive(Deserialize)]
@@ -157,8 +160,8 @@ struct SemanticSearchResponse {
 //FIXME Once the "old" version we test migration against is the version where this
 //      test was added we can simplify it a lot by using the Silo API and the additional
 //      integration test utils added in this and the previous PR.
-#[tokio::test]
-async fn test_full_migration() -> Result<(), Error> {
+#[test]
+fn test_full_migration() -> Result<(), Error> {
     use old_xayn_web_api::{
         config as old_config,
         start as start_old,
@@ -167,168 +170,172 @@ async fn test_full_migration() -> Result<(), Error> {
         ELASTIC_MAPPING,
     };
 
-    info!("entered async test");
+    let test_id = &generate_test_id();
+    run_async_with_test_logger(test_id, async {
+        info!("entered async test");
 
-    let (pg_config, es_config) = legacy_test_setup().await?;
-    let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
+        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
+        let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
 
-    info!("test setup done");
+        info!("test setup done");
 
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()?;
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(5))
+            .build()?;
 
-    let es_mapping: Value = serde_json::from_str(ELASTIC_MAPPING)?;
-    // the old setup didn't setup elastic search itself, nor has the config pub fields
-    send_assert(
-        &client,
-        client
-            .put(format!("{}/{}", es_config.url, es_config.index_name))
-            .json(&es_mapping)
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
+        let es_mapping: Value = serde_json::from_str(ELASTIC_MAPPING)?;
+        // the old setup didn't setup elastic search itself, nor has the config pub fields
+        send_assert(
+            &client,
+            client
+                .put(format!("{}/{}", es_config.url, es_config.index_name))
+                .json(&es_mapping)
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
 
-    info!("legacy es setup done");
+        info!("legacy es setup done");
 
-    let args = &[
-        "integration-test",
-        "--bind-to",
-        "127.0.0.1:0",
-        "--config",
-        &format!("inline:{config}"),
-    ];
+        let args = &[
+            "integration-test",
+            "--bind-to",
+            "127.0.0.1:0",
+            "--config",
+            &format!("inline:{config}"),
+        ];
 
-    let config = old_config::load_with_args([""; 0], args);
-    let ingestion = start_old::<OldIngestion>(config).await?;
-    info!("started old ingestion");
-    let ingestion_url = ingestion.url();
-    let config = old_config::load_with_args([""; 0], args);
-    let personalization = start_old::<OldPersonalization>(config).await?;
-    info!("started old personalization");
-    let personalization_url = personalization.url();
+        let config = old_config::load_with_args([""; 0], args);
+        let ingestion = start_old::<OldIngestion>(config).await?;
+        info!("started old ingestion");
+        let ingestion_url = ingestion.url();
+        let config = old_config::load_with_args([""; 0], args);
+        let personalization = start_old::<OldPersonalization>(config).await?;
+        info!("started old personalization");
+        let personalization_url = personalization.url();
 
-    send_assert(
-        &client,
-        client
-            .post(ingestion_url.join("/documents")?)
-            .json(&json!({
-                "documents": [
-                    { "id": "d1", "snippet": "snippet 1" },
-                    { "id": "d2", "snippet": "snippet 2" }
-                ]
-            }))
-            .build()?,
-        StatusCode::CREATED,
-    )
-    .await;
+        send_assert(
+            &client,
+            client
+                .post(ingestion_url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1" },
+                        { "id": "d2", "snippet": "snippet 2" }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
 
-    info!("ingested documents");
+        info!("ingested documents");
 
-    let SemanticSearchResponse { documents } = send_assert_json(
-        &client,
-        client
-            .post(personalization_url.join("/semantic_search")?)
-            .json(&json!({ "document": { "query": "snippet" } }))
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
-    assert_eq!(
-        documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect::<HashSet<_>>(),
-        ["d1", "d2"].into(),
-    );
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(personalization_url.join("/semantic_search")?)
+                .json(&json!({ "document": { "query": "snippet" } }))
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2"].into(),
+        );
 
-    info!("checked ingested documents");
-    let (res1, res2) = tokio::join!(
-        async {
-            //FIXME use stop and wait once we test against
-            //      a version where this is fixed
-            ingestion.stop(false).await;
-            ingestion.wait_for_termination().await
-        },
-        async {
-            personalization.stop(false).await;
-            personalization.wait_for_termination().await
-        }
-    );
-    res1?;
-    res2?;
-    info!("stopped old ingestion & personalization");
+        info!("checked ingested documents");
+        let (res1, res2) = tokio::join!(
+            async {
+                //FIXME use stop and wait once we test against
+                //      a version where this is fixed
+                ingestion.stop(false).await;
+                ingestion.wait_for_termination().await
+            },
+            async {
+                personalization.stop(false).await;
+                personalization.wait_for_termination().await
+            }
+        );
+        res1?;
+        res2?;
+        info!("stopped old ingestion & personalization");
 
-    let pg_options = pg_config.to_connection_options()?;
-    let mut conn = PgConnection::connect_with(&pg_options).await?;
-    conn.execute("REVOKE ALL ON SCHEMA public FROM PUBLIC")
-        .await?;
-    conn.close().await?;
+        let pg_options = pg_config.to_connection_options()?;
+        let mut conn = PgConnection::connect_with(&pg_options).await?;
+        conn.execute("REVOKE ALL ON SCHEMA public FROM PUBLIC")
+            .await?;
+        conn.close().await?;
 
-    let config = config::load_with_args([""; 0], args);
-    let ingestion = start::<Ingestion>(config).await?;
-    info!("started new ingestion");
-    let ingestion_url = ingestion.url();
-    let config = config::load_with_args([""; 0], args);
-    let personalization = start::<Personalization>(config).await?;
-    info!("started new personalization");
-    let personalization_url = personalization.url();
+        let config = config::load_with_args([""; 0], args);
+        let ingestion = start::<Ingestion>(config).await?;
+        info!("started new ingestion");
+        let ingestion_url = ingestion.url();
+        let config = config::load_with_args([""; 0], args);
+        let personalization = start::<Personalization>(config).await?;
+        info!("started new personalization");
+        let personalization_url = personalization.url();
 
-    let SemanticSearchResponse { documents } = send_assert_json(
-        &client,
-        client
-            .post(personalization_url.join("/semantic_search")?)
-            .json(&json!({ "document": { "query": "snippet" } }))
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
-    assert_eq!(
-        documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect::<HashSet<_>>(),
-        ["d1", "d2"].into(),
-    );
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(personalization_url.join("/semantic_search")?)
+                .json(&json!({ "document": { "query": "snippet" } }))
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2"].into(),
+        );
 
-    info!("checked ingested documents");
+        info!("checked ingested documents");
 
-    send_assert(
-        &client,
-        client
-            .post(ingestion_url.join("/documents")?)
-            .json(&json!({
-                "documents": [ { "id": "d3", "snippet": "snippet 3" } ]
-            }))
-            .build()?,
-        StatusCode::CREATED,
-    )
-    .await;
+        send_assert(
+            &client,
+            client
+                .post(ingestion_url.join("/documents")?)
+                .json(&json!({
+                    "documents": [ { "id": "d3", "snippet": "snippet 3" } ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
 
-    info!("ingested additional documents");
+        info!("ingested additional documents");
 
-    let SemanticSearchResponse { documents } = send_assert_json(
-        &client,
-        client
-            .post(personalization_url.join("/semantic_search")?)
-            .json(&json!({ "document": { "query": "snippet" } }))
-            .build()?,
-        StatusCode::OK,
-    )
-    .await;
-    assert_eq!(
-        documents
-            .iter()
-            .map(|document| document.id.as_str())
-            .collect::<HashSet<_>>(),
-        ["d1", "d2", "d3"].into(),
-    );
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(personalization_url.join("/semantic_search")?)
+                .json(&json!({ "document": { "query": "snippet" } }))
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2", "d3"].into(),
+        );
 
-    info!("checked documents");
-    let (res1, res2) = tokio::join!(ingestion.stop_and_wait(), personalization.stop_and_wait(),);
-    res1?;
-    res2?;
-    info!("stopped new ingestion & personalization");
-    Ok(())
+        info!("checked documents");
+        let (res1, res2) =
+            tokio::join!(ingestion.stop_and_wait(), personalization.stop_and_wait(),);
+        res1?;
+        res2?;
+        info!("stopped new ingestion & personalization");
+        Ok(())
+    })
 }

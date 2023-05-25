@@ -25,7 +25,7 @@ use std::{
     env,
     future::Future,
     path::PathBuf,
-    process::{Command, Output, Stdio},
+    process::{abort, Command, Output, Stdio},
     sync::{Arc, Once},
     time::Duration,
 };
@@ -39,10 +39,10 @@ use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
-use tracing::{error_span, instrument, Instrument};
-use tracing_subscriber::filter::LevelFilter;
+use tracing::{dispatcher, error_span, instrument, Dispatch, Instrument};
+use tracing_subscriber::fmt::TestWriter;
 use xayn_test_utils::{env::clear_env, error::Panic};
-use xayn_web_api::{config, logging, start, AppHandle, Application};
+use xayn_web_api::{config, start, AppHandle, Application};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
@@ -126,20 +126,78 @@ where
     }
 }
 
-/// Initialize logging in tests.
-pub fn initialize_test_logging() {
+/// Initializes fallback logging.
+///
+/// This only exist to make sure all logs are always logged
+/// even if there is an accident and the global dispatch is
+/// used instead of the per-test dispatch.
+///
+/// There are a small number of logs where this is always the
+/// case (but we also normally don't care about) like when actix
+/// logs that it started a new worker thread.
+pub fn initialize_test_logging_fallback() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        logging::initialize(&logging::Config {
-            file: None,
-            level: LevelFilter::WARN,
-            // FIXME If we have json logging do fix the panic logging hook
-            //       to also log the backtrace instead of disabling the
-            //       panic hook.
-            install_panic_hook: false,
-        })
-        .unwrap();
+        let var = env::var_os("XAYN_TEST_FALLBACK_LOG");
+        let directives = var
+            .as_deref()
+            .map(|s| {
+                s.to_str()
+                    .expect("XAYN_TEST_FALLBACK_LOG must only contain utf-8")
+            })
+            .unwrap_or("warn");
+        tracing_subscriber::fmt()
+            .with_ansi(false)
+            .with_writer(TestWriter::default())
+            .with_env_filter(directives)
+            .init()
     });
+}
+
+static LOG_ENV_FILTER: Lazy<String> = Lazy::new(|| {
+    env::var_os("XAYN_TEST_LOG")
+        .map(|s| {
+            s.to_str()
+                .expect("XAYN_TEST_LOG must only contain utf-8")
+                .into()
+        })
+        .unwrap_or_else(|| "info,sqlx::query=warn".into())
+});
+
+pub fn initialize_local_test_logging(_test_id: &str) -> Dispatch {
+    initialize_test_logging_fallback();
+    //FIXME create a test{%test_id} span valid for the duration of the Dispatch
+    //      and automatically "recreated" on any new threads.
+    //FIXME add `XAYN_TEST_WRITE_LOGS` which will write logs as jsons to files
+    //      and uses a different env filter (env var `XAYN_TEST_FILE_LOG`).
+    //FIXME add support for writing flame graphs
+    tracing_subscriber::fmt()
+        .with_ansi(false)
+        .with_writer(TestWriter::default())
+        .with_env_filter(LOG_ENV_FILTER.as_str())
+        .finish()
+        .into()
+}
+
+pub fn run_async_with_test_logger<F>(test_id: &str, body: F) -> F::Output
+where
+    F: Future,
+{
+    let subscriber = initialize_local_test_logging(test_id);
+
+    dispatcher::with_default(&subscriber, || {
+        let body = body.instrument(error_span!(parent: None, "test", %test_id));
+
+        // more or less what #[tokio::test] does
+        // Hint: If we use a "non-current-thread" runtime in the future
+        //       make sure to attach the subscriber to the body future
+        //       using `WithSubscriber.with_current_subscriber()`.
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Failed building the Runtime")
+            .block_on(body)
+    })
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
@@ -156,37 +214,40 @@ pub fn initialize_test_logging() {
 /// - the config is pre-populated with the elastic search, embedding and postgres info
 ///   - you can update it using the `configure` callback
 /// - the service info including an url to the application is passed to the test
-pub async fn test_app<A, F>(
+pub fn test_app<A, F>(
     configure: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
 ) where
     F: Future<Output = Result<(), Panic>>,
     A: Application + 'static,
 {
-    initialize_test_logging();
+    let test_id = &generate_test_id();
+    run_async_with_test_logger(test_id, async {
+        let (configure, enable_legacy_tenant) =
+            configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
-    let (configure, enable_legacy_tenant) =
-        configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
+        let services = setup_web_dev_services(test_id, enable_legacy_tenant)
+            .await
+            .unwrap();
 
-    let services = setup_web_dev_services(enable_legacy_tenant).await.unwrap();
+        let handle = start_test_application::<A>(&services, configure).await;
 
-    let handle = start_test_application::<A>(&services, configure).await;
+        test(
+            build_client(&services),
+            Arc::new(handle.url()),
+            services.clone(),
+        )
+        .await
+        .unwrap();
 
-    test(
-        build_client(&services),
-        Arc::new(handle.url()),
-        services.clone(),
-    )
-    .await
-    .unwrap();
+        handle.stop_and_wait().await.unwrap();
 
-    handle.stop_and_wait().await.unwrap();
-
-    services.cleanup_test().await.unwrap();
+        services.cleanup_test().await.unwrap();
+    })
 }
 
 /// Like `test_app` but runs two applications in the same test context.
-pub async fn test_two_apps<A1, A2, F>(
+pub fn test_two_apps<A1, A2, F>(
     configure_first: Option<Table>,
     configure_second: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
@@ -195,31 +256,35 @@ pub async fn test_two_apps<A1, A2, F>(
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    initialize_test_logging();
+    let test_id = &generate_test_id();
+    run_async_with_test_logger(test_id, async {
+        let (configure_first, first_wit_legacy) =
+            configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
+        let (configure_second, second_with_legacy) =
+            configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
+        assert_eq!(first_wit_legacy, second_with_legacy);
 
-    let (configure_first, first_wit_legacy) =
-        configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
-    let (configure_second, second_with_legacy) =
-        configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
-    assert_eq!(first_wit_legacy, second_with_legacy);
+        let services = setup_web_dev_services(test_id, first_wit_legacy)
+            .await
+            .unwrap();
+        let first_handle = start_test_application::<A1>(&services, configure_first).await;
+        let second_handle = start_test_application::<A2>(&services, configure_second).await;
 
-    let services = setup_web_dev_services(first_wit_legacy).await.unwrap();
-    let first_handle = start_test_application::<A1>(&services, configure_first).await;
-    let second_handle = start_test_application::<A2>(&services, configure_second).await;
+        test(
+            build_client(&services),
+            Arc::new(first_handle.url()),
+            Arc::new(second_handle.url()),
+            services.clone(),
+        )
+        .await
+        .unwrap();
+        let (res1, res2) =
+            tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait(),);
+        res1.expect("first application to not fail during shutdown");
+        res2.expect("second application to not fail during shutdown");
 
-    test(
-        build_client(&services),
-        Arc::new(first_handle.url()),
-        Arc::new(second_handle.url()),
-        services.clone(),
-    )
-    .await
-    .unwrap();
-    let (res1, res2) = tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait());
-    res1.expect("first application to not fail during shutdown");
-    res2.expect("second application to not fail during shutdown");
-
-    services.cleanup_test().await.unwrap();
+        services.cleanup_test().await.unwrap();
+    })
 }
 
 fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bool) {
@@ -325,6 +390,7 @@ pub fn build_test_config_from_parts(
     );
 
     extend_config(&mut config, configure);
+
     config
 }
 
@@ -361,14 +427,16 @@ impl Services {
 /// Creates a postgres db and elastic search index for running a web-dev integration test.
 ///
 /// A uris usable for accessing the dbs are returned.
-async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, anyhow::Error> {
+async fn setup_web_dev_services(
+    test_id: &str,
+    enable_legacy_tenant: bool,
+) -> Result<Services, anyhow::Error> {
     clear_env();
-    start_test_service_containers().unwrap();
+    start_test_service_containers();
 
-    let test_id = generate_test_id();
     let tenant_id = TenantId::try_parse_ascii(test_id.as_ref())?;
 
-    let (pg_config, es_config) = db_configs_for_testing(&test_id);
+    let (pg_config, es_config) = db_configs_for_testing(test_id);
 
     create_db(&pg_config, MANAGEMENT_DB).await?;
 
@@ -386,7 +454,7 @@ async fn setup_web_dev_services(enable_legacy_tenant: bool) -> Result<Services, 
         .await?;
 
     Ok(Services {
-        test_id,
+        test_id: test_id.to_owned(),
         silo,
         tenant,
     })
@@ -454,18 +522,19 @@ pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result
 /// Start service containers.
 ///
 /// Does nothing on CI where they have to be started from the outside.
-pub fn start_test_service_containers() -> Result<(), anyhow::Error> {
+pub fn start_test_service_containers() {
     static ONCE: Once = Once::new();
-    let mut res = Ok(());
     ONCE.call_once(|| {
         if !std::env::var("CI")
             .map(|value| value == "true")
             .unwrap_or_default()
         {
-            res = just(&["web-dev-up"]).map(drop);
+            if let Err(err) = just(&["web-dev-up"]) {
+                eprintln!("Can not start web-dev services: {err}");
+                abort();
+            }
         }
     });
-    res
 }
 
 #[cfg(test)]

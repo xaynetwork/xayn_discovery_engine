@@ -21,7 +21,7 @@ type Config = <Personalization as Application>::Config;
 #[instrument(err)]
 async fn main() -> Result<(), anyhow::Error> {
     let config: Config = config::load(application_names!());
-    logging::initialize(config.as_ref())?;
+    logging::initialize_global(config.as_ref())?;
     start::<Personalization>(config)
         .await?
         .wait_for_termination()

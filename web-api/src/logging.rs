@@ -14,10 +14,10 @@
 
 //! Setup tracing on different platforms.
 
-use std::fs::OpenOptions;
+use std::{fs::OpenOptions, path::Path};
 
 use serde::{Deserialize, Serialize};
-use tracing::{error, Level};
+use tracing::{error, Dispatch, Level};
 use tracing_subscriber::{
     filter::{LevelFilter, Targets},
     layer::SubscriberExt,
@@ -78,32 +78,35 @@ impl Default for Config {
 ///
 /// Even though this returns an error if logging was already initialized you
 /// should only call this function when you expect it to succeed.
-pub fn initialize(log_config: &Config) -> Result<(), TryInitError> {
-    init_tracing_once(log_config)?;
-    if log_config.install_panic_hook {
+pub fn initialize_global(config: &Config) -> Result<(), TryInitError> {
+    let dispatch = create_trace_dispatch(
+        config.level,
+        config.file.as_ref().map(|f| f.relative()).as_deref(),
+    );
+    dispatch.try_init()?;
+    if config.install_panic_hook {
         init_panic_logging();
     }
     Ok(())
 }
 
-fn init_tracing_once(log_config: &Config) -> Result<(), TryInitError> {
+fn create_trace_dispatch(level: LevelFilter, file: Option<&Path>) -> Dispatch {
     let subscriber = tracing_subscriber::registry();
 
     let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
 
     let sqlx_query_no_info = Targets::new()
-        .with_default(log_config.level)
+        .with_default(level)
         .with_target("sqlx::query", Level::WARN);
 
-    let file_log = log_config
-        .file
+    let file_log = file
         .as_ref()
-        .map(|log_file| {
+        .map(|file| {
             OpenOptions::new()
                 .write(true)
                 .truncate(true)
                 .create(true)
-                .open(log_file.relative())
+                .open(file)
                 .map(|writer| {
                     tracing_subscriber::fmt::layer()
                         .with_writer(writer)
@@ -121,8 +124,8 @@ fn init_tracing_once(log_config: &Config) -> Result<(), TryInitError> {
         .with(stdout_log)
         .with(sqlx_query_no_info)
         .with(file_log)
-        .with(log_config.level)
-        .try_init()
+        .with(level)
+        .into()
 }
 
 fn init_panic_logging() {
