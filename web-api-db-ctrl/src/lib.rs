@@ -34,6 +34,7 @@ pub struct Silo {
     postgres: PgClient,
     elastic: EsClient,
     enable_legacy_tenant: Option<LegacyTenantInfo>,
+    embedding_size: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -46,6 +47,7 @@ impl Silo {
         postgres_config: PgConfig,
         elastic_config: EsConfig,
         enable_legacy_tenant: Option<LegacyTenantInfo>,
+        embedding_size: usize,
     ) -> Result<Self, Error> {
         let postgres = PoolOptions::new()
             .connect_with(postgres_config.to_connection_options()?)
@@ -59,17 +61,24 @@ impl Silo {
             postgres,
             elastic,
             enable_legacy_tenant,
+            embedding_size,
         })
     }
 
     pub async fn initialize(&self) -> Result<Option<TenantId>, Error> {
         let opt_legacy_setup = self.enable_legacy_tenant.as_ref().map(move |legacy_info| {
             move |tenant_id| async move {
-                elastic::setup_legacy_tenant(&self.elastic, &legacy_info.es_index, &tenant_id).await
+                elastic::setup_legacy_tenant(
+                    &self.elastic,
+                    &legacy_info.es_index,
+                    &tenant_id,
+                    self.embedding_size,
+                )
+                .await
             }
         });
         let migrate_tenant = move |tenant_id| async move {
-            elastic::migrate_tenant_index(&self.elastic, &tenant_id).await
+            elastic::migrate_tenant_index(&self.elastic, &tenant_id, self.embedding_size).await
         };
 
         postgres::initialize(&self.postgres, opt_legacy_setup, migrate_tenant).await
@@ -90,7 +99,7 @@ impl Silo {
     ) -> Result<Tenant, Error> {
         let mut tx = self.postgres.begin().await?;
         postgres::create_tenant(&mut tx, &tenant_id, is_legacy_tenant).await?;
-        elastic::create_tenant_index(&self.elastic, &tenant_id).await?;
+        elastic::create_tenant_index(&self.elastic, &tenant_id, self.embedding_size).await?;
         tx.commit().await?;
         Ok(Tenant {
             tenant_id,

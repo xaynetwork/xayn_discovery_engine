@@ -69,7 +69,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
         let es_client = elastic::Client::new(es_config.clone())?;
         let legacy_elastic_index_as_tenant_id =
             TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
-        elastic_create_tenant(&es_client, &legacy_elastic_index_as_tenant_id).await?;
+        elastic_create_tenant(&es_client, &legacy_elastic_index_as_tenant_id, 128).await?;
 
         let user_id = "foo_boar";
         let last_seen = Utc.with_ymd_and_hms(2023, 2, 2, 3, 3, 3).unwrap();
@@ -89,6 +89,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
             Some(LegacyTenantInfo {
                 es_index: default_es_index,
             }),
+            128,
         )
         .await?;
         silo.admin_as_mt_user_hack().await?;
@@ -124,6 +125,7 @@ fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() {
             Some(LegacyTenantInfo {
                 es_index: default_es_index,
             }),
+            128,
         )
         .await?;
         silo.admin_as_mt_user_hack().await?;

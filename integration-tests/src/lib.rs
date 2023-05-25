@@ -677,7 +677,7 @@ async fn setup_web_dev_services(
         pg_config, es_config,
         // we create the legacy tenant using the silo API,
         // there are separate tests for the testing the migration
-        None,
+        None, 128,
     )
     .await?;
     silo.admin_as_mt_user_hack().await?;

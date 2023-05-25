@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::bail;
 use once_cell::sync::Lazy;
 use reqwest::{Method, StatusCode};
 use serde_json::{json, Value};
@@ -23,11 +24,16 @@ use crate::Error;
 static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
 
-pub async fn create_tenant_index(elastic: &Client, new_id: &TenantId) -> Result<(), Error> {
+pub async fn create_tenant_index(
+    elastic: &Client,
+    new_id: &TenantId,
+    embedding_size: usize,
+) -> Result<(), Error> {
+    let mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
     elastic
         .with_index(new_id)
         .request(Method::PUT, [], [])
-        .json(&*MAPPING)
+        .json(&mapping)
         .send()
         .await?
         .error_for_status()?;
@@ -50,11 +56,12 @@ pub(crate) async fn setup_legacy_tenant(
     elastic: &Client,
     default_index: &str,
     tenant_id: &TenantId,
+    embedding_size: usize,
 ) -> Result<(), Error> {
     if does_tenant_index_exist(elastic, default_index).await? {
         create_index_alias(elastic, default_index, tenant_id).await?;
     } else {
-        create_tenant_index(elastic, tenant_id).await?;
+        create_tenant_index(elastic, tenant_id, embedding_size).await?;
     }
 
     Ok(())
@@ -63,13 +70,14 @@ pub(crate) async fn setup_legacy_tenant(
 pub(crate) async fn migrate_tenant_index(
     elastic: &Client,
     tenant_id: &TenantId,
+    embedding_size: usize,
 ) -> Result<(), Error> {
     if !does_tenant_index_exist(elastic, tenant_id).await? {
         error!(
             {%tenant_id},
             "index for tenant doesn't exist, creating a new index"
         );
-        create_tenant_index(elastic, tenant_id).await?;
+        create_tenant_index(elastic, tenant_id, embedding_size).await?;
     }
     //FIXME code to check if the index is a super-set of the expected index
     //FIXME code for allowing updates to the ES schema, at least if
@@ -120,4 +128,54 @@ async fn create_index_alias(
         .error_for_status()?;
     info!({%index, %alias}, "created ES alias");
     Ok(())
+}
+
+fn mapping_with_embedding_size(mapping: &Value, embedding_size: usize) -> Result<Value, Error> {
+    let mut mapping = mapping.clone();
+    if let Some(dims) = mapping
+        .get_mut("mappings")
+        .and_then(|obj| obj.get_mut("properties"))
+        .and_then(|obj| obj.get_mut("embedding"))
+        .and_then(|obj| obj.get_mut("dims"))
+    {
+        *dims = embedding_size.into();
+    } else {
+        bail!("unexpected ES mapping structure can't set embedding.dims")
+    }
+    Ok(mapping)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_setting_embedding_dims_works() {
+        assert_eq!(
+            mapping_with_embedding_size(&MAPPING, 4321).unwrap(),
+            json!({
+                "mappings": {
+                    "properties": {
+                        "snippet": {
+                            "type": "text"
+                        },
+                        "embedding": {
+                            "type": "dense_vector",
+                            "dims": 4321,
+                            "index": true,
+                            "similarity": "dot_product"
+                        },
+                        "properties": {
+                            "dynamic": false,
+                            "properties": {
+                                "publication_date": {
+                                    "type": "date"
+                                }
+                            }
+                        }
+                    }
+                }
+            })
+        )
+    }
 }

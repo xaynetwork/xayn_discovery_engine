@@ -63,7 +63,9 @@ where
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
-        let (silo, legacy_tenant) = initialize_silo(config.as_ref(), config.as_ref()).await?;
+        let embedding_size = 128; // TODO[pmk/now] get from emebedder by moving embedder out of extension
+        let (silo, legacy_tenant) =
+            initialize_silo(config.as_ref(), config.as_ref(), embedding_size).await?;
         let storage_builder = Arc::new(Storage::builder(config.as_ref(), legacy_tenant).await?);
         Ok(Self {
             config,
