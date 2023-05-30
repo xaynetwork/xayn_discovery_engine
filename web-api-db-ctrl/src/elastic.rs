@@ -72,8 +72,8 @@ pub(crate) async fn migrate_tenant_index(
         create_tenant_index(elastic, tenant_id).await?;
     }
     //FIXME code to check if the index is a super-set of the expected index
-    //FIXME code for allowing updates to the ES schema, at lest if
-    //      incremental applicable of the change is possible
+    //FIXME code for allowing updates to the ES schema, at least if
+    //      incremental application of the change is possible
     Ok(())
 }
 
