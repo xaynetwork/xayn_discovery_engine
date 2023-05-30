@@ -25,7 +25,7 @@ use xayn_ai_coi::{CoiConfig, CoiSystem};
 pub use self::{rerank::bench_rerank, stateless::bench_derive_interests};
 use crate::{
     app::{self, Application, SetupError},
-    embedding::{self, Embedder},
+    embedding,
     logging,
     net,
     storage,
@@ -48,7 +48,6 @@ impl Application for Personalization {
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         Ok(Extension {
             coi: config.coi.clone().build(),
-            embedder: Embedder::load(&config.embedding)?,
         })
     }
 }
@@ -135,5 +134,4 @@ impl Default for SemanticSearchConfig {
 #[derive(AsRef)]
 pub struct Extension {
     pub(crate) coi: CoiSystem,
-    pub(crate) embedder: Embedder,
 }

@@ -254,6 +254,7 @@ impl Storage {
 pub(crate) async fn initialize_silo(
     config: &Config,
     tenant_config: &tenants::Config,
+    embedding_size: usize,
 ) -> Result<(Silo, Option<TenantId>), SetupError> {
     let silo = Silo::new(
         config.postgres.clone(),
@@ -263,6 +264,7 @@ pub(crate) async fn initialize_silo(
             .then(|| LegacyTenantInfo {
                 es_index: config.elastic.index_name.clone(),
             }),
+        embedding_size,
     )
     .await?;
 

@@ -28,6 +28,7 @@ use xayn_web_api_shared::request::TenantId;
 
 use crate::{
     app::{Application, SetupError},
+    embedding::Embedder,
     error::common::InternalError,
     middleware::request_context::RequestContext,
     storage::{initialize_silo, Storage, StorageBuilder},
@@ -41,6 +42,7 @@ where
 {
     #[as_ref(forward)]
     pub(crate) config: A::Config,
+    pub(crate) embedder: Embedder,
     #[deref]
     pub(crate) extension: A::Extension,
     storage_builder: Arc<StorageBuilder>,
@@ -63,10 +65,13 @@ where
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
-        let (silo, legacy_tenant) = initialize_silo(config.as_ref(), config.as_ref()).await?;
+        let embedder = Embedder::load(config.as_ref())?;
+        let (silo, legacy_tenant) =
+            initialize_silo(config.as_ref(), config.as_ref(), embedder.embedding_size()).await?;
         let storage_builder = Arc::new(Storage::builder(config.as_ref(), legacy_tenant).await?);
         Ok(Self {
             config,
+            embedder,
             extension,
             storage_builder,
             silo: Arc::new(silo),
