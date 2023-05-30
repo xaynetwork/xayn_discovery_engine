@@ -31,7 +31,7 @@ struct PersonalizedDocumentsResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
-async fn store_user_history(enabled: bool) {
+fn store_user_history(enabled: bool) {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
@@ -93,16 +93,15 @@ async fn store_user_history(enabled: bool) {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_store_user_history_enabled() {
-    store_user_history(true).await;
+#[test]
+fn test_store_user_history_enabled() {
+    store_user_history(true);
 }
 
-#[tokio::test]
-async fn test_store_user_history_disabled() {
-    store_user_history(false).await;
+#[test]
+fn test_store_user_history_disabled() {
+    store_user_history(false);
 }

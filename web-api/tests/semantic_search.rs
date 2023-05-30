@@ -12,11 +12,11 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::Error;
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
 #[derive(Serialize)]
@@ -31,7 +31,7 @@ async fn ingest(
     client: &Client,
     base_url: &Url,
     documents: &[IngestedDocument],
-) -> Result<(), Panic> {
+) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -57,8 +57,8 @@ struct SemanticSearchResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
-#[tokio::test]
-async fn test_semantic_search() {
+#[test]
+fn test_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -113,12 +113,11 @@ async fn test_semantic_search() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_semantic_search_min_similarity() {
+#[test]
+fn test_semantic_search_min_similarity() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -168,12 +167,11 @@ async fn test_semantic_search_min_similarity() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_semantic_search_with_query() {
+#[test]
+fn test_semantic_search_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -230,6 +228,5 @@ async fn test_semantic_search_with_query() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }

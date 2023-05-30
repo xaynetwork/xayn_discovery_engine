@@ -14,15 +14,15 @@
 
 use std::collections::HashSet;
 
+use anyhow::Error;
 use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
-use xayn_test_utils::error::Panic;
 use xayn_web_api::Ingestion;
 
-async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -52,14 +52,14 @@ impl DocumentCandidatesResponse {
     }
 }
 
-async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, Panic> {
+async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, Error> {
     let request = client.get(url.join("/documents/candidates")?).build()?;
     let response = send_assert_json(client, request, StatusCode::OK).await;
 
     Ok(response)
 }
 
-async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) -> Result<(), Panic> {
+async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) -> Result<(), Error> {
     let request = client
         .put(url.join("/documents/candidates")?)
         .json(&json!({ "documents": ids.into_iter().map(|id| json!({ "id": id })).collect_vec() }))
@@ -69,8 +69,8 @@ async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) ->
     Ok(())
 }
 
-#[tokio::test]
-async fn test_candidates_all() {
+#[test]
+fn test_candidates_all() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
@@ -78,12 +78,11 @@ async fn test_candidates_all() {
         set(&client, &url, ["d1", "d2", "d3"]).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_candidates_some() {
+#[test]
+fn test_candidates_some() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
@@ -91,12 +90,11 @@ async fn test_candidates_some() {
         set(&client, &url, ["d1", "d3"]).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d3"].into());
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_candidates_none() {
+#[test]
+fn test_candidates_none() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
@@ -104,12 +102,11 @@ async fn test_candidates_none() {
         set(&client, &url, None).await?;
         assert!(get(&client, &url).await?.ids().is_empty());
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_candidates_not_default() {
+#[test]
+fn test_candidates_not_default() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         send_assert(
@@ -132,8 +129,7 @@ async fn test_candidates_not_default() {
         set(&client, &url, ["d2", "d3"]).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d2", "d3"].into());
         Ok(())
-    })
-    .await;
+    });
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -149,18 +145,18 @@ enum Details {
 }
 
 #[derive(Deserialize)]
-struct Error {
+struct ServerError {
     kind: Kind,
     details: Details,
 }
 
-#[tokio::test]
-async fn test_candidates_warning() {
+#[test]
+fn test_candidates_warning() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
-        let error = send_assert_json::<Error>(
+        let error = send_assert_json::<ServerError>(
             &client,
             client
                 .put(url.join("/documents/candidates")?)
@@ -178,12 +174,11 @@ async fn test_candidates_warning() {
         assert_eq!(error.details, Details::Set(json!([ { "id": "d4" } ])));
         assert_eq!(get(&client, &url).await?.ids(), ["d1"].into());
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_candidates_reingestion() {
+#[test]
+fn test_candidates_reingestion() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         send_assert(
@@ -225,6 +220,5 @@ async fn test_candidates_reingestion() {
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d4", "d6"].into());
 
         Ok(())
-    })
-    .await;
+    });
 }

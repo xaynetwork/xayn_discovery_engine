@@ -12,16 +12,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::Error;
 use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
-async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
+async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -46,7 +46,7 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Panic> {
     Ok(())
 }
 
-async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Panic> {
+async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -97,8 +97,8 @@ macro_rules! assert_order {
     };
 }
 
-#[tokio::test]
-async fn test_full_personalization() {
+#[test]
+fn test_full_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
@@ -168,12 +168,11 @@ async fn test_full_personalization() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_subtle_personalization() {
+#[test]
+fn test_subtle_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
@@ -205,12 +204,11 @@ async fn test_subtle_personalization() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
-#[tokio::test]
-async fn test_full_personalization_with_inline_history() {
+#[test]
+fn test_full_personalization_with_inline_history() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
@@ -278,6 +276,5 @@ async fn test_full_personalization_with_inline_history() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }

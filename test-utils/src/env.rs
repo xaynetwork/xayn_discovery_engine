@@ -38,7 +38,8 @@ use regex::Regex;
 /// - `DOCKER*`
 /// - `PODMAN*`
 /// - `XDG*`
-/// - `GITHUB_`
+/// - `GITHUB_*`
+/// - `XAYN_TEST_*`
 pub fn clear_env() {
     static ONCE: Once = Once::new();
     // We need to make sure we only do it once as this doesn't execute concurrently
@@ -74,6 +75,7 @@ static ENV_PRUNE_EXCEPTIONS: Lazy<Regex> = Lazy::new(|| {
         |(?:^PODMAN)
         |(?:^XDG)
         |(?:^GITHUB_)
+        |(?:^XAYN_TEST_)
         "#,
     )
     .unwrap()

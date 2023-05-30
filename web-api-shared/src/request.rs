@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{str, sync::Arc};
+use std::{
+    str::{self, FromStr},
+    sync::Arc,
+};
 
 use derive_more::{AsRef, From};
 use once_cell::sync::Lazy;
@@ -64,6 +67,14 @@ impl TenantId {
                 hint: String::from_utf8_lossy(ascii).into_owned(),
             })
         }
+    }
+}
+
+impl FromStr for TenantId {
+    type Err = InvalidTenantId;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        TenantId::try_parse_ascii(s.as_bytes())
     }
 }
 

@@ -32,7 +32,7 @@ enum Error {
     DocumentPropertyNotFound,
 }
 
-async fn document_properties(is_candidate: bool) {
+fn document_properties(is_candidate: bool) {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
@@ -123,18 +123,17 @@ async fn document_properties(is_candidate: bool) {
         assert!(properties.is_empty());
 
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_document_properties_candidate() {
-    document_properties(true).await;
+#[test]
+fn test_document_properties_candidate() {
+    document_properties(true);
 }
 
-#[tokio::test]
-async fn test_document_properties_noncandidate() {
-    document_properties(false).await;
+#[test]
+fn test_document_properties_noncandidate() {
+    document_properties(false);
 }
 
 #[derive(Debug, Deserialize)]
@@ -142,7 +141,7 @@ struct DocumentPropertyResponse {
     property: Value,
 }
 
-async fn document_property(is_candidate: bool) {
+fn document_property(is_candidate: bool) {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
@@ -233,16 +232,15 @@ async fn document_property(is_candidate: bool) {
         assert_eq!(error, Error::DocumentNotFound);
 
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_document_property_candidate() {
-    document_property(true).await;
+#[test]
+fn test_document_property_candidate() {
+    document_property(true);
 }
 
-#[tokio::test]
-async fn test_document_property_noncandidate() {
-    document_property(false).await;
+#[test]
+fn test_document_property_noncandidate() {
+    document_property(false);
 }

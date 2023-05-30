@@ -24,10 +24,9 @@ use xayn_integration_tests::{
     test_two_apps,
     UNCHANGED_CONFIG,
 };
-use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
-async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), anyhow::Error> {
     send_assert(
         client,
         client
@@ -66,8 +65,8 @@ struct Error {
     details: Option<Details>,
 }
 
-#[tokio::test]
-async fn test_ingestion_created() {
+#[test]
+fn test_ingestion_created() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
@@ -91,12 +90,11 @@ async fn test_ingestion_created() {
         assert_eq!(error.kind, Kind::DocumentNotFound);
         assert!(error.details.is_none());
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_ingestion_bad_request() {
+#[test]
+fn test_ingestion_bad_request() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         let error = send_assert_json::<Error>(
             &client,
@@ -124,12 +122,11 @@ async fn test_ingestion_bad_request() {
         )
         .await;
         Ok(())
-    })
-    .await;
+    });
 }
 
-#[tokio::test]
-async fn test_deletion() {
+#[test]
+fn test_deletion() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
@@ -153,8 +150,7 @@ async fn test_deletion() {
             Details::Delete(json!([ { "id": "d1" } ])),
         );
         Ok(())
-    })
-    .await;
+    });
 }
 
 #[derive(Deserialize)]
@@ -167,8 +163,8 @@ struct SemanticSearchResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
-#[tokio::test]
-async fn test_reingestion_candidates() {
+#[test]
+fn test_reingestion_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -247,15 +243,14 @@ async fn test_reingestion_candidates() {
 
             Ok(())
         },
-    )
-    .await;
+    );
 }
 
 // currently there is no endpoint to actually check the changed snippets/embeddings, but we can at
 // least run the test to see if something crashes and manually check with log level `info` how many
 // new and changed documents have been logged and manually check the databases
-#[tokio::test]
-async fn test_reingestion_snippets() {
+#[test]
+fn test_reingestion_snippets() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
@@ -291,6 +286,50 @@ async fn test_reingestion_snippets() {
         .await;
 
         Ok(())
-    })
-    .await;
+    });
+}
+
+#[derive(Debug, Deserialize)]
+struct OrderPropertyResponse {
+    property: usize,
+}
+
+#[test]
+fn test_ingestion_same_id() {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "properties": { "order": 1 } },
+                        { "id": "d2", "snippet": "snippet 2", "properties": { "order": 2 } },
+                        { "id": "d1", "snippet": "snippet 3", "properties": { "order": 3 } }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
+        let OrderPropertyResponse { property } = send_assert_json(
+            &client,
+            client
+                .get(url.join("/documents/d1/properties/order")?)
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(property, 3);
+        let OrderPropertyResponse { property } = send_assert_json(
+            &client,
+            client
+                .get(url.join("/documents/d2/properties/order")?)
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(property, 2);
+        Ok(())
+    });
 }

@@ -76,4 +76,8 @@ impl Embedder {
 
         Ok(Embedder { bert })
     }
+
+    pub(crate) fn embedding_size(&self) -> usize {
+        self.bert.embedding_size()
+    }
 }

@@ -3358,6 +3358,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "temp-dir"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af547b166dd1ea4b472165569fc456cfb6818116f854690b0ff205e636523dab"
+
+[[package]]
 name = "tempfile"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3646,6 +3652,17 @@ checksum = "24eb03ba0eab1fd845050058ce5e616558e8f8d8fca633e6b163fe25c797213a"
 dependencies = [
  "once_cell",
  "valuable",
+]
+
+[[package]]
+name = "tracing-flame"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bae117ee14789185e129aaee5d93750abe67fdc5a9a62650452bfe4e122a3a9"
+dependencies = [
+ "lazy_static",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -4263,6 +4280,26 @@ dependencies = [
 [[package]]
 name = "xayn-ai-bert"
 version = "0.1.1"
+source = "git+https://github.com/xaynetwork/xayn_discovery_engine.git?rev=f7bdf56e265e78d34d35f67301914fcd9c9179e9#f7bdf56e265e78d34d35f67301914fcd9c9179e9"
+dependencies = [
+ "derive_more",
+ "displaydoc",
+ "figment",
+ "itertools 0.10.5",
+ "lindera",
+ "ndarray",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokenizers",
+ "tract-onnx",
+ "xayn-test-utils 0.1.1",
+]
+
+[[package]]
+name = "xayn-ai-bert"
+version = "0.2.0"
 dependencies = [
  "criterion",
  "csv",
@@ -4279,12 +4316,30 @@ dependencies = [
  "thiserror",
  "tokenizers",
  "tract-onnx",
- "xayn-test-utils",
+ "xayn-test-utils 0.2.0",
 ]
 
 [[package]]
 name = "xayn-ai-coi"
 version = "0.1.1"
+source = "git+https://github.com/xaynetwork/xayn_discovery_engine.git?rev=f7bdf56e265e78d34d35f67301914fcd9c9179e9#f7bdf56e265e78d34d35f67301914fcd9c9179e9"
+dependencies = [
+ "chrono",
+ "derive_more",
+ "displaydoc",
+ "itertools 0.10.5",
+ "ndarray",
+ "serde",
+ "sqlx",
+ "thiserror",
+ "tracing",
+ "uuid",
+ "xayn-ai-bert 0.1.1",
+]
+
+[[package]]
+name = "xayn-ai-coi"
+version = "0.2.0"
 dependencies = [
  "chrono",
  "criterion",
@@ -4300,16 +4355,17 @@ dependencies = [
  "thiserror",
  "tracing",
  "uuid",
- "xayn-ai-bert",
- "xayn-test-utils",
+ "xayn-ai-bert 0.2.0",
+ "xayn-test-utils 0.2.0",
 ]
 
 [[package]]
 name = "xayn-integration-tests"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "derive_more",
  "once_cell",
  "rand",
  "regex",
@@ -4318,13 +4374,16 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "temp-dir",
  "tokio",
  "toml 0.7.3",
  "tracing",
+ "tracing-flame",
+ "tracing-log",
  "tracing-subscriber",
  "uuid",
- "xayn-test-utils",
- "xayn-web-api",
+ "xayn-test-utils 0.2.0",
+ "xayn-web-api 0.2.0",
  "xayn-web-api-db-ctrl",
  "xayn-web-api-shared",
 ]
@@ -4332,6 +4391,17 @@ dependencies = [
 [[package]]
 name = "xayn-summarizer"
 version = "0.1.1"
+source = "git+https://github.com/xaynetwork/xayn_discovery_engine.git?rev=f7bdf56e265e78d34d35f67301914fcd9c9179e9#f7bdf56e265e78d34d35f67301914fcd9c9179e9"
+dependencies = [
+ "ndarray",
+ "serde",
+ "serde_json",
+ "unicode-segmentation",
+]
+
+[[package]]
+name = "xayn-summarizer"
+version = "0.2.0"
 dependencies = [
  "ndarray",
  "serde",
@@ -4342,6 +4412,18 @@ dependencies = [
 [[package]]
 name = "xayn-test-utils"
 version = "0.1.1"
+source = "git+https://github.com/xaynetwork/xayn_discovery_engine.git?rev=f7bdf56e265e78d34d35f67301914fcd9c9179e9#f7bdf56e265e78d34d35f67301914fcd9c9179e9"
+dependencies = [
+ "float-cmp",
+ "ndarray",
+ "once_cell",
+ "regex",
+ "uuid",
+]
+
+[[package]]
+name = "xayn-test-utils"
+version = "0.2.0"
 dependencies = [
  "float-cmp",
  "ndarray",
@@ -4353,6 +4435,49 @@ dependencies = [
 [[package]]
 name = "xayn-web-api"
 version = "0.1.1"
+source = "git+https://github.com/xaynetwork/xayn_discovery_engine.git?rev=f7bdf56e265e78d34d35f67301914fcd9c9179e9#f7bdf56e265e78d34d35f67301914fcd9c9179e9"
+dependencies = [
+ "actix-cors",
+ "actix-web",
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "chrono",
+ "clap 4.1.8",
+ "csv",
+ "derive_more",
+ "displaydoc",
+ "dotenvy",
+ "either",
+ "figment",
+ "futures-util",
+ "itertools 0.10.5",
+ "mime",
+ "ndarray",
+ "once_cell",
+ "pin-project",
+ "rand",
+ "regex",
+ "reqwest",
+ "secrecy",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "urlencoding",
+ "uuid",
+ "xayn-ai-bert 0.1.1",
+ "xayn-ai-coi 0.1.1",
+ "xayn-summarizer 0.1.1",
+]
+
+[[package]]
+name = "xayn-web-api"
+version = "0.2.0"
 dependencies = [
  "actix-cors",
  "actix-web",
@@ -4394,24 +4519,26 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
- "xayn-ai-bert",
- "xayn-ai-coi",
+ "xayn-ai-bert 0.2.0",
+ "xayn-ai-coi 0.2.0",
  "xayn-integration-tests",
- "xayn-summarizer",
- "xayn-test-utils",
+ "xayn-summarizer 0.2.0",
+ "xayn-test-utils 0.2.0",
+ "xayn-web-api 0.1.1",
  "xayn-web-api-db-ctrl",
  "xayn-web-api-shared",
 ]
 
 [[package]]
 name = "xayn-web-api-db-ctrl"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "futures-util",
  "itertools 0.10.5",
  "once_cell",
  "reqwest",
+ "serde",
  "serde_json",
  "sqlx",
  "tokio",
@@ -4422,7 +4549,7 @@ dependencies = [
 
 [[package]]
 name = "xayn-web-api-shared"
-version = "0.1.1"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "derive_more",

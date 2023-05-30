@@ -31,10 +31,22 @@ use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
-use tracing::{info, info_span, Instrument, Span};
+use tracing::{
+    dispatcher,
+    info,
+    info_span,
+    instrument,
+    instrument::WithSubscriber,
+    Dispatch,
+    Instrument,
+};
 use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 
-use crate::middleware::{json_error::wrap_non_json_errors, request_context::setup_request_context};
+use crate::middleware::{
+    json_error::wrap_non_json_errors,
+    request_context::setup_request_context,
+    tracing::new_http_server_with_subscriber,
+};
 
 /// Configuration for roughly network/connection layer specific configurations.
 // Hint: this value just happens to be copy, if needed the Copy trait can be removed
@@ -63,6 +75,7 @@ impl Default for Config {
     }
 }
 
+#[instrument(skip_all)]
 pub(crate) fn start_actix_server<T>(
     net_config: Config,
     legacy_tenant: Option<TenantId>,
@@ -80,7 +93,8 @@ where
 {
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
-    let server = HttpServer::new(move || {
+    let subscriber = dispatcher::get_default(Dispatch::clone);
+    let server = new_http_server_with_subscriber!(subscriber, move || {
         let legacy_tenant = legacy_tenant.clone();
         mk_base_app()
             .app_data(json_config.clone())
@@ -105,9 +119,12 @@ where
     // `spawn` it on the tokio runtime. This hands off the responsibility to poll the server to
     // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
     // stop and get it's return value (we don't have to await `term_handle`).
-    let span = info_span!(parent: None, "web-api");
-    span.follows_from(Span::current());
-    let term_handle = tokio::spawn(server.instrument(span));
+    // FIXME: instrument with service name, do same for all requests
+    let term_handle = tokio::spawn(
+        //Hint: make sure to create span after spawning.
+        async move { server.instrument(info_span!("polling_server")).await }
+            .with_current_subscriber(),
+    );
     Ok(AppHandle {
         on_shutdown,
         server_handle,
@@ -150,6 +167,7 @@ impl AppHandle {
     }
 
     /// Stops the app gracefully and escalates to non-graceful stopping on timeout, then awaits the apps result.
+    #[instrument(skip(self))]
     pub async fn stop_and_wait(self) -> Result<(), anyhow::Error> {
         //FIXME find out why graceful shutdown on a idle actix server is broken
         self.stop().await;
@@ -161,6 +179,7 @@ impl AppHandle {
     /// To make sure the application is fully stopped and to handle the result of
     /// the application execution you needs to await [`AppHandle.wait_for_termination()`]
     /// afterwards.
+    #[instrument(name = "stop_actix_server", skip(self))]
     pub async fn stop(&self) {
         self.server_handle.stop(false).await;
     }
@@ -168,9 +187,14 @@ impl AppHandle {
     /// Waits for the server/app to have stopped and returns it's return value.
     ///
     /// It is recommended but not required to call this.
+    #[instrument(skip(self))]
     pub async fn wait_for_termination(self) -> Result<(), anyhow::Error> {
-        self.term_handle.await??;
-        (self.on_shutdown)().await;
+        self.term_handle
+            .instrument(info_span!("awaiting termination"))
+            .await??;
+        (self.on_shutdown)()
+            .instrument(info_span!("on_shutdown_callback"))
+            .await;
         Ok(())
     }
 }

@@ -13,3 +13,4 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 pub(crate) mod json_error;
 pub(crate) mod request_context;
+pub(crate) mod tracing;

@@ -239,41 +239,42 @@ pub(crate) struct Storage {
 impl Storage {
     pub(crate) async fn builder(
         config: &Config,
-        tenant_config: &tenants::Config,
+        legacy_tenant: Option<TenantId>,
     ) -> Result<StorageBuilder, SetupError> {
-        let legacy_tenant = Self::initialize(config, tenant_config).await?;
-
         Ok(StorageBuilder {
             elastic: elastic::Client::builder(config.elastic.clone())?,
             postgres: postgres::Database::builder(&config.postgres, legacy_tenant).await?,
         })
     }
+}
 
-    // FIXME: long term this should be run by the control plane,
-    //        in a different binary/lambda or similar before we
-    //        start updating the instances.
-    async fn initialize(
-        config: &Config,
-        tenant_config: &tenants::Config,
-    ) -> Result<Option<TenantId>, SetupError> {
-        let silo = Silo::new(
-            config.postgres.clone(),
-            config.elastic.clone(),
-            tenant_config
-                .enable_legacy_tenant
-                .then(|| LegacyTenantInfo {
-                    es_index: config.elastic.index_name.clone(),
-                }),
-        )
-        .await?;
+// FIXME: long term this should be run by the control plane,
+//        in a different binary/lambda or similar before we
+//        start updating the instances.
+pub(crate) async fn initialize_silo(
+    config: &Config,
+    tenant_config: &tenants::Config,
+    embedding_size: usize,
+) -> Result<(Silo, Option<TenantId>), SetupError> {
+    let silo = Silo::new(
+        config.postgres.clone(),
+        config.elastic.clone(),
+        tenant_config
+            .enable_legacy_tenant
+            .then(|| LegacyTenantInfo {
+                es_index: config.elastic.index_name.clone(),
+            }),
+        embedding_size,
+    )
+    .await?;
 
-        // FIXME: remove this once we have a proper separation between
-        //        a admin pg user owning the db structure and a web-api-mt
-        //        user which can only use tables but nothing more.
-        silo.admin_as_mt_user_hack().await?;
+    // FIXME: remove this once we have a proper separation between
+    //        a admin pg user owning the db structure and a web-api-mt
+    //        user which can only use tables but nothing more.
+    silo.admin_as_mt_user_hack().await?;
 
-        silo.initialize().await
-    }
+    let legacy_tenant = silo.initialize().await?;
+    Ok((silo, legacy_tenant))
 }
 
 #[derive(Clone)]
