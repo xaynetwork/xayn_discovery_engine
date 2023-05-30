@@ -12,6 +12,8 @@ target/
 .env.db.dev
 .tmp
 
+test-artifacts/
+
 # discovery_engine_api_tests
 discovery_engine_api_tests/venv/
 discovery_engine_api_tests/**/__pycache__/

@@ -31,7 +31,15 @@ use futures_util::future::BoxFuture;
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
 use tokio::task::JoinHandle;
-use tracing::{dispatcher, info, instrument::WithSubscriber, Dispatch};
+use tracing::{
+    dispatcher,
+    info,
+    info_span,
+    instrument,
+    instrument::WithSubscriber,
+    Dispatch,
+    Instrument,
+};
 use xayn_web_api_shared::{request::TenantId, serde::serde_duration_as_seconds};
 
 use crate::middleware::{
@@ -67,6 +75,7 @@ impl Default for Config {
     }
 }
 
+#[instrument(skip_all)]
 pub(crate) fn start_actix_server<T>(
     net_config: Config,
     legacy_tenant: Option<TenantId>,
@@ -111,7 +120,11 @@ where
     // tokio. At the same time we keep the `JoinHandle` so that we can wait for the server to
     // stop and get it's return value (we don't have to await `term_handle`).
     // FIXME: instrument with service name, do same for all requests
-    let term_handle = tokio::spawn(server.with_current_subscriber());
+    let term_handle = tokio::spawn(
+        //Hint: make sure to create span after spawning.
+        async move { server.instrument(info_span!("polling_server")).await }
+            .with_current_subscriber(),
+    );
     Ok(AppHandle {
         on_shutdown,
         server_handle,
@@ -154,6 +167,7 @@ impl AppHandle {
     }
 
     /// Stops the app gracefully and escalates to non-graceful stopping on timeout, then awaits the apps result.
+    #[instrument(skip(self))]
     pub async fn stop_and_wait(self) -> Result<(), anyhow::Error> {
         //FIXME find out why graceful shutdown on a idle actix server is broken
         self.stop().await;
@@ -165,6 +179,7 @@ impl AppHandle {
     /// To make sure the application is fully stopped and to handle the result of
     /// the application execution you needs to await [`AppHandle.wait_for_termination()`]
     /// afterwards.
+    #[instrument(name = "stop_actix_server", skip(self))]
     pub async fn stop(&self) {
         self.server_handle.stop(false).await;
     }
@@ -172,9 +187,14 @@ impl AppHandle {
     /// Waits for the server/app to have stopped and returns it's return value.
     ///
     /// It is recommended but not required to call this.
+    #[instrument(skip(self))]
     pub async fn wait_for_termination(self) -> Result<(), anyhow::Error> {
-        self.term_handle.await??;
-        (self.on_shutdown)().await;
+        self.term_handle
+            .instrument(info_span!("awaiting termination"))
+            .await??;
+        (self.on_shutdown)()
+            .instrument(info_span!("on_shutdown_callback"))
+            .await;
         Ok(())
     }
 }

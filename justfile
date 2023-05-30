@@ -259,6 +259,30 @@ mind-benchmark kind:
     cargo test --package xayn-web-api --release --lib \
         -- --nocapture --include-ignored --exact mind::run_{{kind}}_benchmark
 
+tracing-flamegraph *args:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    export XAYN_TEST_FLAME_LOG="${XAYN_TEST_FLAME_LOG:-info}"
+    cargo test -- {{args}}
+    for d in ./test-artifacts/*; do
+        if [[ -e "$d/tracing.folded" && ! -e "$d/tracing.flamegraph.svg" ]]; then
+            inferno-flamegraph "$d/tracing.folded" > "$d/tracing.flamegraph.svg"
+            echo "Flamegraph stored at: $d/tracing.flamegraph.svg"
+            inferno-flamegraph --flamechart  "$d/tracing.folded" > "$d/tracing.flamechart.svg"
+            echo "Flamegraph stored at: $d/tracing.flamechart.svg"
+        fi
+    done
+
+perf-flamegraph integration_test_bin:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    export CARGO_PROFILE_BENCH_DEBUG=true
+    OUT_DIR="./test-artifacts/{{integration_test_bin}}"
+    mkdir -p "$OUT_DIR"
+    cargo flamegraph -o "$OUT_DIR/flamegraph.svg"  --test {{integration_test_bin}}
+    if [ -e "$OUT_DIR/perf.data" ]; then
+        mv "$OUT_DIR/perf.data" "$OUT_DIR/perf.data.old"
+    fi
+    mv "perf.data" "$OUT_DIR/perf.data"
+
 aws-login:
     #!/usr/bin/env bash
     {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"" } else { "" } }}
