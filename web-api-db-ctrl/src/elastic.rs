@@ -150,32 +150,59 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_setting_embedding_dims_works() {
+    fn test_creating_embedding_mapping_works() {
+        let result = mapping_with_embedding_size(&MAPPING, 4321).unwrap();
+        let embeddings = result
+            .get("mappings")
+            .and_then(|obj| obj.get("properties"))
+            .and_then(|obj| obj.get("embedding"))
+            .expect("path mappings.properties.embedding must be given");
+
         assert_eq!(
-            mapping_with_embedding_size(&MAPPING, 4321).unwrap(),
-            json!({
-                "mappings": {
-                    "properties": {
-                        "snippet": {
-                            "type": "text"
-                        },
-                        "embedding": {
-                            "type": "dense_vector",
-                            "dims": 4321,
-                            "index": true,
-                            "similarity": "dot_product"
-                        },
-                        "properties": {
-                            "dynamic": false,
-                            "properties": {
-                                "publication_date": {
-                                    "type": "date"
-                                }
-                            }
-                        }
-                    }
-                }
+            embeddings,
+            &json!({
+                "type": "dense_vector",
+                "dims": 4321,
+                "index": true,
+                "similarity": "dot_product"
             })
-        )
+        );
+    }
+
+    #[test]
+    fn test_snippet_has_a_mapping() {
+        let result = mapping_with_embedding_size(&MAPPING, 128).unwrap();
+        result
+            .get("mappings")
+            .and_then(|obj| obj.get("properties"))
+            .and_then(|obj| obj.get("snippet"))
+            .expect("path mappings.properties.snippet must be given");
+    }
+
+    #[test]
+    fn test_properties_mapping_is_not_dynamic() {
+        let result = mapping_with_embedding_size(&MAPPING, 128).unwrap();
+        let dynamic_setting = result
+            .get("mappings")
+            .and_then(|obj| obj.get("properties"))
+            .and_then(|obj| obj.get("properties"))
+            .and_then(|obj| obj.get("dynamic"))
+            .expect("path mappings.properties.properties.dynamic must be given");
+        assert_eq!(dynamic_setting, &json!(false));
+    }
+
+    #[test]
+    fn test_publication_date_is_mapped_is_correct() {
+        let result = mapping_with_embedding_size(&MAPPING, 128).unwrap();
+        let publication_date = result
+            .get("mappings")
+            .and_then(|obj| obj.get("properties"))
+            .and_then(|obj| obj.get("properties"))
+            .and_then(|obj| obj.get("properties"))
+            .and_then(|obj| obj.get("publication_date"))
+            .expect(
+                "path mappings.properties.properties.properties.publication_date must be given",
+            );
+        assert_eq!(publication_date, &json!({ "type": "date" }));
     }
 }
