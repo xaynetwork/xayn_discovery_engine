@@ -15,7 +15,7 @@
 mod elastic;
 mod postgres;
 
-pub use elastic::create_tenant as elastic_create_tenant;
+pub use elastic::create_tenant_index as elastic_create_tenant;
 use serde::{Deserialize, Serialize};
 use sqlx::pool::PoolOptions;
 use xayn_web_api_shared::{
@@ -68,7 +68,11 @@ impl Silo {
                 elastic::setup_legacy_tenant(&self.elastic, &legacy_info.es_index, &tenant_id).await
             }
         });
-        postgres::initialize(&self.postgres, opt_legacy_setup).await
+        let migrate_tenant = move |tenant_id| async move {
+            elastic::migrate_tenant_index(&self.elastic, &tenant_id).await
+        };
+
+        postgres::initialize(&self.postgres, opt_legacy_setup, migrate_tenant).await
     }
 
     pub async fn admin_as_mt_user_hack(&self) -> Result<(), Error> {
@@ -86,7 +90,7 @@ impl Silo {
     ) -> Result<Tenant, Error> {
         let mut tx = self.postgres.begin().await?;
         postgres::create_tenant(&mut tx, &tenant_id, is_legacy_tenant).await?;
-        elastic::create_tenant(&self.elastic, &tenant_id).await?;
+        elastic::create_tenant_index(&self.elastic, &tenant_id).await?;
         tx.commit().await?;
         Ok(Tenant {
             tenant_id,

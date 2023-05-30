@@ -15,6 +15,7 @@
 use once_cell::sync::Lazy;
 use reqwest::{Method, StatusCode};
 use serde_json::{json, Value};
+use tracing::{error, info};
 use xayn_web_api_shared::{elastic::Client, request::TenantId};
 
 use crate::Error;
@@ -22,7 +23,7 @@ use crate::Error;
 static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
 
-pub async fn create_tenant(elastic: &Client, new_id: &TenantId) -> Result<(), Error> {
+pub async fn create_tenant_index(elastic: &Client, new_id: &TenantId) -> Result<(), Error> {
     elastic
         .with_index(new_id)
         .request(Method::PUT, [], [])
@@ -30,6 +31,7 @@ pub async fn create_tenant(elastic: &Client, new_id: &TenantId) -> Result<(), Er
         .send()
         .await?
         .error_for_status()?;
+    info!({tenant_id = %new_id}, "created ES index");
     Ok(())
 }
 
@@ -40,6 +42,7 @@ pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Res
         .send()
         .await?
         .error_for_status()?;
+    info!({%tenant_id}, "deleted ES index");
     Ok(())
 }
 
@@ -48,35 +51,73 @@ pub(crate) async fn setup_legacy_tenant(
     default_index: &str,
     tenant_id: &TenantId,
 ) -> Result<(), Error> {
+    if does_tenant_index_exist(elastic, default_index).await? {
+        create_index_alias(elastic, default_index, tenant_id).await?;
+    } else {
+        create_tenant_index(elastic, tenant_id).await?;
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn migrate_tenant_index(
+    elastic: &Client,
+    tenant_id: &TenantId,
+) -> Result<(), Error> {
+    if !does_tenant_index_exist(elastic, tenant_id).await? {
+        error!(
+            {%tenant_id},
+            "index for tenant doesn't exist, creating a new index"
+        );
+        create_tenant_index(elastic, tenant_id).await?;
+    }
+    //FIXME code to check if the index is a super-set of the expected index
+    //FIXME code for allowing updates to the ES schema, at least if
+    //      incremental application of the change is possible
+    Ok(())
+}
+
+async fn does_tenant_index_exist(
+    elastic: &Client,
+    tenant_id: impl AsRef<str>,
+) -> Result<bool, Error> {
     let response = elastic
-        .with_index(default_index)
-        .request(Method::GET, [], [])
+        .with_index(tenant_id)
+        .request(Method::HEAD, [], [])
         .send()
         .await?;
 
     let status = response.status();
     if status == StatusCode::NOT_FOUND {
-        create_tenant(elastic, tenant_id).await?;
-    } else if status.is_success() {
-        elastic
-            .with_index("_aliases")
-            .request(Method::POST, [], [])
-            .json(&json!({
-              "actions": [
-                {
-                  "add": {
-                    "index": default_index,
-                    "alias": tenant_id,
-                  }
-                }
-              ]
-            }))
-            .send()
-            .await?
-            .error_for_status()?;
+        Ok(false)
     } else {
         response.error_for_status()?;
+        Ok(true)
     }
+}
 
+async fn create_index_alias(
+    elastic: &Client,
+    index: &str,
+    alias: impl AsRef<str>,
+) -> Result<(), Error> {
+    let alias = alias.as_ref();
+    elastic
+        .with_index("_aliases")
+        .request(Method::POST, [], [])
+        .json(&json!({
+            "actions": [
+            {
+                "add": {
+                "index": index,
+                "alias": alias,
+                }
+            }
+            ]
+        }))
+        .send()
+        .await?
+        .error_for_status()?;
+    info!({%index, %alias}, "created ES alias");
     Ok(())
 }

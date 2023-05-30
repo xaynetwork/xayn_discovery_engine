@@ -67,13 +67,15 @@ const MIGRATION_LOCK_ID: i64 = 0;
 ///
 /// 3. Concurrently for each tenant a migration of their
 ///    schema will be run (if needed).
-#[instrument(skip(pool, legacy_setup), err)] //TODO log enable_legacy_tenant = legacy_setup.is_some
-pub(super) async fn initialize<F>(
+#[instrument(skip_all, err)] //TODO log enable_legacy_tenant = legacy_setup.is_some
+pub(super) async fn initialize<F1, F2>(
     pool: &Pool<Postgres>,
-    legacy_setup: Option<impl FnOnce(TenantId) -> F>,
+    legacy_setup: Option<impl FnOnce(TenantId) -> F1>,
+    migrate_tenant: impl Fn(TenantId) -> F2,
 ) -> Result<Option<TenantId>, Error>
 where
-    F: Future<Output = Result<(), Error>>,
+    F1: Future<Output = Result<(), Error>>,
+    F2: Future<Output = Result<(), Error>>,
 {
     // Move out to make sure that a pool with a limit of 1 conn doesn't
     // lead to a dead lock when running tenant migrations. And that we
@@ -118,7 +120,7 @@ where
     // currently have with single tenant.
     //FIXME: There is a limit to how well this scales.
     info!("start tenant db schema migrations");
-    let failures = run_all_db_migrations(pool, false).await?;
+    let failures = run_all_db_migrations(pool, false, migrate_tenant).await?;
 
     unlock_lock_id(&mut conn, MIGRATION_LOCK_ID).await?;
 
@@ -161,18 +163,26 @@ where
     Ok(legacy_tenant_id)
 }
 
-#[instrument(skip(pool), err)]
-async fn run_all_db_migrations(
+#[instrument(skip(pool, migrate_tenant), err)]
+async fn run_all_db_migrations<F>(
     pool: &Pool<Postgres>,
     lock_db: bool,
-) -> Result<Vec<(TenantId, Error)>, Error> {
+    migrate_tenant: impl Fn(TenantId) -> F,
+) -> Result<Vec<(TenantId, Error)>, Error>
+where
+    F: Future<Output = Result<(), Error>>,
+{
     let tenants = list_tenants(pool).await?;
     // Hint: Parallelism is implicitly limited by the connection pool.
-    let results = join_all(tenants.iter().map(|tenant| async {
-        let mut tx = pool.begin().await?;
-        run_db_migration_for(&mut tx, &tenant.tenant_id, lock_db).await?;
-        tx.commit().await?;
-        Ok(())
+    let results = join_all(tenants.iter().map(|tenant| {
+        let migrate_tenant = &migrate_tenant;
+        async move {
+            let mut tx = pool.begin().await?;
+            run_db_migration_for(&mut tx, &tenant.tenant_id, lock_db).await?;
+            migrate_tenant(tenant.tenant_id.clone()).await?;
+            tx.commit().await?;
+            Ok(())
+        }
     }))
     .await;
 
