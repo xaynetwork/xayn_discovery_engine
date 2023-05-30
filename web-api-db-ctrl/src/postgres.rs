@@ -68,13 +68,13 @@ const MIGRATION_LOCK_ID: i64 = 0;
 /// 3. Concurrently for each tenant a migration of their
 ///    schema will be run (if needed).
 #[instrument(skip_all, err)] //TODO log enable_legacy_tenant = legacy_setup.is_some
-pub(super) async fn initialize<F, F2>(
+pub(super) async fn initialize<F1, F2>(
     pool: &Pool<Postgres>,
-    legacy_setup: Option<impl FnOnce(TenantId) -> F>,
+    legacy_setup: Option<impl FnOnce(TenantId) -> F1>,
     migrate_tenant: impl Fn(TenantId) -> F2,
 ) -> Result<Option<TenantId>, Error>
 where
-    F: Future<Output = Result<(), Error>>,
+    F1: Future<Output = Result<(), Error>>,
     F2: Future<Output = Result<(), Error>>,
 {
     // Move out to make sure that a pool with a limit of 1 conn doesn't

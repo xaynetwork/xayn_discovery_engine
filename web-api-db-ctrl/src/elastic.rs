@@ -83,7 +83,7 @@ async fn does_tenant_index_exist(
 ) -> Result<bool, Error> {
     let response = elastic
         .with_index(tenant_id)
-        .request(Method::GET, [], [])
+        .request(Method::HEAD, [], [])
         .send()
         .await?;
 
