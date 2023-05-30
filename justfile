@@ -110,6 +110,12 @@ download-assets *args:
     {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     ./download_assets.sh {{args}}
 
+upload-assets *args:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    cd {{justfile_directory()}}/.github/scripts
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
+    ./prepare_data.sh {{args}}
+
 build-service-args name target="default" features="":
     #!/usr/bin/env -S bash -eux -o pipefail
     if [[ -z "{{features}}" ]]; then
