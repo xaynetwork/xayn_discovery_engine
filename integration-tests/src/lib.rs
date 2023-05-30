@@ -408,7 +408,7 @@ where
     F: Future<Output = Result<(), Error>>,
 {
     let test_id = TestId::generate();
-    let (subscriber, _guard) = initialize_local_test_logging(&test_id);
+    let (subscriber, flame_guard) = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
         let guard = DeleteTempDirIfNoPanic {
@@ -433,7 +433,9 @@ where
 
             drop(guard);
         });
-    })
+    });
+
+    drop(flame_guard);
 }
 
 struct DeleteTempDirIfNoPanic {
