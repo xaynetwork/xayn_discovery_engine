@@ -420,19 +420,20 @@ where
         span.in_scope(|| {
             let body = test(test_id);
 
-        // more or less what #[tokio::test] does
-        // Hint: If we use a "non-current-thread" runtime in the future
-        //       make sure to attach the subscriber to the body future
-        //       using `WithSubscriber.with_current_subscriber()`.
-        tokio::runtime::Builder::new_current_thread()
-            .enable_all()
-            .build()
-            .expect("Failed building the Runtime")
-            .block_on(body)
-            .unwrap();
+            // more or less what #[tokio::test] does
+            // Hint: If we use a "non-current-thread" runtime in the future
+            //       make sure to attach the subscriber to the body future
+            //       using `WithSubscriber.with_current_subscriber()`.
+            tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed building the Runtime")
+                .block_on(body)
+                .unwrap();
 
-        drop(guard);
-    });
+            drop(guard);
+        });
+    })
 }
 
 struct DeleteTempDirIfNoPanic {
