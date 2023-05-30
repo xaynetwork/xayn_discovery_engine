@@ -304,8 +304,8 @@ fn test_ingestion_same_id() {
                 .json(&json!({
                     "documents": [
                         { "id": "d1", "snippet": "snippet 1", "properties": { "order": 1 } },
-                        { "id": "d1", "snippet": "snippet 2", "properties": { "order": 2 } },
-                        { "id": "d2", "snippet": "snippet 3", "properties": { "order": 3 } }
+                        { "id": "d2", "snippet": "snippet 2", "properties": { "order": 2 } },
+                        { "id": "d1", "snippet": "snippet 3", "properties": { "order": 3 } }
                     ]
                 }))
                 .build()?,
@@ -320,7 +320,7 @@ fn test_ingestion_same_id() {
             StatusCode::OK,
         )
         .await;
-        assert_eq!(property, 1);
+        assert_eq!(property, 3);
         let OrderPropertyResponse { property } = send_assert_json(
             &client,
             client
@@ -329,7 +329,7 @@ fn test_ingestion_same_id() {
             StatusCode::OK,
         )
         .await;
-        assert_eq!(property, 3);
+        assert_eq!(property, 2);
         Ok(())
     });
 }
