@@ -36,7 +36,7 @@ fn test_tenants_can_be_created() {
             enable_legacy_tenant = false
         }),
         |client, url, services| async move {
-            let test_id = services.test_id.as_str();
+            let test_id = &services.test_id;
             let make_id = |suffix| format!("{test_id}_{suffix}").parse::<TenantId>();
             let ManagementResponse { results } = send_assert_json(
                 &client,

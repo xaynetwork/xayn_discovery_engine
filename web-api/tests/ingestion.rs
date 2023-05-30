@@ -24,10 +24,9 @@ use xayn_integration_tests::{
     test_two_apps,
     UNCHANGED_CONFIG,
 };
-use xayn_test_utils::error::Panic;
 use xayn_web_api::{Ingestion, Personalization};
 
-async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), anyhow::Error> {
     send_assert(
         client,
         client

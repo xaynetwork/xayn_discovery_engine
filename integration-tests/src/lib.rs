@@ -22,16 +22,20 @@
 //! integration testing.
 
 use std::{
-    env,
+    env::{self, VarError},
+    fs::{create_dir_all, remove_dir_all, OpenOptions},
     future::Future,
-    path::PathBuf,
+    io::{self, Write},
+    path::{Path, PathBuf},
     process::{abort, Command, Output, Stdio},
     sync::{Arc, Once},
+    thread::panicking,
     time::Duration,
 };
 
 use anyhow::{anyhow, bail, Error};
 use chrono::Utc;
+use derive_more::{AsRef, Deref, Display};
 use once_cell::sync::Lazy;
 use rand::random;
 use reqwest::{header::HeaderMap, Client, Request, Response, StatusCode, Url};
@@ -39,9 +43,15 @@ use secrecy::ExposeSecret;
 use serde::de::DeserializeOwned;
 use sqlx::{Connection, Executor, PgConnection};
 use toml::{toml, Table, Value};
-use tracing::{dispatcher, error_span, instrument, Dispatch, Instrument};
-use tracing_subscriber::fmt::TestWriter;
-use xayn_test_utils::{env::clear_env, error::Panic};
+use tracing::{dispatcher, error_span, instrument, metadata::LevelFilter, Dispatch, Instrument};
+use tracing_log::{log::LevelFilter as LogFacilityLevelFilter, LogTracer};
+use tracing_subscriber::{
+    fmt::{format::FmtSpan, TestWriter},
+    layer::SubscriberExt,
+    EnvFilter,
+    Layer,
+};
+use xayn_test_utils::env::clear_env;
 use xayn_web_api::{config, start, AppHandle, Application};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
@@ -49,6 +59,61 @@ use xayn_web_api_shared::{
     postgres::{self, QuotedIdentifier},
     request::TenantId,
 };
+
+use self::env_vars::*;
+
+/// Module to document env variables which affect testing.
+mod env_vars {
+    /// The [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for the fallback logging setup.
+    ///
+    /// This is used if for whatever reason the test specific logging
+    /// setup is not used.
+    ///
+    /// Defaults to `warn`.
+    pub(super) const XAYN_TEST_FALLBACK_LOG: &str = "XAYN_TEST_FALLBACK_LOG";
+
+    /// The default [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for logging.
+    ///
+    /// Defaults to `info,sqlx::query=warn`.
+    pub(super) const XAYN_TEST_LOG: &str = "XAYN_TEST_LOG";
+
+    /// The [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for logging to stdout.
+    ///
+    /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
+    ///
+    /// If set to `"false"` logging to stdout is disabled.
+    ///
+    /// If set to another string the string is used as directives.
+    ///
+    /// Defaults to `"true"`, `""` is treated as if it's the default.
+    pub(super) const XAYN_TEST_STDOUT_LOG: &str = "XAYN_TEST_STDOUT_LOG";
+
+    /// The [`EnvFilter`](tracing_subscriber::EnvFilter) directives used for logging to a file.
+    ///
+    /// If set to `"true"` then [`XAYN_TEST_LOG`] is used.
+    ///
+    /// If set to `"false"` logging to a file is disabled.
+    ///
+    /// If set to another string the string is used as directives.
+    ///
+    /// Defaults to `"false"`, `""` is treated as if it's the default.
+    pub(super) const XAYN_TEST_FILE_LOG: &str = "XAYN_TEST_FILE_LOG";
+
+    /// Select which span events to log, default is none.
+    ///
+    /// It's a case insensitive comma separated list of span event mask names.
+    ///
+    /// See [`tracing_subscriber::fmt::format::FmtSpan`] for possible mask names.
+    ///
+    /// Defaults to `"NONE"`.
+    pub(super) const XAYN_TEST_FILE_LOG_SPAN_EVENTS: &str = "XAYN_TEST_FILE_LOG_SPAN_EVENTS";
+
+    /// If set to `"true"` the per-test temp. dir will not be deleted even if the test succeeds.
+    pub(super) const XAYN_TEST_KEEP_TEMP_DIRS: &str = "XAYN_TEST_KEEP_TEMP_DIRS";
+
+    /// Used to detect if we run in an action and in turn services are externally provided.
+    pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
+}
 
 /// Absolute path to the root of the project as determined by `just`.
 pub static PROJECT_ROOT: Lazy<PathBuf> =
@@ -65,7 +130,29 @@ pub static PROJECT_ROOT: Lazy<PathBuf> =
 /// should not.
 pub static RUNS_IN_CONTAINER: Lazy<bool> = Lazy::new(|| {
     //FIXME more generic detection
-    env::var("GITHUB_ACTIONS") == Ok("true".into())
+    env::var(GITHUB_ACTIONS) == Ok("true".into())
+});
+
+static KEEP_TEMP_DIRS: Lazy<bool> =
+    Lazy::new(|| env::var(XAYN_TEST_KEEP_TEMP_DIRS) == Ok("true".into()));
+
+static FILE_LOG_SPAN_EVENTS: Lazy<FmtSpan> = Lazy::new(|| {
+    let span_events = env_var_os_with_default(XAYN_TEST_FILE_LOG_SPAN_EVENTS, "");
+    span_events
+        .split(',')
+        .filter(|e| !e.trim().is_empty())
+        .fold(FmtSpan::NONE, |mask, span_event| {
+            mask | match span_event.to_ascii_uppercase().as_str() {
+                "NEW" => FmtSpan::NEW,
+                "ENTER" => FmtSpan::ENTER,
+                "EXIT" => FmtSpan::EXIT,
+                "CLOSE" => FmtSpan::CLOSE,
+                "NONE" => FmtSpan::NONE,
+                "ACTIVE" => FmtSpan::ACTIVE,
+                "FULL" => FmtSpan::FULL,
+                other => panic!("Unexpected FmtSpan option: {other}"),
+            }
+        })
 });
 
 /// DB name used for the db we use to create other dbs.
@@ -79,7 +166,7 @@ pub const MANAGEMENT_DB: &str = "xayn";
 /// This will capture stdout, but not stderr so warnings, errors, traces
 /// and similar will be printed like normal. In case it fails it will also
 /// print the previously captured stdout.
-pub fn just(args: &[&str]) -> Result<String, anyhow::Error> {
+pub fn just(args: &[&str]) -> Result<String, Error> {
     let Output { status, stdout, .. } = Command::new("just")
         .args(args)
         .stdout(Stdio::piped())
@@ -138,55 +225,152 @@ where
 pub fn initialize_test_logging_fallback() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        let var = env::var_os("XAYN_TEST_FALLBACK_LOG");
-        let directives = var
-            .as_deref()
-            .map(|s| {
-                s.to_str()
-                    .expect("XAYN_TEST_FALLBACK_LOG must only contain utf-8")
-            })
-            .unwrap_or("warn");
-        tracing_subscriber::fmt()
-            .with_ansi(false)
-            .with_writer(TestWriter::default())
-            .with_env_filter(directives)
-            .init()
+        let env_filter = env_opt_var_os(XAYN_TEST_FALLBACK_LOG)
+            .unwrap_or_else(|| "warn".into())
+            .parse::<EnvFilter>()
+            .expect("XAYN_TEST_FALLBACK_LOG has invalid EnvFilter directives");
+
+        let max_level = env_filter
+            .max_level_hint()
+            .max(LOG_FILE_ENV_FILTER.as_ref().and_then(|(_, level)| *level))
+            .max(LOG_STDOUT_ENV_FILTER.as_ref().and_then(|(_, level)| *level));
+
+        // WARNING: You can not use `.init()` here as it will setup the log=>tracing
+        //          facade in a way which yields incorrect results.
+        dispatcher::set_global_default(
+            tracing_subscriber::fmt()
+                .with_ansi(false)
+                .with_writer(TestWriter::default())
+                .with_env_filter(env_filter)
+                .into(),
+        )
+        .unwrap();
+
+        let mut builder = LogTracer::builder();
+        if let Some(max_level) = max_level {
+            let filter = match max_level {
+                LevelFilter::TRACE => LogFacilityLevelFilter::Trace,
+                LevelFilter::DEBUG => LogFacilityLevelFilter::Debug,
+                LevelFilter::INFO => LogFacilityLevelFilter::Info,
+                LevelFilter::WARN => LogFacilityLevelFilter::Warn,
+                LevelFilter::ERROR => LogFacilityLevelFilter::Error,
+                LevelFilter::OFF => LogFacilityLevelFilter::Off,
+            };
+            builder = builder.with_max_level(filter);
+        }
+        builder.init().unwrap();
     });
 }
 
-static LOG_ENV_FILTER: Lazy<String> = Lazy::new(|| {
-    env::var_os("XAYN_TEST_LOG")
-        .map(|s| {
-            s.to_str()
-                .expect("XAYN_TEST_LOG must only contain utf-8")
-                .into()
-        })
-        .unwrap_or_else(|| "info,sqlx::query=warn".into())
+fn env_opt_var_os(var: &str) -> Option<String> {
+    env::var(var)
+        .map_or_else(
+            |error| match error {
+                VarError::NotPresent => None,
+                VarError::NotUnicode(err) => panic!("{var} must only contain utf-8: {err:?}"),
+            },
+            Some,
+        )
+        .filter(|v| !v.trim().is_empty())
+}
+
+fn env_var_os_with_default(var: &str, default: &str) -> String {
+    env_opt_var_os(var).unwrap_or_else(|| default.into())
+}
+
+fn select_filter_directives(input: String, default_directives: &str) -> Option<String> {
+    match input.as_str() {
+        "false" => None,
+        "true" => Some(default_directives.to_owned()),
+        _ => Some(input),
+    }
+}
+
+fn directives_with_level_filter(
+    directives: String,
+    var_name: &str,
+) -> (String, Option<LevelFilter>) {
+    let hint = directives
+        .parse::<EnvFilter>()
+        .unwrap_or_else(|err| panic!("{var_name} contains invalid EnvFilter directives: {err}"))
+        .max_level_hint();
+    (directives, hint)
+}
+
+fn additional_env_filter(
+    var_name: &str,
+    default_state: &str,
+    default_value: &str,
+) -> Option<(String, Option<LevelFilter>)> {
+    select_filter_directives(
+        env_var_os_with_default(var_name, default_state),
+        default_value,
+    )
+    .map(|directives| directives_with_level_filter(directives, var_name))
+}
+
+static LOG_ENV_FILTER: Lazy<(String, Option<LevelFilter>)> = Lazy::new(|| {
+    directives_with_level_filter(
+        env_var_os_with_default(XAYN_TEST_LOG, "info,sqlx::query=warn"),
+        XAYN_TEST_LOG,
+    )
 });
 
-pub fn initialize_local_test_logging(_test_id: &str) -> Dispatch {
+static LOG_STDOUT_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
+    Lazy::new(|| additional_env_filter(XAYN_TEST_STDOUT_LOG, "true", &LOG_ENV_FILTER.0));
+
+static LOG_FILE_ENV_FILTER: Lazy<Option<(String, Option<LevelFilter>)>> =
+    Lazy::new(|| additional_env_filter(XAYN_TEST_FILE_LOG, "false", &LOG_ENV_FILTER.0));
+
+pub fn initialize_local_test_logging(test_id: &TestId) -> Dispatch {
     initialize_test_logging_fallback();
     //FIXME create a test{%test_id} span valid for the duration of the Dispatch
     //      and automatically "recreated" on any new threads.
-    //FIXME add `XAYN_TEST_WRITE_LOGS` which will write logs as jsons to files
-    //      and uses a different env filter (env var `XAYN_TEST_FILE_LOG`).
     //FIXME add support for writing flame graphs
-    tracing_subscriber::fmt()
-        .with_ansi(false)
-        .with_writer(TestWriter::default())
-        .with_env_filter(LOG_ENV_FILTER.as_str())
-        .finish()
-        .into()
+
+    let subscriber = tracing_subscriber::registry();
+
+    let stdout_log = LOG_STDOUT_ENV_FILTER.as_ref().map(|(filter, _)| {
+        tracing_subscriber::fmt::layer()
+            .with_ansi(false)
+            .with_writer(TestWriter::default())
+            .with_filter(filter.parse::<EnvFilter>().unwrap())
+    });
+
+    let file_log = LOG_FILE_ENV_FILTER.as_ref().map(|(filter, _)| {
+        let path = test_id.make_temp_file_path("log.json").unwrap();
+        eprintln!("Logs written to: {}", path.display());
+        let writer = OpenOptions::new()
+            .write(true)
+            .truncate(true)
+            .create(true)
+            .open(path)
+            .unwrap();
+        tracing_subscriber::fmt::layer()
+            .with_writer(writer)
+            .with_span_events(FILE_LOG_SPAN_EVENTS.clone())
+            .json()
+            .with_filter(filter.parse::<EnvFilter>().unwrap())
+    });
+
+    subscriber.with(stdout_log).with(file_log).into()
 }
 
-pub fn run_async_with_test_logger<F>(test_id: &str, body: F) -> F::Output
+pub fn run_async_test<F>(test: impl FnOnce(TestId) -> F)
 where
-    F: Future,
+    F: Future<Output = Result<(), Error>>,
 {
-    let subscriber = initialize_local_test_logging(test_id);
+    let test_id = TestId::generate();
+    let subscriber = initialize_local_test_logging(&test_id);
 
     dispatcher::with_default(&subscriber, || {
-        let body = body.instrument(error_span!(parent: None, "test", %test_id));
+        let guard = DeleteTempDirIfNoPanic {
+            test_id: test_id.clone(),
+            disable_cleanup: *KEEP_TEMP_DIRS,
+        };
+
+        let span = error_span!(parent: None, "test", %test_id);
+        let body = test(test_id).instrument(span);
 
         // more or less what #[tokio::test] does
         // Hint: If we use a "non-current-thread" runtime in the future
@@ -197,7 +381,34 @@ where
             .build()
             .expect("Failed building the Runtime")
             .block_on(body)
-    })
+            .unwrap();
+
+        drop(guard);
+    });
+}
+
+struct DeleteTempDirIfNoPanic {
+    test_id: TestId,
+    disable_cleanup: bool,
+}
+
+impl Drop for DeleteTempDirIfNoPanic {
+    fn drop(&mut self) {
+        if self.disable_cleanup || panicking() {
+            let temp_dir = self.test_id.temp_dir();
+            if temp_dir.exists() {
+                let string = format!("Temp dir was not deleted: {}\n", temp_dir.display());
+                if self.disable_cleanup {
+                    // intentionally sidestep output capturing
+                    io::stdout().write_all(string.as_bytes()).ok();
+                } else {
+                    print!("{}", string);
+                }
+            }
+        } else {
+            self.test_id.remove_temp_dir().unwrap();
+        }
+    }
 }
 
 /// Wrapper around integration test code which makes sure they run in a semi-isolated context.
@@ -218,17 +429,14 @@ pub fn test_app<A, F>(
     configure: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Services) -> F,
 ) where
-    F: Future<Output = Result<(), Panic>>,
+    F: Future<Output = Result<(), Error>>,
     A: Application + 'static,
 {
-    let test_id = &generate_test_id();
-    run_async_with_test_logger(test_id, async {
+    run_async_test(|test_id| async move {
         let (configure, enable_legacy_tenant) =
             configure_with_enable_legacy_tenant_for_test(configure.unwrap_or_default());
 
-        let services = setup_web_dev_services(test_id, enable_legacy_tenant)
-            .await
-            .unwrap();
+        let services = setup_web_dev_services(&test_id, enable_legacy_tenant).await?;
 
         let handle = start_test_application::<A>(&services, configure).await;
 
@@ -237,12 +445,12 @@ pub fn test_app<A, F>(
             Arc::new(handle.url()),
             services.clone(),
         )
-        .await
-        .unwrap();
+        .await?;
 
-        handle.stop_and_wait().await.unwrap();
+        handle.stop_and_wait().await?;
 
-        services.cleanup_test().await.unwrap();
+        services.cleanup_test().await?;
+        Ok(())
     })
 }
 
@@ -252,21 +460,18 @@ pub fn test_two_apps<A1, A2, F>(
     configure_second: Option<Table>,
     test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
 ) where
-    F: Future<Output = Result<(), Panic>>,
+    F: Future<Output = Result<(), Error>>,
     A1: Application + 'static,
     A2: Application + 'static,
 {
-    let test_id = &generate_test_id();
-    run_async_with_test_logger(test_id, async {
+    run_async_test(|test_id| async move {
         let (configure_first, first_wit_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
         let (configure_second, second_with_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
         assert_eq!(first_wit_legacy, second_with_legacy);
 
-        let services = setup_web_dev_services(test_id, first_wit_legacy)
-            .await
-            .unwrap();
+        let services = setup_web_dev_services(&test_id, first_wit_legacy).await?;
         let first_handle = start_test_application::<A1>(&services, configure_first).await;
         let second_handle = start_test_application::<A2>(&services, configure_second).await;
 
@@ -276,14 +481,14 @@ pub fn test_two_apps<A1, A2, F>(
             Arc::new(second_handle.url()),
             services.clone(),
         )
-        .await
-        .unwrap();
+        .await?;
         let (res1, res2) =
-            tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait(),);
+            tokio::join!(first_handle.stop_and_wait(), second_handle.stop_and_wait());
         res1.expect("first application to not fail during shutdown");
         res2.expect("second application to not fail during shutdown");
 
-        services.cleanup_test().await.unwrap();
+        services.cleanup_test().await?;
+        Ok(())
     })
 }
 
@@ -394,19 +599,47 @@ pub fn build_test_config_from_parts(
     config
 }
 
-/// Generates an ID for the test.
-///
-/// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
-pub fn generate_test_id() -> String {
-    let date = Utc::now().format("%y%m%d_%H%M%S");
-    let random = random::<u16>();
-    format!("t{date}_{random:0>4x}")
+#[derive(Clone, Debug, Display, Deref, AsRef)]
+#[as_ref(forward)]
+pub struct TestId(String);
+
+impl TestId {
+    /// Generates an ID for the test.
+    ///
+    /// The format is `YYMMDD_HHMMSS_RRRR` where `RRRR` is a random (16bit) 0 padded hex number.
+    pub fn generate() -> Self {
+        let date = Utc::now().format("%y%m%d_%H%M%S");
+        let random = random::<u16>();
+        Self(format!("t{date}_{random:0>4x}"))
+    }
+
+    pub fn temp_dir(&self) -> PathBuf {
+        let mut temp_dir = env::temp_dir();
+        temp_dir.push(format!("web-api.{}", self.0));
+        temp_dir
+    }
+
+    pub fn make_temp_file_path(&self, arg: impl AsRef<Path>) -> Result<PathBuf, io::Error> {
+        let mut temp_dir = self.temp_dir();
+        create_dir_all(&temp_dir)?;
+        temp_dir.push(arg);
+        Ok(temp_dir)
+    }
+
+    pub fn remove_temp_dir(&self) -> Result<(), io::Error> {
+        let temp_dir = self.temp_dir();
+        if temp_dir.exists() {
+            remove_dir_all(self.temp_dir())
+        } else {
+            Ok(())
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
 pub struct Services {
-    /// Id of the test
-    pub test_id: String,
+    /// Id of the test.
+    pub test_id: TestId,
     /// Silo management API
     pub silo: Silo,
     /// Tenant created for the test
@@ -428,9 +661,9 @@ impl Services {
 ///
 /// A uris usable for accessing the dbs are returned.
 async fn setup_web_dev_services(
-    test_id: &str,
+    test_id: &TestId,
     enable_legacy_tenant: bool,
-) -> Result<Services, anyhow::Error> {
+) -> Result<Services, Error> {
     clear_env();
     start_test_service_containers();
 
@@ -460,7 +693,7 @@ async fn setup_web_dev_services(
     })
 }
 
-pub fn db_configs_for_testing(test_id: &str) -> (postgres::Config, elastic::Config) {
+pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::Config) {
     let pg_db = Some(test_id.to_string());
     let es_index_name = format!("{test_id}_default");
     let pg_config;
@@ -525,10 +758,7 @@ pub async fn delete_db(target: &postgres::Config, management_db: &str) -> Result
 pub fn start_test_service_containers() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        if !std::env::var("CI")
-            .map(|value| value == "true")
-            .unwrap_or_default()
-        {
+        if !*RUNS_IN_CONTAINER {
             if let Err(err) = just(&["web-dev-up"]) {
                 eprintln!("Can not start web-dev services: {err}");
                 abort();
@@ -544,10 +774,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_random_id_generation_has_expected_format() -> Result<(), Panic> {
+    fn test_random_id_generation_has_expected_format() -> Result<(), Error> {
         let regex = Regex::new("^t[0-9]{6}_[0-9]{6}_[0-9a-f]{4}$")?;
         for _ in 0..100 {
-            let id = generate_test_id();
+            let id = TestId::generate();
             assert!(
                 regex.is_match(&id),
                 "id does not have expected format: {id:?}",

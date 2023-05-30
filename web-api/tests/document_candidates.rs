@@ -14,15 +14,15 @@
 
 use std::collections::HashSet;
 
+use anyhow::Error;
 use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
-use xayn_test_utils::error::Panic;
 use xayn_web_api::Ingestion;
 
-async fn ingest(client: &Client, url: &Url) -> Result<(), Panic> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
@@ -52,14 +52,14 @@ impl DocumentCandidatesResponse {
     }
 }
 
-async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, Panic> {
+async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, Error> {
     let request = client.get(url.join("/documents/candidates")?).build()?;
     let response = send_assert_json(client, request, StatusCode::OK).await;
 
     Ok(response)
 }
 
-async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) -> Result<(), Panic> {
+async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) -> Result<(), Error> {
     let request = client
         .put(url.join("/documents/candidates")?)
         .json(&json!({ "documents": ids.into_iter().map(|id| json!({ "id": id })).collect_vec() }))
@@ -145,7 +145,7 @@ enum Details {
 }
 
 #[derive(Deserialize)]
-struct Error {
+struct ServerError {
     kind: Kind,
     details: Details,
 }
@@ -156,7 +156,7 @@ fn test_candidates_warning() {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
-        let error = send_assert_json::<Error>(
+        let error = send_assert_json::<ServerError>(
             &client,
             client
                 .put(url.join("/documents/candidates")?)

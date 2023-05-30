@@ -26,11 +26,11 @@ use xayn_integration_tests::{
     build_test_config_from_parts,
     create_db,
     db_configs_for_testing,
-    generate_test_id,
-    run_async_with_test_logger,
+    run_async_test,
     send_assert,
     send_assert_json,
     start_test_service_containers,
+    TestId,
     MANAGEMENT_DB,
 };
 use xayn_test_utils::env::clear_env;
@@ -42,7 +42,7 @@ use xayn_web_api_shared::{
     request::TenantId,
 };
 
-async fn legacy_test_setup(test_id: &str) -> Result<(postgres::Config, elastic::Config), Error> {
+async fn legacy_test_setup(test_id: &TestId) -> Result<(postgres::Config, elastic::Config), Error> {
     clear_env();
     start_test_service_containers();
 
@@ -54,10 +54,9 @@ async fn legacy_test_setup(test_id: &str) -> Result<(postgres::Config, elastic::
 }
 
 #[test]
-fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(), Error> {
-    let test_id = &generate_test_id();
-    run_async_with_test_logger(test_id, async {
-        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
+fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
+    run_async_test(|test_id| async move {
+        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;
         let mut conn = PgConnection::connect_with(&pg_options).await?;
@@ -112,10 +111,9 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() -> Result<(),
 }
 
 #[test]
-fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() -> Result<(), Error> {
-    let test_id = &generate_test_id();
-    run_async_with_test_logger(test_id, async {
-        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
+fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() {
+    run_async_test(|test_id| async move {
+        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;
 
@@ -161,7 +159,7 @@ struct SemanticSearchResponse {
 //      test was added we can simplify it a lot by using the Silo API and the additional
 //      integration test utils added in this and the previous PR.
 #[test]
-fn test_full_migration() -> Result<(), Error> {
+fn test_full_migration() {
     use old_xayn_web_api::{
         config as old_config,
         start as start_old,
@@ -170,11 +168,10 @@ fn test_full_migration() -> Result<(), Error> {
         ELASTIC_MAPPING,
     };
 
-    let test_id = &generate_test_id();
-    run_async_with_test_logger(test_id, async {
+    run_async_test(|test_id| async move {
         info!("entered async test");
 
-        let (pg_config, es_config) = legacy_test_setup(test_id).await?;
+        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
         let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
 
         info!("test setup done");
