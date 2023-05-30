@@ -56,6 +56,8 @@ paths:
         **Important note:** Currently we allow up to a maximum of 100 documents per batch size. If you need to add more, then
         please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
 
+        **Important note:** If a document id appears multiple times, only the last document with that id is retained.
+
         **Important note:** Documents which have no `publication_date` are not included when using the `published_after` filter.
       operationId: createDocuments
       requestBody:

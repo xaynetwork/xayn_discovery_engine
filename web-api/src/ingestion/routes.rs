@@ -232,11 +232,26 @@ async fn upsert_documents(
         .into());
     }
 
-    let (documents, invalid_documents) = body
+    let (mut documents, invalid_documents) = body
         .documents
         .into_iter()
         .map(UnvalidatedIngestedDocument::validate)
         .partition_result::<Vec<_>, Vec<_>, _, _>();
+
+    let ids = documents.iter().enumerate().fold(
+        HashMap::with_capacity(documents.len()),
+        |mut ids, (index, document)| {
+            ids.insert(document.id.clone(), index);
+            ids
+        },
+    );
+    if ids.len() != documents.len() {
+        documents = documents
+            .into_iter()
+            .enumerate()
+            .filter_map(|(index, document)| (ids[&document.id] == index).then_some(document))
+            .collect();
+    };
 
     let existing_documents =
         storage::Document::get_excerpted(&storage, documents.iter().map(|document| &document.id))
