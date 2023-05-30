@@ -34,25 +34,11 @@ services:
       timeout: 5s
       retries: 5
 
-  create_es_index:
-    build:
-      context: ./elastic-search
-      dockerfile: Dockerfile.create_es_index
-    restart: "no"
-    command: http://elasticsearch:9200/test_index
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    networks:
-      - internal
-
   db_ready:
     image: debian:bookworm-slim
     command: echo dummy
     restart: "no"
     depends_on:
-      create_es_index:
-        condition: service_completed_successfully
       elasticsearch:
         condition: service_healthy
       postgres:
