@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
@@ -232,10 +232,16 @@ async fn upsert_documents(
         .into());
     }
 
+    let mut ids = HashSet::with_capacity(body.documents.len());
     let (documents, invalid_documents) = body
         .documents
         .into_iter()
-        .map(UnvalidatedIngestedDocument::validate)
+        .filter_map(
+            |document| match UnvalidatedIngestedDocument::validate(document) {
+                Ok(document) => ids.insert(document.id.clone()).then_some(Ok(document)),
+                Err(id) => Some(Err(id)),
+            },
+        )
         .partition_result::<Vec<_>, Vec<_>, _, _>();
 
     let existing_documents =

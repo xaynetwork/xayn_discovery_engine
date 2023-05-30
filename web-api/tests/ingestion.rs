@@ -288,3 +288,48 @@ fn test_reingestion_snippets() {
         Ok(())
     });
 }
+
+#[derive(Debug, Deserialize)]
+struct OrderPropertyResponse {
+    property: usize,
+}
+
+#[test]
+fn test_ingestion_same_id() {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "properties": { "order": 1 } },
+                        { "id": "d1", "snippet": "snippet 2", "properties": { "order": 2 } },
+                        { "id": "d2", "snippet": "snippet 3", "properties": { "order": 3 } }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+        )
+        .await;
+        let OrderPropertyResponse { property } = send_assert_json(
+            &client,
+            client
+                .get(url.join("/documents/d1/properties/order")?)
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(property, 1);
+        let OrderPropertyResponse { property } = send_assert_json(
+            &client,
+            client
+                .get(url.join("/documents/d2/properties/order")?)
+                .build()?,
+            StatusCode::OK,
+        )
+        .await;
+        assert_eq!(property, 3);
+        Ok(())
+    });
+}
