@@ -20,6 +20,7 @@ use actix_web::{
     Responder,
 };
 use anyhow::bail;
+use chrono::DateTime;
 use itertools::{Either, Itertools};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::json;
@@ -179,12 +180,19 @@ impl UnvalidatedIngestedDocument {
                 .properties
                 .into_iter()
                 .map(|(id, property)| id.try_into().map(|id| (id, property)))
-                .try_collect()?;
+                .try_collect::<_, HashMap<_, _>, _>()?;
+            if let Some(publication_date) = properties.get("publication_date") {
+                if let Some(publication_date) = publication_date.as_str() {
+                    DateTime::parse_from_rfc3339(publication_date)?;
+                } else {
+                    bail!("publication date must be a rfc3339 compatible date-time string");
+                }
+            }
             let tags = self.tags.into_iter().map(TryInto::try_into).try_collect()?;
 
             let is_candidate_op = match (self.is_candidate, self.default_is_candidate) {
                 (Some(_), Some(_)) => {
-                    bail!("You can only use either of is_candidate or default_is_candidate")
+                    bail!("You can only use either of is_candidate or default_is_candidate");
                 }
                 (Some(value), None) => IsCandidateOp::SetTo(value),
                 (None, Some(value)) => IsCandidateOp::DefaultTo(value),
