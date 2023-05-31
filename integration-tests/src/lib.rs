@@ -631,7 +631,7 @@ where
 }
 
 /// Embedding size used by the `Embedder` used for testing.
-pub const TEST_EMBEDDING_SIZE: usize = 128;
+pub const TEST_EMBEDDING_SIZE: usize = 384;
 
 pub fn build_test_config_from_parts(
     pg_config: &postgres::Config,
@@ -645,7 +645,7 @@ pub fn build_test_config_from_parts(
     // Hint: Relative path doesn't work with `cargo flamegraph`
     let embedding_dir = PROJECT_ROOT
         .join("assets")
-        .join("smbert_v0003")
+        .join("xaynia_v0002")
         .display()
         .to_string();
 

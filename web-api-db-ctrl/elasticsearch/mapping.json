@@ -6,7 +6,7 @@
             },
             "embedding": {
                 "type": "dense_vector",
-                "dims": 128,
+                "dims": 384,
                 "index": true,
                 "similarity": "dot_product"
             },

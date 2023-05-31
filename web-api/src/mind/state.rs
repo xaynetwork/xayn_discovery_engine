@@ -44,7 +44,7 @@ pub(super) struct State {
 impl State {
     pub(super) fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
         let embedder = Embedder::load(&embedding::Config {
-            directory: "../assets/smbert_v0003".into(),
+            directory: "../assets/xaynia_v0002".into(),
             ..embedding::Config::default()
         })
         .map_err(|error| Panic::from(&*error))?;
