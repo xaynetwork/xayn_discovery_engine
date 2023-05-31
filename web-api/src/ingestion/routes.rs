@@ -180,7 +180,7 @@ impl UnvalidatedIngestedDocument {
                 .properties
                 .into_iter()
                 .map(|(id, property)| id.try_into().map(|id| (id, property)))
-                .try_collect::<_, HashMap<_, _>, _>()?;
+                .try_collect::<_, DocumentProperties, _>()?;
             if let Some(publication_date) = properties.get("publication_date") {
                 if let Some(publication_date) = publication_date.as_str() {
                     DateTime::parse_from_rfc3339(publication_date)?;
