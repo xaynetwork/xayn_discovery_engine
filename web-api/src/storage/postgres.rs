@@ -116,7 +116,7 @@ impl Database {
             builder
                 .reset()
                 .push_values(
-                    documents.by_ref().take(Self::BIND_LIMIT / 5),
+                    documents.by_ref().take(Self::BIND_LIMIT / 6),
                     |mut builder, document| {
                         builder
                             .push_bind(&document.id)
@@ -628,22 +628,24 @@ impl Database {
         );
         let mut iter = cois.values().peekable();
         while iter.peek().is_some() {
-            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
-                .push_values(chunk, |mut builder, update| {
-                    // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
-                    // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
-                    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-                    builder
-                        .push_bind(update.id.as_ref())
-                        .push_bind(user_id)
-                        .push_bind(true)
-                        .push_bind(update.point.to_vec())
-                        .push_bind(update.stats.view_count as i32)
-                        .push_bind(update.stats.view_time.as_millis() as i64)
-                        .push_bind(time);
-                })
+                .push_values(
+                    iter.by_ref().take(Database::BIND_LIMIT / 7),
+                    |mut builder, update| {
+                        // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
+                        // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
+                        #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+                        builder
+                            .push_bind(update.id.as_ref())
+                            .push_bind(user_id)
+                            .push_bind(true)
+                            .push_bind(update.point.to_vec())
+                            .push_bind(update.stats.view_count as i32)
+                            .push_bind(update.stats.view_time.as_millis() as i64)
+                            .push_bind(time);
+                    },
+                )
                 .push(
                     " ON CONFLICT (coi_id) DO UPDATE SET
                     embedding = EXCLUDED.embedding,
@@ -673,16 +675,18 @@ impl Database {
         );
         let mut iter = interactions.iter().peekable();
         while iter.peek().is_some() {
-            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 4);
             builder
                 .reset()
-                .push_values(chunk, |mut builder, (document_id, (_, interaction))| {
-                    builder
-                        .push_bind(document_id)
-                        .push_bind(user_id)
-                        .push_bind(time)
-                        .push_bind(*interaction as i16);
-                })
+                .push_values(
+                    iter.by_ref().take(Database::BIND_LIMIT / 4),
+                    |mut builder, (document_id, (_, interaction))| {
+                        builder
+                            .push_bind(document_id)
+                            .push_bind(user_id)
+                            .push_bind(time)
+                            .push_bind(*interaction as i16);
+                    },
+                )
                 .push(
                     " ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
                     user_reaction = EXCLUDED.user_reaction;",
@@ -704,15 +708,17 @@ impl Database {
         let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight) ");
         let mut iter = updates.iter().peekable();
         while iter.peek().is_some() {
-            let chunk = iter.by_ref().take(Database::BIND_LIMIT / 7);
             builder
                 .reset()
-                .push_values(chunk, |mut builder, (tag, weight_diff)| {
-                    builder
-                        .push_bind(user_id)
-                        .push_bind(tag)
-                        .push_bind(weight_diff);
-                })
+                .push_values(
+                    iter.by_ref().take(Database::BIND_LIMIT / 3),
+                    |mut builder, (tag, weight_diff)| {
+                        builder
+                            .push_bind(user_id)
+                            .push_bind(tag)
+                            .push_bind(weight_diff);
+                    },
+                )
                 .push(
                     " ON CONFLICT (user_id, tag) DO UPDATE SET
                     weight = weighted_tag.weight + EXCLUDED.weight;",
