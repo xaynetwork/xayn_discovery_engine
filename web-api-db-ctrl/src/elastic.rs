@@ -12,11 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::fmt::Debug;
+
 use anyhow::bail;
 use once_cell::sync::Lazy;
 use reqwest::{Method, StatusCode};
 use serde_json::{json, Value};
-use tracing::{error, info};
+use tracing::{error, info, instrument};
 use xayn_web_api_shared::{elastic::Client, request::TenantId};
 
 use crate::Error;
@@ -24,6 +26,7 @@ use crate::Error;
 static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
 
+#[instrument(skip(elastic))]
 pub async fn create_tenant_index(
     elastic: &Client,
     new_id: &TenantId,
@@ -41,6 +44,7 @@ pub async fn create_tenant_index(
     Ok(())
 }
 
+#[instrument(skip(elastic))]
 pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Result<(), Error> {
     elastic
         .with_index(tenant_id)
@@ -52,6 +56,7 @@ pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Res
     Ok(())
 }
 
+#[instrument(skip(elastic))]
 pub(crate) async fn setup_legacy_tenant(
     elastic: &Client,
     default_index: &str,
@@ -67,6 +72,7 @@ pub(crate) async fn setup_legacy_tenant(
     Ok(())
 }
 
+#[instrument(skip(elastic))]
 pub(crate) async fn migrate_tenant_index(
     elastic: &Client,
     tenant_id: &TenantId,
@@ -85,9 +91,10 @@ pub(crate) async fn migrate_tenant_index(
     Ok(())
 }
 
+#[instrument(skip(elastic))]
 async fn does_tenant_index_exist(
     elastic: &Client,
-    tenant_id: impl AsRef<str>,
+    tenant_id: impl AsRef<str> + Debug,
 ) -> Result<bool, Error> {
     let response = elastic
         .with_index(tenant_id)
@@ -104,10 +111,11 @@ async fn does_tenant_index_exist(
     }
 }
 
+#[instrument(skip(elastic))]
 async fn create_index_alias(
     elastic: &Client,
     index: &str,
-    alias: impl AsRef<str>,
+    alias: impl AsRef<str> + Debug,
 ) -> Result<(), Error> {
     let alias = alias.as_ref();
     elastic
