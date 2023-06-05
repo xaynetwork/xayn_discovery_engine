@@ -603,7 +603,7 @@ pub fn extend_config(current: &mut Table, extension: Table) {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn start_test_application<A>(services: &Services, configure: Table) -> AppHandle
 where
     A: Application + 'static,
@@ -822,7 +822,7 @@ pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::C
     (pg_config, es_config)
 }
 
-#[instrument]
+#[instrument(skip(target))]
 pub async fn create_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
     let target_options = target.to_connection_options()?;
     let target_db: QuotedIdentifier = target_options
