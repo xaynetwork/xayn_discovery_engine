@@ -582,7 +582,7 @@ fn build_client(services: &Services) -> Arc<Client> {
     Arc::new(
         Client::builder()
             .default_headers(default_headers)
-            .timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(10))
             .build()
             .unwrap(),
     )
