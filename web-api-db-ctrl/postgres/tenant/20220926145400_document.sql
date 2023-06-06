@@ -12,7 +12,6 @@
 --  You should have received a copy of the GNU Affero General Public License
 --  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-
 CREATE TABLE IF NOT EXISTS interaction (
     doc_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
