@@ -238,6 +238,7 @@ validate-openapi:
 
 validate-migrations-unchanged cmp_ref:
     #!/usr/bin/env -S bash -eux -o pipefail
+    git rev-list "{{ cmp_ref }}".."{{ cmp_ref }}"
     if ! git rev-list "{{ cmp_ref }}".."{{ cmp_ref }}"; then
         git fetch --depth=1 "$(git remote get-url origin)" "{{ cmp_ref }}"
     fi
