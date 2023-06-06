@@ -48,19 +48,9 @@ where
 {
     type Output = Embedding<D>;
 
-    fn add(self, rhs: Self) -> Self::Output {
-        (self.0 + rhs.0).into()
-    }
-}
-
-impl<D> Mul<f32> for &Embedding<D>
-where
-    D: Dimension,
-{
-    type Output = Embedding<D>;
-
-    fn mul(self, rhs: f32) -> Self::Output {
-        (&self.0 * rhs).into()
+    fn add(mut self, rhs: Self) -> Self::Output {
+        self.0 += &rhs.0;
+        self
     }
 }
 
@@ -87,29 +77,24 @@ pub type Embedding1 = Embedding<Ix1>;
 #[cfg_attr(feature = "sqlx", derive(FromRow, Type), sqlx(transparent))]
 pub struct NormalizedEmbedding(Embedding1);
 
-#[derive(Clone, Debug, Display, Error, Serialize)]
 /// Values don't represent a valid embedding.
+#[derive(Clone, Debug, Display, Error, Serialize)]
 pub struct InvalidEmbedding;
 
 impl Embedding1 {
-    /// Converts from values in logical order to bytes in little endianness.
-    pub fn to_bytes(&self) -> Vec<u8> {
-        self.iter().flat_map(|value| value.to_le_bytes()).collect()
-    }
-
-    pub fn normalize(&self) -> Result<NormalizedEmbedding, InvalidEmbedding> {
-        let view = self.view();
-        let norm = view.dot(&view).sqrt();
-        if norm.is_finite() {
-            let normalized = if norm <= 0. {
-                Array1::zeros(self.len())
-            } else {
-                &self.0 / norm
-            };
-            Ok(NormalizedEmbedding(normalized.into()))
-        } else {
-            Err(InvalidEmbedding)
+    pub fn normalize(mut self) -> Result<NormalizedEmbedding, InvalidEmbedding> {
+        let norm = self.dot(&*self).sqrt();
+        if !norm.is_finite() {
+            return Err(InvalidEmbedding);
         }
+
+        if norm > 0. {
+            self.0 /= norm;
+        } else {
+            self.0 = Array1::zeros(self.len());
+        };
+
+        Ok(NormalizedEmbedding(self))
     }
 }
 
@@ -195,7 +180,7 @@ impl Mul<f32> for &NormalizedEmbedding {
     type Output = Embedding1;
 
     fn mul(self, rhs: f32) -> Self::Output {
-        &self.0 * rhs
+        (&self.0 .0 * rhs).into()
     }
 }
 
@@ -288,7 +273,7 @@ mod tests {
         assert!(Embedding1::from([f32::NEG_INFINITY]).normalize().is_err());
 
         let embedding = Embedding1::from([0., 0., 0.]);
-        assert_approx_eq!(f32, embedding.normalize().unwrap(), embedding);
+        assert_approx_eq!(f32, embedding.clone().normalize().unwrap(), embedding);
 
         let embedding = Embedding1::from([0., 1., 2., 3., SQRT_2])
             .normalize()
