@@ -16,10 +16,11 @@ mod client;
 
 use std::collections::HashMap;
 
+use chrono::{DateTime, Utc};
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{json, Value};
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 
@@ -33,8 +34,11 @@ use crate::{
         DocumentTag,
     },
     storage::{KnnSearchParams, Warning},
+    utils::json_object,
     Error,
 };
+
+type JsonObject = serde_json::Map<String, Value>;
 
 /// Deserializes from any map/struct dropping all fields.
 ///
@@ -56,53 +60,37 @@ impl Client {
             return Ok(HashMap::new());
         }
 
-        let mut filter = Map::new();
-        let excluded = params.excluded.into_iter();
-        if excluded.len() > 0 {
-            // existing documents are not filtered in the query to avoid too much work for a cold
-            // path, filtering them afterwards can occasionally lead to less than k results though
-            filter.insert(
-                "must_not".to_string(),
-                json!({ "ids": { "values": excluded.collect_vec() } }),
-            );
-        }
-        if let Some(published_after) = params.published_after {
-            // published_after != null && published_after <= publication_date
-            let published_after = published_after.to_rfc3339();
-            filter.insert(
-                "filter".to_string(),
-                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
-            );
+        let mut filter =
+            self.create_es_search_filter(params.excluded, params.published_after);
+
+        let mut body = self.create_knn_request_object(
+            params.embedding,
+            params.count,
+            params.num_candidates,
+            &filter,
+        );
+
+        body.extend(json_object!({
+            "size": params.count,
+            "_source": false,
+        }));
+
+        if let Some(min_similarity) = params.min_similarity {
+            body.extend(json_object!({
+                "min_score": min_similarity,
+            }));
         }
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
-        let Value::Object(mut knn) = json!({
-            "field": "embedding",
-            "k": params.count,
-            "num_candidates": params.num_candidates,
-            "query_vector": params.embedding
-        }) else {
-            unreachable!(/* knn is a json object */);
-        };
-        if !filter.is_empty() {
-            knn.insert("filter".to_string(), json!({ "bool": filter }));
-        }
-        let Value::Object(mut body) = json!({
-            "knn": knn,
-            "size": params.count,
-            "_source": false
-        }) else {
-            unreachable!(/* body is a json object */);
-        };
-        if let Some(min_similarity) = params.min_similarity {
-            body.insert("min_score".to_string(), json!(min_similarity));
-        }
         let mut knn_scores = self.search_request(&body).await?;
 
         if let Some(query) = params.query {
             body.remove("knn");
-            filter.insert("must".to_string(), json!({ "match": { "snippet": query }}));
-            body.insert("query".to_string(), json!({ "bool": filter }));
+            filter.extend(json_object!({
+                "must": { "match": { "snippet": query }}
+            }));
+            body.extend(json_object!({
+                "query": { "bool": filter }
+            }));
 
             let bm25_scores = self.search_request(body).await?;
             let max_bm25_score = bm25_scores
@@ -129,6 +117,61 @@ impl Client {
         }
 
         Ok(knn_scores)
+    }
+
+    async fn search_knn(&self) {
+        todo!();
+    }
+
+    async fn search_hybrid(&self) {
+        todo!()
+    }
+
+    fn create_es_search_filter<'a>(
+        &self,
+        excluded_ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
+        published_after: Option<DateTime<Utc>>,
+    ) -> JsonObject {
+        let mut filter = JsonObject::new();
+        let excluded = excluded_ids.into_iter();
+        if excluded.len() > 0 {
+            // existing documents are not filtered in the query to avoid too much work for a cold
+            // path, filtering them afterwards can occasionally lead to less than k results though
+            filter.insert(
+                "must_not".to_string(),
+                json!({ "ids": { "values": excluded.collect_vec() } }),
+            );
+        }
+        if let Some(published_after) = published_after {
+            // published_after != null && published_after <= publication_date
+            let published_after = published_after.to_rfc3339();
+            filter.insert(
+                "filter".to_string(),
+                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
+            );
+        }
+        filter
+    }
+
+    fn create_knn_request_object(
+        &self,
+        embedding: &NormalizedEmbedding,
+        count: usize,
+        num_candidates: usize,
+        filter: &JsonObject,
+    ) -> JsonObject {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
+        json_object!({
+            "knn": {
+                "field": "embedding",
+                "query_vector": embedding,
+                "k": count,
+                "num_candidates": num_candidates,
+                "filter": {
+                    "bool": filter
+                }
+            }
+        })
     }
 
     pub(super) async fn insert_documents(
