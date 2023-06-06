@@ -55,7 +55,7 @@ jobs:
           git config --global --add safe.directory "$(pwd)"
           echo "CHECK MIGRATION UNCHANGED |${{ github.event.push.base_ref }}|"
           echo "CHECK MIGRATION UNCHANGED |${GITHUB_REF##*/}|"
-          just validate-migrations-unchanged "${{ github.event.push.base_ref }}"
+          just validate-migrations-unchanged "${{ github.base_ref }}"
 
   ci-ok:
     if: always()
