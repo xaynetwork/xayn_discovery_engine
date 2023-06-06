@@ -150,26 +150,24 @@ pub(crate) async fn update_interactions(
 struct PersonalizedDocumentsQuery {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
-    query: Option<String>,
-    #[serde(default)]
-    enable_hybrid_search: bool,
 }
 
 impl PersonalizedDocumentsQuery {
-    fn document_count(&self, config: &PersonalizationConfig) -> Result<usize, Error> {
-        validate_return_count(
+    fn to_personalize_by_knn(
+        &self,
+        config: &PersonalizationConfig,
+    ) -> Result<PersonalizeBy<'_>, Error> {
+        let count = validate_return_count(
             self.count,
             config.max_number_documents,
             config.default_number_documents,
-        )
-    }
+        )?;
+        let published_after = self.published_after;
 
-    fn query(&self) -> Option<&str> {
-        if self.enable_hybrid_search {
-            self.query.as_deref()
-        } else {
-            None
-        }
+        Ok(PersonalizeBy::KnnSearch {
+            count,
+            published_after,
+        })
     }
 }
 
@@ -184,11 +182,7 @@ async fn personalized_documents(
         &state.coi,
         &user_id.into_inner().try_into()?,
         &state.config.personalization,
-        PersonalizeBy::KnnSearch {
-            count: params.document_count(state.config.as_ref())?,
-            published_after: params.published_after,
-            query: params.query(),
-        },
+        params.to_personalize_by_knn(state.config.as_ref())?,
         Utc::now(),
     )
     .await
@@ -241,9 +235,8 @@ pub(crate) enum PersonalizeBy<'a> {
     KnnSearch {
         count: usize,
         published_after: Option<DateTime<Utc>>,
-        query: Option<&'a str>,
     },
-    #[cfg(test)]
+    #[cfg_attr(not(test), allow(dead_code))]
     Documents(&'a [&'a DocumentId]),
 }
 
@@ -273,7 +266,6 @@ pub(crate) async fn personalize_documents_by(
         PersonalizeBy::KnnSearch {
             count,
             published_after,
-            query,
         } => {
             knn::CoiSearch {
                 interests: &interests.positive,
@@ -282,13 +274,11 @@ pub(crate) async fn personalize_documents_by(
                 max_cois: personalization.max_cois_for_knn,
                 count,
                 published_after,
-                query,
                 time,
             }
             .run_on(storage)
             .await?
         }
-        #[cfg(test)]
         PersonalizeBy::Documents(documents) => {
             storage::Document::get_personalized(storage, documents.iter().copied()).await?
         }
@@ -305,10 +295,9 @@ pub(crate) async fn personalize_documents_by(
         time,
     );
 
-    #[cfg_attr(not(test), allow(irrefutable_let_patterns))]
     if let PersonalizeBy::KnnSearch { count, .. } = by {
-        // due to ceil-ing the number of documents we fetch per COI
-        // we might end up with more documents then we want
+        // due to ceiling the number of documents we fetch per COI
+        // we might end up with more documents than we want
         documents.truncate(count);
     }
 
