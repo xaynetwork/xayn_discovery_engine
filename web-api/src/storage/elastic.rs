@@ -132,7 +132,7 @@ impl Client {
 
     async fn hybrid_search_es_rrf<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<'a>,
         query: &'a str,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         let count = params.count;
@@ -498,16 +498,16 @@ fn rrf<K>(k: f32, scores: impl IntoIterator<Item = HashMap<K, f32>>) -> HashMap<
 where
     K: Eq + Hash,
 {
-    let rrf_scores = scores
-        .into_iter()
-        .map(|scores| {
-            scores
-                .into_iter()
-                .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(&s2).reverse())
-                .enumerate()
-                .map(|(rank0, (document, _))| (document, (k + rank0 as f32).recip()))
-        })
-        .flatten();
+    let rrf_scores = scores.into_iter().flat_map(|scores| {
+        scores
+            .into_iter()
+            .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+            .enumerate()
+            .map(|(rank0, (document, _))| {
+                #[allow(clippy::cast_precision_loss)]
+                (document, (k + rank0 as f32).recip())
+            })
+    });
     collect_summing_repeated(rrf_scores)
 }
 

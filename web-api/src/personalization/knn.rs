@@ -23,7 +23,7 @@ use xayn_ai_coi::{compute_coi_weights, Coi};
 use crate::{
     error::common::InternalError,
     models::{DocumentId, PersonalizedDocument},
-    storage::{self, KnnSearchParams, SearchStrategy},
+    storage::{self, KnnSearchParams},
     Error,
 };
 
@@ -82,7 +82,7 @@ where
                         num_candidates,
                         published_after: self.published_after,
                         min_similarity: None,
-                        strategy: SearchStrategy::Knn,
+                        strategy: self.strategy,
                     },
                 )
                 .await

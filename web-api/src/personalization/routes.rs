@@ -166,7 +166,10 @@ async fn personalized_documents(
         &state.coi,
         &user_id.into_inner().try_into()?,
         &state.config.personalization,
-        params.to_personalize_by_knn(state.config.as_ref())?,
+        PersonalizeBy::KnnSearch {
+            count: params.document_count(state.config.as_ref())?,
+            published_after: params.published_after,
+        },
         Utc::now(),
     )
     .await
@@ -327,8 +330,33 @@ struct UnvalidatedSemanticSearchQuery {
     min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
+    // TODO[pmk/now] to we keep enable_hybrid_search
     #[serde(default)]
-    enable_hybrid_search: bool,
+    hybrid_search_strategy: HybridSearchStrategy,
+}
+
+#[derive(Copy, Clone, Debug, Default, Deserialize)]
+enum HybridSearchStrategy {
+    #[default]
+    Off,
+    WeightedSum,
+    LocalRrf,
+    EsRff,
+}
+
+impl HybridSearchStrategy {
+    fn to_search_strategy(self, query: Option<&str>) -> SearchStrategy<'_> {
+        if let Some(query) = query {
+            match self {
+                HybridSearchStrategy::Off => SearchStrategy::Knn,
+                HybridSearchStrategy::WeightedSum => SearchStrategy::HybridWeighted { query },
+                HybridSearchStrategy::LocalRrf => SearchStrategy::HybridLocalRrf { query },
+                HybridSearchStrategy::EsRff => SearchStrategy::HybridEsRrf { query },
+            }
+        } else {
+            SearchStrategy::Knn
+        }
+    }
 }
 
 impl UnvalidatedSemanticSearchQuery {
@@ -343,7 +371,7 @@ impl UnvalidatedSemanticSearchQuery {
             min_similarity,
             published_after,
             personalize,
-            enable_hybrid_search,
+            hybrid_search_strategy,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         Ok(SemanticSearchQuery {
@@ -358,7 +386,7 @@ impl UnvalidatedSemanticSearchQuery {
             personalize: personalize
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
-            enable_hybrid_search,
+            hybrid_search_strategy,
         })
     }
 }
@@ -415,7 +443,7 @@ struct SemanticSearchQuery {
     min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
-    enable_hybrid_search: bool,
+    hybrid_search_strategy: HybridSearchStrategy,
 }
 
 enum InputDocument {
@@ -460,7 +488,7 @@ async fn semantic_search(
         min_similarity,
         personalize,
         published_after,
-        enable_hybrid_search,
+        hybrid_search_strategy,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -468,18 +496,22 @@ async fn semantic_search(
     } else {
         Vec::new()
     };
-    let (embedding, query) = match document {
+    let query: String;
+    let (embedding, strategy) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
             excluded.push(id);
-            (embedding, None)
+            (embedding, hybrid_search_strategy.to_search_strategy(None))
         }
-        InputDocument::Query(query) => {
+        InputDocument::Query(query_) => {
+            query = query_;
             let embedding = state.embedder.run(&query)?;
-            let query = enable_hybrid_search.then_some(query);
-            (embedding, query)
+            (
+                embedding,
+                hybrid_search_strategy.to_search_strategy(Some(&query)),
+            )
         }
     };
 
@@ -492,11 +524,7 @@ async fn semantic_search(
             num_candidates: count,
             published_after,
             min_similarity,
-            strategy: if let Some(query) = query.as_deref() {
-                SearchStrategy::Hybrid { query }
-            } else {
-                SearchStrategy::Knn
-            },
+            strategy,
         },
     )
     .await?;
