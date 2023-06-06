@@ -45,8 +45,8 @@ use crate::{
         common::{BadRequest, DocumentNotFound},
         warning::Warning,
     },
-    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
-    storage::{self, KnnSearchParams},
+    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
+    storage::{self, KnnSearchParams, SearchStrategy},
     Error,
 };
 
@@ -492,7 +492,11 @@ async fn semantic_search(
             num_candidates: count,
             published_after,
             min_similarity,
-            query: query.as_deref(),
+            strategy: if let Some(query) = query.as_deref() {
+                SearchStrategy::HybridWeighted { query }
+            } else {
+                SearchStrategy::Knn
+            },
         },
     )
     .await?;

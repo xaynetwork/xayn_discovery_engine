@@ -700,6 +700,7 @@ mod tests {
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
+    use crate::storage::SearchStrategy;
 
     #[tokio::test]
     async fn test_knn_search() {
@@ -738,7 +739,7 @@ mod tests {
                 num_candidates: 2,
                 published_after: None,
                 min_similarity: None,
-                query: None,
+                strategy: SearchStrategy::Knn,
             },
         )
         .await
@@ -757,7 +758,7 @@ mod tests {
                 num_candidates: 3,
                 published_after: None,
                 min_similarity: None,
-                query: None,
+                strategy: SearchStrategy::Knn,
             },
         )
         .await

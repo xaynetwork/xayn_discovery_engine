@@ -24,6 +24,7 @@ use serde_json::{json, Value};
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 
+use super::SearchStrategy;
 use crate::{
     models::{
         self,
@@ -55,52 +56,134 @@ impl Client {
             impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
         >,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
+        match params.strategy {
+            SearchStrategy::Knn => self.knn_search(params).await,
+            SearchStrategy::HybridWeighted { query } => {
+                self.hybrid_search_weighted(params, query).await
+            }
+            SearchStrategy::HybridLocalRrf { query } => {
+                self.hybrid_search_local_rrf(params, query).await
+            }
+            SearchStrategy::HybridEsRrf { query } => self.hybrid_search_es_rrf(params, query).await,
+        }
+    }
+
+    async fn knn_search<'a>(
+        &self,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
         // knn search with `k`/`num_candidates` set to zero is a bad request
         if params.count == 0 {
             return Ok(HashMap::new());
         }
 
-        let mut filter =
+        let (mut knn, additional_parameters, _) = Self::create_common_knn_search_parts(params);
+        knn.extend(additional_parameters);
+
+        // TODO[pmk/now] is it correct to not normalize this
+        Ok(self.search_request(&knn).await?)
+    }
+
+    async fn hybrid_search_weighted<'a>(
+        &self,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        query: &'a str,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        let count = params.count;
+        // knn search with `k`/`num_candidates` set to zero is a bad request
+        if count == 0 {
+            return Ok(HashMap::new());
+        }
+
+        let (mut knn, additional_parameters, mut filter) =
+            Self::create_common_knn_search_parts(params);
+
+        knn.extend(additional_parameters.clone());
+
+        // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
+        //      and will likely strongly discount it
+        let knn_scores = normalize_scores(self.search_request(&knn).await?);
+
+        filter.extend(json_object!({
+            "must": { "match": { "snippet": query }}
+        }));
+        let mut bm_25 = json_object!({
+            "query": { "bool": filter }
+        });
+        bm_25.extend(additional_parameters);
+
+        let bm25_scores = normalize_scores(self.search_request(&bm_25).await?);
+        let merged = merge_scores_weighted([(0.5, knn_scores), (0.5, bm25_scores)]);
+        Ok(take_highest_n_scores(count, merged))
+    }
+
+    async fn hybrid_search_es_rrf<'a>(
+        &self,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        query: &'a str,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        let count = params.count;
+        // knn search with `k`/`num_candidates` set to zero is a bad request
+        if count == 0 {
+            return Ok(HashMap::new());
+        }
+
+        let (mut knn, additional_parameters, mut filter) =
+            Self::create_common_knn_search_parts(params);
+
+        knn.extend(additional_parameters);
+        filter.extend(json_object!({
+            "must": { "match": { "snippet": query }}
+        }));
+        knn.extend(json_object!({
+            "query": { "bool": filter },
+            "rank": {
+                "rrf": {
+                    // must be >= "size"
+                    "rank_constant": count
+                }
+            }
+        }));
+
+        // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
+        //      and will likely strongly discount it
+        Ok(normalize_scores(self.search_request(&knn).await?))
+    }
+
+    #[allow(clippy::unused_async)]
+    async fn hybrid_search_local_rrf<'a>(
+        &self,
+        _params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        _query: &'a str,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        todo!();
+    }
+
+    fn create_common_knn_search_parts<'a>(
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+    ) -> (JsonObject, JsonObject, JsonObject) {
+        let filter =
             Self::create_es_search_filter(params.excluded, params.published_after);
 
-        let mut body = Self::create_knn_request_object(
+        let knn = Self::create_knn_request_object(
             params.embedding,
             params.count,
             params.num_candidates,
             &filter,
         );
 
-        body.extend(json_object!({
+        let mut additional_parameters = json_object!({
             "size": params.count,
+            //FIXME this should be part of `self.search_request()`
             "_source": false,
-        }));
+        });
 
         if let Some(min_score) = params.min_similarity {
-            body.extend(json_object!({
+            additional_parameters.extend(json_object!({
                 "min_score": min_score,
             }));
         }
-
-        let knn_scores = self.search_request(&body).await?;
-
-        if let Some(query) = params.query {
-            body.remove("knn");
-            filter.extend(json_object!({
-                "must": { "match": { "snippet": query }}
-            }));
-            body.extend(json_object!({
-                "query": { "bool": filter }
-            }));
-
-            let bm25_scores = normalize_scores(self.search_request(body).await?);
-            // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
-            //      and will likely strongly discount it
-            let knn_scores = normalize_scores(knn_scores);
-            let merged = merge_scores_weighted([(0.5, knn_scores), (0.5, bm25_scores)]);
-            Ok(take_highest_n_scores(params.count, merged))
-        } else {
-            Ok(knn_scores)
-        }
+        (knn, additional_parameters, filter)
     }
 
     fn create_es_search_filter<'a>(
