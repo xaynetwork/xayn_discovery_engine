@@ -52,10 +52,8 @@ jobs:
     steps:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
       - run: |
-          set -eux
           git config --global --add safe.directory "$(pwd)"
-          echo "CHECK MIGRATION UNCHANGED |${{ github.base_ref }}|"
-          just validate-migrations-unchanged "${{ github.base_ref }}"
+          just validate-migrations-unchanged main
 
   ci-ok:
     if: always()
