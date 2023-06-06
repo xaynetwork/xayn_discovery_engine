@@ -62,10 +62,6 @@ impl Client {
             SearchStrategy::HybridWeighted { query } => {
                 self.hybrid_search_weighted(params, query).await
             }
-            SearchStrategy::HybridLocalRrf { query } => {
-                self.hybrid_search_local_rrf(params, query).await
-            }
-            SearchStrategy::HybridEsRrf { query } => self.hybrid_search_es_rrf(params, query).await,
         }
     }
 
@@ -120,52 +116,6 @@ impl Client {
         let bm25_scores = normalize_scores(self.search_request(bm_25).await?);
         let merged = merge_scores_weighted([(0.5, knn_scores), (0.5, bm25_scores)]);
         Ok(take_highest_n_scores(count, merged))
-    }
-
-    async fn hybrid_search_es_rrf<'a>(
-        &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
-        query: &'a str,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
-        let count = params.count;
-
-        let KnnSearchParts {
-            knn_object,
-            generic_parameters,
-            inner_filter,
-        } = create_common_knn_search_parts(params);
-
-        let request = merge_json_objects([
-            knn_object,
-            generic_parameters,
-            json_object!({
-                "query": { "bool": merge_json_objects([
-                    inner_filter,
-                    json_object!({
-                        "must": { "match": { "snippet": query }}
-                    })
-                ]) },
-                "rank": {
-                    "rrf": {
-                        // must be >= "size"
-                        "rank_constant": count
-                    }
-                }
-            }),
-        ]);
-
-        // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
-        //      and will likely strongly discount it
-        Ok(normalize_scores(self.search_request(request).await?))
-    }
-
-    #[allow(clippy::unused_async)]
-    async fn hybrid_search_local_rrf<'a>(
-        &self,
-        _params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
-        _query: &'a str,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
-        todo!();
     }
 
     pub(super) async fn insert_documents(

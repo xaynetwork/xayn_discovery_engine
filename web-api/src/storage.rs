@@ -65,14 +65,6 @@ pub(crate) enum SearchStrategy<'a> {
         /// An additional query which will be run in parallel with the KNN search.
         query: &'a str,
     },
-    #[allow(dead_code)]
-    HybridLocalRrf {
-        query: &'a str,
-    },
-    #[allow(dead_code)]
-    HybridEsRrf {
-        query: &'a str,
-    },
 }
 
 #[derive(Debug, Deref, DerefMut, From)]
