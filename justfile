@@ -244,7 +244,7 @@ validate-migrations-unchanged cmp_ref:
 
     changed_migrations=( $(\
         git diff --name-only "{{ cmp_ref }}" | \
-        grep -E "^web-api/migrations/.*" \
+        grep -E "^web-api-db-ctrl/postgres/.*" \
     ) ) || true
 
     if [ "${#changed_migrations[@]}" -gt 0 ]; then
