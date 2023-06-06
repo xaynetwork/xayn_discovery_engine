@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
       - run: |
           git config --global --add safe.directory "$(pwd)"
-          echo "CHECK MIGRATION UNCHANGED"
+          echo "CHECK MIGRATION UNCHANGED |${{ github.event.push.base_ref }}|"
           just validate-migrations-unchanged "${{ github.event.push.base_ref }}"
 
   ci-ok:
