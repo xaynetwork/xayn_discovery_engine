@@ -38,7 +38,7 @@ fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
 
 /// Resolves the path to the smbert.
 pub fn smbert() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smbert_v0003"])
+    resolve_path(&[DATA_DIR, "xaynia_v0002"])
 }
 
 /// Resolves the path to the mocked smbert.

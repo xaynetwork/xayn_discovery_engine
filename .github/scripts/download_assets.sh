@@ -50,6 +50,7 @@ if [ $# -gt 0 ]; then
         shift 2
     done
 else
+    download xaynia v0002
     download smbert v0003
     download smbert_mocked v0003
     download sjbert v0003
