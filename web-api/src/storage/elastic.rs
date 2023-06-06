@@ -130,6 +130,42 @@ impl Client {
         Ok(take_highest_n_scores(count, merged))
     }
 
+    async fn hybrid_search_es_rrf<'a>(
+        &self,
+        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        query: &'a str,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        let count = params.count;
+
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        } = create_common_knn_search_parts(params);
+
+        let request = merge_json_objects([
+            knn_object,
+            generic_parameters,
+            json_object!({
+                "query": { "bool": merge_json_objects([
+                    inner_filter,
+                    json_object!({
+                        "must": { "match": { "snippet": query }}
+                    })
+                ]) },
+                "rank": {
+                    "rrf": {
+                        // must be >= "size"
+                        "rank_constant": count
+                    }
+                }
+            }),
+        ]);
+
+        // TODO[pmk/now] should we normalize
+        Ok(self.search_request(request).await?)
+    }
+
     pub(super) async fn insert_documents(
         &self,
         documents: impl IntoIterator<
@@ -455,6 +491,24 @@ where
         scores
     });
     collect_summing_repeated(weighted)
+}
+
+/// Reciprocal Rank Fusion
+fn rrf<K>(k: f32, scores: impl IntoIterator<Item = HashMap<K, f32>>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let rrf_scores = scores
+        .into_iter()
+        .map(|scores| {
+            scores
+                .into_iter()
+                .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(&s2).reverse())
+                .enumerate()
+                .map(|(rank0, (document, _))| (document, (k + rank0 as f32).recip()))
+        })
+        .flatten();
+    collect_summing_repeated(rrf_scores)
 }
 
 fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> HashMap<K, f32>
