@@ -241,9 +241,9 @@ validate-migrations-unchanged cmp_ref:
     if ! git rev-parse --verify "{{cmp_ref}}"; then
         git fetch --depth=1 "$(git remote get-url origin)" "{{cmp_ref}}:{{cmp_ref}}"
         if ! git rev-parse --verify "{{cmp_ref}}"; then
-	  echo "ref {{cmp_ref}} dosen't exists after fetch"
-	  exit 1
-	fi
+          echo "ref {{cmp_ref}} dosen't exists after fetch"
+          exit 1
+        fi
     fi
 
     changed_migrations=( $(\
