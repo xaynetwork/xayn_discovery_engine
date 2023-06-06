@@ -14,7 +14,7 @@
 
 mod client;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, hash::Hash};
 
 use chrono::{DateTime, Utc};
 pub(crate) use client::{Client, ClientBuilder};
@@ -61,9 +61,9 @@ impl Client {
         }
 
         let mut filter =
-            self.create_es_search_filter(params.excluded, params.published_after);
+            Self::create_es_search_filter(params.excluded, params.published_after);
 
-        let mut body = self.create_knn_request_object(
+        let mut body = Self::create_knn_request_object(
             params.embedding,
             params.count,
             params.num_candidates,
@@ -75,13 +75,13 @@ impl Client {
             "_source": false,
         }));
 
-        if let Some(min_similarity) = params.min_similarity {
+        if let Some(min_score) = params.min_similarity {
             body.extend(json_object!({
-                "min_score": min_similarity,
+                "min_score": min_score,
             }));
         }
 
-        let mut knn_scores = self.search_request(&body).await?;
+        let knn_scores = self.search_request(&body).await?;
 
         if let Some(query) = params.query {
             body.remove("knn");
@@ -92,43 +92,18 @@ impl Client {
                 "query": { "bool": filter }
             }));
 
-            let bm25_scores = self.search_request(body).await?;
-            let max_bm25_score = bm25_scores
-                .values()
-                .max_by(|s1, s2| s1.total_cmp(s2))
-                .copied()
-                .unwrap_or_default()
-                .max(1.0);
-
-            // mixed knn and bm25 scores need to be normalized
-            for (id, bm25_score) in bm25_scores {
-                let bm25_score = bm25_score / max_bm25_score;
-                knn_scores
-                    .entry(id)
-                    .and_modify(|knn_score| *knn_score = 0.5 * *knn_score + 0.5 * bm25_score)
-                    .or_insert(bm25_score);
-            }
-
-            knn_scores = knn_scores
-                .into_iter()
-                .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
-                .take(params.count)
-                .collect();
+            let bm25_scores = normalize_scores(self.search_request(body).await?);
+            // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
+            //      and will likely strongly discount it
+            let knn_scores = normalize_scores(knn_scores);
+            let merged = merge_scores_weighted([(0.5, knn_scores), (0.5, bm25_scores)]);
+            Ok(take_highest_n_scores(params.count, merged))
+        } else {
+            Ok(knn_scores)
         }
-
-        Ok(knn_scores)
-    }
-
-    async fn search_knn(&self) {
-        todo!();
-    }
-
-    async fn search_hybrid(&self) {
-        todo!()
     }
 
     fn create_es_search_filter<'a>(
-        &self,
         excluded_ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
         published_after: Option<DateTime<Utc>>,
     ) -> JsonObject {
@@ -154,7 +129,6 @@ impl Client {
     }
 
     fn create_knn_request_object(
-        &self,
         embedding: &NormalizedEmbedding,
         count: usize,
         num_candidates: usize,
@@ -364,4 +338,60 @@ struct IngestedDocument<'a> {
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
     tags: &'a [DocumentTag],
+}
+
+fn normalize_scores<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let max_score = scores
+        .values()
+        .max_by(|l, r| l.total_cmp(r))
+        .copied()
+        .unwrap_or_default();
+    // TODO[pmk/now] the original code did a .max(1.0); this looked like bug, verify
+
+    for score in scores.values_mut() {
+        *score /= max_score;
+    }
+
+    scores
+}
+
+fn merge_scores_weighted<K>(
+    scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>,
+) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    // TODO[pmk/now] this originally didn't apply weights to scores where there was only one hit
+    //               this seemed like a bug and was removed, verify if that is correct
+    scores
+        .into_iter()
+        .map(|(weight, mut scores)| {
+            for score in scores.values_mut() {
+                *score *= weight;
+            }
+            scores
+        })
+        .reduce(|mut acc, scores| {
+            for (key, score) in scores {
+                acc.entry(key)
+                    .and_modify(|acc_score| *acc_score += score)
+                    .or_insert(score);
+            }
+            acc
+        })
+        .unwrap_or_default()
+}
+
+fn take_highest_n_scores<K>(n: usize, scores: HashMap<K, f32>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    scores
+        .into_iter()
+        .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+        .take(n)
+        .collect()
 }
