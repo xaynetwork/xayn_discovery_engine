@@ -238,9 +238,9 @@ validate-openapi:
 
 validate-migrations-unchanged cmp_ref:
     #!/usr/bin/env -S bash -eux -o pipefail
-    if ! git rev-list "{{ cmp_ref }}".."{{ cmp_ref }}"; then
+    if ! git rev-parse --verify "{{ cmp_ref }}"; then
         git fetch --depth=1 "$(git remote get-url origin)" "{{ cmp_ref }}"
-    	if ! git rev-list "{{ cmp_ref }}".."{{ cmp_ref }}"; then
+        if ! git rev-parse --verify "{{ cmp_ref }}"; then
           echo "ref: '{{cmp_ref}}' dosen't exits"
           exit 1
         fi
