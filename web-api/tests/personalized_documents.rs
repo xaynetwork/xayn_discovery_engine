@@ -113,16 +113,12 @@ async fn personalize(
     client: &Client,
     personalization_url: &Url,
     published_after: Option<&str>,
-    query: Option<&str>,
 ) -> Result<Vec<PersonalizedDocumentData>, Error> {
     let mut request = client
         .get(personalization_url.join("/users/u1/personalized_documents")?)
         .query(&[("count", "5")]);
     if let Some(published_after) = published_after {
         request = request.query(&[("published_after", published_after)]);
-    }
-    if let Some(query) = query {
-        request = request.query(&[("query", query), ("enable_hybrid_search", "true")]);
     }
     let request = request.build()?;
 
@@ -178,7 +174,7 @@ fn test_personalization_all_dates() {
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
-            let documents = personalize(&client, &personalization_url, None, None).await?;
+            let documents = personalize(&client, &personalization_url, None).await?;
             assert_order!(
                 &documents,
                 ["d8", "d6", "d1", "d3"],
@@ -196,40 +192,11 @@ fn test_personalization_limited_dates() {
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
-            let documents = personalize(
-                &client,
-                &personalization_url,
-                Some("2022-01-01T00:00:00Z"),
-                None,
-            )
-            .await?;
+            let documents =
+                personalize(&client, &personalization_url, Some("2022-01-01T00:00:00Z")).await?;
             assert_order!(
                 &documents,
                 ["d1", "d3"],
-                "unexpected personalized documents: {documents:?}",
-            );
-            Ok(())
-        },
-    );
-}
-
-#[test]
-fn test_personalization_with_query() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_dates(&client, &ingestion_url).await?;
-            let documents = personalize(
-                &client,
-                &personalization_url,
-                None,
-                Some("Robot Technology Chicken"),
-            )
-            .await?;
-            assert_order!(
-                &documents,
-                ["d8", "d6", "d1"],
                 "unexpected personalized documents: {documents:?}",
             );
             Ok(())
@@ -244,7 +211,7 @@ fn test_personalization_with_tags() {
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_tags(&client, &ingestion_url).await?;
-            let documents = personalize(&client, &personalization_url, None, None).await?;
+            let documents = personalize(&client, &personalization_url, None).await?;
             assert_order!(
                 &documents,
                 ["d5", "d6", "d1", "d8"],
