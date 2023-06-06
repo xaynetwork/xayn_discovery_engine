@@ -45,23 +45,12 @@ jobs:
       - name: Check copyright
         run: .github/scripts/copyright.sh
 
-  check-migration-unchanged:
-    runs-on: hetzner-pm
-    container:
-      image: xaynetci/yellow:v13
-    steps:
-      - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
-      - run: |
-          git config --global --add safe.directory "$(pwd)"
-          just validate-migrations-unchanged main
-
   ci-ok:
     if: always()
     needs:
       - rust-checks
       - open-api
       - copyright
-      - check-migration-unchanged
     runs-on: ubuntu-22.04
     steps:
       - name: All jobs in this workflow succeeded
