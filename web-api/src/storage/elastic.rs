@@ -14,7 +14,7 @@
 
 mod client;
 
-use std::{collections::HashMap, hash::Hash};
+use std::{collections::HashMap, hash::Hash, ops::AddAssign};
 
 use chrono::{DateTime, Utc};
 pub(crate) use client::{Client, ClientBuilder};
@@ -96,9 +96,7 @@ impl Client {
 
         let knn_request = merge_json_objects([knn_object, generic_parameters.clone()]);
 
-        // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
-        //      and will likely strongly discount it
-        let knn_scores = normalize_scores(self.search_request(knn_request).await?);
+        let knn_scores = self.search_request(knn_request).await?;
 
         let bm_25 = merge_json_objects([
             json_object!({
@@ -111,10 +109,15 @@ impl Client {
             }),
             generic_parameters,
         ]);
-
         // TODO[pmk/now] fixme parallelize polling
-        let bm25_scores = normalize_scores(self.search_request(bm_25).await?);
-        let merged = merge_scores_weighted([(0.5, knn_scores), (0.5, bm25_scores)]);
+        let bm25_scores = self.search_request(bm_25).await?;
+
+        let merged = merge_scores_weighted([
+            // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
+            //      and will likely strongly discount it
+            (0.5, normalize_scores(knn_scores)),
+            (0.5, normalize_scores(bm25_scores)),
+        ]);
         Ok(take_highest_n_scores(count, merged))
     }
 
@@ -417,23 +420,44 @@ where
 {
     // TODO[pmk/now] this originally didn't apply weights to scores where there was only one hit
     //               this seemed like a bug and was removed, verify if that is correct
+    let weighted = scores.into_iter().flat_map(|(weight, mut scores)| {
+        for score in scores.values_mut() {
+            *score *= weight;
+        }
+        scores
+    });
+    collect_summing_repeated(weighted)
+}
+
+/// Reciprocal Rank Fusion
+#[allow(dead_code)]
+fn rrf<K>(k: f32, scores: impl IntoIterator<Item = HashMap<K, f32>>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let rrf_scores = scores.into_iter().flat_map(|scores| {
+        scores
+            .into_iter()
+            .sorted_by(|l, r| l.1.total_cmp(&r.1).reverse())
+            .enumerate()
+            .map(|(rank0, (document, _))| {
+                #[allow(clippy::cast_precision_loss)]
+                (document, (k + rank0 as f32).recip())
+            })
+    });
+    collect_summing_repeated(rrf_scores)
+}
+
+fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
     scores
         .into_iter()
-        .map(|(weight, mut scores)| {
-            for score in scores.values_mut() {
-                *score *= weight;
-            }
-            scores
-        })
-        .reduce(|mut acc, scores| {
-            for (key, score) in scores {
-                acc.entry(key)
-                    .and_modify(|acc_score| *acc_score += score)
-                    .or_insert(score);
-            }
+        .fold(HashMap::new(), |mut acc, (key, value)| {
+            acc.entry(key).or_default().add_assign(value);
             acc
         })
-        .unwrap_or_default()
 }
 
 fn take_highest_n_scores<K>(n: usize, scores: HashMap<K, f32>) -> HashMap<K, f32>
