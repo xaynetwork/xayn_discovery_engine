@@ -29,14 +29,3 @@ impl From<&str> for RelativePathBuf {
         }
     }
 }
-
-macro_rules! json_object {
-    ({ $($tt:tt)* }) => ({
-        let ::serde_json::Value::Object(obj) = json!({ $($tt)* }) else {
-            unreachable!(/* the {} enforces it's always an object */);
-        };
-        obj
-    });
-}
-
-pub(crate) use json_object;

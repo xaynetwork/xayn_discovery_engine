@@ -53,3 +53,28 @@ pub mod serde_duration_as_seconds {
         u64::deserialize(deserializer).map(Duration::from_secs)
     }
 }
+
+#[macro_export]
+macro_rules! json_object {
+    ({ $($tt:tt)* }) => ({
+        let ::serde_json::Value::Object(obj) = json!({ $($tt)* }) else {
+            unreachable!(/* the {} enforces it's always an object */);
+        };
+        obj
+    });
+}
+
+pub use json_object;
+use serde_json::Value;
+
+pub type JsonObject = serde_json::Map<String, Value>;
+
+pub fn merge_json_objects(objects: impl IntoIterator<Item = JsonObject>) -> JsonObject {
+    objects
+        .into_iter()
+        .reduce(|mut acc, obj| {
+            acc.extend(obj);
+            acc
+        })
+        .unwrap_or_default()
+}

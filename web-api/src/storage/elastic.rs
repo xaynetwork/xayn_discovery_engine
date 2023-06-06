@@ -20,9 +20,13 @@ use chrono::{DateTime, Utc};
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
+use xayn_web_api_shared::{
+    json_object,
+    serde::{merge_json_objects, JsonObject},
+};
 
 use super::SearchStrategy;
 use crate::{
@@ -35,11 +39,8 @@ use crate::{
         DocumentTag,
     },
     storage::{KnnSearchParams, Warning},
-    utils::json_object,
     Error,
 };
-
-type JsonObject = serde_json::Map<String, Value>;
 
 /// Deserializes from any map/struct dropping all fields.
 ///
@@ -72,16 +73,16 @@ impl Client {
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
-        // knn search with `k`/`num_candidates` set to zero is a bad request
-        if params.count == 0 {
-            return Ok(HashMap::new());
-        }
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter: _,
+        } = create_common_knn_search_parts(params);
 
-        let (mut knn, additional_parameters, _) = Self::create_common_knn_search_parts(params);
-        knn.extend(additional_parameters);
+        let request = merge_json_objects([knn_object, generic_parameters]);
 
         // TODO[pmk/now] is it correct to not normalize this
-        Ok(self.search_request(&knn).await?)
+        Ok(self.search_request(request).await?)
     }
 
     async fn hybrid_search_weighted<'a>(
@@ -90,29 +91,33 @@ impl Client {
         query: &'a str,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         let count = params.count;
-        // knn search with `k`/`num_candidates` set to zero is a bad request
-        if count == 0 {
-            return Ok(HashMap::new());
-        }
 
-        let (mut knn, additional_parameters, mut filter) =
-            Self::create_common_knn_search_parts(params);
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        } = create_common_knn_search_parts(params);
 
-        knn.extend(additional_parameters.clone());
+        let knn_request = merge_json_objects([knn_object, generic_parameters.clone()]);
 
         // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
         //      and will likely strongly discount it
-        let knn_scores = normalize_scores(self.search_request(&knn).await?);
+        let knn_scores = normalize_scores(self.search_request(knn_request).await?);
 
-        filter.extend(json_object!({
-            "must": { "match": { "snippet": query }}
-        }));
-        let mut bm_25 = json_object!({
-            "query": { "bool": filter }
-        });
-        bm_25.extend(additional_parameters);
+        let bm_25 = merge_json_objects([
+            json_object!({
+                "query": { "bool": merge_json_objects([
+                    inner_filter,
+                    json_object!({
+                        "must": { "match": { "snippet": query }}
+                    })
+                ]) }
+            }),
+            generic_parameters,
+        ]);
 
-        let bm25_scores = normalize_scores(self.search_request(&bm_25).await?);
+        // TODO[pmk/now] fixme parallelize polling
+        let bm25_scores = normalize_scores(self.search_request(bm_25).await?);
         let merged = merge_scores_weighted([(0.5, knn_scores), (0.5, bm25_scores)]);
         Ok(take_highest_n_scores(count, merged))
     }
@@ -123,31 +128,35 @@ impl Client {
         query: &'a str,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         let count = params.count;
-        // knn search with `k`/`num_candidates` set to zero is a bad request
-        if count == 0 {
-            return Ok(HashMap::new());
-        }
 
-        let (mut knn, additional_parameters, mut filter) =
-            Self::create_common_knn_search_parts(params);
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        } = create_common_knn_search_parts(params);
 
-        knn.extend(additional_parameters);
-        filter.extend(json_object!({
-            "must": { "match": { "snippet": query }}
-        }));
-        knn.extend(json_object!({
-            "query": { "bool": filter },
-            "rank": {
-                "rrf": {
-                    // must be >= "size"
-                    "rank_constant": count
+        let request = merge_json_objects([
+            knn_object,
+            generic_parameters,
+            json_object!({
+                "query": { "bool": merge_json_objects([
+                    inner_filter,
+                    json_object!({
+                        "must": { "match": { "snippet": query }}
+                    })
+                ]) },
+                "rank": {
+                    "rrf": {
+                        // must be >= "size"
+                        "rank_constant": count
+                    }
                 }
-            }
-        }));
+            }),
+        ]);
 
         // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
         //      and will likely strongly discount it
-        Ok(normalize_scores(self.search_request(&knn).await?))
+        Ok(normalize_scores(self.search_request(request).await?))
     }
 
     #[allow(clippy::unused_async)]
@@ -157,78 +166,6 @@ impl Client {
         _query: &'a str,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         todo!();
-    }
-
-    fn create_common_knn_search_parts<'a>(
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
-    ) -> (JsonObject, JsonObject, JsonObject) {
-        let filter =
-            Self::create_es_search_filter(params.excluded, params.published_after);
-
-        let knn = Self::create_knn_request_object(
-            params.embedding,
-            params.count,
-            params.num_candidates,
-            &filter,
-        );
-
-        let mut additional_parameters = json_object!({
-            "size": params.count,
-            //FIXME this should be part of `self.search_request()`
-            "_source": false,
-        });
-
-        if let Some(min_score) = params.min_similarity {
-            additional_parameters.extend(json_object!({
-                "min_score": min_score,
-            }));
-        }
-        (knn, additional_parameters, filter)
-    }
-
-    fn create_es_search_filter<'a>(
-        excluded_ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
-        published_after: Option<DateTime<Utc>>,
-    ) -> JsonObject {
-        let mut filter = JsonObject::new();
-        let excluded = excluded_ids.into_iter();
-        if excluded.len() > 0 {
-            // existing documents are not filtered in the query to avoid too much work for a cold
-            // path, filtering them afterwards can occasionally lead to less than k results though
-            filter.insert(
-                "must_not".to_string(),
-                json!({ "ids": { "values": excluded.collect_vec() } }),
-            );
-        }
-        if let Some(published_after) = published_after {
-            // published_after != null && published_after <= publication_date
-            let published_after = published_after.to_rfc3339();
-            filter.insert(
-                "filter".to_string(),
-                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
-            );
-        }
-        filter
-    }
-
-    fn create_knn_request_object(
-        embedding: &NormalizedEmbedding,
-        count: usize,
-        num_candidates: usize,
-        filter: &JsonObject,
-    ) -> JsonObject {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
-        json_object!({
-            "knn": {
-                "field": "embedding",
-                "query_vector": embedding,
-                "k": count,
-                "num_candidates": num_candidates,
-                "filter": {
-                    "bool": filter
-                }
-            }
-        })
     }
 
     pub(super) async fn insert_documents(
@@ -421,6 +358,87 @@ struct IngestedDocument<'a> {
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
     tags: &'a [DocumentTag],
+}
+
+struct KnnSearchParts {
+    knn_object: JsonObject,
+    generic_parameters: JsonObject,
+    inner_filter: JsonObject,
+}
+
+fn create_common_knn_search_parts<'a>(
+    params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+) -> KnnSearchParts {
+    let inner_filter =
+        create_es_search_filter(params.time, params.excluded, params.published_after);
+
+    let knn_object = create_knn_request_object(
+        params.embedding,
+        params.count,
+        params.num_candidates,
+        &inner_filter,
+    );
+
+    let mut generic_parameters = json_object!({
+        "size": params.count
+    });
+
+    if let Some(min_score) = params.min_similarity {
+        generic_parameters.extend(json_object!({
+            "min_score": min_score,
+        }));
+    }
+
+    KnnSearchParts {
+        knn_object,
+        generic_parameters,
+        inner_filter,
+    }
+}
+
+fn create_es_search_filter<'a>(
+    excluded_ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
+    published_after: Option<DateTime<Utc>>,
+) -> JsonObject {
+    let mut filter = JsonObject::new();
+    let excluded = excluded_ids.into_iter();
+    if excluded.len() > 0 {
+        // existing documents are not filtered in the query to avoid too much work for a cold
+        // path, filtering them afterwards can occasionally lead to less than k results though
+        filter.insert(
+            "must_not".to_string(),
+            json!({ "ids": { "values": excluded.collect_vec() } }),
+        );
+    }
+    if let Some(published_after) = published_after {
+        // published_after != null && published_after <= publication_date
+        let published_after = published_after.to_rfc3339();
+        filter.insert(
+            "filter".to_string(),
+            json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
+        );
+    }
+    filter
+}
+
+fn create_knn_request_object(
+    embedding: &NormalizedEmbedding,
+    count: usize,
+    num_candidates: usize,
+    filter: &JsonObject,
+) -> JsonObject {
+    // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
+    json_object!({
+        "knn": {
+            "field": "embedding",
+            "query_vector": embedding,
+            "k": count,
+            "num_candidates": num_candidates,
+            "filter": {
+                "bool": filter
+            }
+        }
+    })
 }
 
 fn normalize_scores<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>

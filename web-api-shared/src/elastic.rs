@@ -36,7 +36,12 @@ use serde_json::Value;
 use thiserror::Error;
 use tracing::error;
 
-use crate::serde::{serde_duration_as_seconds, serialize_redacted, serialize_to_ndjson};
+use crate::serde::{
+    serde_duration_as_seconds,
+    serialize_redacted,
+    serialize_to_ndjson,
+    JsonObject,
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -270,10 +275,14 @@ impl Client {
             .ok_or_else(|| Error::EndpointNotFound("_bulk"))
     }
 
-    pub async fn search_request<I>(&self, body: impl Serialize) -> Result<HashMap<I, f32>, Error>
+    pub async fn search_request<I>(&self, mut body: JsonObject) -> Result<HashMap<I, f32>, Error>
     where
         I: DeserializeOwned + Eq + Hash,
     {
+        if body.get("size") == Some(&0.into()) {
+            return Ok(HashMap::new());
+        }
+        body.insert("_source".into(), false.into());
         self.query_with_json::<_, SearchResponse<I, NoSource>>(
             self.create_url(["_search"], None),
             Some(body),
