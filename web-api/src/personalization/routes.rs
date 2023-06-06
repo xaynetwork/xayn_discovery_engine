@@ -15,9 +15,7 @@
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
-    Either,
-    HttpResponse,
-    Responder,
+    Either, HttpResponse, Responder,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -28,16 +26,10 @@ use super::{
     knn,
     rerank::rerank_by_scores,
     stateless::{
-        derive_interests_and_tag_weights,
-        load_history,
-        trim_history,
-        validate_history,
-        HistoryEntry,
-        UnvalidatedHistoryEntry,
+        derive_interests_and_tag_weights, load_history, trim_history, validate_history,
+        HistoryEntry, UnvalidatedHistoryEntry,
     },
-    AppState,
-    PersonalizationConfig,
-    SemanticSearchConfig,
+    AppState, PersonalizationConfig, SemanticSearchConfig,
 };
 use crate::{
     app::TenantState,
@@ -330,9 +322,11 @@ struct UnvalidatedSemanticSearchQuery {
     min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
+    #[serde(default)]
+    enable_hybrid_search: Option<bool>,
     // TODO[pmk/now] to we keep enable_hybrid_search
     #[serde(default)]
-    hybrid_search_strategy: HybridSearchStrategy,
+    hybrid_search_strategy: Option<HybridSearchStrategy>,
 }
 
 #[derive(Copy, Clone, Debug, Default, Deserialize)]
@@ -357,6 +351,23 @@ impl HybridSearchStrategy {
             SearchStrategy::Knn
         }
     }
+
+    fn resolve(enable_hybrid_search: Option<bool>, strategy: Option<Self>) -> Result<Self, Error> {
+        Ok(match (enable_hybrid_search, strategy) {
+            (None | Some(false), None) => HybridSearchStrategy::Off,
+            (None, Some(strategy)) => strategy,
+            (Some(true), None) => HybridSearchStrategy::WeightedSum,
+            (Some(enabled), Some(strategy)) => {
+                if !enabled != matches!(strategy, HybridSearchStrategy::Off) {
+                    return Err(BadRequest::from(
+                        "enable_hybrid_search and hybrid_search_strategy do not match",
+                    )
+                    .into());
+                }
+                strategy
+            }
+        })
+    }
 }
 
 impl UnvalidatedSemanticSearchQuery {
@@ -371,9 +382,14 @@ impl UnvalidatedSemanticSearchQuery {
             min_similarity,
             published_after,
             personalize,
+            enable_hybrid_search,
             hybrid_search_strategy,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
+
+        let hybrid_search_strategy =
+            HybridSearchStrategy::resolve(enable_hybrid_search, hybrid_search_strategy)?;
+
         Ok(SemanticSearchQuery {
             document: document.validate()?,
             published_after,
