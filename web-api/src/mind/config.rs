@@ -40,7 +40,7 @@ impl Default for StateConfig {
 pub(super) struct GridSearchConfig {
     pub(super) thresholds: Vec<f32>,
     pub(super) shifts: Vec<f32>,
-    pub(super) min_pos_cois: Vec<usize>,
+    pub(super) min_cois: Vec<usize>,
     pub(super) click_probability: f64,
     pub(super) ndocuments: usize,
     pub(super) iterations: usize,
@@ -53,7 +53,7 @@ impl Default for GridSearchConfig {
         Self {
             thresholds: vec![0.67, 0.7, 0.75, 0.8, 0.85, 0.9],
             shifts: vec![0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4],
-            min_pos_cois: vec![1],
+            min_cois: vec![1],
             click_probability: 0.2,
             ndocuments: 100,
             iterations: 10,
@@ -66,18 +66,18 @@ impl Default for GridSearchConfig {
 impl GridSearchConfig {
     pub(super) fn create_state_configs(&self) -> Result<Vec<StateConfig>, Panic> {
         let mut configs =
-            Vec::with_capacity(self.thresholds.len() * self.shifts.len() * self.min_pos_cois.len());
+            Vec::with_capacity(self.thresholds.len() * self.shifts.len() * self.min_cois.len());
         let start_time = Utc::now();
 
         for &threshold in &self.thresholds {
             for &shift_factor in &self.shifts {
-                for &min_positive_cois in &self.min_pos_cois {
+                for &min_cois in &self.min_cois {
                     configs.push(StateConfig {
                         coi: {
                             CoiConfig::default()
                                 .with_shift_factor(shift_factor)?
                                 .with_threshold(threshold)?
-                                .with_min_positive_cois(min_positive_cois)?
+                                .with_min_cois(min_cois)?
                         },
                         personalization: PersonalizationConfig::default(),
                         time: start_time,

@@ -25,7 +25,7 @@ use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{PositiveCoi, UserInterests};
+use xayn_ai_coi::Coi;
 use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 
@@ -41,7 +41,6 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         UserId,
-        UserInteractionType,
     },
     tenants,
     Error,
@@ -180,14 +179,13 @@ pub(crate) trait DocumentProperty {
 
 #[async_trait]
 pub(crate) trait Interest {
-    async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error>;
+    async fn get(&self, user_id: &UserId) -> Result<Vec<Coi>, Error>;
 }
 
 pub(crate) struct InteractionUpdateContext<'s, 'l> {
     pub(crate) document: &'s InteractedDocument,
-    pub(crate) interaction_type: UserInteractionType,
     pub(crate) tag_weight_diff: &'s mut HashMap<&'l DocumentTag, i32>,
-    pub(crate) positive_cois: &'s mut Vec<PositiveCoi>,
+    pub(crate) interests: &'s mut Vec<Coi>,
     pub(crate) time: DateTime<Utc>,
 }
 
@@ -200,12 +198,10 @@ pub(crate) trait Interaction {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<
-            IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
-        >,
+        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
         store_user_history: bool,
         time: DateTime<Utc>,
-        update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi,
+        update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
     ) -> Result<(), Error>;
 }
 

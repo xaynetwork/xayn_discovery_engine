@@ -32,7 +32,7 @@ def ingest_generated_documents_and_interact():
     docs = documents.generate_docs(100)
     request = api_handler.ingest_document(list(docs.values()))
     au.assert_status_code_equals(request.status_code, 201)
-    positive_interaction = Interactions(Interaction(id=next(iter(docs)), type="Positive")).to_json()
-    request = api_handler.interact_with_documents(user_id, positive_interaction)
+    interaction = Interactions(Interaction(id=next(iter(docs)))).to_json()
+    request = api_handler.interact_with_documents(user_id, interaction)
     au.assert_status_code_equals(request.status_code, 204)
     return user_id

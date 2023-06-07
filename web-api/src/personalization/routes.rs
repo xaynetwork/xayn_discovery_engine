@@ -45,7 +45,7 @@ use crate::{
         common::{BadRequest, DocumentNotFound},
         warning::Warning,
     },
-    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
+    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
     storage::{self, KnnSearchParams},
     Error,
 };
@@ -71,8 +71,6 @@ struct UpdateInteractions {
 struct UserInteractionData {
     #[serde(rename = "id")]
     document_id: String,
-    #[serde(rename = "type")]
-    interaction_type: UserInteractionType,
 }
 
 async fn interactions(
@@ -85,11 +83,7 @@ async fn interactions(
     let interactions = interactions
         .documents
         .into_iter()
-        .map(|data| {
-            data.document_id
-                .try_into()
-                .map(|document_id| (document_id, data.interaction_type))
-        })
+        .map(|data| data.document_id.try_into())
         .try_collect::<_, Vec<_>, _>()?;
     update_interactions(
         &storage,
@@ -108,9 +102,7 @@ pub(crate) async fn update_interactions(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi: &CoiSystem,
     user_id: &UserId,
-    interactions: impl IntoIterator<
-        IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
-    >,
+    interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
     store_user_history: bool,
     time: DateTime<Utc>,
 ) -> Result<(), Error> {
@@ -123,21 +115,13 @@ pub(crate) async fn update_interactions(
         store_user_history,
         time,
         |context| {
-            match context.interaction_type {
-                UserInteractionType::Positive => {
-                    for tag in &context.document.tags {
-                        *context.tag_weight_diff
+            for tag in &context.document.tags {
+                *context.tag_weight_diff
                             .get_mut(tag)
                             .unwrap(/* update_interactions assures all tags are given */) += 1;
-                    }
-                    coi.log_positive_user_reaction(
-                        context.positive_cois,
-                        &context.document.embedding,
-                        context.time,
-                    )
-                    .clone()
-                }
             }
+            coi.log_user_reaction(context.interests, &context.document.embedding, context.time)
+                .clone()
         },
     )
     .await?;
@@ -252,7 +236,7 @@ pub(crate) async fn personalize_documents_by(
 
     let interests = storage::Interest::get(storage, user_id).await?;
 
-    if !interests.has_enough(coi_system.config()) {
+    if interests.len() < coi_system.config().min_cois() {
         return Ok(None);
     }
 
@@ -268,7 +252,7 @@ pub(crate) async fn personalize_documents_by(
             published_after,
         } => {
             knn::CoiSearch {
-                interests: &interests.positive,
+                interests: &interests,
                 excluded: &excluded,
                 horizon: coi_system.config().horizon(),
                 max_cois: personalization.max_cois_for_knn,
@@ -565,23 +549,25 @@ async fn personalize_knn_search_result(
             storage::Tag::get(storage, &id).await?,
         ),
         InputUser::Inline { history } => {
-            let config: &PersonalizationConfig = config.as_ref();
-            let history = trim_history(history, config.max_stateless_history_for_cois);
+            let history = trim_history(
+                history,
+                AsRef::<PersonalizationConfig>::as_ref(config).max_stateless_history_for_cois,
+            );
             let history = load_history(storage, history).await?;
             derive_interests_and_tag_weights(coi_system, &history)
         }
     };
 
-    if interests.has_enough(config.as_ref()) {
-        let config: &SemanticSearchConfig = config.as_ref();
+    if interests.len() >= AsRef::<CoiConfig>::as_ref(config).min_cois() {
         rerank_by_scores(
             coi_system,
             documents,
             &interests,
             &tag_weights,
-            config.score_weights,
+            AsRef::<SemanticSearchConfig>::as_ref(config).score_weights,
             Utc::now(),
         );
     }
+
     Ok(())
 }

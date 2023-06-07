@@ -18,16 +18,16 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
-use crate::point::{NegativeCoi, PositiveCoi};
+use crate::point::Coi;
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-pub struct CoiStats {
+pub struct Stats {
     pub view_count: usize,
     pub view_time: Duration,
     pub last_view: DateTime<Utc>,
 }
 
-impl CoiStats {
+impl Stats {
     pub(super) fn new(time: DateTime<Utc>) -> Self {
         Self {
             view_count: 1,
@@ -46,7 +46,7 @@ impl CoiStats {
     }
 }
 
-impl PositiveCoi {
+impl Coi {
     pub fn log_time(&mut self, viewed: Duration) -> &mut Self {
         self.stats.log_time(viewed);
         self
@@ -58,19 +58,12 @@ impl PositiveCoi {
     }
 }
 
-impl NegativeCoi {
-    pub(super) fn log_reaction(&mut self, time: DateTime<Utc>) -> &mut Self {
-        self.last_view = time;
-        self
-    }
-}
-
-/// Computes the relevances of the positive cois.
+/// Computes the relevances of the [`Coi`]s.
 ///
 /// The relevance of each coi is computed from its view count and view time relative to the
 /// other cois and ranges in the interval `[0., 2.]`.
 pub fn compute_coi_relevances<'a>(
-    cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a PositiveCoi>>,
+    cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a Coi>>,
     horizon: Duration,
     time: DateTime<Utc>,
 ) -> Vec<f32> {
@@ -107,7 +100,7 @@ pub fn compute_coi_relevances<'a>(
     .collect()
 }
 
-/// Computes the time decay factor for a coi.
+/// Computes the time decay factor for a [`Coi`].
 ///
 /// The decay factor is based on its `last_view` stat relative to the current `time` and ranges in
 /// the interval `[0., 1.]`.
@@ -131,11 +124,11 @@ pub fn compute_coi_decay_factor(
     ((horizon - days) / (horizon - 1.)).max(0.)
 }
 
-/// Computes a weight distributions across cois based on their relevance.
+/// Computes a weight distributions across [`Coi`]s based on their relevance.
 ///
 /// Each weight ranges in the interval `[0., 1.]`.
 pub fn compute_coi_weights<'a>(
-    cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a PositiveCoi>>,
+    cois: impl IntoIterator<IntoIter = impl Clone + Iterator<Item = &'a Coi>>,
     horizon: Duration,
     time: DateTime<Utc>,
 ) -> Vec<f32> {
@@ -162,7 +155,7 @@ mod tests {
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::{point::tests::create_pos_cois, utils::SECONDS_PER_DAY};
+    use crate::{point::tests::create_cois, utils::SECONDS_PER_DAY};
 
     #[test]
     fn test_compute_relevances_empty_cois() {
@@ -177,7 +170,7 @@ mod tests {
     #[test]
     fn test_compute_relevances_zero_horizon() {
         let now = Utc::now();
-        let cois = create_pos_cois([[1., 2., 3.], [4., 5., 6.]], now);
+        let cois = create_cois([[1., 2., 3.], [4., 5., 6.]], now);
         let horizon = Duration::ZERO;
 
         let relevances = compute_coi_relevances(&cois, horizon, now);
@@ -187,7 +180,7 @@ mod tests {
     #[test]
     fn test_compute_relevances_count() {
         let now = Utc::now();
-        let mut cois = create_pos_cois([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], now);
+        let mut cois = create_cois([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], now);
         cois[1].stats.view_count += 1;
         cois[2].stats.view_count += 2;
         let horizon = Duration::from_secs(SECONDS_PER_DAY);
@@ -199,7 +192,7 @@ mod tests {
     #[test]
     fn test_compute_relevances_time() {
         let now = Utc::now();
-        let mut cois = create_pos_cois([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], now);
+        let mut cois = create_cois([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], now);
         cois[1].stats.view_time += Duration::from_secs(10);
         cois[2].stats.view_time += Duration::from_secs(20);
         let horizon = Duration::from_secs(SECONDS_PER_DAY);
@@ -211,7 +204,7 @@ mod tests {
     #[test]
     fn test_compute_relevances_last() {
         let now = Utc::now();
-        let mut cois = create_pos_cois([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], now);
+        let mut cois = create_cois([[1., 2., 3.], [4., 5., 6.], [7., 8., 9.]], now);
         cois[0].stats.last_view -= chrono::Duration::hours(12);
         cois[1].stats.last_view -= chrono::Duration::hours(36);
         cois[2].stats.last_view -= chrono::Duration::hours(60);

@@ -30,8 +30,7 @@ use crate::{
 pub struct Config {
     shift_factor: f32,
     threshold: f32,
-    min_positive_cois: usize,
-    min_negative_cois: usize,
+    min_cois: usize,
     #[serde(with = "serde_duration_as_days")]
     horizon: Duration,
 }
@@ -44,8 +43,7 @@ impl Default for Config {
         Self {
             shift_factor: 0.1,
             threshold: 0.67,
-            min_positive_cois: 1,
-            min_negative_cois: 0,
+            min_cois: 1,
             horizon: Duration::from_secs(30 * SECONDS_PER_DAY),
         }
     }
@@ -58,8 +56,8 @@ pub enum Error {
     ShiftFactor,
     /// Invalid coi threshold, expected non-negative value
     Threshold,
-    /// Invalid minimum number of positive cois, expected positive value
-    MinPositiveCois,
+    /// Invalid minimum number of cois, expected positive value
+    MinCois,
 }
 
 impl Config {
@@ -99,33 +97,22 @@ impl Config {
         }
     }
 
-    /// The minimum number of positive cois required for the context calculation.
-    pub fn min_positive_cois(&self) -> usize {
-        self.min_positive_cois
+    /// The minimum number of cois required for the context calculation.
+    pub fn min_cois(&self) -> usize {
+        self.min_cois
     }
 
-    /// Sets the minimum number of positive cois.
+    /// Sets the minimum number of cois.
     ///
     /// # Errors
     /// Fails if the minimum number is zero.
-    pub fn with_min_positive_cois(mut self, min_positive_cois: usize) -> Result<Self, Error> {
-        if min_positive_cois > 0 {
-            self.min_positive_cois = min_positive_cois;
+    pub fn with_min_cois(mut self, min_cois: usize) -> Result<Self, Error> {
+        if min_cois > 0 {
+            self.min_cois = min_cois;
             Ok(self)
         } else {
-            Err(Error::MinPositiveCois)
+            Err(Error::MinCois)
         }
-    }
-
-    /// The minimum number of negative cois required for the context calculation.
-    pub fn min_negative_cois(&self) -> usize {
-        self.min_negative_cois
-    }
-
-    /// Sets the minimum number of negative cois.
-    pub fn with_min_negative_cois(mut self, min_negative_cois: usize) -> Self {
-        self.min_negative_cois = min_negative_cois;
-        self
     }
 
     /// The time since the last view after which a coi becomes irrelevant.

@@ -18,7 +18,7 @@ use chrono::{DateTime, Utc};
 use futures_util::{stream::FuturesUnordered, Stream, StreamExt};
 use itertools::Itertools;
 use tracing::error;
-use xayn_ai_coi::{compute_coi_weights, PositiveCoi};
+use xayn_ai_coi::{compute_coi_weights, Coi};
 
 use crate::{
     error::common::InternalError,
@@ -41,11 +41,11 @@ pub(super) struct CoiSearch<I, J> {
 impl<'a, I, J> CoiSearch<I, J>
 where
     I: IntoIterator,
-    <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a PositiveCoi>,
+    <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a Coi>,
     J: IntoIterator,
     <J as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a DocumentId>,
 {
-    /// Performs an approximate knn search for documents similar to the positive user interests.
+    /// Performs an approximate knn search for documents similar to the user interests.
     pub(super) async fn run_on(
         self,
         storage: &impl storage::Document,

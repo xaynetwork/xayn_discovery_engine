@@ -387,7 +387,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
                 .interact(
                     user_id,
                     interesting_documents
-                        .choose_multiple(&mut rng, state.coi.config().min_positive_cois())
+                        .choose_multiple(&mut rng, state.coi.config().min_cois())
                         .map(|doc| (&doc.id, state.time - Duration::days(0))),
                 )
                 .await?;
