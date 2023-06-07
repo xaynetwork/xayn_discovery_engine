@@ -1125,9 +1125,6 @@ impl storage::Interaction for Storage {
 
         let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
         let mut updates = HashMap::new();
-        let mut document_ids = store_user_history
-            .then(|| Vec::with_capacity(interactions.len()))
-            .unwrap_or_default();
         for document_id in interactions {
             if let Some(document) = document_map.get(document_id) {
                 let updated_coi = update_logic(InteractionUpdateContext {
@@ -1139,9 +1136,6 @@ impl storage::Interaction for Storage {
                 // We might update the same coi min `interests` multiple times,
                 // if we do we only want to keep the latest update.
                 updates.insert(updated_coi.id, updated_coi);
-                if store_user_history {
-                    document_ids.push(document_id);
-                }
             } else {
                 info!(%document_id, "interacted document doesn't exist");
             }
@@ -1149,7 +1143,8 @@ impl storage::Interaction for Storage {
 
         Database::upsert_cois(&mut tx, user_id, time, &updates).await?;
         if store_user_history {
-            Database::upsert_interactions(&mut tx, user_id, time, document_ids).await?;
+            Database::upsert_interactions(&mut tx, user_id, time, document_map.keys().copied())
+                .await?;
         }
         Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
 

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.0.0
+  version: 1.1.0
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
