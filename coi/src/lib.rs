@@ -32,9 +32,7 @@
 )]
 
 mod config;
-mod context;
 mod document;
-mod id;
 mod point;
 mod stats;
 mod system;
@@ -42,10 +40,13 @@ mod utils;
 
 pub use crate::{
     config::{Config as CoiConfig, Error as CoiConfigError},
-    context::UserInterests,
     document::Document,
-    id::CoiId,
-    point::{CoiPoint, NegativeCoi, PositiveCoi},
-    stats::{compute_coi_decay_factor, compute_coi_relevances, compute_coi_weights, CoiStats},
+    point::{Coi, Id as CoiId},
+    stats::{
+        compute_coi_decay_factor,
+        compute_coi_relevances,
+        compute_coi_weights,
+        Stats as CoiStats,
+    },
     system::System as CoiSystem,
 };

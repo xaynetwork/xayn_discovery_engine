@@ -75,12 +75,7 @@ async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Erro
         client,
         client
             .patch(personalization_url.join("/users/u1/interactions")?)
-            .json(&json!({
-                "documents": [
-                    { "id": "d2", "type": "Positive" },
-                    { "id": "d9", "type": "Positive" }
-                ]
-            }))
+            .json(&json!({ "documents": [ { "id": "d2" }, { "id": "d9" } ] }))
             .build()?,
         StatusCode::NO_CONTENT,
     )

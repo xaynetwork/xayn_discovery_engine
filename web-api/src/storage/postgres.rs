@@ -37,7 +37,7 @@ use sqlx::{
 };
 use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{CoiId, CoiStats, NegativeCoi, PositiveCoi, UserInterests};
+use xayn_ai_coi::{Coi, CoiId, CoiStats};
 
 use super::{InteractionUpdateContext, TagWeights};
 use crate::{
@@ -52,7 +52,6 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         UserId,
-        UserInteractionType,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
     Error,
@@ -82,7 +81,6 @@ struct QueriedPersonalizedDocument {
 #[derive(FromRow)]
 struct QueriedCoi {
     coi_id: CoiId,
-    is_positive: bool,
     embedding: NormalizedEmbedding,
     /// The count is a `usize` stored as `i32` in database
     view_count: i32,
@@ -564,45 +562,34 @@ impl Database {
     async fn get_user_interests(
         tx: impl Executor<'_, Database = Postgres>,
         user_id: &UserId,
-    ) -> Result<UserInterests, Error> {
-        let cois = sqlx::query_as::<_, QueriedCoi>(
-            "SELECT coi_id, is_positive, embedding, view_count, view_time_ms, last_view
+    ) -> Result<Vec<Coi>, Error> {
+        sqlx::query_as::<_, QueriedCoi>(
+            "SELECT coi_id, embedding, view_count, view_time_ms, last_view
             FROM center_of_interest
             WHERE user_id = $1",
         )
         .bind(user_id)
         .fetch_all(tx)
-        .await?;
-
-        let (positive, negative) = cois
-            .into_iter()
-            .partition::<Vec<_>, _>(|coi| coi.is_positive);
-
-        // fine as we convert it from usize to i32 when we store it in the database
-        #[allow(clippy::cast_sign_loss)]
-        let positive = positive
-            .into_iter()
-            .map(|coi| PositiveCoi {
-                id: coi.coi_id,
-                point: coi.embedding,
-                stats: CoiStats {
-                    view_count: coi.view_count as usize,
-                    view_time: Duration::from_millis(coi.view_time_ms as u64),
-                    last_view: coi.last_view,
-                },
-            })
-            .collect_vec();
-
-        let negative = negative
-            .into_iter()
-            .map(|coi| NegativeCoi {
-                id: coi.coi_id,
-                point: coi.embedding,
-                last_view: coi.last_view,
-            })
-            .collect_vec();
-
-        Ok(UserInterests { positive, negative })
+        .await
+        .map(|interests| {
+            interests
+                .into_iter()
+                .map(
+                    // we convert it from usize/u64 to i32/i64 when we store it in the database
+                    #[allow(clippy::cast_sign_loss)]
+                    |coi| Coi {
+                        id: coi.coi_id,
+                        point: coi.embedding,
+                        stats: CoiStats {
+                            view_count: coi.view_count as usize,
+                            view_time: Duration::from_millis(coi.view_time_ms as u64),
+                            last_view: coi.last_view,
+                        },
+                    },
+                )
+                .collect()
+        })
+        .map_err(Into::into)
     }
 
     /// Update the Center of Interests (COIs).
@@ -616,31 +603,32 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
         time: DateTime<Utc>,
-        cois: &HashMap<CoiId, PositiveCoi>,
+        cois: &HashMap<CoiId, Coi>,
     ) -> Result<(), Error> {
         let mut builder = QueryBuilder::new(
             "INSERT INTO center_of_interest (
-            coi_id, user_id,
-            is_positive, embedding,
-            view_count, view_time_ms,
-            last_view
-        ) ",
+                coi_id,
+                user_id,
+                embedding,
+                view_count,
+                view_time_ms,
+                last_view
+            ) ",
         );
         let mut iter = cois.values().peekable();
         while iter.peek().is_some() {
             builder
                 .reset()
                 .push_values(
-                    iter.by_ref().take(Database::BIND_LIMIT / 7),
+                    iter.by_ref().take(Database::BIND_LIMIT / 6),
                     |mut builder, update| {
                         // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
                         // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
                         #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
                         builder
-                            .push_bind(update.id.as_ref())
+                            .push_bind(update.id)
                             .push_bind(user_id)
-                            .push_bind(true)
-                            .push_bind(update.point.to_vec())
+                            .push_bind(&update.point)
                             .push_bind(update.stats.view_count as i32)
                             .push_bind(update.stats.view_time.as_millis() as i64)
                             .push_bind(time);
@@ -665,32 +653,27 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
         time: DateTime<Utc>,
-        interactions: &HashMap<&DocumentId, (&InteractedDocument, UserInteractionType)>,
+        interactions: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<(), Error> {
+        let mut interactions = interactions.into_iter().peekable();
         //FIXME micro benchmark and chunking+persist abstraction
         let persist = interactions.len() < 10;
 
-        let mut builder = QueryBuilder::new(
-            "INSERT INTO interaction (doc_id, user_id, time_stamp, user_reaction) ",
-        );
-        let mut iter = interactions.iter().peekable();
-        while iter.peek().is_some() {
+        let mut builder =
+            QueryBuilder::new("INSERT INTO interaction (doc_id, user_id, time_stamp) ");
+        while interactions.peek().is_some() {
             builder
                 .reset()
                 .push_values(
-                    iter.by_ref().take(Database::BIND_LIMIT / 4),
-                    |mut builder, (document_id, (_, interaction))| {
+                    interactions.by_ref().take(Database::BIND_LIMIT / 3),
+                    |mut builder, document_id| {
                         builder
                             .push_bind(document_id)
                             .push_bind(user_id)
-                            .push_bind(time)
-                            .push_bind(*interaction as i16);
+                            .push_bind(time);
                     },
                 )
-                .push(
-                    " ON CONFLICT (doc_id, user_id, time_stamp) DO UPDATE SET
-                    user_reaction = EXCLUDED.user_reaction;",
-                )
+                .push(" ON CONFLICT DO NOTHING;")
                 .build()
                 .persistent(persist)
                 .execute(&mut *tx)
@@ -1066,7 +1049,7 @@ impl storage::DocumentProperty for Storage {
 
 #[async_trait]
 impl storage::Interest for Storage {
-    async fn get(&self, user_id: &UserId) -> Result<UserInterests, Error> {
+    async fn get(&self, user_id: &UserId) -> Result<Vec<Coi>, Error> {
         Database::get_user_interests(&self.postgres, user_id).await
     }
 }
@@ -1120,25 +1103,19 @@ impl storage::Interaction for Storage {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<
-            IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
-        >,
+        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
         store_user_history: bool,
         time: DateTime<Utc>,
-        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi,
+        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
     ) -> Result<(), Error> {
         let mut tx = self.postgres.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
         let interactions = interactions.into_iter();
-        let documents = Database::get_interacted(
-            &mut tx,
-            interactions.clone().map(|(document_id, _)| document_id),
-        )
-        .await?;
+        let documents = Database::get_interacted(&mut tx, interactions.clone()).await?;
         let document_map = documents
             .iter()
-            .map(|document| (&document.id, (document, UserInteractionType::Positive)))
+            .map(|document| (&document.id, document))
             .collect::<HashMap<_, _>>();
         let mut tag_weight_diff = documents
             .iter()
@@ -1148,13 +1125,12 @@ impl storage::Interaction for Storage {
 
         let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
         let mut updates = HashMap::new();
-        for &(ref document_id, interaction_type) in interactions {
-            if let Some((document, _)) = document_map.get(document_id) {
+        for document_id in interactions {
+            if let Some(document) = document_map.get(document_id) {
                 let updated_coi = update_logic(InteractionUpdateContext {
                     document,
-                    interaction_type,
                     tag_weight_diff: &mut tag_weight_diff,
-                    positive_cois: &mut interests.positive,
+                    interests: &mut interests,
                     time,
                 });
                 // We might update the same coi min `interests` multiple times,
@@ -1167,7 +1143,8 @@ impl storage::Interaction for Storage {
 
         Database::upsert_cois(&mut tx, user_id, time, &updates).await?;
         if store_user_history {
-            Database::upsert_interactions(&mut tx, user_id, time, &document_map).await?;
+            Database::upsert_interactions(&mut tx, user_id, time, document_map.keys().copied())
+                .await?;
         }
         Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
 

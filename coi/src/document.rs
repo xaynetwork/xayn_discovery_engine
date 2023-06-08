@@ -21,8 +21,8 @@ pub trait Document {
     /// Gets the document id.
     fn id(&self) -> &Self::Id;
 
-    /// Gets the `Bert` embedding of the document.
-    fn bert_embedding(&self) -> &NormalizedEmbedding;
+    /// Gets the embedding of the document.
+    fn embedding(&self) -> &NormalizedEmbedding;
 }
 
 #[cfg(test)]
@@ -46,14 +46,14 @@ pub(crate) mod tests {
 
     pub(crate) struct TestDocument {
         pub(crate) id: DocumentId,
-        pub(crate) bert_embedding: NormalizedEmbedding,
+        pub(crate) embedding: NormalizedEmbedding,
     }
 
     impl TestDocument {
         pub(crate) fn new(id: usize, embedding: NormalizedEmbedding) -> Self {
             Self {
                 id: DocumentId::mocked(id),
-                bert_embedding: embedding,
+                embedding,
             }
         }
     }
@@ -65,8 +65,8 @@ pub(crate) mod tests {
             &self.id
         }
 
-        fn bert_embedding(&self) -> &NormalizedEmbedding {
-            &self.bert_embedding
+        fn embedding(&self) -> &NormalizedEmbedding {
+            &self.embedding
         }
     }
 }

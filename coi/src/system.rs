@@ -18,11 +18,11 @@ use chrono::{DateTime, Utc};
 use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{
+    compute_coi_relevances,
     config::Config,
-    context::UserInterests,
     document::Document,
-    id::CoiId,
-    point::{find_closest_coi_index, find_closest_coi_mut, CoiPoint, NegativeCoi, PositiveCoi},
+    point::{find_closest_coi_index, find_closest_coi_mut, Coi, Id},
+    stats::compute_coi_decay_factor,
 };
 
 /// The center of interest (coi) system.
@@ -35,9 +35,9 @@ impl System {
         &self.config
     }
 
-    /// Updates the view time of the positive coi closest to the embedding.
+    /// Updates the view time of the [`Coi`] closest to the embedding.
     pub fn log_document_view_time(
-        cois: &mut [PositiveCoi],
+        cois: &mut [Coi],
         embedding: &NormalizedEmbedding,
         viewed: Duration,
     ) {
@@ -46,13 +46,13 @@ impl System {
         }
     }
 
-    /// Updates the positive coi closest to the embedding or creates a new one if it's too far away.
-    pub fn log_positive_user_reaction<'a>(
+    /// Updates the [`Coi`] closest to the embedding or creates a new one if it's too far away.
+    pub fn log_user_reaction<'a>(
         &self,
-        cois: &'a mut Vec<PositiveCoi>,
+        cois: &'a mut Vec<Coi>,
         embedding: &NormalizedEmbedding,
         time: DateTime<Utc>,
-    ) -> &'a PositiveCoi {
+    ) -> &'a Coi {
         // If the given embedding's similarity to the CoI is above the threshold,
         // we adjust the position of the nearest CoI
         if let Some((index, similarity)) = find_closest_coi_index(cois, embedding) {
@@ -66,40 +66,33 @@ impl System {
         }
 
         // If the embedding is too dissimilar, we create a new CoI instead
-        cois.push(PositiveCoi::new(CoiId::new(), embedding.clone(), time));
+        cois.push(Coi::new(Id::new(), embedding.clone(), time));
         &cois[cois.len() - 1]
     }
 
-    /// Updates the negative coi closest to the embedding or creates a new one if it's too far away.
-    pub fn log_negative_user_reaction(
-        &self,
-        cois: &mut Vec<NegativeCoi>,
-        embedding: &NormalizedEmbedding,
-        time: DateTime<Utc>,
-    ) {
-        if let Some((coi, similarity)) = find_closest_coi_mut(cois, embedding) {
-            if similarity >= self.config.threshold() {
-                if let Ok(coi) = coi.shift_point(embedding, self.config.shift_factor()) {
-                    coi.log_reaction(time);
-                    return;
-                }
-            }
-        }
-
-        cois.push(NegativeCoi::new(CoiId::new(), embedding.clone(), time));
-    }
-
-    /// Calculates scores for the documents wrt the user interests.
-    pub fn score<D>(
-        &self,
-        documents: &[D],
-        cois: &UserInterests,
-        time: DateTime<Utc>,
-    ) -> Option<Vec<f32>>
+    /// Computes the scores for all [`Document`]s wrt the [`Coi`]s.
+    ///
+    /// Each score ranges in the interval `[0., 1.]` if a [`Coi`] exists. The [coi weighting]
+    /// outlines parts of the score calculation.
+    ///
+    /// [coi weighting]: https://xainag.atlassian.net/wiki/spaces/M2D/pages/2240708609/Discovery+engine+workflow#The-weighting-of-the-CoI
+    pub fn score<D>(&self, documents: &[D], cois: &[Coi], time: DateTime<Utc>) -> Option<Vec<f32>>
     where
         D: Document,
     {
-        cois.compute_scores_for_docs(documents, &self.config, time)
+        documents
+            .iter()
+            .map(|document| {
+                find_closest_coi_index(cois, document.embedding()).map(|(index, similarity)| {
+                    let horizon = self.config.horizon();
+                    let decay =
+                        compute_coi_decay_factor(horizon, time, cois[index].stats.last_view);
+                    let relevance = compute_coi_relevances(cois, horizon, time)[index];
+
+                    (similarity * decay + relevance + 1.) / 4.
+                })
+            })
+            .collect()
     }
 }
 
@@ -108,24 +101,17 @@ mod tests {
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::{
-        document::tests::TestDocument,
-        point::tests::{create_neg_cois, create_pos_cois},
-    };
+    use crate::{document::tests::TestDocument, point::tests::create_cois};
 
     #[test]
-    fn test_log_positive_user_reaction_same_coi() {
+    fn test_log_user_reaction_same_coi() {
         let now = Utc::now();
-        let mut cois = create_pos_cois([[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]], now);
+        let mut cois = create_cois([[1., 1., 1.], [10., 10., 10.], [20., 20., 20.]], now);
         let embedding = [2., 3., 4.].try_into().unwrap();
         let system = Config::default().build();
 
         let before = cois.clone();
-        system.log_positive_user_reaction(
-            &mut cois,
-            &embedding,
-            now + chrono::Duration::seconds(1),
-        );
+        system.log_user_reaction(&mut cois, &embedding, now + chrono::Duration::seconds(1));
 
         assert_eq!(cois.len(), 3);
         assert_approx_eq!(
@@ -141,13 +127,13 @@ mod tests {
     }
 
     #[test]
-    fn test_log_positive_user_reaction_new_coi() {
+    fn test_log_user_reaction_new_coi() {
         let now = Utc::now();
-        let mut cois = create_pos_cois([[0., 1.]], now);
+        let mut cois = create_cois([[0., 1.]], now);
         let embedding = [1., 0.].try_into().unwrap();
         let system = Config::default().build();
 
-        system.log_positive_user_reaction(&mut cois, &embedding, now);
+        system.log_user_reaction(&mut cois, &embedding, now);
 
         assert_eq!(cois.len(), 2);
         assert_approx_eq!(f32, cois[0].point, [0., 1.,]);
@@ -155,26 +141,8 @@ mod tests {
     }
 
     #[test]
-    fn test_log_negative_user_reaction_last_view() {
-        let now = Utc::now();
-        let mut cois = create_neg_cois([[1., 2., 3.]], now);
-        let embedding = [1., 2., 4.].try_into().unwrap();
-        let system = Config::default().build();
-
-        let last_view = cois[0].last_view;
-        system.log_negative_user_reaction(
-            &mut cois,
-            &embedding,
-            now + chrono::Duration::seconds(1),
-        );
-
-        assert_eq!(cois.len(), 1);
-        assert!(cois[0].last_view > last_view);
-    }
-
-    #[test]
     fn test_log_document_view_time() {
-        let mut cois = create_pos_cois([[1., 2., 3.]], Utc::now());
+        let mut cois = create_cois([[1., 2., 3.]], Utc::now());
 
         System::log_document_view_time(
             &mut cois,
@@ -192,7 +160,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rank() {
+    fn test_score() {
         let documents = vec![
             TestDocument::new(0, [3., 7., 0.].try_into().unwrap()),
             TestDocument::new(1, [1., 0., 0.].try_into().unwrap()),
@@ -200,32 +168,26 @@ mod tests {
             TestDocument::new(3, [5., 3., 0.].try_into().unwrap()),
         ];
         let now = Utc::now();
-        let cois = UserInterests {
-            positive: create_pos_cois([[1., 0., 0.], [4., 12., 2.]], now),
-            negative: create_neg_cois([[-100., -10., 0.]], now),
-        };
+        let cois = create_cois([[1., 0., 0.], [4., 12., 2.]], now);
 
         let scores = Config::default()
             .build()
-            .score(&documents, &cois, Utc::now())
+            .score(&documents, &cois, now)
             .unwrap();
 
-        assert!(scores[0] < scores[2]);
-        assert!(scores[2] < scores[3]);
-        assert!(scores[3] < scores[1]);
+        assert!(scores[3] < scores[2]);
+        assert!(scores[2] < scores[0]);
+        assert!(scores[0] < scores[1]);
     }
 
     #[test]
-    fn test_rank_no_cois() {
+    fn test_score_no_cois() {
         let documents = vec![
             TestDocument::new(0, [0., 0., 0.].try_into().unwrap()),
             TestDocument::new(1, [0., 0., 0.].try_into().unwrap()),
             TestDocument::new(2, [0., 0., 0.].try_into().unwrap()),
         ];
-        let cois = UserInterests::default();
-        let scores = Config::default()
-            .build()
-            .score(&documents, &cois, Utc::now());
+        let scores = Config::default().build().score(&documents, &[], Utc::now());
         assert!(scores.is_none());
     }
 }

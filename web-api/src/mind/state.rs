@@ -25,7 +25,7 @@ use xayn_test_utils::error::Panic;
 use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
-    models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
+    models::{DocumentId, DocumentProperties, IngestedDocument, UserId},
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -126,7 +126,7 @@ impl State {
                 &self.storage,
                 &self.coi,
                 user,
-                [&(id.clone(), UserInteractionType::Positive)],
+                [id],
                 self.personalization.store_user_history,
                 time,
             )

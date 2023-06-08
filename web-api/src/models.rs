@@ -162,14 +162,9 @@ impl AiDocument for PersonalizedDocument {
         &self.id
     }
 
-    fn bert_embedding(&self) -> &NormalizedEmbedding {
+    fn embedding(&self) -> &NormalizedEmbedding {
         &self.embedding
     }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-pub(crate) enum UserInteractionType {
-    Positive = 1,
 }
 
 /// Represents a document sent for ingestion.

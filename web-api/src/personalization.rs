@@ -76,7 +76,7 @@ pub(crate) struct PersonalizationConfig {
     /// Default number of documents to return.
     pub(crate) default_number_documents: usize,
 
-    /// Max number of positive cois to use in knn search.
+    /// Max number of cois to use in knn search.
     pub(crate) max_cois_for_knn: usize,
 
     /// Weights for reranking of the scores. Each weight is in `[0, 1]` and they add up to `1`. The

@@ -18,7 +18,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::Deserialize;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{CoiSystem, UserInterests};
+use xayn_ai_coi::{Coi, CoiSystem};
 
 use super::PersonalizationConfig;
 use crate::{
@@ -128,20 +128,16 @@ pub(super) struct LoadedHistoryEntry {
 pub(super) fn derive_interests_and_tag_weights<'a>(
     coi_system: &CoiSystem,
     history: impl IntoIterator<Item = &'a LoadedHistoryEntry>,
-) -> (UserInterests, TagWeights) {
-    let mut user_interests = UserInterests::default();
-    let mut tag_weights = TagWeights::default();
+) -> (Vec<Coi>, TagWeights) {
+    let mut interests = Vec::new();
+    let mut tag_weights = TagWeights::new();
     for entry in history {
-        coi_system.log_positive_user_reaction(
-            &mut user_interests.positive,
-            &entry.embedding,
-            entry.timestamp,
-        );
+        coi_system.log_user_reaction(&mut interests, &entry.embedding, entry.timestamp);
         for tag in &entry.tags {
             *tag_weights.entry(tag.clone()).or_default() += 1;
         }
     }
-    (user_interests, tag_weights)
+    (interests, tag_weights)
 }
 
 #[doc(hidden)]
@@ -374,16 +370,14 @@ mod tests {
             .collect::<HashMap<DocumentTag, usize>>()
         );
 
-        assert!(interests.negative.is_empty());
-        assert!(!interests.positive.is_empty());
+        assert!(!interests.is_empty());
         assert_eq!(
             interests
-                .positive
                 .iter()
                 .fold(0, |acc, coi| acc + coi.stats.view_count),
             5
         );
-        assert!(interests.positive.len() <= 5);
+        assert!(interests.len() <= 5);
 
         Ok(())
     }

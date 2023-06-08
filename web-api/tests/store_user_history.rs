@@ -61,12 +61,7 @@ fn store_user_history(enabled: bool) {
                 &client,
                 client
                     .patch(personalization.join("/users/u0/interactions")?)
-                    .json(&json!({
-                        "documents": [
-                            { "id": "2", "type": "Positive" },
-                            { "id": "5", "type": "Positive" }
-                        ]
-                    }))
+                    .json(&json!({ "documents": [ { "id": "2" }, { "id": "5" } ] }))
                     .build()?,
                 StatusCode::NO_CONTENT,
             )

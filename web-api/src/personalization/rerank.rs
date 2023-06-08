@@ -17,7 +17,7 @@ use std::{collections::HashMap, hash::BuildHasher};
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{CoiSystem, UserInterests};
+use xayn_ai_coi::{Coi, CoiSystem};
 
 use crate::{
     models::{DocumentId, DocumentProperties, DocumentTag, PersonalizedDocument},
@@ -27,7 +27,7 @@ use crate::{
 fn rerank_by_interest<'a>(
     coi_system: &CoiSystem,
     documents: &'a [PersonalizedDocument],
-    interests: &UserInterests,
+    interests: &[Coi],
     time: DateTime<Utc>,
 ) -> HashMap<&'a DocumentId, f32> {
     coi_system
@@ -75,7 +75,7 @@ fn rerank_by_tag_weight<'a>(
 pub(super) fn rerank_by_scores(
     coi_system: &CoiSystem,
     documents: &mut [PersonalizedDocument],
-    interests: &UserInterests,
+    interests: &[Coi],
     tag_weights: &HashMap<DocumentTag, usize>,
     score_weights: [f32; 3],
     time: DateTime<Utc>,
@@ -110,7 +110,7 @@ pub(super) fn rerank_by_scores(
 pub fn bench_rerank<S>(
     coi_system: &CoiSystem,
     documents: Vec<(NormalizedEmbedding, Vec<String>)>,
-    interests: &UserInterests,
+    interests: &[Coi],
     tag_weights: HashMap<String, usize, S>,
     time: DateTime<Utc>,
 ) where
@@ -151,7 +151,7 @@ mod tests {
     use std::time::Duration;
 
     use xayn_ai_bert::Embedding1;
-    use xayn_ai_coi::{CoiConfig, CoiId, CoiStats, PositiveCoi};
+    use xayn_ai_coi::{Coi, CoiConfig, CoiId, CoiStats};
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
@@ -185,7 +185,7 @@ mod tests {
             .collect()
     }
 
-    fn mock_coi(i: usize, n: usize, time: DateTime<Utc>) -> PositiveCoi {
+    fn mock_coi(i: usize, n: usize, time: DateTime<Utc>) -> Coi {
         let id = CoiId::new();
 
         let mut point = vec![0.; n];
@@ -198,14 +198,14 @@ mod tests {
             last_view: time,
         };
 
-        PositiveCoi { id, point, stats }
+        Coi { id, point, stats }
     }
 
     #[test]
     fn test_rerank_by_interest_empty() {
         let coi_system = CoiConfig::default().build();
         let documents = Vec::default();
-        let interests = UserInterests::default();
+        let interests = Vec::default();
         let time = Utc::now();
 
         assert!(rerank_by_interest(&coi_system, &documents, &interests, time).is_empty());
@@ -215,7 +215,7 @@ mod tests {
     fn test_rerank_without_interests() {
         let coi_system = CoiConfig::default().build();
         let documents = mock_documents(5);
-        let interests = UserInterests::default();
+        let interests = Vec::default();
         let time = Utc::now();
 
         assert!(rerank_by_interest(&coi_system, &documents, &interests, time).is_empty());
@@ -227,10 +227,7 @@ mod tests {
         let coi_system = CoiConfig::default().build();
         let documents = mock_documents(n);
         let time = Utc::now();
-        let interests = UserInterests {
-            positive: vec![mock_coi(1, n, time), mock_coi(4, n, time)],
-            negative: vec![],
-        };
+        let interests = vec![mock_coi(1, n, time), mock_coi(4, n, time)];
 
         let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
         let zero = "0".try_into().unwrap();

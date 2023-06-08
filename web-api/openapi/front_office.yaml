@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.0.0
+  version: 1.1.0
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -84,7 +84,6 @@ paths:
       summary: Adds an interaction between the user and the document.
       description: |-
         Use this method to register an interaction between a user and a document.
-        Currently, we only support a `Positive` interaction, which is equivalent to a user who "likes" a certain document.
         For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
         For apps, consider implementing a "like" button, where the on click then triggers this method.
       operationId: updateUserInteractions
@@ -229,16 +228,11 @@ components:
             kind:
               type: string
               enum: [NotEnoughInteractions]
-    UserInteractionType:
-      type: string
-      enum: [Positive]
     UserInteractionData:
       type: object
       properties:
         id:
           $ref: './schemas/document.yml#/DocumentId'
-        type:
-          $ref: '#/components/schemas/UserInteractionType'
     UserInteractionRequest:
       type: object
       required: [documents]

@@ -23,7 +23,7 @@ use rand::{
     SeedableRng,
 };
 use xayn_ai_bert::Embedding1;
-use xayn_ai_coi::{CoiConfig, CoiId, CoiStats, PositiveCoi, UserInterests};
+use xayn_ai_coi::{Coi, CoiConfig, CoiId, CoiStats};
 use xayn_web_api::bench_rerank;
 
 fn tag(i: usize) -> String {
@@ -76,13 +76,9 @@ macro_rules! bench_rerank {
                         view_time: Duration::from_secs(i as u64),
                         last_view: timestamp,
                     };
-                    PositiveCoi { id, point, stats }
+                    Coi { id, point, stats }
                 })
-                .collect();
-            let interests = UserInterests {
-                positive: interests,
-                negative: Vec::new(),
-            };
+                .collect_vec();
 
             let tag_weights = (0..$interest_size).map(|i| (tag(i), i)).collect::<HashMap<_, _>>();
 
