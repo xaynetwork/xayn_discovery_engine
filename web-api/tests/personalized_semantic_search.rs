@@ -51,12 +51,7 @@ async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Erro
         client,
         client
             .patch(personalization_url.join("/users/u1/interactions")?)
-            .json(&json!({
-                "documents": [
-                    { "id": "d2", "type": "Positive" },
-                    { "id": "d9", "type": "Positive" }
-                ]
-            }))
+            .json(&json!({ "documents": [ { "id": "d2" }, { "id": "d9" } ] }))
             .build()?,
         StatusCode::NO_CONTENT,
     )
@@ -123,7 +118,7 @@ fn test_full_personalization() {
             .await;
             assert_order!(
                 documents,
-                ["d6", "d4", "d2", "d5", "d7"],
+                ["d6", "d4", "d2", "d5", "d8"],
                 "unexpected not enough interactions documents: {documents:?}",
             );
 
@@ -143,7 +138,7 @@ fn test_full_personalization() {
             .await;
             assert_order!(
                 documents,
-                ["d6", "d4", "d2", "d5", "d7"],
+                ["d6", "d4", "d2", "d5", "d8"],
                 "unexpected not personalized documents: {documents:?}",
             );
 
@@ -162,7 +157,7 @@ fn test_full_personalization() {
             .await;
             assert_order!(
                 documents,
-                ["d8", "d5", "d4", "d6", "d7"],
+                ["d8", "d6", "d5", "d4", "d7"],
                 "unexpected fully personalized documents: {documents:?}",
             );
 
@@ -198,7 +193,7 @@ fn test_subtle_personalization() {
             .await;
             assert_order!(
                 documents,
-                ["d6", "d4", "d5", "d7", "d8"],
+                ["d6", "d4", "d5", "d8", "d7"],
                 "unexpected subtle personalized documents: {documents:?}",
             );
 
@@ -233,7 +228,7 @@ fn test_full_personalization_with_inline_history() {
             .await;
             assert_order!(
                 documents,
-                ["d6", "d4", "d2", "d5", "d7"],
+                ["d6", "d4", "d2", "d5", "d8"],
                 "unexpected not enough interactions documents: {documents:?}",
             );
 
@@ -251,7 +246,7 @@ fn test_full_personalization_with_inline_history() {
             .await;
             assert_order!(
                 documents,
-                ["d6", "d4", "d2", "d5", "d7"],
+                ["d6", "d4", "d2", "d5", "d8"],
                 "unexpected not personalized documents: {documents:?}",
             );
 
@@ -270,7 +265,7 @@ fn test_full_personalization_with_inline_history() {
             .await;
             assert_order!(
                 documents,
-                ["d8", "d5", "d4", "d6", "d7"],
+                ["d8", "d6", "d5", "d4", "d7"],
                 "unexpected fully personalized documents: {documents:?}",
             );
 

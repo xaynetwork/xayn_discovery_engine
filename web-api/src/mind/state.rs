@@ -25,7 +25,7 @@ use xayn_test_utils::error::Panic;
 use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
-    models::{DocumentId, DocumentProperties, IngestedDocument, UserId, UserInteractionType},
+    models::{DocumentId, DocumentProperties, IngestedDocument, UserId},
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -44,7 +44,7 @@ pub(super) struct State {
 impl State {
     pub(super) fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
         let embedder = Embedder::load(&embedding::Config {
-            directory: "../assets/smbert_v0003".into(),
+            directory: "../assets/xaynia_v0002".into(),
             ..embedding::Config::default()
         })
         .map_err(|error| Panic::from(&*error))?;
@@ -126,7 +126,7 @@ impl State {
                 &self.storage,
                 &self.coi,
                 user,
-                [&(id.clone(), UserInteractionType::Positive)],
+                [id],
                 self.personalization.store_user_history,
                 time,
             )

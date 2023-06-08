@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{borrow::Borrow, collections::HashMap};
 
-use derive_more::{AsRef, Display, Into};
+use derive_more::{AsRef, Deref, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -87,6 +87,12 @@ macro_rules! id_wrapper {
                     <String as PgHasArrayType>::array_type_info()
                 }
             }
+
+            impl Borrow<str> for $name {
+                fn borrow(&self) -> &str {
+                    self.as_ref()
+                }
+            }
         )*
     };
 }
@@ -110,7 +116,7 @@ id_wrapper! {
     pub(crate) DocumentTag, InvalidDocumentTag, is_valid_tag;
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize)]
 #[serde(transparent)]
 pub(crate) struct DocumentProperty(serde_json::Value);
 
@@ -156,14 +162,9 @@ impl AiDocument for PersonalizedDocument {
         &self.id
     }
 
-    fn bert_embedding(&self) -> &NormalizedEmbedding {
+    fn embedding(&self) -> &NormalizedEmbedding {
         &self.embedding
     }
-}
-
-#[derive(Clone, Copy, Debug, Deserialize)]
-pub(crate) enum UserInteractionType {
-    Positive = 1,
 }
 
 /// Represents a document sent for ingestion.

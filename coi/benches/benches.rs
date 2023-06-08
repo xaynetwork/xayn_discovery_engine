@@ -19,9 +19,9 @@ use criterion::{criterion_group, BatchSize, Criterion};
 use itertools::Itertools;
 use rand::Rng;
 use rand_distr::Uniform;
-use xayn_ai_coi::{compute_coi_decay_factor, compute_coi_relevances, CoiId, CoiPoint, PositiveCoi};
+use xayn_ai_coi::{compute_coi_decay_factor, compute_coi_relevances, Coi, CoiId};
 
-fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
+fn create_cois(n: usize, embedding_size: usize) -> Vec<Coi> {
     let range = Uniform::new(-1., 1.);
     let now = Utc::now();
 
@@ -33,7 +33,7 @@ fn create_positive_coi(n: usize, embedding_size: usize) -> Vec<PositiveCoi> {
                 .collect_vec()
                 .try_into()
                 .unwrap();
-            PositiveCoi::new(CoiId::new(), point, now)
+            Coi::new(CoiId::new(), point, now)
         })
         .collect()
 }
@@ -61,16 +61,16 @@ fn bench_compute_coi_relevance(c: &mut Criterion) {
     let now = Utc::now();
 
     let count_max: usize = *count.iter().max().unwrap();
-    let positive_cois = create_positive_coi(count_max, embedding_size);
+    let cois = create_cois(count_max, embedding_size);
 
     count.iter().for_each(|&n| {
-        let positive_cois = &positive_cois[..n];
+        let cois = &cois[..n];
 
         let base_name = &format!("n{n}_s{embedding_size}");
 
         c.bench_function(&format!("compute_coi_relevance_{base_name}"), |b| {
             b.iter_batched(
-                || black_box(positive_cois),
+                || black_box(cois),
                 |cois| {
                     black_box(compute_coi_relevances(
                         black_box(cois),

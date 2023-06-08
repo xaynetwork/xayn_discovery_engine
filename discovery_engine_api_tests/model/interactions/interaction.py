@@ -2,6 +2,5 @@ from model.base.model_base import ModelBase
 
 
 class Interaction(ModelBase):
-    def __init__(self, id, type):
+    def __init__(self, id):
         self.id = id
-        self.type = type

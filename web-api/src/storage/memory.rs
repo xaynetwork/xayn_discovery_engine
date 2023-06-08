@@ -13,8 +13,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // Assumptions:
-// - there are only positive interactions (ie as in the current web engine) to avoid to store
-//   redundant information
 // - document ingestion and deletion is preferably done in a single batch to avoid to rebuild the
 //   index for the embeddings too frequently
 
@@ -34,7 +32,7 @@ use ouroboros::self_referencing;
 use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::RwLock;
 use xayn_ai_bert::NormalizedEmbedding;
-use xayn_ai_coi::{PositiveCoi, UserInterests};
+use xayn_ai_coi::Coi;
 
 use super::{Document as _, InteractionUpdateContext, TagWeights};
 use crate::{
@@ -53,7 +51,6 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         UserId,
-        UserInteractionType,
     },
     storage::{self, KnnSearchParams, Warning},
 };
@@ -222,7 +219,7 @@ impl<'de> Deserialize<'de> for Embeddings {
 #[derive(Debug, Default)]
 pub(crate) struct Storage {
     documents: RwLock<(HashMap<DocumentId, Document>, Embeddings)>,
-    interests: RwLock<HashMap<UserId, UserInterests>>,
+    interests: RwLock<HashMap<UserId, Vec<Coi>>>,
     #[allow(clippy::type_complexity)]
     interactions: RwLock<HashMap<UserId, HashSet<(DocumentId, DateTime<Utc>)>>>,
     users: RwLock<HashMap<UserId, DateTime<Utc>>>,
@@ -565,7 +562,7 @@ impl storage::DocumentProperty for Storage {
 
 #[async_trait]
 impl storage::Interest for Storage {
-    async fn get(&self, id: &UserId) -> Result<UserInterests, Error> {
+    async fn get(&self, id: &UserId) -> Result<Vec<Coi>, Error> {
         let interests = self
             .interests
             .read()
@@ -606,24 +603,20 @@ impl storage::Interaction for Storage {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<
-            IntoIter = impl Clone + ExactSizeIterator<Item = &(DocumentId, UserInteractionType)>,
-        >,
+        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
         store_user_history: bool,
         time: DateTime<Utc>,
-        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> PositiveCoi,
+        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
     ) -> Result<(), Error> {
         // Note: This doesn't has the exact same concurrency semantics as the postgres version
-        let documents = self
-            .get_interacted(interactions.into_iter().map(|(document_id, _)| document_id))
-            .await?;
+        let documents = self.get_interacted(interactions).await?;
         let mut interests = self.interests.write().await;
         let mut interactions = self.interactions.write().await;
         let interactions = interactions.entry(user_id.clone()).or_default();
         let mut tags = self.tags.write().await;
         let tags = tags.entry(user_id.clone()).or_default();
 
-        let positive_cois = &mut interests.entry(user_id.clone()).or_default().positive;
+        let interests = interests.entry(user_id.clone()).or_default();
 
         let mut tag_weight_diff = documents
             .iter()
@@ -634,9 +627,8 @@ impl storage::Interaction for Storage {
         for document in &documents {
             let updated = update_logic(InteractionUpdateContext {
                 document,
-                interaction_type: UserInteractionType::Positive,
                 tag_weight_diff: &mut tag_weight_diff,
-                positive_cois,
+                interests,
                 time,
             });
             if store_user_history {
@@ -701,7 +693,7 @@ impl Storage {
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
-    use xayn_ai_coi::{CoiId, CoiPoint};
+    use xayn_ai_coi::CoiId;
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
@@ -778,16 +770,13 @@ mod tests {
     #[tokio::test]
     async fn test_serde() {
         let storage = Storage::default();
-        let document = (
-            DocumentId::new("42").unwrap(),
-            UserInteractionType::Positive,
-        );
+        let doc_id = DocumentId::new("42").unwrap();
         let tags = vec![DocumentTag::try_from("tag").unwrap()];
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
             vec![IngestedDocument {
-                id: document.0.clone(),
+                id: doc_id.clone(),
                 snippet: "snippet".into(),
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
@@ -801,35 +790,35 @@ mod tests {
         storage::Interaction::update_interactions(
             &storage,
             &user_id,
-            [&document],
+            [&doc_id],
             true,
             Utc::now(),
             |context| {
                 *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
-                let pcoi = PositiveCoi::new(
+                let coi = Coi::new(
                     CoiId::new(),
                     [0.2, 9.4, 1.2].try_into().unwrap(),
                     context.time,
                 );
-                context.positive_cois.push(pcoi.clone());
-                pcoi
+                context.interests.push(coi.clone());
+                coi
             },
         )
         .await
         .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
-        let documents = storage::Document::get_excerpted(&storage, [&document.0])
+        let documents = storage::Document::get_excerpted(&storage, [&doc_id])
             .await
             .unwrap();
         assert_eq!(documents.len(), 1);
-        assert_eq!(documents[0].id, document.0);
+        assert_eq!(documents[0].id, doc_id);
         assert_eq!(documents[0].snippet, "snippet");
-        let documents = storage::Document::get_personalized(&storage, [&document.0])
+        let documents = storage::Document::get_personalized(&storage, [&doc_id])
             .await
             .unwrap();
         assert_eq!(documents.len(), 1);
-        assert_eq!(documents[0].id, document.0);
+        assert_eq!(documents[0].id, doc_id);
         assert_approx_eq!(f32, documents[0].embedding, embedding);
         assert!(documents[0].properties.is_empty());
         assert_eq!(documents[0].tags, tags);

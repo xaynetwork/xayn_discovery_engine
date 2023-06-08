@@ -582,7 +582,7 @@ fn build_client(services: &Services) -> Arc<Client> {
     Arc::new(
         Client::builder()
             .default_headers(default_headers)
-            .timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(30))
             .build()
             .unwrap(),
     )
@@ -603,7 +603,7 @@ pub fn extend_config(current: &mut Table, extension: Table) {
     }
 }
 
-#[instrument]
+#[instrument(skip_all)]
 pub async fn start_test_application<A>(services: &Services, configure: Table) -> AppHandle
 where
     A: Application + 'static,
@@ -631,12 +631,13 @@ where
 }
 
 /// Embedding size used by the `Embedder` used for testing.
-pub const TEST_EMBEDDING_SIZE: usize = 128;
+pub const TEST_EMBEDDING_SIZE: usize = 384;
 
-pub fn build_test_config_from_parts(
+pub fn build_test_config_from_parts_and_model(
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
     configure: Table,
+    model_name: &str,
 ) -> Table {
     let pg_password = pg_config.password.expose_secret().as_str();
     let pg_config = Value::try_from(pg_config).unwrap();
@@ -645,7 +646,7 @@ pub fn build_test_config_from_parts(
     // Hint: Relative path doesn't work with `cargo flamegraph`
     let embedding_dir = PROJECT_ROOT
         .join("assets")
-        .join("smbert_v0003")
+        .join(model_name)
         .display()
         .to_string();
 
@@ -670,6 +671,14 @@ pub fn build_test_config_from_parts(
     extend_config(&mut config, configure);
 
     config
+}
+
+pub fn build_test_config_from_parts(
+    pg_config: &postgres::Config,
+    es_config: &elastic::Config,
+    configure: Table,
+) -> Table {
+    build_test_config_from_parts_and_model(pg_config, es_config, configure, "xaynia_v0002")
 }
 
 #[derive(Clone, Debug, Display, Deref, AsRef)]
@@ -782,6 +791,7 @@ async fn setup_web_dev_services(
 pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::Config) {
     let pg_db = Some(test_id.to_string());
     let es_index_name = format!("{test_id}_default");
+    let es_timeout = Duration::from_secs(30);
     let pg_config;
     let es_config;
     if *RUNS_IN_CONTAINER {
@@ -793,6 +803,7 @@ pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::C
         es_config = elastic::Config {
             url: "http://elasticsearch:9200".into(),
             index_name: es_index_name,
+            timeout: es_timeout,
             ..Default::default()
         };
     } else {
@@ -804,13 +815,14 @@ pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::C
         es_config = elastic::Config {
             url: "http://localhost:3092".into(),
             index_name: es_index_name,
+            timeout: es_timeout,
             ..Default::default()
         }
     }
     (pg_config, es_config)
 }
 
-#[instrument]
+#[instrument(skip(target))]
 pub async fn create_db(target: &postgres::Config, management_db: &str) -> Result<(), Error> {
     let target_options = target.to_connection_options()?;
     let target_db: QuotedIdentifier = target_options

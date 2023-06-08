@@ -37,8 +37,7 @@ stdout = """
   "coi": {
     "shift_factor": 0.1,
     "threshold": 0.67,
-    "min_positive_cois": 1,
-    "min_negative_cois": 0,
+    "min_cois": 1,
     "horizon": 30
   },
   "embedding": {

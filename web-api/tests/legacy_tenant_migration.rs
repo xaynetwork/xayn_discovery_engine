@@ -23,7 +23,7 @@ use sqlx::{Connection, Executor, PgConnection};
 use toml::Table;
 use tracing::{info, instrument};
 use xayn_integration_tests::{
-    build_test_config_from_parts,
+    build_test_config_from_parts_and_model,
     create_db,
     db_configs_for_testing,
     run_async_test,
@@ -181,7 +181,12 @@ fn test_full_migration() {
         info!("entered async test");
 
         let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
-        let config = build_test_config_from_parts(&pg_config, &es_config, Table::new());
+        let config = build_test_config_from_parts_and_model(
+            &pg_config,
+            &es_config,
+            Table::new(),
+            "smbert_v0003",
+        );
 
         info!("test setup done");
 

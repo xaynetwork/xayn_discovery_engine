@@ -110,6 +110,11 @@ download-assets *args:
     {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     ./download_assets.sh {{args}}
 
+upload-assets *args:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
+    ./.github/scripts/prepare_data.sh {{args}}
+
 build-service-args name target="default" features="":
     #!/usr/bin/env -S bash -eux -o pipefail
     if [[ -z "{{features}}" ]]; then
@@ -141,9 +146,9 @@ web-dev-up:
         echo "web-dev composition is already running, SKIPPING STARTUP"
         exit 0
     fi
-    if [[ "$(ls -l web-api/assets | grep 'assets/smbert_v0003' | wc -l)" == "0" ]]; then
+    if [[ "$(ls -l web-api/assets | grep 'assets/xaynia_v0002' | wc -l)" == "0" ]]; then
         rm "./web-api/assets" || :
-        ln -s "./assets/smbert_v0003" "./web-api/assets"
+        ln -s "./assets/xaynia_v0002" "./web-api/assets"
     fi
     export HOST_PORT_SCOPE=30
     docker-compose -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
@@ -185,7 +190,7 @@ build-ci-image $IMAGE_NAME $IMAGE_TAG:
       --tag "${IMAGE_NAME}:${IMAGE_TAG}" \
       - < .github/docker/Dockerfile.ci-image
 
-compose-all-build $SMBERT="smbert_v0003":
+compose-all-build $SMBERT="xaynia_v0002":
     #!/usr/bin/env -S bash -eux -o pipefail
     {{just_executable()}} build-service-image web-api personalization
     {{just_executable()}} build-service-image web-api ingestion "assets/$SMBERT"

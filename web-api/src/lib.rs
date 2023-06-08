@@ -57,4 +57,4 @@ pub use crate::{
 
 /// Allow migration tests to have access to the elastic search mapping this uses.
 //FIXME: Remove once we only test migrations upward from a version with `web-api-db-ctrl`
-pub static ELASTIC_MAPPING: &str = include_str!("../elastic-search/mapping.json");
+pub static ELASTIC_MAPPING: &str = include_str!("../../web-api-db-ctrl/elasticsearch/mapping.json");
