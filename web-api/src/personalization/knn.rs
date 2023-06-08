@@ -43,7 +43,7 @@ where
     I: IntoIterator,
     <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a Coi>,
     J: IntoIterator,
-    <J as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a DocumentId>,
+    <J as IntoIterator>::IntoIter: Clone + ExactSizeIterator<Item = &'a DocumentId>,
 {
     /// Performs an approximate knn search for documents similar to the user interests.
     pub(super) async fn run_on(
@@ -86,7 +86,6 @@ where
                         published_after: self.published_after,
                         min_similarity: None,
                         query: None,
-                        time: self.time,
                     },
                 )
                 .await

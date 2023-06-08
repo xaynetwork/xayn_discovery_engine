@@ -172,7 +172,7 @@ fn test_personalization_all_dates() {
             let documents = personalize(&client, &personalization_url, None).await?;
             assert_order!(
                 &documents,
-                ["d8", "d6", "d1", "d3"],
+                ["d8", "d6", "d1", "d5"],
                 "unexpected personalized documents: {documents:?}",
             );
             Ok(())
@@ -191,7 +191,7 @@ fn test_personalization_limited_dates() {
                 personalize(&client, &personalization_url, Some("2022-01-01T00:00:00Z")).await?;
             assert_order!(
                 &documents,
-                ["d1", "d3"],
+                ["d1", "d5", "d4", "d3"],
                 "unexpected personalized documents: {documents:?}",
             );
             Ok(())

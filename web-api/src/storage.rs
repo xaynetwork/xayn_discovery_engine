@@ -57,7 +57,6 @@ pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) min_similarity: Option<f32>,
     /// An additional query which will be run in parallel with the KNN search.
     pub(super) query: Option<&'a str>,
-    pub(crate) time: DateTime<Utc>,
 }
 
 #[derive(Debug, Deref, DerefMut, From)]
@@ -105,7 +104,10 @@ pub(crate) trait Document {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<
+            'a,
+            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
+        >,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     /// Inserts the documents and reports failed ids.
