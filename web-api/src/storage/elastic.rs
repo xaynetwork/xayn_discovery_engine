@@ -14,7 +14,7 @@
 
 mod client;
 
-use std::{collections::HashMap, hash::Hash, ops::AddAssign};
+use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
 
 use chrono::{DateTime, Utc};
 pub(crate) use client::{Client, ClientBuilder};
@@ -23,12 +23,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
-use xayn_web_api_shared::{
-    json_object,
-    serde::{merge_json_objects, JsonObject},
-};
+use xayn_web_api_shared::serde::{json_object, merge_json_objects, JsonObject};
 
-use super::SearchStrategy;
+use super::{MergeFn, NormalizationFn, SearchStrategy};
 use crate::{
     models::{
         self,
@@ -59,8 +56,27 @@ impl Client {
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
-            SearchStrategy::HybridWeighted { query } => {
-                self.hybrid_search_weighted(params, query).await
+            SearchStrategy::Hybrid { query } => {
+                let normalize_knn = identity;
+                let normalize_bm25 = normalize_scores_if_max_gt_1;
+                let merge_fn = merge_scores_average_duplicates_only;
+                self.hybrid_search(params, query, normalize_knn, normalize_bm25, merge_fn)
+                    .await
+            }
+            SearchStrategy::DevHybrid {
+                query,
+                normalize_knn,
+                normalize_bm25,
+                merge_fn,
+            } => {
+                self.hybrid_search(
+                    params,
+                    query,
+                    normalize_knn.to_fn(),
+                    normalize_bm25.to_fn(),
+                    merge_fn.to_fn(),
+                )
+                .await
             }
         }
     }
@@ -77,15 +93,17 @@ impl Client {
 
         let request = merge_json_objects([knn_object, generic_parameters]);
 
-        // TODO[pmk/now] is it correct to not normalize this
         Ok(self.search_request(request).await?)
     }
 
-    async fn hybrid_search_weighted<'a>(
+    async fn hybrid_search<'a>(
         &self,
         params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
         query: &'a str,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        normalize_knn: impl FnOnce(ScoreMap) -> ScoreMap,
+        normalize_bm25: impl FnOnce(ScoreMap) -> ScoreMap,
+        merge_function: impl FnOnce(ScoreMap, ScoreMap) -> ScoreMap,
+    ) -> Result<ScoreMap, Error> {
         let count = params.count;
 
         let KnnSearchParts {
@@ -109,15 +127,10 @@ impl Client {
             }),
             generic_parameters,
         ]);
-        // TODO[pmk/now] fixme parallelize polling
+        // FIXME parallelize polling
         let bm25_scores = self.search_request(bm_25).await?;
 
-        let merged = merge_scores_weighted([
-            // TODO[pmk/now] the code originally didn't normalize the KNN request, that seems wrong
-            //      and will likely strongly discount it
-            (0.5, normalize_scores(knn_scores)),
-            (0.5, normalize_scores(bm25_scores)),
-        ]);
+        let merged = merge_function(normalize_knn(knn_scores), normalize_bm25(bm25_scores));
         Ok(take_highest_n_scores(count, merged))
     }
 
@@ -403,7 +416,6 @@ where
         .max_by(|l, r| l.total_cmp(r))
         .copied()
         .unwrap_or_default();
-    // TODO[pmk/now] the original code did a .max(1.0); this looked like bug, verify
 
     for score in scores.values_mut() {
         *score /= max_score;
@@ -412,14 +424,46 @@ where
     scores
 }
 
+fn normalize_scores_if_max_gt_1<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let max_score = scores
+        .values()
+        .max_by(|l, r| l.total_cmp(r))
+        .copied()
+        .unwrap_or_default()
+        .max(1.0);
+
+    for score in scores.values_mut() {
+        *score /= max_score;
+    }
+
+    scores
+}
+
+fn merge_scores_average_duplicates_only<K>(
+    mut scores_1: HashMap<K, f32>,
+    scores_2: HashMap<K, f32>,
+) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    for (key, value) in scores_2 {
+        scores_1
+            .entry(key)
+            .and_modify(|score| *score = (*score + value) / 2.)
+            .or_insert(value);
+    }
+    scores_1
+}
+
 fn merge_scores_weighted<K>(
     scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>,
 ) -> HashMap<K, f32>
 where
     K: Eq + Hash,
 {
-    // TODO[pmk/now] this originally didn't apply weights to scores where there was only one hit
-    //               this seemed like a bug and was removed, verify if that is correct
     let weighted = scores.into_iter().flat_map(|(weight, mut scores)| {
         for score in scores.values_mut() {
             *score *= weight;
@@ -427,25 +471,6 @@ where
         scores
     });
     collect_summing_repeated(weighted)
-}
-
-/// Reciprocal Rank Fusion
-#[allow(dead_code)]
-fn rrf<K>(k: f32, scores: impl IntoIterator<Item = HashMap<K, f32>>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
-    let rrf_scores = scores.into_iter().flat_map(|scores| {
-        scores
-            .into_iter()
-            .sorted_by(|l, r| l.1.total_cmp(&r.1).reverse())
-            .enumerate()
-            .map(|(rank0, (document, _))| {
-                #[allow(clippy::cast_precision_loss)]
-                (document, (k + rank0 as f32).recip())
-            })
-    });
-    collect_summing_repeated(rrf_scores)
 }
 
 fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> HashMap<K, f32>
@@ -469,4 +494,25 @@ where
         .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
         .take(n)
         .collect()
+}
+
+type ScoreMap = HashMap<DocumentId, f32>;
+
+impl NormalizationFn {
+    fn to_fn(self) -> Box<dyn Fn(ScoreMap) -> ScoreMap> {
+        match self {
+            NormalizationFn::Identity => Box::new(identity),
+            NormalizationFn::Normalize => Box::new(normalize_scores),
+            NormalizationFn::NormalizeIfMaxGt1 => Box::new(normalize_scores_if_max_gt_1),
+        }
+    }
+}
+
+impl MergeFn {
+    fn to_fn(self) -> Box<dyn Fn(ScoreMap, ScoreMap) -> ScoreMap> {
+        match self {
+            MergeFn::Weighted => Box::new(|l, r| merge_scores_weighted([(0.5, l), (0.5, r)])),
+            MergeFn::AverageDuplicatesOnly => Box::new(merge_scores_average_duplicates_only),
+        }
+    }
 }

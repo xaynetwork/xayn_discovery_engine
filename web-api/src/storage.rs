@@ -61,10 +61,30 @@ pub(crate) struct KnnSearchParams<'a, I> {
 #[derive(Copy, Clone)]
 pub(crate) enum SearchStrategy<'a> {
     Knn,
-    HybridWeighted {
+    Hybrid {
         /// An additional query which will be run in parallel with the KNN search.
         query: &'a str,
     },
+    #[allow(dead_code)]
+    DevHybrid {
+        query: &'a str,
+        normalize_knn: NormalizationFn,
+        normalize_bm25: NormalizationFn,
+        merge_fn: MergeFn,
+    },
+}
+
+#[derive(Copy, Clone, Deserialize)]
+pub(crate) enum NormalizationFn {
+    Identity,
+    Normalize,
+    NormalizeIfMaxGt1,
+}
+
+#[derive(Copy, Clone, Deserialize)]
+pub(crate) enum MergeFn {
+    Weighted,
+    AverageDuplicatesOnly,
 }
 
 #[derive(Debug, Deref, DerefMut, From)]

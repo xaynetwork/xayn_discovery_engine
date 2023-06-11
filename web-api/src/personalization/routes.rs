@@ -493,7 +493,7 @@ async fn semantic_search(
             published_after,
             min_similarity,
             strategy: if let Some(query) = query.as_deref() {
-                SearchStrategy::HybridWeighted { query }
+                SearchStrategy::Hybrid { query }
             } else {
                 SearchStrategy::Knn
             },
