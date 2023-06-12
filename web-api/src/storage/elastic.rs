@@ -19,7 +19,7 @@ use std::collections::HashMap;
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 
@@ -44,68 +44,51 @@ use crate::{
 struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
 
 impl Client {
-    #[allow(clippy::too_many_lines)]
     pub(super) async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<
+            'a,
+            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
+        >,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         // knn search with `k`/`num_candidates` set to zero is a bad request
         if params.count == 0 {
             return Ok(HashMap::new());
         }
 
-        let time = params.time.to_rfc3339();
-        // the existing documents are not filtered in the query to avoid too much work for a cold
-        // path, filtering them afterwards can occasionally lead to less than k results though
-        let excluded_ids = json!({
-            "ids": {
-                "values": params.excluded.into_iter().collect_vec()
-            }
-        });
-        let Value::Object(mut filter) = (
-            if let Some(published_after) = params.published_after {
-                // published_after != null && published_after <= publication_date <= time
-                json!({
-                    "filter": {
-                        "range": {
-                            "properties.publication_date": {
-                                "gte": published_after.to_rfc3339(),
-                                "lte": time
-                            }
-                        }
-                    },
-                    "must_not": excluded_ids
-                })
-            } else {
-                // published_after == null || published_after <= time
-                json!({
-                    "must_not": [
-                        excluded_ids,
-                        {
-                            "range": {
-                                "properties.publication_date": {
-                                    "gt": time
-                                }
-                            }
-                        }
-                    ]
-                })
-            }
-        ) else {
-            unreachable!(/* filter is a json object */);
-        };
+        let mut filter = Map::new();
+        let excluded = params.excluded.into_iter();
+        if excluded.len() > 0 {
+            // existing documents are not filtered in the query to avoid too much work for a cold
+            // path, filtering them afterwards can occasionally lead to less than k results though
+            filter.insert(
+                "must_not".to_string(),
+                json!({ "ids": { "values": excluded.collect_vec() } }),
+            );
+        }
+        if let Some(published_after) = params.published_after {
+            // published_after != null && published_after <= publication_date
+            let published_after = published_after.to_rfc3339();
+            filter.insert(
+                "filter".to_string(),
+                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
+            );
+        }
 
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
+        let Value::Object(mut knn) = json!({
+            "field": "embedding",
+            "k": params.count,
+            "num_candidates": params.num_candidates,
+            "query_vector": params.embedding
+        }) else {
+            unreachable!(/* knn is a json object */);
+        };
+        if !filter.is_empty() {
+            knn.insert("filter".to_string(), json!({ "bool": filter }));
+        }
         let Value::Object(mut body) = json!({
-            "knn": {
-                "field": "embedding",
-                "query_vector": params.embedding,
-                "k": params.count,
-                "num_candidates": params.num_candidates,
-                "filter": {
-                    "bool": filter
-                }
-            },
+            "knn": knn,
             "size": params.count,
             "_source": false
         }) else {

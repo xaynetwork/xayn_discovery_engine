@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Back Office API
-  version: 1.1.0
+  version: 1.2.0
   description: |-
     # Back Office
     This API acts as a create/read/update/delete interface for anything related to documents.

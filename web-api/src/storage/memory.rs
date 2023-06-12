@@ -307,7 +307,10 @@ impl storage::Document for Storage {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<
+            'a,
+            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
+        >,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         if params.published_after.is_some() {
             unimplemented!(/* we don't need it for memory.rs */);
@@ -736,7 +739,6 @@ mod tests {
                 published_after: None,
                 min_similarity: None,
                 query: None,
-                time: Utc::now(),
             },
         )
         .await
@@ -756,7 +758,6 @@ mod tests {
                 published_after: None,
                 min_similarity: None,
                 query: None,
-                time: Utc::now(),
             },
         )
         .await

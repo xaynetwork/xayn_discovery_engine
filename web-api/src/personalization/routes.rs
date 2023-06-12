@@ -493,7 +493,6 @@ async fn semantic_search(
             published_after,
             min_similarity,
             query: query.as_deref(),
-            time: Utc::now(),
         },
     )
     .await?;

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Front Office API
-  version: 1.1.0
+  version: 1.2.0
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -48,19 +48,18 @@ paths:
         - $ref: './parameters/path/user_id.yml'
         - name: count
           in: query
-          description: Maximum number of personalized documents to return
+          description:
+            $ref: "#/components/schemas/Count/description"
           required: false
           schema:
             $ref: "#/components/schemas/Count"
         - name: published_after
           in: query
-          description: |-
-            Only include documents which have been published after given datetime.
-
-            If used documents without a `properties.publication_date` will be ignored.
+          description:
+            $ref: './schemas/time.yml#/PublishedAfter/description'
           required: false
           schema:
-            $ref: './schemas/time.yml#/PublicationDate'
+            $ref: './schemas/time.yml#/PublishedAfter'
       responses:
         '200':
           description: successful operation
@@ -137,6 +136,7 @@ components:
       $ref: './securitySchemes/auth.yml#/ApiKeyAuth'
   schemas:
     Count:
+      description: Maximum number of personalized documents to return
       type: integer
       format: int32
       minimum: 1
@@ -179,7 +179,7 @@ components:
         count:
           $ref: '#/components/schemas/Count'
         published_after:
-          $ref: './schemas/time.yml#/PublicationDate'
+          $ref: './schemas/time.yml#/PublishedAfter'
         min_similarity:
           description: Minimal similarity of a document to consider it as search candidate.
           type: number
