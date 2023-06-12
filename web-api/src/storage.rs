@@ -12,10 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub(crate) mod elastic;
+#[allow(dead_code)]
+mod elastic;
 #[cfg(test)]
 pub(crate) mod memory;
-pub(crate) mod postgres;
+mod pinecone;
+mod postgres;
 mod utils;
 
 use std::collections::HashMap;
@@ -24,20 +26,23 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
-use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_bert::{NormalizedEmbedding, NormalizedSparseEmbedding};
 use xayn_ai_coi::Coi;
 use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
-use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
+use xayn_web_api_shared::{
+    pinecone as pinecone_shared,
+    postgres as postgres_shared,
+    request::TenantId,
+    SetupError,
+};
 
 use crate::{
-    app::SetupError,
     models::{
         self,
         DocumentId,
         DocumentPropertyId,
         DocumentTag,
         ExcerptedDocument,
-        IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
         UserId,
@@ -46,9 +51,17 @@ use crate::{
     Error,
 };
 
+type IngestedDocument = (
+    DocumentId,
+    models::DocumentProperties,
+    NormalizedEmbedding,
+    NormalizedSparseEmbedding,
+);
+
 pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) excluded: I,
     pub(crate) embedding: &'a NormalizedEmbedding,
+    pub(crate) sparse_embedding: Option<&'a NormalizedSparseEmbedding>,
     /// The number of documents which will be returned if there are enough fitting documents.
     pub(crate) count: usize,
     // must be >= count
@@ -102,6 +115,11 @@ pub(crate) trait Document {
 
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
 
+    async fn get_sparse_embedding(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<NormalizedSparseEmbedding>, Error>;
+
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<
@@ -110,8 +128,11 @@ pub(crate) trait Document {
         >,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
-    /// Inserts the documents and reports failed ids.
-    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Warning<DocumentId>, Error>;
+    /// Upserts the documents and reports failed ids.
+    async fn upsert(
+        &self,
+        documents: Vec<models::IngestedDocument>,
+    ) -> Result<Warning<DocumentId>, Error>;
 
     /// Deletes the documents and reports failed ids.
     async fn delete(
@@ -226,11 +247,14 @@ pub(crate) trait Tag {
 #[serde(default)]
 pub struct Config {
     elastic: elastic::Config,
+    pinecone: pinecone_shared::Config,
     postgres: postgres_shared::Config,
 }
 
 pub(crate) struct Storage {
+    #[allow(dead_code)]
     elastic: elastic::Client,
+    pinecone: pinecone::Client,
     postgres: postgres::Database,
 }
 
@@ -241,6 +265,7 @@ impl Storage {
     ) -> Result<StorageBuilder, SetupError> {
         Ok(StorageBuilder {
             elastic: elastic::Client::builder(config.elastic.clone())?,
+            pinecone: pinecone::Client::builder(config.pinecone.clone())?,
             postgres: postgres::Database::builder(&config.postgres, legacy_tenant).await?,
         })
     }
@@ -257,6 +282,7 @@ pub(crate) async fn initialize_silo(
     let silo = Silo::new(
         config.postgres.clone(),
         config.elastic.clone(),
+        config.pinecone.clone(),
         tenant_config
             .enable_legacy_tenant
             .then(|| LegacyTenantInfo {
@@ -278,6 +304,7 @@ pub(crate) async fn initialize_silo(
 #[derive(Clone)]
 pub(crate) struct StorageBuilder {
     elastic: elastic::ClientBuilder,
+    pinecone: pinecone::ClientBuilder,
     postgres: postgres::DatabaseBuilder,
 }
 
@@ -285,6 +312,7 @@ impl StorageBuilder {
     pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Storage {
         Storage {
             elastic: self.elastic.build_for(tenant_id),
+            pinecone: self.pinecone.build_for(tenant_id),
             postgres: self.postgres.build_for(tenant_id),
         }
     }

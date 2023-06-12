@@ -17,7 +17,6 @@ use std::{
     io::BufReader,
 };
 
-use ndarray::Array2;
 use tokenizers::{
     models::unigram::Unigram,
     normalizers::Precompiled,
@@ -37,14 +36,27 @@ use tokenizers::{
     TokenizerBuilder,
     TokenizerImpl,
 };
+use tract_onnx::prelude::{tvec, TValue, TVec};
 
 use crate::{
     config::Config,
-    tokenizer::{Encoding, Tokenize},
+    tokenizer::{tvalue_from, Encoding, Tokenize},
 };
 
 /// A pre-configured Roberta tokenizer.
-pub struct Tokenizer(TokenizerImpl<Unigram, Precompiled, Sequence, TemplateProcessing, Metaspace>);
+pub struct Tokenizer {
+    roberta: TokenizerImpl<Unigram, Precompiled, Sequence, TemplateProcessing, Metaspace>,
+    special_token_ids: [u32; 4],
+}
+
+impl Tokenizer {
+    fn to_input(encoding: &tokenizers::Encoding) -> TVec<TValue> {
+        tvec![
+            tvalue_from(encoding.get_ids()),
+            tvalue_from(encoding.get_attention_mask()),
+        ]
+    }
+}
 
 impl Tokenize for Tokenizer {
     fn new<P>(config: &Config<Self, P>) -> Result<Self, Error> {
@@ -54,6 +66,9 @@ impl Tokenize for Tokenizer {
         let unknown_token = config.extract::<String>("tokenizer.tokens.unknown")?;
         let unknown_id = vocab.iter().position(|(word, _)| word == &unknown_token);
         let model = Unigram::from(vocab, unknown_id)?;
+        let unknown_id = model
+            .token_to_id(&unknown_token)
+            .ok_or("missing unknown token")?;
 
         // https://github.com/huggingface/spm_precompiled
         let normalizer = serde_json::from_str(&read_to_string(
@@ -83,13 +98,14 @@ impl Tokenize for Tokenizer {
             .build()?;
 
         let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
+        let padding_id = model
+            .token_to_id(&padding_token)
+            .ok_or("missing pad token")?;
         let padding = PaddingParams {
             strategy: PaddingStrategy::Fixed(config.token_size),
             direction: PaddingDirection::Right,
             pad_to_multiple_of: None,
-            pad_id: model
-                .token_to_id(&padding_token)
-                .ok_or("missing pad token")?,
+            pad_id: padding_id,
             pad_type_id: 0,
             pad_token: padding_token,
         };
@@ -100,27 +116,31 @@ impl Tokenize for Tokenizer {
             stride: 0,
         };
 
-        TokenizerBuilder::new()
+        let roberta = TokenizerBuilder::new()
             .with_model(model)
             .with_normalizer(Some(normalizer))
             .with_pre_tokenizer(Some(pre_tokenizer))
             .with_post_processor(Some(post_processor))
             .with_padding(Some(padding))
             .with_truncation(Some(truncation))
-            .build()
-            .map(Tokenizer)
+            .build()?;
+        let special_token_ids = [unknown_id, class_id, separation_id, padding_id];
+
+        Ok(Tokenizer {
+            roberta,
+            special_token_ids,
+        })
     }
 
     fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
-        let encoding = self.0.encode(sequence.as_ref(), true)?;
-        let array_from =
-            |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
-
         Ok(Encoding {
-            token_ids: array_from(encoding.get_ids()),
-            attention_mask: array_from(encoding.get_attention_mask()),
-            type_ids: None,
+            encoding: self.roberta.encode(sequence.as_ref(), true)?,
+            to_input: Self::to_input,
         })
+    }
+
+    fn special_token_ids(&self) -> &[u32] {
+        &self.special_token_ids
     }
 }
 
@@ -142,11 +162,11 @@ mod tests {
     #[test]
     fn test_new() {
         let tokenizer = tokenizer(42);
-        assert!(tokenizer.0.get_normalizer().is_some());
-        assert!(tokenizer.0.get_pre_tokenizer().is_some());
-        assert!(tokenizer.0.get_post_processor().is_some());
-        assert!(tokenizer.0.get_padding().is_some());
-        assert!(tokenizer.0.get_truncation().is_some());
-        assert!(tokenizer.0.get_decoder().is_none());
+        assert!(tokenizer.roberta.get_normalizer().is_some());
+        assert!(tokenizer.roberta.get_pre_tokenizer().is_some());
+        assert!(tokenizer.roberta.get_post_processor().is_some());
+        assert!(tokenizer.roberta.get_padding().is_some());
+        assert!(tokenizer.roberta.get_truncation().is_some());
+        assert!(tokenizer.roberta.get_decoder().is_none());
     }
 }

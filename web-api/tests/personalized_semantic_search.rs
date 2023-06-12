@@ -63,9 +63,6 @@ async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Erro
 struct PersonalizedDocumentData {
     id: String,
     score: f32,
-    #[allow(dead_code)]
-    #[serde(default)]
-    properties: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,6 +90,7 @@ macro_rules! assert_order {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_full_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
@@ -167,6 +165,7 @@ fn test_full_personalization() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_subtle_personalization() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
@@ -203,6 +202,7 @@ fn test_subtle_personalization() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_full_personalization_with_inline_history() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,

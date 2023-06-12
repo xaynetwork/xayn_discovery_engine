@@ -19,7 +19,11 @@ use once_cell::sync::Lazy;
 use reqwest::{Method, StatusCode};
 use serde_json::{json, Value};
 use tracing::{error, info, instrument};
-use xayn_web_api_shared::{elastic::Client, request::TenantId};
+use xayn_web_api_shared::{
+    elastic::Client,
+    request::TenantId,
+    url::{NO_PARAMS, NO_SEGMENTS},
+};
 
 use crate::Error;
 
@@ -35,7 +39,7 @@ pub async fn create_tenant_index(
     let mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
     elastic
         .with_index(new_id)
-        .request(Method::PUT, [], [])
+        .request(Method::PUT, NO_SEGMENTS, NO_PARAMS)
         .json(&mapping)
         .send()
         .await?
@@ -48,7 +52,7 @@ pub async fn create_tenant_index(
 pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Result<(), Error> {
     elastic
         .with_index(tenant_id)
-        .request(Method::DELETE, [], [])
+        .request(Method::DELETE, NO_SEGMENTS, NO_PARAMS)
         .send()
         .await?
         .error_for_status()?;
@@ -98,7 +102,7 @@ async fn does_tenant_index_exist(
 ) -> Result<bool, Error> {
     let response = elastic
         .with_index(tenant_id)
-        .request(Method::HEAD, [], [])
+        .request(Method::GET, NO_SEGMENTS, NO_PARAMS)
         .send()
         .await?;
 
@@ -120,7 +124,7 @@ async fn create_index_alias(
     let alias = alias.as_ref();
     elastic
         .with_index("_aliases")
-        .request(Method::POST, [], [])
+        .request(Method::POST, NO_SEGMENTS, NO_PARAMS)
         .json(&json!({
             "actions": [
             {

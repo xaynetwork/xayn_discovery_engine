@@ -20,6 +20,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::pool::PoolOptions;
 use xayn_web_api_shared::{
     elastic::{Client as EsClient, Config as EsConfig},
+    pinecone::{Client as PcClient, Config as PcConfig},
     postgres::{Client as PgClient, Config as PgConfig},
     request::TenantId,
 };
@@ -31,8 +32,11 @@ pub type Error = anyhow::Error;
 pub struct Silo {
     postgres_config: PgConfig,
     elastic_config: EsConfig,
+    pinecone_config: PcConfig,
     postgres: PgClient,
     elastic: EsClient,
+    #[allow(dead_code)] // TODO: multi-tenancy and legacy setup
+    pinecone: PcClient,
     enable_legacy_tenant: Option<LegacyTenantInfo>,
     embedding_size: usize,
 }
@@ -46,6 +50,7 @@ impl Silo {
     pub async fn new(
         postgres_config: PgConfig,
         elastic_config: EsConfig,
+        pinecone_config: PcConfig,
         enable_legacy_tenant: Option<LegacyTenantInfo>,
         embedding_size: usize,
     ) -> Result<Self, Error> {
@@ -54,12 +59,15 @@ impl Silo {
             .await?;
 
         let elastic = EsClient::new(elastic_config.clone())?;
+        let pinecone = PcClient::new(pinecone_config.clone())?;
 
         Ok(Self {
             postgres_config,
             elastic_config,
+            pinecone_config,
             postgres,
             elastic,
+            pinecone,
             enable_legacy_tenant,
             embedding_size,
         })
@@ -168,6 +176,10 @@ impl Silo {
 
     pub fn elastic_config(&self) -> &EsConfig {
         &self.elastic_config
+    }
+
+    pub fn pinecone_config(&self) -> &PcConfig {
+        &self.pinecone_config
     }
 }
 

@@ -24,7 +24,7 @@ use serde::Serialize;
 use thiserror::Error;
 use tracing::Level;
 use xayn_ai_bert::InvalidEmbedding;
-use xayn_web_api_shared::elastic;
+use xayn_web_api_shared::{elastic, pinecone};
 
 use super::application::{impl_application_error, ApplicationError};
 use crate::{models::DocumentId, Error};
@@ -139,6 +139,12 @@ impl From<String> for BadRequest {
 
 impl From<elastic::Error> for Error {
     fn from(error: elastic::Error) -> Self {
+        InternalError::from_std(error).into()
+    }
+}
+
+impl From<pinecone::Error> for Error {
+    fn from(error: pinecone::Error) -> Self {
         InternalError::from_std(error).into()
     }
 }

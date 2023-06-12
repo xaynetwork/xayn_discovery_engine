@@ -25,11 +25,15 @@ criterion = { workspace = true }
 csv = { workspace = true }
 indicatif = "0.17.3"
 
-[[example]]
-name = "bert"
-test = false
-
 [[bench]]
 name = "bert"
 harness = false
+test = false
+
+[[bin]]
+name = "fit_sparse_model"
+test = false
+
+[[example]]
+name = "bert"
 test = false

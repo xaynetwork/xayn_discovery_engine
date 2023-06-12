@@ -20,9 +20,11 @@ use xayn_ai_bert::{
     AvgBert,
     Config as BertConfig,
     NormalizedEmbedding,
+    NormalizedSparseEmbedding,
 };
+use xayn_web_api_shared::SetupError;
 
-use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
+use crate::{error::common::InternalError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -45,14 +47,6 @@ pub(crate) struct Embedder {
 }
 
 impl Embedder {
-    pub(crate) fn run(&self, s: &str) -> Result<NormalizedEmbedding, InternalError> {
-        self.bert
-            .run(s)
-            .map_err(InternalError::from_std)?
-            .normalize()
-            .map_err(InternalError::from_std)
-    }
-
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
         let path = config.directory.relative();
         if !path.exists() {
@@ -79,5 +73,38 @@ impl Embedder {
 
     pub(crate) fn embedding_size(&self) -> usize {
         self.bert.embedding_size()
+    }
+
+    pub(crate) fn run(
+        &self,
+        sequence: impl AsRef<str>,
+    ) -> Result<NormalizedEmbedding, InternalError> {
+        self.bert
+            .run(sequence)
+            .map_err(InternalError::from_std)?
+            .normalize()
+            .map_err(InternalError::from_std)
+    }
+
+    pub(crate) fn run_sparse_document(
+        &self,
+        sequence: impl AsRef<str>,
+    ) -> Result<NormalizedSparseEmbedding, InternalError> {
+        self.bert
+            .run_sparse_document(sequence)
+            .map_err(InternalError::from_std)?
+            .normalize()
+            .map_err(InternalError::from_std)
+    }
+
+    pub(crate) fn run_sparse_query(
+        &self,
+        sequence: impl AsRef<str>,
+    ) -> Result<NormalizedSparseEmbedding, InternalError> {
+        self.bert
+            .run_sparse_query(sequence)
+            .map_err(InternalError::from_std)?
+            .normalize()
+            .map_err(InternalError::from_std)
     }
 }

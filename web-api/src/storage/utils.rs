@@ -14,6 +14,7 @@
 
 //! Module containing non-database specific sqlx utilities.
 
+use serde::Deserialize;
 use sqlx::{Database, Encode, QueryBuilder, Type};
 
 pub(super) trait SqlxPushTupleExt<'args, DB: Database> {
@@ -40,3 +41,10 @@ where
         self
     }
 }
+
+/// Deserializes from any map/struct dropping all fields.
+///
+/// This will not work with non self describing non schema
+/// formats like bincode.
+#[derive(Debug, Deserialize)]
+pub(super) struct IgnoredResponse {/* Note: These braces are needed for it to work correctly. */}

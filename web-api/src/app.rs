@@ -21,6 +21,7 @@ use async_trait::async_trait;
 use futures_util::FutureExt;
 use serde::{de::DeserializeOwned, Serialize};
 use tracing::{info, instrument};
+use xayn_web_api_shared::SetupError;
 
 pub(crate) use self::state::{AppState, TenantState};
 use crate::{
@@ -60,8 +61,6 @@ pub trait Application: 'static {
     //             and it is also easier to add async if needed (using #[async-trait]).
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError>;
 }
-
-pub type SetupError = anyhow::Error;
 
 /// Run the server with using given endpoint configuration functions.
 ///

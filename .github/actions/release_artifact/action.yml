@@ -61,6 +61,7 @@ runs:
         cp "$MODEL_PATH/config.toml" ./$ARCHIVE_NAME/assets/config.toml
         cp "$MODEL_PATH/vocab.txt" ./$ARCHIVE_NAME/assets/vocab.txt
         cp "$MODEL_PATH/model.onnx" ./$ARCHIVE_NAME/assets/model.onnx
+        cp "$MODEL_PATH/sparse_model.json" ./$ARCHIVE_NAME/assets/sparse_model.json
         tar -cvf "$ARCHIVE_NAME.tar" ./$ARCHIVE_NAME
 
     - name: Upload archive

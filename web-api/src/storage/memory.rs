@@ -31,7 +31,7 @@ use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
 use ouroboros::self_referencing;
 use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::RwLock;
-use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_bert::{NormalizedEmbedding, NormalizedSparseEmbedding};
 use xayn_ai_coi::Coi;
 
 use super::{Document as _, InteractionUpdateContext, TagWeights};
@@ -305,6 +305,13 @@ impl storage::Document for Storage {
         Ok(self.documents.read().await.1.borrow_map().get(id).cloned())
     }
 
+    async fn get_sparse_embedding(
+        &self,
+        _: &DocumentId,
+    ) -> Result<Option<NormalizedSparseEmbedding>, Error> {
+        unimplemented!(/* no hybrid index */)
+    }
+
     async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<
@@ -345,7 +352,7 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
-    async fn insert(
+    async fn upsert(
         &self,
         new_documents: Vec<IngestedDocument>,
     ) -> Result<Warning<DocumentId>, Error> {
@@ -696,6 +703,7 @@ impl Storage {
 #[cfg(test)]
 mod tests {
     use itertools::Itertools;
+    use xayn_ai_bert::NormalizedSparseEmbedding;
     use xayn_ai_coi::CoiId;
     use xayn_test_utils::assert_approx_eq;
 
@@ -720,11 +728,12 @@ mod tests {
                 properties: DocumentProperties::default(),
                 tags: Vec::new(),
                 embedding,
+                sparse_embedding: NormalizedSparseEmbedding::default(),
                 is_candidate: true,
             })
             .collect_vec();
         let storage = Storage::default();
-        storage::Document::insert(&storage, documents)
+        storage::Document::upsert(&storage, documents)
             .await
             .unwrap();
 
@@ -734,6 +743,7 @@ mod tests {
             KnnSearchParams {
                 excluded: [],
                 embedding,
+                sparse_embedding: None,
                 count: 2,
                 num_candidates: 2,
                 published_after: None,
@@ -753,6 +763,7 @@ mod tests {
             KnnSearchParams {
                 excluded: [&ids[1]],
                 embedding,
+                sparse_embedding: None,
                 count: 3,
                 num_candidates: 3,
                 published_after: None,
@@ -774,7 +785,8 @@ mod tests {
         let doc_id = DocumentId::new("42").unwrap();
         let tags = vec![DocumentTag::try_from("tag").unwrap()];
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
-        storage::Document::insert(
+        let time = Utc::now();
+        storage::Document::upsert(
             &storage,
             vec![IngestedDocument {
                 id: doc_id.clone(),
@@ -782,6 +794,7 @@ mod tests {
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
                 embedding: embedding.clone(),
+                sparse_embedding: NormalizedSparseEmbedding::default(),
                 is_candidate: true,
             }],
         )
@@ -793,7 +806,7 @@ mod tests {
             &user_id,
             [&doc_id],
             true,
-            Utc::now(),
+            time,
             |context| {
                 *context.tag_weight_diff.get_mut(&tags[0]).unwrap() += 10;
                 let coi = Coi::new(

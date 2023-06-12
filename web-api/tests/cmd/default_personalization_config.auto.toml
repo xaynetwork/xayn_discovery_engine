@@ -22,6 +22,14 @@ stdout = """
       "index_name": "test_index",
       "timeout": 2
     },
+    "pinecone": {
+      "environment": "asia-southeast1-gcp-free",
+      "project": "58855b0",
+      "index": "test",
+      "namespace": "test",
+      "api_key": "[REDACTED]",
+      "timeout": 10
+    },
     "postgres": {
       "base_url": "postgres://user:pw@localhost:5432/xayn",
       "port": null,

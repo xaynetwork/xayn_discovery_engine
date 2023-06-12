@@ -39,26 +39,29 @@ use xayn_web_api::{config, start, Ingestion, Personalization};
 use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
     elastic,
+    pinecone,
     postgres::{self, QuotedIdentifier},
     request::TenantId,
 };
 
 #[instrument(skip_all)]
-async fn legacy_test_setup(test_id: &TestId) -> Result<(postgres::Config, elastic::Config), Error> {
+async fn legacy_test_setup(
+    test_id: &TestId,
+) -> Result<(postgres::Config, elastic::Config, pinecone::Config), Error> {
     clear_env();
     start_test_service_containers();
 
-    let (pg_config, es_config) = db_configs_for_testing(test_id);
+    let (pg_config, es_config, pc_config) = db_configs_for_testing(test_id);
 
     create_db(&pg_config, MANAGEMENT_DB).await?;
 
-    Ok((pg_config, es_config))
+    Ok((pg_config, es_config, pc_config))
 }
 
 #[test]
 fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
     run_async_test(|test_id| async move {
-        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
+        let (pg_config, es_config, pc_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;
         let mut conn = PgConnection::connect_with(&pg_options).await?;
@@ -93,6 +96,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
         let silo = Silo::new(
             pg_config,
             es_config,
+            pc_config,
             Some(LegacyTenantInfo {
                 es_index: default_es_index,
             }),
@@ -121,7 +125,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
 #[test]
 fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() {
     run_async_test(|test_id| async move {
-        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
+        let (pg_config, es_config, pc_config) = legacy_test_setup(&test_id).await?;
 
         let pg_options = pg_config.to_connection_options()?;
 
@@ -129,6 +133,7 @@ fn test_if_the_initializations_work_correctly_for_not_setup_legacy_tenants() {
         let silo = Silo::new(
             pg_config,
             es_config,
+            pc_config,
             Some(LegacyTenantInfo {
                 es_index: default_es_index,
             }),
@@ -168,6 +173,7 @@ struct SemanticSearchResponse {
 //      test was added we can simplify it a lot by using the Silo API and the additional
 //      integration test utils added in this and the previous PR.
 #[test]
+#[ignore = "sparse model not available"]
 fn test_full_migration() {
     use old_xayn_web_api::{
         config as old_config,
@@ -180,10 +186,11 @@ fn test_full_migration() {
     run_async_test(|test_id| async move {
         info!("entered async test");
 
-        let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
+        let (pg_config, es_config, pc_config) = legacy_test_setup(&test_id).await?;
         let config = build_test_config_from_parts_and_model(
             &pg_config,
             &es_config,
+            &pc_config,
             Table::new(),
             "smbert_v0003",
         );

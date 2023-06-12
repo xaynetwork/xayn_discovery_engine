@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
@@ -188,7 +190,7 @@ async fn personalized_documents(
 struct PersonalizedDocumentData {
     id: DocumentId,
     score: f32,
-    #[serde(skip_serializing_if = "DocumentProperties::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     properties: DocumentProperties,
 }
 
@@ -468,18 +470,32 @@ async fn semantic_search(
     } else {
         Vec::new()
     };
-    let (embedding, query) = match document {
+    let (embedding, sparse_embedding, query) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
+            let sparse_embedding = if enable_hybrid_search {
+                Some(
+                    storage::Document::get_sparse_embedding(&storage, &id)
+                        .await?
+                        .ok_or(DocumentNotFound)?,
+                )
+            } else {
+                None
+            };
             excluded.push(id);
-            (embedding, None)
+            (embedding, sparse_embedding, None)
         }
         InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
+            let sparse_embedding = if enable_hybrid_search {
+                Some(state.embedder.run_sparse_query(&query)?)
+            } else {
+                None
+            };
             let query = enable_hybrid_search.then_some(query);
-            (embedding, query)
+            (embedding, sparse_embedding, query)
         }
     };
 
@@ -488,6 +504,7 @@ async fn semantic_search(
         KnnSearchParams {
             excluded: &excluded,
             embedding: &embedding,
+            sparse_embedding: sparse_embedding.as_ref(),
             count,
             num_candidates: count,
             published_after,

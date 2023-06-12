@@ -12,18 +12,23 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Borrow, collections::HashMap};
+use std::{
+    borrow::{Borrow, Cow},
+    collections::HashMap,
+};
 
-use derive_more::{AsRef, Deref, Display, Into};
+use chrono::{DateTime, TimeZone, Utc};
+use derive_more::{Deref, DerefMut, Display, From, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::{json, Value};
 use sqlx::{
     postgres::{PgHasArrayType, PgTypeInfo},
     FromRow,
     Type,
 };
-use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_bert::{NormalizedEmbedding, NormalizedSparseEmbedding};
 use xayn_ai_coi::Document as AiDocument;
 
 use crate::error::common::{
@@ -38,7 +43,7 @@ macro_rules! id_wrapper {
         $(
             /// A unique identifier.
             #[derive(
-                AsRef,
+                Deref,
                 Into,
                 Clone,
                 Debug,
@@ -116,12 +121,70 @@ id_wrapper! {
     pub(crate) DocumentTag, InvalidDocumentTag, is_valid_tag;
 }
 
-#[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize)]
+impl DocumentPropertyId {
+    pub(crate) const PUBLICATION_DATE: &str = "publication_date";
+}
+
+#[derive(Clone, Debug, Deref, Deserialize, From, PartialEq, Serialize)]
 #[serde(transparent)]
-pub(crate) struct DocumentProperty(serde_json::Value);
+pub(crate) struct DocumentProperty(Value);
 
 /// Arbitrary properties that can be attached to a document.
-pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
+// pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
+#[derive(
+    Clone, Debug, Default, Deref, DerefMut, Deserialize, From, FromRow, PartialEq, Serialize,
+)]
+#[serde(transparent)]
+#[sqlx(transparent)]
+pub(crate) struct DocumentProperties(HashMap<DocumentPropertyId, DocumentProperty>);
+
+impl FromIterator<(DocumentPropertyId, DocumentProperty)> for DocumentProperties {
+    fn from_iter<I>(iter: I) -> Self
+    where
+        I: IntoIterator<Item = (DocumentPropertyId, DocumentProperty)>,
+    {
+        iter.into_iter().collect::<HashMap<_, _>>().into()
+    }
+}
+
+impl DocumentProperties {
+    pub(crate) fn serialize_time_to_int<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        self.iter()
+            .map(|(id, property)| {
+                if id.as_str() == DocumentPropertyId::PUBLICATION_DATE {
+                    if let Some(publication_date) = property.as_str().and_then(|publication_date| {
+                        DateTime::parse_from_rfc3339(publication_date).ok()
+                    }) {
+                        return (id, Cow::Owned(json!(publication_date.timestamp()).into()));
+                    }
+                }
+
+                (id, Cow::Borrowed(property))
+            })
+            .collect::<HashMap<_, _>>()
+            .serialize(serializer)
+    }
+
+    pub(crate) fn deserialize_time_from_int<'de, D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let mut properties = Self::deserialize(deserializer)?;
+        if let Some(publication_date) = properties.get_mut(DocumentPropertyId::PUBLICATION_DATE) {
+            if let Some(date) = publication_date
+                .as_i64()
+                .and_then(|seconds| Utc.timestamp_opt(seconds, 0).single())
+            {
+                publication_date.0 = json!(date.to_rfc3339());
+            }
+        }
+
+        Ok(properties)
+    }
+}
 
 /// Represents a result from an interaction query.
 #[derive(Clone, Debug)]
@@ -182,8 +245,11 @@ pub(crate) struct IngestedDocument {
     /// The tags associated to the document.
     pub(crate) tags: Vec<DocumentTag>,
 
-    /// Embedding from smbert.
+    /// Embedding of the document.
     pub(crate) embedding: NormalizedEmbedding,
+
+    /// Sparse embedding of the document.
+    pub(crate) sparse_embedding: NormalizedSparseEmbedding,
 
     /// Indicates if the document is considered for recommendations.
     pub(crate) is_candidate: bool,

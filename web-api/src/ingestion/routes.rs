@@ -42,7 +42,14 @@ use crate::{
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
     },
-    models::{self, DocumentId, DocumentProperties, DocumentProperty, DocumentTag},
+    models::{
+        self,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentTag,
+    },
     storage,
     Error,
 };
@@ -181,7 +188,7 @@ impl UnvalidatedIngestedDocument {
                 .into_iter()
                 .map(|(id, property)| id.try_into().map(|id| (id, property)))
                 .try_collect::<_, DocumentProperties, _>()?;
-            if let Some(publication_date) = properties.get("publication_date") {
+            if let Some(publication_date) = properties.get(DocumentPropertyId::PUBLICATION_DATE) {
                 if let Some(publication_date) = publication_date.as_str() {
                     DateTime::parse_from_rfc3339(publication_date)?;
                 } else {
@@ -340,13 +347,19 @@ async fn upsert_documents(
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
-            match state.embedder.run(&document.snippet) {
-                Ok(embedding) => Either::Left(models::IngestedDocument {
+            match state.embedder.run(&document.snippet).and_then(|embedding| {
+                state
+                    .embedder
+                    .run_sparse_document(&document.snippet)
+                    .map(|sparse_embedding| (embedding, sparse_embedding))
+            }) {
+                Ok((embedding, sparse_embedding)) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
                     properties: document.properties,
                     tags: document.tags,
                     embedding,
+                    sparse_embedding,
                     is_candidate: new_is_candidate.value,
                 }),
                 Err(error) => {
@@ -363,7 +376,7 @@ async fn upsert_documents(
         changed_documents.len(),
     );
     failed_documents.extend(
-        storage::Document::insert(&storage, new_documents)
+        storage::Document::upsert(&storage, new_documents)
             .await?
             .into_iter()
             .map(Into::into),

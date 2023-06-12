@@ -21,10 +21,11 @@ use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
+use xayn_web_api_shared::SetupError;
 
 pub use self::{rerank::bench_rerank, stateless::bench_derive_interests};
 use crate::{
-    app::{self, Application, SetupError},
+    app::{self, Application},
     embedding,
     logging,
     net,

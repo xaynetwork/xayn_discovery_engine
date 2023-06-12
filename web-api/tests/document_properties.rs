@@ -127,11 +127,13 @@ fn document_properties(is_candidate: bool) {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_document_properties_candidate() {
     document_properties(true);
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_document_properties_noncandidate() {
     document_properties(false);
 }
@@ -236,11 +238,13 @@ fn document_property(is_candidate: bool) {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_document_property_candidate() {
     document_property(true);
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_document_property_noncandidate() {
     document_property(false);
 }

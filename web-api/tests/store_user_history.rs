@@ -92,11 +92,13 @@ fn store_user_history(enabled: bool) {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_store_user_history_enabled() {
     store_user_history(true);
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_store_user_history_disabled() {
     store_user_history(false);
 }

@@ -13,9 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use derive_more::Deref;
-use xayn_web_api_shared::{elastic, request::TenantId};
-
-use crate::SetupError;
+use xayn_web_api_shared::{elastic, request::TenantId, SetupError};
 
 #[derive(Deref)]
 pub(crate) struct Client(elastic::Client);

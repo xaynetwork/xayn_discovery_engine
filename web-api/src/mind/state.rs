@@ -18,7 +18,7 @@ use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use serde::Serialize;
-use xayn_ai_bert::NormalizedEmbedding;
+use xayn_ai_bert::{NormalizedEmbedding, NormalizedSparseEmbedding};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 use xayn_test_utils::error::Panic;
 
@@ -77,11 +77,12 @@ impl State {
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory],
                     embedding,
+                    sparse_embedding: NormalizedSparseEmbedding::default(/* unused, in-memory db has no hybrid index */),
                     is_candidate: true,
                 })
             })
             .try_collect::<_, _, Panic>()?;
-        storage::Document::insert(&self.storage, documents).await?;
+        storage::Document::upsert(&self.storage, documents).await?;
 
         Ok(())
     }
@@ -107,11 +108,12 @@ impl State {
                     properties: document.properties,
                     tags: document.tags,
                     embedding,
+                    sparse_embedding: NormalizedSparseEmbedding::default(/* unused, in-memory db has no hybrid index */),
                     is_candidate: true,
                 }
             })
             .collect_vec();
-        storage::Document::insert(&self.storage, documents).await?;
+        storage::Document::upsert(&self.storage, documents).await?;
 
         Ok(())
     }

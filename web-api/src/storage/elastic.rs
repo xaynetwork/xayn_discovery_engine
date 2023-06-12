@@ -18,10 +18,13 @@ use std::collections::HashMap;
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 use xayn_ai_bert::NormalizedEmbedding;
-pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
+pub(crate) use xayn_web_api_shared::{
+    elastic::{BulkInstruction, Config},
+    url::NO_PARAM_VALUE,
+};
 
 use crate::{
     models::{
@@ -32,23 +35,16 @@ use crate::{
         DocumentPropertyId,
         DocumentTag,
     },
-    storage::{KnnSearchParams, Warning},
+    storage::{utils::IgnoredResponse, KnnSearchParams, Warning},
     Error,
 };
 
-/// Deserializes from any map/struct dropping all fields.
-///
-/// This will not work with non self describing non schema
-/// formats like bincode.
-#[derive(Debug, Deserialize)]
-struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
-
 impl Client {
-    pub(super) async fn get_by_embedding<'a>(
+    pub(super) async fn get_by_embedding(
         &self,
         params: KnnSearchParams<
-            'a,
-            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
+            '_,
+            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
         >,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         // knn search with `k`/`num_candidates` set to zero is a bad request
@@ -131,12 +127,20 @@ impl Client {
         Ok(knn_scores)
     }
 
-    pub(super) async fn insert_documents(
+    pub(super) async fn upsert_documents(
         &self,
         documents: impl IntoIterator<
             IntoIter = impl ExactSizeIterator<Item = &models::IngestedDocument>,
         >,
     ) -> Result<Warning<DocumentId>, Error> {
+        #[derive(Serialize)]
+        struct IngestedDocument<'a> {
+            snippet: &'a str,
+            properties: &'a DocumentProperties,
+            embedding: &'a NormalizedEmbedding,
+            tags: &'a [DocumentTag],
+        }
+
         let documents = documents.into_iter();
         if documents.len() == 0 {
             return Ok(Warning::default());
@@ -180,7 +184,7 @@ impl Client {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<(), Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
-        let url = self.create_url(["_delete_by_query"], [("refresh", None)]);
+        let url = self.create_url(["_delete_by_query"], [("refresh", NO_PARAM_VALUE)]);
         let body = json!({
             "query": {
                 "bool": {
@@ -198,13 +202,13 @@ impl Client {
         Ok(())
     }
 
-    pub(super) async fn insert_document_properties(
+    pub(super) async fn upsert_document_properties(
         &self,
         id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", id.as_ref()], [("refresh", NO_PARAM_VALUE)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties = params.properties",
@@ -226,12 +230,12 @@ impl Client {
         id: &DocumentId,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", id.as_ref()], [("refresh", NO_PARAM_VALUE)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties = params.properties",
                 "params": {
-                    "properties": DocumentProperties::new()
+                    "properties": DocumentProperties::default()
                 }
             },
             "_source": false
@@ -243,14 +247,17 @@ impl Client {
             .map(|_| ()))
     }
 
-    pub(super) async fn insert_document_property(
+    pub(super) async fn upsert_document_property(
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(
+            ["_update", document_id.as_ref()],
+            [("refresh", NO_PARAM_VALUE)],
+        );
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties.put(params.prop_id, params.property)",
@@ -274,7 +281,10 @@ impl Client {
         property_id: &DocumentPropertyId,
     ) -> Result<Option<Option<()>>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(
+            ["_update", document_id.as_ref()],
+            [("refresh", NO_PARAM_VALUE)],
+        );
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.properties.remove(params.prop_id)",
@@ -291,13 +301,13 @@ impl Client {
             .map(|_| Some(())))
     }
 
-    pub(super) async fn insert_document_tags(
+    pub(super) async fn upsert_document_tags(
         &self,
         id: &DocumentId,
         tags: &[DocumentTag],
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
+        let url = self.create_url(["_update", id.as_ref()], [("refresh", NO_PARAM_VALUE)]);
         let body = Some(json!({
             "script": {
                 "source": "ctx._source.tags = params.tags",
@@ -313,12 +323,4 @@ impl Client {
             .await?
             .map(|_| ()))
     }
-}
-
-#[derive(Debug, Serialize)]
-struct IngestedDocument<'a> {
-    snippet: &'a str,
-    properties: &'a DocumentProperties,
-    embedding: &'a NormalizedEmbedding,
-    tags: &'a [DocumentTag],
 }

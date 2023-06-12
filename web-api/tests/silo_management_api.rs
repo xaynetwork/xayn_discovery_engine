@@ -29,6 +29,7 @@ struct ManagementResponse {
 }
 
 #[test]
+#[ignore = "sparse model not available"]
 fn test_tenants_can_be_created() {
     test_app::<Ingestion, _>(
         Some(toml! {

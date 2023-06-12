@@ -22,7 +22,7 @@ use figment::{
 use serde::Deserialize;
 
 use crate::{
-    model::Model,
+    model::{Model, SparseModel},
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
     tokenizer::{bert::Tokenizer, Tokenize},
@@ -60,6 +60,7 @@ use crate::{
 /// continuation = "##"
 ///
 /// # the [model] path is always `model.onnx`
+/// # the sparse [model] path is always `sparse_model.json`
 ///
 /// # each input and output is required by tract
 /// # string shapes are considered dynamic and depend on arguments
@@ -182,10 +183,12 @@ impl<T, P> Config<T, P> {
     {
         let tokenizer = T::new(self)?;
         let model = Model::new(self)?;
+        let sparse_model = SparseModel::new(self)?;
 
         Ok(Pipeline {
             tokenizer,
             model,
+            sparse_model,
             pooler: self.pooler,
         })
     }

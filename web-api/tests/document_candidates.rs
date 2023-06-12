@@ -70,6 +70,7 @@ async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) ->
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_candidates_all() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -82,6 +83,7 @@ fn test_candidates_all() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_candidates_some() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -94,6 +96,7 @@ fn test_candidates_some() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_candidates_none() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -106,6 +109,7 @@ fn test_candidates_none() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_candidates_not_default() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -151,6 +155,7 @@ struct ServerError {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_candidates_warning() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
@@ -178,6 +183,7 @@ fn test_candidates_warning() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_candidates_reingestion() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());

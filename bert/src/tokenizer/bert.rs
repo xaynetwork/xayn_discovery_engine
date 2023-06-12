@@ -14,6 +14,7 @@
 
 use std::{
     borrow::Cow,
+    collections::HashMap,
     fs::File,
     io::{BufRead, BufReader},
 };
@@ -24,7 +25,6 @@ use lindera::{
     mode::Mode as JapaneseMode,
     tokenizer::{Tokenizer as JapanesePreTokenizer, TokenizerConfig as JapanesePreTokenizerConfig},
 };
-use ndarray::Array2;
 use tokenizers::{
     decoders::wordpiece::WordPiece as WordPieceDecoder,
     models::wordpiece::{WordPiece as WordPieceModel, WordPieceBuilder},
@@ -40,10 +40,11 @@ use tokenizers::{
     TokenizerBuilder,
     TokenizerImpl,
 };
+use tract_onnx::prelude::{tvec, TValue, TVec};
 
 use crate::{
     config::Config,
-    tokenizer::{Encoding, Tokenize},
+    tokenizer::{tvalue_from, Encoding, Tokenize},
 };
 
 /// A pre-configured Bert tokenizer.
@@ -56,6 +57,17 @@ pub struct Tokenizer {
         BertProcessing,
         WordPieceDecoder,
     >,
+    special_token_ids: [u32; 4],
+}
+
+impl Tokenizer {
+    fn to_input(encoding: &tokenizers::Encoding) -> TVec<TValue> {
+        tvec![
+            tvalue_from(encoding.get_ids()),
+            tvalue_from(encoding.get_attention_mask()),
+            tvalue_from(encoding.get_type_ids()),
+        ]
+    }
 }
 
 impl Tokenize for Tokenizer {
@@ -79,10 +91,15 @@ impl Tokenize for Tokenizer {
             .lines()
             .enumerate()
             .map(|(idx, word)| Ok((word?.trim().to_string(), u32::try_from(idx)?)))
-            .collect::<Result<_, Error>>()?;
+            .collect::<Result<HashMap<_, _>, Error>>()?;
+        let unknown_token = config.extract::<String>("tokenizer.tokens.unknown")?;
+        let unknown_id = vocab
+            .get(&unknown_token)
+            .copied()
+            .ok_or("missing unknown token")?;
         let model = WordPieceBuilder::new()
             .vocab(vocab)
-            .unk_token(config.extract("tokenizer.tokens.unknown")?)
+            .unk_token(unknown_token)
             .continuing_subword_prefix(config.extract("tokenizer.tokens.continuation")?)
             .max_input_chars_per_word(config.extract("tokenizer.max-chars")?)
             .build()?;
@@ -103,13 +120,14 @@ impl Tokenize for Tokenizer {
         let post_processor =
             BertProcessing::new((separation_token, separation_id), (class_token, class_id));
         let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
+        let padding_id = model
+            .token_to_id(&padding_token)
+            .ok_or("missing padding token")?;
         let padding = PaddingParams {
             strategy: PaddingStrategy::Fixed(config.token_size),
             direction: PaddingDirection::Right,
             pad_to_multiple_of: None,
-            pad_id: model
-                .token_to_id(&padding_token)
-                .ok_or("missing padding token")?,
+            pad_id: padding_id,
             pad_type_id: 0,
             pad_token: padding_token,
         };
@@ -128,8 +146,13 @@ impl Tokenize for Tokenizer {
             .with_padding(Some(padding))
             .with_truncation(Some(truncation))
             .build()?;
+        let special_token_ids = [unknown_id, separation_id, class_id, padding_id];
 
-        Ok(Tokenizer { japanese, bert })
+        Ok(Tokenizer {
+            japanese,
+            bert,
+            special_token_ids,
+        })
     }
 
     fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
@@ -146,21 +169,19 @@ impl Tokenize for Tokenizer {
             Cow::Borrowed(sequence.as_ref())
         };
 
-        let encoding = self.bert.encode(sequence, true)?;
-        let array_from =
-            |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
-
         Ok(Encoding {
-            token_ids: array_from(encoding.get_ids()),
-            attention_mask: array_from(encoding.get_attention_mask()),
-            type_ids: Some(array_from(encoding.get_type_ids())),
+            encoding: self.bert.encode(sequence, true)?,
+            to_input: Self::to_input,
         })
+    }
+
+    fn special_token_ids(&self) -> &[u32] {
+        &self.special_token_ids
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::ArrayView;
     use xayn_test_utils::asset::{sjbert, smbert_mocked};
 
     use super::*;
@@ -208,28 +229,16 @@ mod tests {
             .encode("These are normal, common EMBEDDINGS.")
             .unwrap();
         assert_eq!(
-            encoding.token_ids,
-            ArrayView::from_shape(
-                shape,
-                &[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            )
-            .unwrap(),
+            encoding.get_ids(),
+            [2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         );
         assert_eq!(
-            encoding.attention_mask,
-            ArrayView::from_shape(
-                shape,
-                &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            )
-            .unwrap(),
+            encoding.get_attention_mask(),
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         );
         assert_eq!(
-            encoding.type_ids.unwrap(),
-            ArrayView::from_shape(
-                shape,
-                &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            )
-            .unwrap(),
+            encoding.get_type_ids(),
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         );
     }
 
@@ -240,18 +249,14 @@ mod tests {
             .encode("These are normal, common EMBEDDINGS.")
             .unwrap();
         assert_eq!(
-            encoding.token_ids,
-            ArrayView::from_shape(shape, &[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3])
-                .unwrap(),
+            encoding.get_ids(),
+            [2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3],
         );
         assert_eq!(
-            encoding.attention_mask,
-            ArrayView::from_shape(shape, &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]).unwrap(),
+            encoding.get_attention_mask(),
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
         );
-        assert_eq!(
-            encoding.type_ids.unwrap(),
-            ArrayView::from_shape(shape, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
-        );
+        assert_eq!(encoding.get_type_ids(), [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     }
 
     #[test]
@@ -261,20 +266,16 @@ mod tests {
             .encode("for “life-threatening storm surge” according")
             .unwrap();
         assert_eq!(
-            encoding.token_ids,
-            ArrayView::from_shape(
-                shape,
-                &[2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0],
-            )
-            .unwrap(),
+            encoding.get_ids(),
+            [2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0],
         );
         assert_eq!(
-            encoding.attention_mask,
-            ArrayView::from_shape(shape, &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]).unwrap(),
+            encoding.get_attention_mask(),
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
         );
         assert_eq!(
-            encoding.type_ids.unwrap(),
-            ArrayView::from_shape(shape, &[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]).unwrap(),
+            encoding.get_type_ids(),
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         );
     }
 }

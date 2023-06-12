@@ -15,55 +15,59 @@
 pub mod bert;
 pub mod roberta;
 
-use derive_more::{Deref, From};
+use std::collections::{HashMap, HashSet};
+
+use derive_more::Deref;
 use ndarray::Array2;
 use tokenizers::Error;
-use tract_onnx::prelude::{tvec, IntoArcTensor, TValue, TVec};
+use tract_onnx::prelude::{IntoArcTensor, TValue, TVec};
 
 use crate::config::Config;
 
-/// The attention mask of the encoded sequence.
-///
-/// The attention mask is of shape `(1, token_size)`.
-#[derive(Clone, Deref, From)]
-pub(crate) struct AttentionMask(pub(crate) Array2<i64>);
-
 /// The encoded sequence.
-#[derive(Clone)]
+#[derive(Clone, Deref)]
 pub struct Encoding {
-    pub(crate) token_ids: Array2<i64>,
-    pub(crate) attention_mask: Array2<i64>,
-    pub(crate) type_ids: Option<Array2<i64>>,
+    #[deref]
+    encoding: tokenizers::Encoding,
+    to_input: fn(&tokenizers::Encoding) -> TVec<TValue>,
 }
 
 impl Encoding {
-    pub(crate) fn to_attention_mask(&self) -> AttentionMask {
-        self.attention_mask.clone().into()
+    pub(crate) fn to_model_input(&self) -> TVec<TValue> {
+        (self.to_input)(&self.encoding)
     }
-}
 
-impl From<Encoding> for TVec<TValue> {
-    fn from(encoding: Encoding) -> Self {
-        let token_ids = TValue::Const(encoding.token_ids.into_arc_tensor());
-        let attention_mask = TValue::Const(encoding.attention_mask.into_arc_tensor());
-        if let Some(type_ids) = encoding
-            .type_ids
-            .map(|type_ids| TValue::Const(type_ids.into_arc_tensor()))
-        {
-            tvec![token_ids, attention_mask, type_ids]
-        } else {
-            tvec![token_ids, attention_mask]
+    pub(crate) fn to_token_ids(
+        &self,
+        exclude: &[u32],
+    ) -> Result<HashSet<i32>, <i32 as TryFrom<u32>>::Error> {
+        let mut ids = HashSet::with_capacity(self.encoding.get_ids().len());
+        for id in self.encoding.get_ids() {
+            ids.insert(i32::try_from(*id)?);
         }
+        for id in exclude {
+            ids.remove(&i32::try_from(*id)?);
+        }
+
+        Ok(ids)
     }
-}
 
-impl From<Encoding> for Vec<Array2<i64>> {
-    fn from(encoding: Encoding) -> Self {
-        if let Some(type_ids) = encoding.type_ids {
-            vec![encoding.token_ids, encoding.attention_mask, type_ids]
-        } else {
-            vec![encoding.token_ids, encoding.attention_mask]
+    pub(crate) fn to_token_frequency(
+        &self,
+        exclude: &[u32],
+    ) -> Result<HashMap<i32, usize>, <i32 as TryFrom<u32>>::Error> {
+        let mut frequency = HashMap::with_capacity(self.encoding.get_ids().len());
+        for id in self.encoding.get_ids() {
+            frequency
+                .entry(i32::try_from(*id)?)
+                .and_modify(|frequency| *frequency += 1)
+                .or_insert(1);
         }
+        for id in exclude {
+            frequency.remove(&i32::try_from(*id)?);
+        }
+
+        Ok(frequency)
     }
 }
 
@@ -75,4 +79,13 @@ pub trait Tokenize {
 
     /// Encodes the sequence.
     fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error>;
+
+    /// Gets the special token ids.
+    fn special_token_ids(&self) -> &[u32];
+}
+
+fn tvalue_from(slice: &[u32]) -> TValue {
+    TValue::Const(
+        Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i])).into_arc_tensor(),
+    )
 }

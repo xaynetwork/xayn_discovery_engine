@@ -16,7 +16,6 @@ use std::{
     collections::HashMap,
     fmt::{Debug, Display},
     hash::Hash,
-    str::FromStr,
     sync::Arc,
     time::Duration,
 };
@@ -36,7 +35,10 @@ use serde_json::Value;
 use thiserror::Error;
 use tracing::error;
 
-use crate::serde::{serde_duration_as_seconds, serialize_redacted, serialize_to_ndjson};
+use crate::{
+    serde::{serde_duration_as_seconds, serialize_redacted, serialize_to_ndjson},
+    url::{SegmentableUrl, NO_PARAMS, NO_PARAM_VALUE},
+};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -110,39 +112,36 @@ impl Client {
             auth: self.auth.clone(),
             url_to_index: self
                 .url_to_index
+                .as_ref()
+                .clone()
                 .with_replaced_last_segment(index.as_ref())
                 .into(),
             client: self.client.clone(),
         }
     }
 
-    pub fn request<'a>(
+    pub fn request(
         &self,
         method: Method,
-        segments: impl IntoIterator<Item = &'a str>,
-        query_parts: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+        segments: impl IntoIterator<Item = impl AsRef<str>>,
+        params: impl IntoIterator<Item = (impl AsRef<str>, Option<impl AsRef<str>>)>,
     ) -> RequestBuilder {
-        let url = self.create_url(segments, query_parts);
+        let url = self.create_url(segments, params);
         let builder = self.client.request(method, url);
         self.auth.apply_to(builder)
     }
 
-    pub fn create_url<'a>(
+    pub fn create_url(
         &self,
-        segments: impl IntoIterator<Item = &'a str>,
-        query_parts: impl IntoIterator<Item = (&'a str, Option<&'a str>)>,
+        segments: impl IntoIterator<Item = impl AsRef<str>>,
+        params: impl IntoIterator<Item = (impl AsRef<str>, Option<impl AsRef<str>>)>,
     ) -> Url {
-        let mut url: Url = self.url_to_index.with_segments(segments).into();
-        let mut query_mut = url.query_pairs_mut();
-        for (key, value) in query_parts {
-            if let Some(value) = value {
-                query_mut.append_pair(key, value);
-            } else {
-                query_mut.append_key_only(key);
-            }
-        }
-        drop(query_mut);
-        url
+        self.url_to_index
+            .as_ref()
+            .clone()
+            .with_segments(segments)
+            .with_params(params)
+            .into_inner()
     }
 }
 
@@ -255,7 +254,7 @@ impl Client {
         I: DeserializeOwned,
     {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
-        let url = self.create_url(["_bulk"], [("refresh", None)]);
+        let url = self.create_url(["_bulk"], [("refresh", NO_PARAM_VALUE)]);
 
         let mut headers = HeaderMap::new();
         headers.insert(
@@ -275,7 +274,7 @@ impl Client {
         I: DeserializeOwned + Eq + Hash,
     {
         self.query_with_json::<_, SearchResponse<I, NoSource>>(
-            self.create_url(["_search"], None),
+            self.create_url(["_search"], NO_PARAMS),
             Some(body),
         )
         .await
@@ -355,46 +354,4 @@ pub enum Error {
     Serialization(serde_json::Error),
     /// Given endpoint was not found: {0}
     EndpointNotFound(&'static str),
-}
-
-#[derive(derive_more::Into, Clone, Debug)]
-pub struct SegmentableUrl(Url);
-
-impl SegmentableUrl {
-    pub fn with_segments(&self, segments: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
-        let mut new_url = self.0.clone();
-        new_url.path_segments_mut()
-            .unwrap(/* we made sure this can't happen */)
-            .extend(segments);
-        Self(new_url)
-    }
-
-    pub fn with_replaced_last_segment(&self, last_segment: &str) -> Self {
-        let mut new_url = self.0.clone();
-        let mut segments_mut = new_url.path_segments_mut()
-            .unwrap(/* we made sure this can't happen */);
-        segments_mut.pop().push(last_segment);
-        drop(segments_mut);
-        Self(new_url)
-    }
-}
-
-impl TryFrom<Url> for SegmentableUrl {
-    type Error = anyhow::Error;
-
-    fn try_from(url: Url) -> Result<Self, Self::Error> {
-        if url.cannot_be_a_base() {
-            Err(anyhow::anyhow!("non segmentable url"))
-        } else {
-            Ok(Self(url))
-        }
-    }
-}
-
-impl FromStr for SegmentableUrl {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.parse::<Url>()?.try_into()
-    }
 }

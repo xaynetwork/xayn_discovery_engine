@@ -18,12 +18,11 @@ use displaydoc::Display;
 use thiserror::Error;
 
 use crate::{
-    model::Model,
-    pooler::{Embedding1, Embedding2},
+    embedding::{Embedding1, Embedding2, SparseEmbedding},
+    model::{Model, SparseModel},
+    pooler::{AveragePooler, FirstPooler, NonePooler},
     tokenizer::Tokenize,
-    AveragePooler,
-    FirstPooler,
-    NonePooler,
+    InvalidEmbedding,
 };
 
 /// A pipeline can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.
@@ -32,6 +31,7 @@ use crate::{
 pub struct Pipeline<T, P> {
     pub(crate) tokenizer: T,
     pub(crate) model: Model,
+    pub(crate) sparse_model: SparseModel,
     pub(crate) pooler: PhantomData<P>,
 }
 
@@ -45,6 +45,8 @@ pub enum PipelineError {
     Tokenizer(#[from] tokenizers::Error),
     /// Failed to run the model: {0}
     Model(#[from] tract_onnx::prelude::TractError),
+    /// {0}
+    InvalidEmbedding(#[from] InvalidEmbedding),
 }
 
 impl<T> Pipeline<T, NonePooler>
@@ -54,7 +56,8 @@ where
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding2, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
-        let prediction = self.model.predict(encoding)?;
+        let prediction = self.model.predict(encoding.to_model_input())?;
+
         NonePooler::pool(&prediction).map_err(Into::into)
     }
 }
@@ -66,7 +69,8 @@ where
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
-        let prediction = self.model.predict(encoding)?;
+        let prediction = self.model.predict(encoding.to_model_input())?;
+
         FirstPooler::pool(&prediction).map_err(Into::into)
     }
 }
@@ -78,9 +82,42 @@ where
     /// Computes the embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
-        let attention_mask = encoding.to_attention_mask();
-        let prediction = self.model.predict(encoding)?;
-        AveragePooler::pool(&prediction, &attention_mask).map_err(Into::into)
+        let prediction = self.model.predict(encoding.to_model_input())?;
+
+        AveragePooler::pool(&prediction, encoding.get_attention_mask()).map_err(Into::into)
+    }
+}
+
+impl<T, P> Pipeline<T, P>
+where
+    T: Tokenize,
+{
+    /// Computes the sparse embedding of the document sequence.
+    pub fn run_sparse_document(
+        &self,
+        sequence: impl AsRef<str>,
+    ) -> Result<SparseEmbedding, PipelineError> {
+        let encoding = self.tokenizer.encode(sequence)?;
+        let frequency = encoding
+            .to_token_frequency(self.tokenizer.special_token_ids())
+            .map_err(|_| InvalidEmbedding)?;
+        let (indices, values) = self.sparse_model.run_document(frequency);
+
+        SparseEmbedding::new(indices, values).map_err(Into::into)
+    }
+
+    /// Computes the sparse embedding of the query sequence.
+    pub fn run_sparse_query(
+        &self,
+        sequence: impl AsRef<str>,
+    ) -> Result<SparseEmbedding, PipelineError> {
+        let encoding = self.tokenizer.encode(sequence)?;
+        let frequency = encoding
+            .to_token_ids(self.tokenizer.special_token_ids())
+            .map_err(|_| InvalidEmbedding)?;
+        let (indices, values) = self.sparse_model.run_query(frequency);
+
+        SparseEmbedding::new(indices, values).map_err(Into::into)
     }
 }
 
@@ -116,6 +153,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "sparse model not available"]
     fn test_pipeline_none() {
         let pipeline = pipeline::<NonePooler>();
         let shape = [pipeline.token_size(), pipeline.embedding_size()];
@@ -128,6 +166,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "sparse model not available"]
     fn test_pipeline_first() {
         let pipeline = pipeline::<FirstPooler>();
         let shape = [pipeline.embedding_size()];
@@ -140,6 +179,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "sparse model not available"]
     fn test_pipeline_average() {
         let pipeline = pipeline::<AveragePooler>();
         let shape = [pipeline.embedding_size()];

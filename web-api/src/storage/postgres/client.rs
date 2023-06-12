@@ -30,9 +30,8 @@ use tracing::{info, instrument};
 use xayn_web_api_shared::{
     postgres::{Config, QuotedIdentifier},
     request::TenantId,
+    SetupError,
 };
-
-use crate::SetupError;
 
 #[derive(Clone)]
 pub(crate) struct DatabaseBuilder {
@@ -60,7 +59,6 @@ impl DatabaseBuilder {
 #[derive(Debug)]
 pub(crate) struct Database {
     pool: Pool<Postgres>,
-    #[allow(dead_code)]
     tenant_db_name: QuotedIdentifier,
 }
 

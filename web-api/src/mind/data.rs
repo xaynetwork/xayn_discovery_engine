@@ -105,7 +105,7 @@ impl Document {
     pub(super) fn is_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
-            self.category.as_ref() == main_category || self.subcategory.as_ref() == sub_category
+            *self.category == main_category || *self.subcategory == sub_category
         })
     }
 
@@ -113,7 +113,7 @@ impl Document {
     pub(super) fn is_semi_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
-            self.category.as_ref() == main_category || self.subcategory.as_ref() != sub_category
+            *self.category == main_category || *self.subcategory != sub_category
         })
     }
 }

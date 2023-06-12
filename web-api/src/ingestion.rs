@@ -18,9 +18,10 @@ use actix_web::web::ServiceConfig;
 use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
+use xayn_web_api_shared::SetupError;
 
 use crate::{
-    app::{self, Application, SetupError},
+    app::{self, Application},
     embedding,
     logging,
     net,

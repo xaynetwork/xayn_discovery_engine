@@ -66,6 +66,7 @@ use xayn_web_api::{config, start, AppHandle, Application};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
+    pinecone,
     postgres::{self, QuotedIdentifier},
     request::TenantId,
 };
@@ -579,10 +580,12 @@ fn build_client(services: &Services) -> Arc<Client> {
         "X-Xayn-Tenant-Id",
         services.test_id.as_str().try_into().unwrap(),
     );
+    let es_timeout = services.silo.elastic_config().timeout;
+    let pc_timeout = services.silo.pinecone_config().timeout;
     Arc::new(
         Client::builder()
             .default_headers(default_headers)
-            .timeout(Duration::from_secs(30))
+            .timeout(Duration::from_secs(30).max(es_timeout).max(pc_timeout))
             .build()
             .unwrap(),
     )
@@ -611,6 +614,7 @@ where
     let config = build_test_config_from_parts(
         services.silo.postgres_config(),
         services.silo.elastic_config(),
+        services.silo.pinecone_config(),
         configure,
     );
 
@@ -636,12 +640,15 @@ pub const TEST_EMBEDDING_SIZE: usize = 384;
 pub fn build_test_config_from_parts_and_model(
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
+    pc_config: &pinecone::Config,
     configure: Table,
     model_name: &str,
 ) -> Table {
     let pg_password = pg_config.password.expose_secret().as_str();
+    let pc_api_key = pc_config.api_key.expose_secret().as_str();
     let pg_config = Value::try_from(pg_config).unwrap();
     let es_config = Value::try_from(es_config).unwrap();
+    let pc_config = Value::try_from(pc_config).unwrap();
 
     // Hint: Relative path doesn't work with `cargo flamegraph`
     let embedding_dir = PROJECT_ROOT
@@ -654,17 +661,21 @@ pub fn build_test_config_from_parts_and_model(
         [storage]
         postgres = pg_config
         elastic = es_config
+        pinecone = pc_config
 
         [embedding]
         directory = embedding_dir
     };
 
-    //the password was serialized as REDACTED in to_toml_value
+    //the password was serialized as REDACTED
     extend_config(
         &mut config,
         toml! {
             [storage.postgres]
             password = pg_password
+
+            [storage.pinecone]
+            api_key = pc_api_key
         },
     );
 
@@ -676,9 +687,16 @@ pub fn build_test_config_from_parts_and_model(
 pub fn build_test_config_from_parts(
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
+    pc_config: &pinecone::Config,
     configure: Table,
 ) -> Table {
-    build_test_config_from_parts_and_model(pg_config, es_config, configure, "xaynia_v0002")
+    build_test_config_from_parts_and_model(
+        pg_config,
+        es_config,
+        pc_config,
+        configure,
+        "sparse_xaynia_v0002",
+    )
 }
 
 #[derive(Clone, Debug, Display, Deref, AsRef)]
@@ -761,13 +779,14 @@ async fn setup_web_dev_services(
 
     let tenant_id = TenantId::try_parse_ascii(test_id.as_ref())?;
 
-    let (pg_config, es_config) = db_configs_for_testing(test_id);
+    let (pg_config, es_config, pc_config) = db_configs_for_testing(test_id);
 
     create_db(&pg_config, MANAGEMENT_DB).await?;
 
     let silo = Silo::new(
         pg_config,
         es_config,
+        pc_config,
         // we create the legacy tenant using the silo API,
         // there are separate tests for the testing the migration
         None,
@@ -788,7 +807,9 @@ async fn setup_web_dev_services(
 }
 
 #[instrument]
-pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::Config) {
+pub fn db_configs_for_testing(
+    test_id: &TestId,
+) -> (postgres::Config, elastic::Config, pinecone::Config) {
     let pg_db = Some(test_id.to_string());
     let es_index_name = format!("{test_id}_default");
     let es_timeout = Duration::from_secs(30);
@@ -819,7 +840,9 @@ pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::C
             ..Default::default()
         }
     }
-    (pg_config, es_config)
+    let pc_config = pinecone::Config::default();
+
+    (pg_config, es_config, pc_config)
 }
 
 #[instrument(skip(target))]

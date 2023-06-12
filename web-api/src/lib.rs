@@ -48,7 +48,7 @@ mod tenants;
 mod utils;
 
 pub use crate::{
-    app::{start, Application, SetupError},
+    app::{start, Application},
     error::application::{ApplicationError, Error},
     ingestion::Ingestion,
     net::AppHandle,

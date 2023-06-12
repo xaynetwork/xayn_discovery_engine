@@ -58,6 +58,7 @@ struct SemanticSearchResponse {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
@@ -117,6 +118,7 @@ fn test_semantic_search() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_semantic_search_min_similarity() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
@@ -171,6 +173,7 @@ fn test_semantic_search_min_similarity() {
 }
 
 #[test]
+#[ignore = "no local pinecone instance"]
 fn test_semantic_search_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,

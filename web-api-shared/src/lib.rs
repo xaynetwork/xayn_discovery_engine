@@ -19,6 +19,10 @@
 //! a per-schema db lock.
 
 pub mod elastic;
+pub mod pinecone;
 pub mod postgres;
 pub mod request;
 pub mod serde;
+pub mod url;
+
+pub type SetupError = anyhow::Error;

@@ -81,6 +81,7 @@ where
                     KnnSearchParams {
                         excluded: excluded.clone(),
                         embedding: &coi.point,
+                        sparse_embedding: None,
                         count,
                         num_candidates,
                         published_after: self.published_after,
