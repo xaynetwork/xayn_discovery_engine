@@ -564,9 +564,17 @@ impl NormalizationFn {
 impl MergeFn {
     fn to_fn(self) -> Box<dyn Fn(ScoreMap, ScoreMap) -> ScoreMap> {
         match self {
-            MergeFn::Weighted => Box::new(|s1, s2| merge_scores_weighted([(0.5, s1), (0.5, s2)])),
-            MergeFn::AverageDuplicatesOnly => Box::new(merge_scores_average_duplicates_only),
-            MergeFn::Rff => Box::new(|s1, s2| rrf(60., [s1, s2])),
+            MergeFn::Sum {
+                knn_weight,
+                bm25_weight,
+            } => Box::new(move |knn, bm25| {
+                merge_scores_weighted([
+                    (knn_weight.unwrap_or(0.5), knn),
+                    (bm25_weight.unwrap_or(0.5), bm25),
+                ])
+            }),
+            MergeFn::AverageDuplicatesOnly {} => Box::new(merge_scores_average_duplicates_only),
+            MergeFn::Rff { k } => Box::new(move |s1, s2| rrf(k.unwrap_or(60.), [s1, s2])),
         }
     }
 }

@@ -86,9 +86,14 @@ pub(crate) enum NormalizationFn {
 
 #[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) enum MergeFn {
-    Weighted,
-    AverageDuplicatesOnly,
-    Rff,
+    Sum {
+        knn_weight: Option<f32>,
+        bm25_weight: Option<f32>,
+    },
+    AverageDuplicatesOnly {},
+    Rff {
+        k: Option<f32>,
+    },
 }
 
 #[derive(Debug, Deref, DerefMut, From)]
