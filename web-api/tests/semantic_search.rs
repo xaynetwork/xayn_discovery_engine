@@ -230,3 +230,140 @@ fn test_semantic_search_with_query() {
         },
     );
 }
+
+#[test]
+fn test_semantic_search_with_dev_options() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(
+                &client,
+                &ingestion_url,
+                &[
+                    IngestedDocument {
+                        id: "d1".into(),
+                        snippet: "this is one sentence which we have".into(),
+                        properties: None,
+                    },
+                    IngestedDocument {
+                        id: "d2".into(),
+                        snippet: "duck duck quack".into(),
+                        properties: Some(json!({ "dodo": 4 })),
+                    },
+                    IngestedDocument {
+                        id: "d3".into(),
+                        snippet: "this is another sentence which we have".into(),
+                        properties: None,
+                    },
+                ],
+            )
+            .await?;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": {
+                            "normalize_knn": "identity",
+                            "normalize_bm25": "normalize_if_max_gt1",
+                            "merge_fn": { "sum": {}}
+                        }}
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": {
+                            "normalize_knn": "normalize",
+                            "normalize_bm25": "normalize",
+                            "merge_fn": { "sum": {}}
+                        }}
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": {
+                            "normalize_knn": "identity",
+                            "normalize_bm25": "identity",
+                            "merge_fn": { "rff": { "k": 60. }}
+                        }}
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
+}
+
+#[ignore = "current license is non-compliant for [Reciprocal Rank Fusion (RRF)]"]
+#[test]
+fn test_semantic_search_with_dev_options_es_rff() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(
+                &client,
+                &ingestion_url,
+                &[
+                    IngestedDocument {
+                        id: "d1".into(),
+                        snippet: "this is one sentence which we have".into(),
+                        properties: None,
+                    },
+                    IngestedDocument {
+                        id: "d2".into(),
+                        snippet: "duck duck quack".into(),
+                        properties: Some(json!({ "dodo": 4 })),
+                    },
+                    IngestedDocument {
+                        id: "d3".into(),
+                        snippet: "this is another sentence which we have".into(),
+                        properties: None,
+                    },
+                ],
+            )
+            .await?;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "use_es_rff": true }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
+}

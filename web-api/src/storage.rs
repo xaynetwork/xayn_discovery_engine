@@ -58,7 +58,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(super) strategy: SearchStrategy<'a>,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) enum SearchStrategy<'a> {
     Knn,
     Hybrid {
@@ -78,6 +78,7 @@ pub(crate) enum SearchStrategy<'a> {
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum NormalizationFn {
     Identity,
     Normalize,
@@ -85,6 +86,7 @@ pub(crate) enum NormalizationFn {
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum MergeFn {
     Sum {
         knn_weight: Option<f32>,
