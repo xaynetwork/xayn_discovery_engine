@@ -65,8 +65,9 @@ pub(crate) enum SearchStrategy<'a> {
         /// An additional query which will be run in parallel with the KNN search.
         query: &'a str,
     },
-    HybridEsRff {
+    HybridEsRrf {
         query: &'a str,
+        rank_constant: Option<u32>,
     },
     HybridDev {
         query: &'a str,

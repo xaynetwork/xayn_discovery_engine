@@ -338,14 +338,19 @@ struct UnvalidatedSemanticSearchQuery {
 #[serde(default)]
 struct DevOptions {
     hybrid: Option<HybridDevOption>,
-    use_es_rff: bool,
 }
 
-#[derive(Debug, Deserialize)]
-struct HybridDevOption {
-    normalize_knn: NormalizationFn,
-    normalize_bm25: NormalizationFn,
-    merge_fn: MergeFn,
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum HybridDevOption {
+    EsRrf {
+        rank_constant: Option<u32>,
+    },
+    Customize {
+        normalize_knn: NormalizationFn,
+        normalize_bm25: NormalizationFn,
+        merge_fn: MergeFn,
+    },
 }
 
 fn create_search_strategy<'a>(
@@ -359,28 +364,26 @@ fn create_search_strategy<'a>(
     let Some(query) = query else {
         return Ok(SearchStrategy::Knn);
     };
-    let Some(dev) = dev else {
+    let Some(DevOptions { hybrid: Some(hybrid) }) = dev else {
         return Ok(SearchStrategy::Hybrid { query });
     };
-    if dev.use_es_rff {
-        if dev.hybrid.is_some() {
-            return Err(
-                BadRequest::from("_dev.use_es_rff is incompatible with _dev.hybrid").into(),
-            );
-        }
-        return Ok(SearchStrategy::HybridEsRff { query });
+
+    match hybrid.clone() {
+        HybridDevOption::EsRrf { rank_constant } => Ok(SearchStrategy::HybridEsRrf {
+            query,
+            rank_constant,
+        }),
+        HybridDevOption::Customize {
+            normalize_knn,
+            normalize_bm25,
+            merge_fn,
+        } => Ok(SearchStrategy::HybridDev {
+            query,
+            normalize_knn,
+            normalize_bm25,
+            merge_fn,
+        }),
     }
-
-    let Some(hybrid) = dev.hybrid.as_ref() else {
-        return Ok(SearchStrategy::Hybrid { query });
-    };
-
-    Ok(SearchStrategy::HybridDev {
-        query,
-        normalize_knn: hybrid.normalize_knn,
-        normalize_bm25: hybrid.normalize_bm25,
-        merge_fn: hybrid.merge_fn,
-    })
 }
 
 impl UnvalidatedSemanticSearchQuery {

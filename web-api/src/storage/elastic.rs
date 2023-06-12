@@ -52,7 +52,13 @@ impl Client {
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
-            SearchStrategy::HybridEsRff { query } => self.hybrid_search_es_rrf(params, query).await,
+            SearchStrategy::HybridEsRrf {
+                query,
+                rank_constant,
+            } => {
+                self.hybrid_search_es_rrf(params, query, rank_constant)
+                    .await
+            }
             SearchStrategy::Hybrid { query } => {
                 let normalize_knn = identity;
                 let normalize_bm25 = normalize_scores_if_max_gt_1;
@@ -135,6 +141,7 @@ impl Client {
         &self,
         params: KnnSearchParams<'a>,
         query: &'a str,
+        rank_constant: Option<u32>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         let count = params.count;
 
@@ -157,7 +164,11 @@ impl Client {
                 "rank": {
                     "rrf": {
                         // must be >= "size"
-                        "rank_constant": count
+                        "window_size": count,
+                        //FIXME If we stabilize this we can omit `rank_constant` if its `None` to
+                        //      safe a few bytes. But during testing we always encode it to always
+                        //      run with the same parameters, even if ES changes the default.
+                        "rank_constant": rank_constant.unwrap_or(60)
                     }
                 }
             }),
@@ -505,7 +516,7 @@ where
             .enumerate()
             .map(|(rank0, (document, _))| {
                 #[allow(clippy::cast_precision_loss)]
-                (document, (k + rank0 as f32).recip())
+                (document, (k + rank0 as f32 + 1.).recip())
             })
     });
     collect_summing_repeated(rrf_scores)
