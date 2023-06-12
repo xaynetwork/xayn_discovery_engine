@@ -32,7 +32,7 @@ use reqwest::{
 };
 use secrecy::{ExposeSecret, Secret};
 use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
-use serde_json::Value;
+use serde_json::{json, Value};
 use thiserror::Error;
 use tracing::error;
 
@@ -279,10 +279,10 @@ impl Client {
     where
         I: DeserializeOwned + Eq + Hash,
     {
-        if body.get("size") == Some(&0.into()) {
+        if body.get("size") == Some(&json!(0)) {
             return Ok(HashMap::new());
         }
-        body.insert("_source".into(), false.into());
+        body.insert("_source".into(), json!(false));
         self.query_with_json::<_, SearchResponse<I, NoSource>>(
             self.create_url(["_search"], None),
             Some(body),

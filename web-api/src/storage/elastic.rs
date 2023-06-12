@@ -16,7 +16,6 @@ mod client;
 
 use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
 
-use chrono::{DateTime, Utc};
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -49,10 +48,7 @@ struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<
-            'a,
-            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
-        >,
+        params: KnnSearchParams<'a>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
@@ -83,13 +79,13 @@ impl Client {
 
     async fn knn_search<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<'a>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         let KnnSearchParts {
             knn_object,
             generic_parameters,
             inner_filter: _,
-        } = create_common_knn_search_parts(params);
+        } = params.create_common_knn_search_parts();
 
         let request = merge_json_objects([knn_object, generic_parameters]);
 
@@ -98,7 +94,7 @@ impl Client {
 
     async fn hybrid_search<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<'a>,
         query: &'a str,
         normalize_knn: impl FnOnce(ScoreMap) -> ScoreMap,
         normalize_bm25: impl FnOnce(ScoreMap) -> ScoreMap,
@@ -110,7 +106,7 @@ impl Client {
             knn_object,
             generic_parameters,
             inner_filter,
-        } = create_common_knn_search_parts(params);
+        } = params.create_common_knn_search_parts();
 
         let knn_request = merge_json_objects([knn_object, generic_parameters.clone()]);
 
@@ -332,79 +328,70 @@ struct KnnSearchParts {
     inner_filter: JsonObject,
 }
 
-fn create_common_knn_search_parts<'a>(
-    params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
-) -> KnnSearchParts {
-    let inner_filter =
-        create_es_search_filter(params.time, params.excluded, params.published_after);
+impl KnnSearchParams<'_> {
+    fn create_common_knn_search_parts(&self) -> KnnSearchParts {
+        let inner_filter = self.create_search_filter();
+        let knn_object = self.create_knn_request_object(&inner_filter);
 
-    let knn_object = create_knn_request_object(
-        params.embedding,
-        params.count,
-        params.num_candidates,
-        &inner_filter,
-    );
+        let mut generic_parameters = json_object!({
+            "size": self.count
+        });
 
-    let mut generic_parameters = json_object!({
-        "size": params.count
-    });
-
-    if let Some(min_score) = params.min_similarity {
-        generic_parameters.extend(json_object!({
-            "min_score": min_score,
-        }));
-    }
-
-    KnnSearchParts {
-        knn_object,
-        generic_parameters,
-        inner_filter,
-    }
-}
-
-fn create_es_search_filter<'a>(
-    excluded_ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
-    published_after: Option<DateTime<Utc>>,
-) -> JsonObject {
-    let mut filter = JsonObject::new();
-    let excluded = excluded_ids.into_iter();
-    if excluded.len() > 0 {
-        // existing documents are not filtered in the query to avoid too much work for a cold
-        // path, filtering them afterwards can occasionally lead to less than k results though
-        filter.insert(
-            "must_not".to_string(),
-            json!({ "ids": { "values": excluded.collect_vec() } }),
-        );
-    }
-    if let Some(published_after) = published_after {
-        // published_after != null && published_after <= publication_date
-        let published_after = published_after.to_rfc3339();
-        filter.insert(
-            "filter".to_string(),
-            json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
-        );
-    }
-    filter
-}
-
-fn create_knn_request_object(
-    embedding: &NormalizedEmbedding,
-    count: usize,
-    num_candidates: usize,
-    filter: &JsonObject,
-) -> JsonObject {
-    // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
-    json_object!({
-        "knn": {
-            "field": "embedding",
-            "query_vector": embedding,
-            "k": count,
-            "num_candidates": num_candidates,
-            "filter": {
-                "bool": filter
-            }
+        if let Some(min_score) = self.min_similarity {
+            generic_parameters.extend(json_object!({
+                "min_score": min_score,
+            }));
         }
-    })
+
+        KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        }
+    }
+
+    fn create_search_filter(&self) -> JsonObject {
+        if self.count == 0 {
+            return Ok(HashMap::new());
+        }
+
+        let mut filter = Map::new();
+        let excluded = self.excluded.into_iter();
+        if excluded.len() > 0 {
+            // existing documents are not filtered in the query to avoid too much work for a cold
+            // path, filtering them afterwards can occasionally lead to less than k results though
+            filter.insert(
+                "must_not".to_string(),
+                json!({ "ids": { "values": excluded.collect_vec() } }),
+            );
+        }
+        if let Some(published_after) = self.published_after {
+            // published_after != null && published_after <= publication_date
+            let published_after = published_after.to_rfc3339();
+            filter.insert(
+                "filter".to_string(),
+                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
+            );
+        }
+        filter
+
+    }
+
+    fn create_knn_request_object(&self, filter: &JsonObject) -> JsonObject {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
+        json_object!({
+            "knn": {
+                "field": "embedding",
+                "query_vector": self.embedding,
+                "k": self.count,
+                "num_candidates": self.num_candidates,
+                "filter": {
+                    "bool": filter
+                }
+            }
+        })
+    }
+
 }
 
 fn normalize_scores<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
@@ -489,6 +476,10 @@ fn take_highest_n_scores<K>(n: usize, scores: HashMap<K, f32>) -> HashMap<K, f32
 where
     K: Eq + Hash,
 {
+    if scores.len() <= n {
+        return scores;
+    }
+
     scores
         .into_iter()
         .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())

@@ -760,10 +760,7 @@ impl storage::Document for Storage {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<
-            'a,
-            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
-        >,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
         let scores = self.elastic.get_by_embedding(params).await?;

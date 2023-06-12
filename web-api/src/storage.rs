@@ -46,8 +46,8 @@ use crate::{
     Error,
 };
 
-pub(crate) struct KnnSearchParams<'a, I> {
-    pub(crate) excluded: I,
+pub(crate) struct KnnSearchParams<'a> {
+    pub(crate) excluded: &'a [DocumentId],
     pub(crate) embedding: &'a NormalizedEmbedding,
     /// The number of documents which will be returned if there are enough fitting documents.
     pub(crate) count: usize,
@@ -132,10 +132,7 @@ pub(crate) trait Document {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<
-            'a,
-            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
-        >,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     /// Inserts the documents and reports failed ids.

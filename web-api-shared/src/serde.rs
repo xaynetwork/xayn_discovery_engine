@@ -14,6 +14,7 @@
 
 use secrecy::Secret;
 use serde::{Serialize, Serializer};
+use serde_json::Value;
 
 /// Serialize a `Secret<String>` as `"[REDACTED]"`.
 pub fn serialize_redacted<S>(_secret: &Secret<String>, serializer: S) -> Result<S::Ok, S::Error>
@@ -58,14 +59,13 @@ pub mod serde_duration_as_seconds {
 macro_rules! json_object {
     ({ $($tt:tt)* }) => ({
         let ::serde_json::Value::Object(obj) = json!({ $($tt)* }) else {
-            unreachable!(/* the {} enforces it's always an object */);
+            ::std::unreachable!(/* the {} enforces it's always an object */);
         };
         obj
     });
 }
 
 pub use json_object;
-use serde_json::Value;
 
 pub type JsonObject = serde_json::Map<String, Value>;
 
