@@ -574,7 +574,7 @@ impl MergeFn {
                 ])
             }),
             MergeFn::AverageDuplicatesOnly {} => Box::new(merge_scores_average_duplicates_only),
-            MergeFn::Rff { k } => Box::new(move |s1, s2| rrf(k.unwrap_or(60.), [s1, s2])),
+            MergeFn::Rrf { k } => Box::new(move |s1, s2| rrf(k.unwrap_or(60.), [s1, s2])),
         }
     }
 }

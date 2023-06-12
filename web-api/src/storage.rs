@@ -93,7 +93,7 @@ pub(crate) enum MergeFn {
         bm25_weight: Option<f32>,
     },
     AverageDuplicatesOnly {},
-    Rff {
+    Rrf {
         k: Option<f32>,
     },
 }

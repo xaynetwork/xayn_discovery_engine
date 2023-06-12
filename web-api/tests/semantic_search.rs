@@ -306,7 +306,7 @@ fn test_semantic_search_with_dev_options() {
                         "_dev": { "hybrid": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "identity",
-                            "merge_fn": { "rff": { "k": 60. }}
+                            "merge_fn": { "rrf": { "k": 60. }}
                         }}
                     }))
                     .build()?,
@@ -321,7 +321,7 @@ fn test_semantic_search_with_dev_options() {
 
 #[ignore = "current license is non-compliant for [Reciprocal Rank Fusion (RRF)]"]
 #[test]
-fn test_semantic_search_with_dev_options_es_rff() {
+fn test_semantic_search_with_dev_options_es_rrf() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -356,7 +356,7 @@ fn test_semantic_search_with_dev_options_es_rff() {
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
                         "enable_hybrid_search": true,
-                        "_dev": { "use_es_rff": true }
+                        "_dev": { "use_es_rrf": true }
                     }))
                     .build()?,
                 StatusCode::OK,
