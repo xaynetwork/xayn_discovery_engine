@@ -15,9 +15,8 @@
 use std::sync::Arc;
 
 use actix_web::{
-    dev::{Payload, ServiceFactory, ServiceRequest},
-    web::Data,
-    App,
+    dev::Payload,
+    web::{Data, ServiceConfig},
     FromRequest,
     HttpRequest,
 };
@@ -53,14 +52,12 @@ impl<A> AppState<A>
 where
     A: Application,
 {
-    pub(super) fn attach_to<T>(self: Arc<Self>, app: App<T>) -> App<T>
-    where
-        T: ServiceFactory<ServiceRequest, Config = (), Error = actix_web::Error, InitError = ()>,
-    {
-        app.app_data(self.storage_builder.clone())
+    pub(super) fn attach_to(self: Arc<Self>, service: &mut ServiceConfig) {
+        service
+            .app_data(self.storage_builder.clone())
             .app_data(Data::from(self.silo.clone()))
             .app_data(Data::from(self))
-            .configure(A::configure_service)
+            .configure(A::configure_service);
     }
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
