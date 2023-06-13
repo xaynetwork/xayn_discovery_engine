@@ -20,9 +20,9 @@ use std::{
 
 use actix_cors::Cors;
 use actix_web::{
-    dev::{ServerHandle, ServiceFactory, ServiceRequest, ServiceResponse},
+    dev::ServerHandle,
     middleware,
-    web::{self, JsonConfig},
+    web::{self, JsonConfig, ServiceConfig},
     App,
     HttpResponse,
     HttpServer,
@@ -76,33 +76,32 @@ impl Default for Config {
 }
 
 #[instrument(skip_all)]
-pub(crate) fn start_actix_server<T>(
+pub(crate) fn start_actix_server(
     net_config: Config,
     legacy_tenant: Option<TenantId>,
-    mk_base_app: impl Fn() -> App<T> + Send + Clone + 'static,
+    attach_app: impl Fn(&mut ServiceConfig) + Send + Clone + 'static,
     on_shutdown: Box<dyn FnOnce() -> BoxFuture<'static, ()>>,
-) -> Result<AppHandle, anyhow::Error>
-where
-    T: ServiceFactory<
-            ServiceRequest,
-            Response = ServiceResponse,
-            Config = (),
-            Error = actix_web::Error,
-            InitError = (),
-        > + 'static,
-{
+) -> Result<AppHandle, anyhow::Error> {
     // limits are handled by the infrastructure
     let json_config = JsonConfig::default().limit(u32::MAX as usize);
     let subscriber = dispatcher::get_default(Dispatch::clone);
     let server = new_http_server_with_subscriber!(subscriber, move || {
         let legacy_tenant = legacy_tenant.clone();
-        mk_base_app()
-            .app_data(json_config.clone())
-            .service(web::resource("/health").route(web::get().to(HttpResponse::Ok)))
-            .wrap_fn(wrap_non_json_errors)
-            .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
-            .wrap(middleware::Compress::default())
-            .wrap(Cors::permissive())
+        App::new()
+            .service(
+                web::resource("/health")
+                    .route(web::get().to(HttpResponse::Ok))
+                    .wrap(Cors::default()),
+            )
+            .service({
+                web::scope("")
+                    .app_data(json_config.clone())
+                    .configure(&attach_app)
+                    .wrap_fn(wrap_non_json_errors)
+                    .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))
+                    .wrap(middleware::Compress::default())
+                    .wrap(Cors::permissive())
+            })
     })
     .keep_alive(net_config.keep_alive)
     .client_request_timeout(net_config.client_request_timeout)
