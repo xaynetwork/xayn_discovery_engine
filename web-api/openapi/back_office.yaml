@@ -323,11 +323,14 @@ components:
         id:
           $ref: './schemas/document.yml#/DocumentId'
         snippet:
-          description: Text that will be used to match the document against the user interests.
+          description: |
+            Text that will be used to match the document against the user interests.
+            Enclosing whitespace will be trimmed.
+            If `summarize` is enabled, then the length applies to the summarized instead of the original snippet.
           type: string
           minLength: 1
           maxLength: 1024
-          pattern: '.+'
+          pattern: '^[^\x00]+$'
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
         tags:
