@@ -54,6 +54,13 @@ pub trait Application: 'static {
     /// application specific middleware.
     fn configure_service(config: &mut ServiceConfig);
 
+    /// Configures service(s) used by operations.
+    ///
+    /// Services defined here will not be wrapped in the normal
+    /// application middleware and will not be reachable using anything
+    /// which uses CORS.
+    fn configure_ops_service(_config: &mut ServiceConfig) {}
+
     /// Create an application specific extension to app state.
     //Design Note: We could handle this by adding `TyFrom<&Config<..>>` bounds
     //             to `Extension` but using this helper method is simpler
@@ -89,6 +96,8 @@ where
         net_config,
         legacy_tenant,
         move |service| app_state.clone().attach_to(service),
+        A::configure_service,
+        A::configure_ops_service,
         shutdown,
     )
 }

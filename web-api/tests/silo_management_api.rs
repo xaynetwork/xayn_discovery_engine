@@ -40,7 +40,7 @@ fn test_tenants_can_be_created() {
             let make_id = |suffix| format!("{test_id}_{suffix}").parse::<TenantId>();
             let ManagementResponse { results } = send_assert_json(
                 &client,
-                client.post(url.join("_silo_management")?).json(&json!({
+                client.post(url.join("/_ops/silo_management")?).json(&json!({
                     "operations": [
                         { "CreateTenant": { "tenant_id": make_id("1")? }},
                         { "CreateTenant": { "tenant_id": make_id("3")?, "is_legacy_tenant": true }},

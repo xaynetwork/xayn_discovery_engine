@@ -76,8 +76,11 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::get().to(get_document_property))
                 .route(web::put().to(put_document_property))
                 .route(web::delete().to(delete_document_property)),
-        )
-        .service(web::resource("/_silo_management").route(web::post().to(silo_management)));
+        );
+}
+
+pub(super) fn configure_ops_service(config: &mut ServiceConfig) {
+    config.service(web::resource("/silo_management").route(web::post().to(silo_management)));
 }
 
 fn deserialize_string_not_empty_or_zero_bytes<'de, D>(deserializer: D) -> Result<String, D::Error>

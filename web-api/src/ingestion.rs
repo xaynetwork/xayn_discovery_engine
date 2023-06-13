@@ -41,6 +41,10 @@ impl Application for Ingestion {
         routes::configure_service(config);
     }
 
+    fn configure_ops_service(config: &mut ServiceConfig) {
+        routes::configure_ops_service(config);
+    }
+
     fn create_extension(_config: &Self::Config) -> Result<Self::Extension, SetupError> {
         Ok(Extension {})
     }
