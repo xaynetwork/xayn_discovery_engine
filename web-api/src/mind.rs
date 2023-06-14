@@ -134,7 +134,7 @@ async fn run_user_benchmark() -> Result<(), Panic> {
     for impression in read::<Impression>("behaviors.tsv")? {
         let impression = impression?;
         let labels = if let Some(clicks) = impression.clicks {
-            let user = UserId::new(&impression.user_id).unwrap();
+            let user = UserId::try_from(impression.user_id.to_string()).unwrap();
             if !users.contains(&impression.user_id) {
                 users.push(impression.user_id);
                 state
@@ -217,7 +217,7 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
             SaturationTopicResult::new(full_category, benchmark_config.iterations);
 
         let documents = document_provider.get_all_interest(slice::from_ref(full_category));
-        let user_id = UserId::new(full_category)?;
+        let user_id = UserId::try_from(full_category.to_string())?;
         // get random document from the topic
         let document = documents.choose(&mut rng).unwrap();
 

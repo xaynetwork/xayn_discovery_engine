@@ -22,7 +22,7 @@ use actix_web::{
 use anyhow::bail;
 use chrono::DateTime;
 use itertools::{Either, Itertools};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
@@ -42,7 +42,14 @@ use crate::{
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
     },
-    models::{self, DocumentId, DocumentProperties, DocumentProperty, DocumentTag},
+    models::{
+        self,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentSnippet,
+        DocumentTag,
+    },
     storage,
     Error,
 };
@@ -80,24 +87,9 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
         .service(web::resource("/_silo_management").route(web::post().to(silo_management)));
 }
 
-fn deserialize_string_not_empty_or_zero_bytes<'de, D>(deserializer: D) -> Result<String, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let s = String::deserialize(deserializer)?;
-    if s.is_empty() {
-        Err(de::Error::custom("string is empty"))
-    } else if s.contains('\u{0000}') {
-        Err(de::Error::custom("string contains zero bytes"))
-    } else {
-        Ok(s)
-    }
-}
-
 #[derive(Debug, Deserialize)]
 struct UnvalidatedIngestedDocument {
     id: String,
-    #[serde(deserialize_with = "deserialize_string_not_empty_or_zero_bytes")]
     snippet: String,
     #[serde(default)]
     properties: HashMap<String, DocumentProperty>,
@@ -114,7 +106,7 @@ struct UnvalidatedIngestedDocument {
 #[derive(Debug)]
 struct IngestedDocument {
     id: DocumentId,
-    snippet: String,
+    snippet: DocumentSnippet,
     properties: DocumentProperties,
     tags: Vec<DocumentTag>,
     is_candidate_op: IsCandidateOp,
@@ -175,7 +167,8 @@ impl UnvalidatedIngestedDocument {
                 )
             } else {
                 self.snippet
-            };
+            }
+            .try_into()?;
             let properties = self
                 .properties
                 .into_iter()
