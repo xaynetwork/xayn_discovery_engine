@@ -47,6 +47,7 @@ use crate::{
         DocumentPropertyId,
         DocumentSnippet,
         DocumentTag,
+        DocumentTags,
         ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
@@ -60,7 +61,7 @@ use crate::{
 struct Document {
     snippet: DocumentSnippet,
     properties: DocumentProperties,
-    tags: Vec<DocumentTag>,
+    tags: DocumentTags,
     is_candidate: bool,
 }
 
@@ -661,10 +662,10 @@ impl storage::Tag for Storage {
     async fn put(
         &self,
         document_id: &DocumentId,
-        tags: &[DocumentTag],
+        tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
         if let Some(document) = self.documents.write().await.0.get_mut(document_id) {
-            document.tags = tags.to_vec();
+            document.tags = tags.clone();
             Ok(Some(()))
         } else {
             Ok(None)
@@ -719,7 +720,7 @@ mod tests {
                 id: id.clone(),
                 snippet: "snippet".try_into().unwrap(),
                 properties: DocumentProperties::default(),
-                tags: Vec::new(),
+                tags: DocumentTags::default(),
                 embedding,
                 is_candidate: true,
             })
@@ -774,7 +775,7 @@ mod tests {
         let storage = Storage::default();
         let doc_id = DocumentId::try_from("42").unwrap();
         let snippet = DocumentSnippet::try_from("snippet").unwrap();
-        let tags = vec![DocumentTag::try_from("tag").unwrap()];
+        let tags = DocumentTags::try_from(vec!["tag".try_into().unwrap()]).unwrap();
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,

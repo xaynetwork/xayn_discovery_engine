@@ -23,7 +23,7 @@ use xayn_ai_coi::{Coi, CoiSystem};
 use super::PersonalizationConfig;
 use crate::{
     error::{common::HistoryTooSmall, warning::Warning},
-    models::{DocumentId, DocumentTag},
+    models::{DocumentId, DocumentTags},
     storage::{self, TagWeights},
     Error,
 };
@@ -121,7 +121,7 @@ pub(super) async fn load_history(
 pub(super) struct LoadedHistoryEntry {
     pub(super) timestamp: DateTime<Utc>,
     pub(super) embedding: NormalizedEmbedding,
-    pub(super) tags: Vec<DocumentTag>,
+    pub(super) tags: DocumentTags,
 }
 
 /// Given an iterator over the history from oldest to newest calculates user interests and tag weights.
@@ -151,7 +151,7 @@ pub fn bench_derive_interests(
         .map(|(timestamp, embedding)| LoadedHistoryEntry {
             timestamp,
             embedding,
-            tags: Vec::new(),
+            tags: DocumentTags::default(),
         })
         .collect_vec();
     derive_interests_and_tag_weights(coi_system, &history);
@@ -165,6 +165,7 @@ mod tests {
     use xayn_test_utils::error::Panic;
 
     use super::*;
+    use crate::models::DocumentTag;
 
     #[test]
     fn test_validating_empty_history_fails() {
@@ -334,27 +335,27 @@ mod tests {
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(4),
                     embedding: Embedding1::from([1., 1.]).normalize()?,
-                    tags: vec!["tag-1".try_into()?],
+                    tags: vec!["tag-1".try_into()?].try_into()?,
                 },
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(3),
                     embedding: Embedding1::from([0., 1.]).normalize()?,
-                    tags: vec![],
+                    tags: DocumentTags::default(),
                 },
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(2),
                     embedding: Embedding1::from([0.1, 0.5]).normalize()?,
-                    tags: vec!["tag-1".try_into()?, "tag-2".try_into()?],
+                    tags: vec!["tag-1".try_into()?, "tag-2".try_into()?].try_into()?,
                 },
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(1),
                     embedding: Embedding1::from([1., 0.]).normalize()?,
-                    tags: vec!["tag-2".try_into()?, "tag-3".try_into()?],
+                    tags: vec!["tag-2".try_into()?, "tag-3".try_into()?].try_into()?,
                 },
                 LoadedHistoryEntry {
                     timestamp: now,
                     embedding: Embedding1::from([0., 0.]).normalize()?,
-                    tags: vec!["tag-3".try_into()?, "tag-1".try_into()?],
+                    tags: vec!["tag-3".try_into()?, "tag-1".try_into()?].try_into()?,
                 },
             ],
         );

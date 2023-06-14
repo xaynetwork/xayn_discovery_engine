@@ -31,6 +31,7 @@ use crate::error::common::{
     InvalidDocumentPropertyId,
     InvalidDocumentSnippet,
     InvalidDocumentTag,
+    InvalidDocumentTags,
     InvalidUserId,
 };
 
@@ -128,6 +129,34 @@ pub(crate) struct DocumentProperty(serde_json::Value);
 /// Arbitrary properties that can be attached to a document.
 pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
 
+/// Arbitrary tags that can be associated to a document.
+#[derive(Clone, Debug, Default, Deref, Deserialize, PartialEq, Serialize, Type)]
+#[serde(transparent)]
+#[sqlx(transparent)]
+pub(crate) struct DocumentTags(Vec<DocumentTag>);
+
+impl TryFrom<Vec<DocumentTag>> for DocumentTags {
+    type Error = InvalidDocumentTags;
+
+    fn try_from(tags: Vec<DocumentTag>) -> Result<Self, Self::Error> {
+        let size = tags.len();
+        if size <= 10 {
+            Ok(Self(tags))
+        } else {
+            Err(InvalidDocumentTags { size })
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a DocumentTags {
+    type Item = <&'a Vec<DocumentTag> as IntoIterator>::Item;
+    type IntoIter = <&'a Vec<DocumentTag> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
+
 /// Represents a result from an interaction query.
 #[derive(Clone, Debug)]
 pub(crate) struct InteractedDocument {
@@ -138,7 +167,7 @@ pub(crate) struct InteractedDocument {
     pub(crate) embedding: NormalizedEmbedding,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
 }
 
 /// Represents a result from a personalization query.
@@ -157,7 +186,7 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
 }
 
 impl AiDocument for PersonalizedDocument {
@@ -185,7 +214,7 @@ pub(crate) struct IngestedDocument {
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
 
     /// Embedding from smbert.
     pub(crate) embedding: NormalizedEmbedding,
@@ -199,7 +228,7 @@ pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
     pub(crate) snippet: DocumentSnippet,
     pub(crate) properties: DocumentProperties,
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
     pub(crate) is_candidate: bool,
 }
 
@@ -208,24 +237,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_id() {
-        assert!(DocumentId::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
-        assert!(DocumentId::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
-        assert!(DocumentId::try_from("0123456789").is_ok());
-        assert!(DocumentId::try_from("_-:@.").is_ok());
-        assert!(DocumentId::try_from("").is_err());
-        assert!(DocumentId::try_from(["a"; 257].join("")).is_err());
-        assert!(DocumentId::try_from("!?ß").is_err());
+    fn test_is_valid_id() {
+        assert!(is_valid_id("abcdefghijklmnopqrstruvwxyz"));
+        assert!(is_valid_id("ABCDEFGHIJKLMNOPQURSTUVWXYZ"));
+        assert!(is_valid_id("0123456789"));
+        assert!(is_valid_id("_-:@."));
+        assert!(!is_valid_id(""));
+        assert!(!is_valid_id(&["a"; 257].join("")));
+        assert!(!is_valid_id("!?ß"));
     }
 
     #[test]
-    fn test_tag() {
-        assert!(DocumentTag::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
-        assert!(DocumentTag::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
-        assert!(DocumentTag::try_from("0123456789").is_ok());
-        assert!(DocumentTag::try_from(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
-        assert!(DocumentTag::try_from("").is_err());
-        assert!(DocumentTag::try_from(["a"; 257].join("")).is_err());
-        assert!(DocumentTag::try_from("\0").is_err());
+    fn test_is_valid_string() {
+        assert!(is_valid_string("abcdefghijklmnopqrstruvwxyz", 256));
+        assert!(is_valid_string("ABCDEFGHIJKLMNOPQURSTUVWXYZ", 256));
+        assert!(is_valid_string("0123456789", 256));
+        assert!(is_valid_string(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€", 256));
+        assert!(!is_valid_string("", 256));
+        assert!(!is_valid_string(&["a"; 257].join(""), 256));
+        assert!(!is_valid_string("\0", 256));
     }
 }

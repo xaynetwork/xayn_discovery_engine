@@ -31,7 +31,7 @@ use crate::{
         DocumentProperty,
         DocumentPropertyId,
         DocumentSnippet,
-        DocumentTag,
+        DocumentTags,
     },
     storage::{KnnSearchParams, Warning},
     Error,
@@ -295,7 +295,7 @@ impl Client {
     pub(super) async fn insert_document_tags(
         &self,
         id: &DocumentId,
-        tags: &[DocumentTag],
+        tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
         let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
@@ -321,5 +321,5 @@ struct IngestedDocument<'a> {
     snippet: &'a DocumentSnippet,
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
-    tags: &'a [DocumentTag],
+    tags: &'a DocumentTags,
 }
