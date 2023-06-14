@@ -378,17 +378,21 @@ impl KnnSearchParams<'_> {
 
     fn create_knn_request_object(&self, filter: &JsonObject) -> JsonObject {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
-        json_object!({
+        let mut obj = json_object!({
             "knn": {
                 "field": "embedding",
                 "query_vector": self.embedding,
                 "k": self.count,
                 "num_candidates": self.num_candidates,
-                "filter": {
-                    "bool": filter
-                }
             }
-        })
+        });
+        if filter.is_empty().not() {
+            obj["knn"]
+                .as_object_mut()
+                .unwrap()
+                .insert("filter".into(), json!({ "bool": filter }));
+        }
+        obj
     }
 }
 
