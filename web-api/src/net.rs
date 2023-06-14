@@ -79,7 +79,9 @@ impl Default for Config {
 pub(crate) fn start_actix_server(
     net_config: Config,
     legacy_tenant: Option<TenantId>,
+    attach_state: impl Fn(&mut ServiceConfig) + Send + Clone + 'static,
     attach_app: impl Fn(&mut ServiceConfig) + Send + Clone + 'static,
+    attach_ops: impl Fn(&mut ServiceConfig) + Send + Clone + 'static,
     on_shutdown: Box<dyn FnOnce() -> BoxFuture<'static, ()>>,
 ) -> Result<AppHandle, anyhow::Error> {
     // limits are handled by the infrastructure
@@ -93,9 +95,16 @@ pub(crate) fn start_actix_server(
                     .route(web::get().to(HttpResponse::Ok))
                     .wrap(Cors::default()),
             )
+            .service(
+                web::scope("/_ops")
+                    .configure(&attach_state)
+                    .configure(&attach_ops)
+                    .wrap(Cors::default()),
+            )
             .service({
                 web::scope("")
                     .app_data(json_config.clone())
+                    .configure(&attach_state)
                     .configure(&attach_app)
                     .wrap_fn(wrap_non_json_errors)
                     .wrap_fn(move |r, s| setup_request_context(legacy_tenant.as_ref(), r, s))

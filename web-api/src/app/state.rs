@@ -56,8 +56,7 @@ where
         service
             .app_data(self.storage_builder.clone())
             .app_data(Data::from(self.silo.clone()))
-            .app_data(Data::from(self))
-            .configure(A::configure_service);
+            .app_data(Data::from(self));
     }
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
