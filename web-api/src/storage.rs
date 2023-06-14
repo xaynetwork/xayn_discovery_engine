@@ -65,8 +65,10 @@ pub(crate) enum SearchStrategy<'a> {
         /// An additional query which will be run in parallel with the KNN search.
         query: &'a str,
     },
-    #[allow(dead_code)]
-    DevHybrid {
+    HybridEsRff {
+        query: &'a str,
+    },
+    HybridDev {
         query: &'a str,
         normalize_knn: NormalizationFn,
         normalize_bm25: NormalizationFn,
@@ -74,17 +76,18 @@ pub(crate) enum SearchStrategy<'a> {
     },
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) enum NormalizationFn {
     Identity,
     Normalize,
     NormalizeIfMaxGt1,
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
 pub(crate) enum MergeFn {
     Weighted,
     AverageDuplicatesOnly,
+    Rff,
 }
 
 #[derive(Debug, Deref, DerefMut, From)]

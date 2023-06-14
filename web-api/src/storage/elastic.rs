@@ -52,6 +52,7 @@ impl Client {
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
+            SearchStrategy::HybridEsRff { query } => self.hybrid_search_es_rrf(params, query).await,
             SearchStrategy::Hybrid { query } => {
                 let normalize_knn = identity;
                 let normalize_bm25 = normalize_scores_if_max_gt_1;
@@ -59,7 +60,7 @@ impl Client {
                 self.hybrid_search(params, query, normalize_knn, normalize_bm25, merge_fn)
                     .await
             }
-            SearchStrategy::DevHybrid {
+            SearchStrategy::HybridDev {
                 query,
                 normalize_knn,
                 normalize_bm25,
@@ -141,7 +142,7 @@ impl Client {
             knn_object,
             generic_parameters,
             inner_filter,
-        } = create_common_knn_search_parts(params);
+        } = params.create_common_knn_search_parts();
 
         let request = merge_json_objects([
             knn_object,
@@ -162,7 +163,6 @@ impl Client {
             }),
         ]);
 
-        // TODO[pmk/now] should we normalize
         Ok(self.search_request(request).await?)
     }
 
@@ -553,8 +553,9 @@ impl NormalizationFn {
 impl MergeFn {
     fn to_fn(self) -> Box<dyn Fn(ScoreMap, ScoreMap) -> ScoreMap> {
         match self {
-            MergeFn::Weighted => Box::new(|l, r| merge_scores_weighted([(0.5, l), (0.5, r)])),
+            MergeFn::Weighted => Box::new(|s1, s2| merge_scores_weighted([(0.5, s1), (0.5, s2)])),
             MergeFn::AverageDuplicatesOnly => Box::new(merge_scores_average_duplicates_only),
+            MergeFn::Rff => Box::new(|s1, s2| rrf(60., [s1, s2])),
         }
     }
 }

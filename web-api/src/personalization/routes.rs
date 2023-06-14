@@ -15,7 +15,9 @@
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
-    Either, HttpResponse, Responder,
+    Either,
+    HttpResponse,
+    Responder,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -26,10 +28,16 @@ use super::{
     knn,
     rerank::rerank_by_scores,
     stateless::{
-        derive_interests_and_tag_weights, load_history, trim_history, validate_history,
-        HistoryEntry, UnvalidatedHistoryEntry,
+        derive_interests_and_tag_weights,
+        load_history,
+        trim_history,
+        validate_history,
+        HistoryEntry,
+        UnvalidatedHistoryEntry,
     },
-    AppState, PersonalizationConfig, SemanticSearchConfig,
+    AppState,
+    PersonalizationConfig,
+    SemanticSearchConfig,
 };
 use crate::{
     app::TenantState,
@@ -38,7 +46,7 @@ use crate::{
         warning::Warning,
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
-    storage::{self, KnnSearchParams, SearchStrategy},
+    storage::{self, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
     Error,
 };
 
@@ -158,10 +166,7 @@ async fn personalized_documents(
         &state.coi,
         &user_id.into_inner().try_into()?,
         &state.config.personalization,
-        PersonalizeBy::KnnSearch {
-            count: params.document_count(state.config.as_ref())?,
-            published_after: params.published_after,
-        },
+        params.to_personalize_by_knn(state.config.as_ref())?,
         Utc::now(),
     )
     .await
@@ -323,51 +328,59 @@ struct UnvalidatedSemanticSearchQuery {
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
     #[serde(default)]
-    enable_hybrid_search: Option<bool>,
+    enable_hybrid_search: bool,
     // TODO[pmk/now] to we keep enable_hybrid_search
-    #[serde(default)]
-    hybrid_search_strategy: Option<HybridSearchStrategy>,
+    #[serde(default, rename = "_dev")]
+    dev: Option<DevOptions>,
 }
 
-#[derive(Copy, Clone, Debug, Default, Deserialize)]
-enum HybridSearchStrategy {
-    #[default]
-    Off,
-    WeightedSum,
-    LocalRrf,
-    EsRff,
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct DevOptions {
+    hybrid: Option<HybridDevOption>,
+    use_es_rff: bool,
 }
 
-impl HybridSearchStrategy {
-    fn to_search_strategy(self, query: Option<&str>) -> SearchStrategy<'_> {
-        if let Some(query) = query {
-            match self {
-                HybridSearchStrategy::Off => SearchStrategy::Knn,
-                HybridSearchStrategy::WeightedSum => SearchStrategy::HybridWeighted { query },
-                HybridSearchStrategy::LocalRrf => SearchStrategy::HybridLocalRrf { query },
-                HybridSearchStrategy::EsRff => SearchStrategy::HybridEsRrf { query },
-            }
-        } else {
-            SearchStrategy::Knn
+#[derive(Debug, Deserialize)]
+struct HybridDevOption {
+    normalize_knn: NormalizationFn,
+    normalize_bm25: NormalizationFn,
+    merge_fn: MergeFn,
+}
+
+fn create_search_strategy<'a>(
+    enable_hybrid_search: bool,
+    dev: Option<&DevOptions>,
+    query: Option<&'a str>,
+) -> Result<SearchStrategy<'a>, Error> {
+    if !enable_hybrid_search {
+        return Ok(SearchStrategy::Knn);
+    }
+    let Some(query) = query else {
+        return Ok(SearchStrategy::Knn);
+    };
+    let Some(dev) = dev else {
+        return Ok(SearchStrategy::Hybrid { query });
+    };
+    if dev.use_es_rff {
+        if dev.hybrid.is_some() {
+            return Err(
+                BadRequest::from("_dev.use_es_rff is incompatible with _dev.hybrid").into(),
+            );
         }
+        return Ok(SearchStrategy::HybridEsRff { query });
     }
 
-    fn resolve(enable_hybrid_search: Option<bool>, strategy: Option<Self>) -> Result<Self, Error> {
-        Ok(match (enable_hybrid_search, strategy) {
-            (None | Some(false), None) => HybridSearchStrategy::Off,
-            (None, Some(strategy)) => strategy,
-            (Some(true), None) => HybridSearchStrategy::WeightedSum,
-            (Some(enabled), Some(strategy)) => {
-                if !enabled != matches!(strategy, HybridSearchStrategy::Off) {
-                    return Err(BadRequest::from(
-                        "enable_hybrid_search and hybrid_search_strategy do not match",
-                    )
-                    .into());
-                }
-                strategy
-            }
-        })
-    }
+    let Some(hybrid) = dev.hybrid.as_ref() else {
+        return Ok(SearchStrategy::Hybrid { query });
+    };
+
+    Ok(SearchStrategy::HybridDev {
+        query,
+        normalize_knn: hybrid.normalize_knn,
+        normalize_bm25: hybrid.normalize_bm25,
+        merge_fn: hybrid.merge_fn,
+    })
 }
 
 impl UnvalidatedSemanticSearchQuery {
@@ -383,12 +396,9 @@ impl UnvalidatedSemanticSearchQuery {
             published_after,
             personalize,
             enable_hybrid_search,
-            hybrid_search_strategy,
+            dev,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
-
-        let hybrid_search_strategy =
-            HybridSearchStrategy::resolve(enable_hybrid_search, hybrid_search_strategy)?;
 
         Ok(SemanticSearchQuery {
             document: document.validate()?,
@@ -402,7 +412,8 @@ impl UnvalidatedSemanticSearchQuery {
             personalize: personalize
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
-            hybrid_search_strategy,
+            enable_hybrid_search,
+            dev,
         })
     }
 }
@@ -459,7 +470,8 @@ struct SemanticSearchQuery {
     min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
-    hybrid_search_strategy: HybridSearchStrategy,
+    enable_hybrid_search: bool,
+    dev: Option<DevOptions>,
 }
 
 enum InputDocument {
@@ -504,7 +516,8 @@ async fn semantic_search(
         min_similarity,
         personalize,
         published_after,
-        hybrid_search_strategy,
+        enable_hybrid_search,
+        dev,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -519,14 +532,17 @@ async fn semantic_search(
                 .await?
                 .ok_or(DocumentNotFound)?;
             excluded.push(id);
-            (embedding, hybrid_search_strategy.to_search_strategy(None))
+            (
+                embedding,
+                create_search_strategy(enable_hybrid_search, dev.as_ref(), None)?,
+            )
         }
         InputDocument::Query(query_) => {
             query = query_;
             let embedding = state.embedder.run(&query)?;
             (
                 embedding,
-                hybrid_search_strategy.to_search_strategy(Some(&query)),
+                create_search_strategy(enable_hybrid_search, dev.as_ref(), Some(&query))?,
             )
         }
     };
