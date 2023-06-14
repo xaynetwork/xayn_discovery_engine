@@ -45,7 +45,7 @@ use crate::{
         common::{BadRequest, DocumentNotFound},
         warning::Warning,
     },
-    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId, UserInteractionType},
+    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
     storage::{self, KnnSearchParams, SearchStrategy},
     Error,
 };

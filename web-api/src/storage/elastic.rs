@@ -14,7 +14,12 @@
 
 mod client;
 
-use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
+use std::{
+    collections::HashMap,
+    convert::identity,
+    hash::Hash,
+    ops::{AddAssign, Not},
+};
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
@@ -351,18 +356,13 @@ impl KnnSearchParams<'_> {
     }
 
     fn create_search_filter(&self) -> JsonObject {
-        if self.count == 0 {
-            return Ok(HashMap::new());
-        }
-
-        let mut filter = Map::new();
-        let excluded = self.excluded.into_iter();
-        if excluded.len() > 0 {
+        let mut filter = JsonObject::new();
+        if self.excluded.is_empty().not() {
             // existing documents are not filtered in the query to avoid too much work for a cold
             // path, filtering them afterwards can occasionally lead to less than k results though
             filter.insert(
                 "must_not".to_string(),
-                json!({ "ids": { "values": excluded.collect_vec() } }),
+                json!({ "ids": { "values": self.excluded } }),
             );
         }
         if let Some(published_after) = self.published_after {
@@ -374,7 +374,6 @@ impl KnnSearchParams<'_> {
             );
         }
         filter
-
     }
 
     fn create_knn_request_object(&self, filter: &JsonObject) -> JsonObject {
@@ -391,7 +390,6 @@ impl KnnSearchParams<'_> {
             }
         })
     }
-
 }
 
 fn normalize_scores<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
