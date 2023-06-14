@@ -357,32 +357,32 @@ fn create_search_strategy<'a>(
     enable_hybrid_search: bool,
     dev: Option<&DevOptions>,
     query: Option<&'a str>,
-) -> Result<SearchStrategy<'a>, Error> {
+) -> SearchStrategy<'a> {
     if !enable_hybrid_search {
-        return Ok(SearchStrategy::Knn);
+        return SearchStrategy::Knn;
     }
     let Some(query) = query else {
-        return Ok(SearchStrategy::Knn);
+        return SearchStrategy::Knn;
     };
     let Some(DevOptions { hybrid: Some(hybrid) }) = dev else {
-        return Ok(SearchStrategy::Hybrid { query });
+        return SearchStrategy::Hybrid { query };
     };
 
     match hybrid.clone() {
-        HybridDevOption::EsRrf { rank_constant } => Ok(SearchStrategy::HybridEsRrf {
+        HybridDevOption::EsRrf { rank_constant } => SearchStrategy::HybridEsRrf {
             query,
             rank_constant,
-        }),
+        },
         HybridDevOption::Customize {
             normalize_knn,
             normalize_bm25,
             merge_fn,
-        } => Ok(SearchStrategy::HybridDev {
+        } => SearchStrategy::HybridDev {
             query,
             normalize_knn,
             normalize_bm25,
             merge_fn,
-        }),
+        },
     }
 }
 
@@ -537,7 +537,7 @@ async fn semantic_search(
             excluded.push(id);
             (
                 embedding,
-                create_search_strategy(enable_hybrid_search, dev.as_ref(), None)?,
+                create_search_strategy(enable_hybrid_search, dev.as_ref(), None),
             )
         }
         InputDocument::Query(query_) => {
@@ -545,7 +545,7 @@ async fn semantic_search(
             let embedding = state.embedder.run(&query)?;
             (
                 embedding,
-                create_search_strategy(enable_hybrid_search, dev.as_ref(), Some(&query))?,
+                create_search_strategy(enable_hybrid_search, dev.as_ref(), Some(&query)),
             )
         }
     };
