@@ -14,12 +14,7 @@
 
 mod client;
 
-use std::{
-    collections::HashMap,
-    convert::identity,
-    hash::Hash,
-    ops::{AddAssign, Not},
-};
+use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
