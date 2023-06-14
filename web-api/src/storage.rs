@@ -94,7 +94,7 @@ pub(crate) enum MergeFn {
     },
     AverageDuplicatesOnly {},
     Rrf {
-        k: Option<f32>,
+        rank_constant: Option<f32>,
     },
 }
 
