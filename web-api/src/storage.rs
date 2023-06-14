@@ -46,8 +46,8 @@ use crate::{
     Error,
 };
 
-pub(crate) struct KnnSearchParams<'a, I> {
-    pub(crate) excluded: I,
+pub(crate) struct KnnSearchParams<'a> {
+    pub(crate) excluded: &'a [DocumentId],
     pub(crate) embedding: &'a NormalizedEmbedding,
     /// The number of documents which will be returned if there are enough fitting documents.
     pub(crate) count: usize,
@@ -55,8 +55,36 @@ pub(crate) struct KnnSearchParams<'a, I> {
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(crate) min_similarity: Option<f32>,
-    /// An additional query which will be run in parallel with the KNN search.
-    pub(super) query: Option<&'a str>,
+    pub(super) strategy: SearchStrategy<'a>,
+}
+
+#[derive(Copy, Clone)]
+pub(crate) enum SearchStrategy<'a> {
+    Knn,
+    Hybrid {
+        /// An additional query which will be run in parallel with the KNN search.
+        query: &'a str,
+    },
+    #[allow(dead_code)]
+    DevHybrid {
+        query: &'a str,
+        normalize_knn: NormalizationFn,
+        normalize_bm25: NormalizationFn,
+        merge_fn: MergeFn,
+    },
+}
+
+#[derive(Copy, Clone, Deserialize)]
+pub(crate) enum NormalizationFn {
+    Identity,
+    Normalize,
+    NormalizeIfMaxGt1,
+}
+
+#[derive(Copy, Clone, Deserialize)]
+pub(crate) enum MergeFn {
+    Weighted,
+    AverageDuplicatesOnly,
 }
 
 #[derive(Debug, Deref, DerefMut, From)]
@@ -104,10 +132,7 @@ pub(crate) trait Document {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<
-            'a,
-            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
-        >,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     /// Inserts the documents and reports failed ids.

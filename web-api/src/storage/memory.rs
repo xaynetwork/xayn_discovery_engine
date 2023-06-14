@@ -307,16 +307,13 @@ impl storage::Document for Storage {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<
-            'a,
-            impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &'a DocumentId>>,
-        >,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         if params.published_after.is_some() {
             unimplemented!(/* we don't need it for memory.rs */);
         }
 
-        let excluded = params.excluded.into_iter().collect::<HashSet<_>>();
+        let excluded = params.excluded.iter().collect::<HashSet<_>>();
         let documents = self.documents.read().await;
         let documents = documents
             .1
@@ -700,6 +697,7 @@ mod tests {
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
+    use crate::storage::SearchStrategy;
 
     #[tokio::test]
     async fn test_knn_search() {
@@ -732,13 +730,13 @@ mod tests {
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {
-                excluded: [],
+                excluded: &[],
                 embedding,
                 count: 2,
                 num_candidates: 2,
                 published_after: None,
                 min_similarity: None,
-                query: None,
+                strategy: SearchStrategy::Knn,
             },
         )
         .await
@@ -751,13 +749,13 @@ mod tests {
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {
-                excluded: [&ids[1]],
+                excluded: &ids[1..=1],
                 embedding,
                 count: 3,
                 num_candidates: 3,
                 published_after: None,
                 min_similarity: None,
-                query: None,
+                strategy: SearchStrategy::Knn,
             },
         )
         .await

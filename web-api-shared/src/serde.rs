@@ -14,6 +14,7 @@
 
 use secrecy::Secret;
 use serde::{Serialize, Serializer};
+use serde_json::Value;
 
 /// Serialize a `Secret<String>` as `"[REDACTED]"`.
 pub fn serialize_redacted<S>(_secret: &Secret<String>, serializer: S) -> Result<S::Ok, S::Error>
@@ -52,4 +53,28 @@ pub mod serde_duration_as_seconds {
     {
         u64::deserialize(deserializer).map(Duration::from_secs)
     }
+}
+
+#[macro_export]
+macro_rules! json_object {
+    ({ $($tt:tt)* }) => ({
+        let ::serde_json::Value::Object(obj) = json!({ $($tt)* }) else {
+            ::std::unreachable!(/* the {} enforces it's always an object */);
+        };
+        obj
+    });
+}
+
+pub use json_object;
+
+pub type JsonObject = serde_json::Map<String, Value>;
+
+pub fn merge_json_objects(objects: impl IntoIterator<Item = JsonObject>) -> JsonObject {
+    objects
+        .into_iter()
+        .reduce(|mut acc, obj| {
+            acc.extend(obj);
+            acc
+        })
+        .unwrap_or_default()
 }

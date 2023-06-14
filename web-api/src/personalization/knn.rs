@@ -23,14 +23,14 @@ use xayn_ai_coi::{compute_coi_weights, Coi};
 use crate::{
     error::common::InternalError,
     models::{DocumentId, PersonalizedDocument},
-    storage::{self, KnnSearchParams},
+    storage::{self, KnnSearchParams, SearchStrategy},
     Error,
 };
 
 /// KNN search based on Centers of Interest.
-pub(super) struct CoiSearch<I, J> {
+pub(super) struct CoiSearch<'a, I> {
     pub(super) interests: I,
-    pub(super) excluded: J,
+    pub(super) excluded: &'a [DocumentId],
     pub(super) horizon: Duration,
     pub(super) max_cois: usize,
     pub(super) count: usize,
@@ -38,12 +38,10 @@ pub(super) struct CoiSearch<I, J> {
     pub(super) time: DateTime<Utc>,
 }
 
-impl<'a, I, J> CoiSearch<I, J>
+impl<'a, I> CoiSearch<'a, I>
 where
     I: IntoIterator,
     <I as IntoIterator>::IntoIter: Clone + Iterator<Item = &'a Coi>,
-    J: IntoIterator,
-    <J as IntoIterator>::IntoIter: Clone + ExactSizeIterator<Item = &'a DocumentId>,
 {
     /// Performs an approximate knn search for documents similar to the user interests.
     pub(super) async fn run_on(
@@ -60,7 +58,6 @@ where
 
         let weights_sum = cois.iter().map(|(_, w)| w).sum::<f32>();
 
-        let excluded = self.excluded.into_iter();
         let document_futures = cois
             .iter()
             .map(|(coi, weight)| async {
@@ -79,13 +76,13 @@ where
                 storage::Document::get_by_embedding(
                     storage,
                     KnnSearchParams {
-                        excluded: excluded.clone(),
+                        excluded: self.excluded,
                         embedding: &coi.point,
                         count,
                         num_candidates,
                         published_after: self.published_after,
                         min_similarity: None,
-                        query: None,
+                        strategy: SearchStrategy::Knn,
                     },
                 )
                 .await
