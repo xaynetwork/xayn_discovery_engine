@@ -267,11 +267,11 @@ fn test_semantic_search_with_dev_options() {
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
                         "enable_hybrid_search": true,
-                        "_dev": { "hybrid": {
+                        "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "normalize_if_max_gt1",
                             "merge_fn": { "sum": {}}
-                        }}
+                        } } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -285,11 +285,11 @@ fn test_semantic_search_with_dev_options() {
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
                         "enable_hybrid_search": true,
-                        "_dev": { "hybrid": {
+                        "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "normalize",
                             "normalize_bm25": "normalize",
                             "merge_fn": { "sum": {}}
-                        }}
+                        } } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -303,11 +303,11 @@ fn test_semantic_search_with_dev_options() {
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
                         "enable_hybrid_search": true,
-                        "_dev": { "hybrid": {
+                        "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "identity",
                             "merge_fn": { "rrf": { "k": 60. }}
-                        }}
+                        } } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -356,7 +356,7 @@ fn test_semantic_search_with_dev_options_es_rrf() {
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
                         "enable_hybrid_search": true,
-                        "_dev": { "use_es_rrf": true }
+                        "_dev": { "hybrid": { "es_rrf": { } } }
                     }))
                     .build()?,
                 StatusCode::OK,
