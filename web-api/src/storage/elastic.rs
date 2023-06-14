@@ -14,7 +14,7 @@
 
 mod client;
 
-use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
+use std::{collections::HashMap, convert::identity, hash::Hash, mem::replace, ops::AddAssign};
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
@@ -48,9 +48,9 @@ struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a>,
+        mut params: KnnSearchParams<'a>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
-        match params.strategy {
+        match replace(&mut params.strategy, SearchStrategy::Knn) {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::HybridEsRrf {
                 query,
@@ -63,7 +63,7 @@ impl Client {
                 let normalize_knn = identity;
                 let normalize_bm25 = normalize_scores_if_max_gt_1;
                 let merge_fn = merge_scores_average_duplicates_only;
-                self.hybrid_search(params, query, normalize_knn, normalize_bm25, merge_fn)
+                self.hybrid_search(params, &query, normalize_knn, normalize_bm25, merge_fn)
                     .await
             }
             SearchStrategy::HybridDev {
@@ -74,7 +74,7 @@ impl Client {
             } => {
                 self.hybrid_search(
                     params,
-                    query,
+                    &query,
                     normalize_knn.to_fn(),
                     normalize_bm25.to_fn(),
                     merge_fn.to_fn(),
@@ -99,10 +99,10 @@ impl Client {
         Ok(self.search_request(request).await?)
     }
 
-    async fn hybrid_search<'a>(
+    async fn hybrid_search(
         &self,
-        params: KnnSearchParams<'a>,
-        query: &'a str,
+        params: KnnSearchParams<'_>,
+        query: &str,
         normalize_knn: impl FnOnce(ScoreMap) -> ScoreMap,
         normalize_bm25: impl FnOnce(ScoreMap) -> ScoreMap,
         merge_function: impl FnOnce(ScoreMap, ScoreMap) -> ScoreMap,
@@ -140,7 +140,7 @@ impl Client {
     async fn hybrid_search_es_rrf<'a>(
         &self,
         params: KnnSearchParams<'a>,
-        query: &'a str,
+        query: String,
         rank_constant: Option<u32>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         let count = params.count;

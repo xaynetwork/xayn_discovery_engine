@@ -55,22 +55,22 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(crate) min_similarity: Option<f32>,
-    pub(super) strategy: SearchStrategy<'a>,
+    pub(super) strategy: SearchStrategy,
 }
 
-#[derive(Copy, Clone, Debug)]
-pub(crate) enum SearchStrategy<'a> {
+#[derive(Clone, Debug)]
+pub(crate) enum SearchStrategy {
     Knn,
     Hybrid {
         /// An additional query which will be run in parallel with the KNN search.
-        query: &'a str,
+        query: String,
     },
     HybridEsRrf {
-        query: &'a str,
+        query: String,
         rank_constant: Option<u32>,
     },
     HybridDev {
-        query: &'a str,
+        query: String,
         normalize_knn: NormalizationFn,
         normalize_bm25: NormalizationFn,
         merge_fn: MergeFn,

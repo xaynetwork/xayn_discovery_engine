@@ -353,11 +353,11 @@ enum HybridDevOption {
     },
 }
 
-fn create_search_strategy<'a>(
+fn create_search_strategy(
     enable_hybrid_search: bool,
     dev: Option<&DevOptions>,
-    query: Option<&'a str>,
-) -> SearchStrategy<'a> {
+    query: Option<String>,
+) -> SearchStrategy {
     if !enable_hybrid_search {
         return SearchStrategy::Knn;
     }
@@ -528,7 +528,6 @@ async fn semantic_search(
     } else {
         Vec::new()
     };
-    let query: String;
     let (embedding, strategy) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&storage, &id)
@@ -540,12 +539,11 @@ async fn semantic_search(
                 create_search_strategy(enable_hybrid_search, dev.as_ref(), None),
             )
         }
-        InputDocument::Query(query_) => {
-            query = query_;
+        InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
             (
                 embedding,
-                create_search_strategy(enable_hybrid_search, dev.as_ref(), Some(&query)),
+                create_search_strategy(enable_hybrid_search, dev.as_ref(), Some(query)),
             )
         }
     };
