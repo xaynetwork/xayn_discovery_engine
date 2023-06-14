@@ -357,7 +357,7 @@ impl KnnSearchParams<'_> {
 
     fn create_search_filter(&self) -> JsonObject {
         let mut filter = JsonObject::new();
-        if self.excluded.is_empty().not() {
+        if !self.excluded.is_empty() {
             // existing documents are not filtered in the query to avoid too much work for a cold
             // path, filtering them afterwards can occasionally lead to less than k results though
             filter.insert(
@@ -386,7 +386,7 @@ impl KnnSearchParams<'_> {
                 "num_candidates": self.num_candidates,
             }
         });
-        if filter.is_empty().not() {
+        if !filter.is_empty() {
             obj["knn"]
                 .as_object_mut()
                 .unwrap()
