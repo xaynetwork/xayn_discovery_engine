@@ -75,6 +75,14 @@ pub(crate) struct InvalidDocumentTag {
 
 impl_application_error!(InvalidDocumentTag => BAD_REQUEST, INFO);
 
+/// Malformed document snippet.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentSnippet {
+    pub(crate) value: String,
+}
+
+impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
+
 /// Failed to delete some documents.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct FailedToDeleteSomeDocuments {
