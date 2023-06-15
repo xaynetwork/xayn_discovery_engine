@@ -98,7 +98,15 @@ macro_rules! string_wrapper {
 }
 
 fn is_valid_id(value: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap());
+    static RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@.][a-zA-Z0-9\-:@._]*$").unwrap());
+
+    (1..=256).contains(&value.len()) && RE.is_match(value)
+}
+
+fn is_valid_property_id(value: &str) -> bool {
+    static RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@][a-zA-Z0-9\-:@_]*$").unwrap());
 
     (1..=256).contains(&value.len()) && RE.is_match(value)
 }
@@ -113,7 +121,7 @@ string_wrapper! {
     /// A unique document identifier.
     pub(crate) DocumentId, InvalidDocumentId, is_valid_id;
     /// A unique document property identifier.
-    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_id;
+    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_property_id;
     /// A unique user identifier.
     pub(crate) UserId, InvalidUserId, is_valid_id;
     /// A document snippet.
@@ -241,10 +249,24 @@ mod tests {
         assert!(is_valid_id("abcdefghijklmnopqrstruvwxyz"));
         assert!(is_valid_id("ABCDEFGHIJKLMNOPQURSTUVWXYZ"));
         assert!(is_valid_id("0123456789"));
-        assert!(is_valid_id("_-:@."));
+        assert!(is_valid_id("-_:@."));
         assert!(!is_valid_id(""));
+        assert!(!is_valid_id("_"));
         assert!(!is_valid_id(&["a"; 257].join("")));
         assert!(!is_valid_id("!?ß"));
+    }
+
+    #[test]
+    fn test_is_valid_property_id() {
+        assert!(is_valid_property_id("abcdefghijklmnopqrstruvwxyz"));
+        assert!(is_valid_property_id("ABCDEFGHIJKLMNOPQURSTUVWXYZ"));
+        assert!(is_valid_property_id("0123456789"));
+        assert!(is_valid_property_id("-_:@"));
+        assert!(!is_valid_property_id(""));
+        assert!(!is_valid_property_id("_"));
+        assert!(!is_valid_property_id("."));
+        assert!(!is_valid_property_id(&["a"; 257].join("")));
+        assert!(!is_valid_property_id("!?ß"));
     }
 
     #[test]
