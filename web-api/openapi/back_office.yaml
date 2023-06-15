@@ -93,14 +93,13 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
 
-  /documents/candidates:
+  /documents/_candidates:
     get:
       tags:
         - back office
-      deprecated: true
-      operationId: listDocumentCandidatesDeprecated
       summary: Get the documents considered for recommendations.
       description: Get the documents considered for recommendations.
+      operationId: listDocumentCandidates
       responses:
         '200':
           description: successful operation
@@ -113,10 +112,9 @@ paths:
     put:
       tags:
         - back office
-      deprecated: true
-      operationId: replaceDocumentCandidatesDeprecated
       summary: Set the documents considered for recommendations.
       description: Set the documents considered for recommendations.
+      operationId: replaceDocumentCandidates
       requestBody:
         required: true
         content:
@@ -239,40 +237,6 @@ paths:
       summary: Delete a document property
       description: Deletes the property of the document.
       operationId: deleteDocumentProperty
-      responses:
-        '204':
-          description: successful operation
-        '400':
-          $ref: './responses/generic.yml#/BadRequest'
-
-  /candidates:
-    get:
-      tags:
-        - back office
-      summary: Get the documents considered for recommendations.
-      description: Get the documents considered for recommendations.
-      operationId: listDocumentCandidates
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DocumentCandidatesResponse'
-        '400':
-          $ref: './responses/generic.yml#/BadRequest'
-    put:
-      tags:
-        - back office
-      summary: Set the documents considered for recommendations.
-      description: Set the documents considered for recommendations.
-      operationId: replaceDocumentCandidates
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DocumentCandidatesRequest'
       responses:
         '204':
           description: successful operation
