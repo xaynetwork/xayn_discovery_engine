@@ -25,7 +25,7 @@ use xayn_test_utils::error::Panic;
 use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
-    models::{DocumentId, DocumentProperties, IngestedDocument, UserId},
+    models::{DocumentId, DocumentProperties, DocumentSnippet, IngestedDocument, UserId},
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -97,13 +97,14 @@ impl State {
                 .into_iter()
                 .map(|document| (document.id.clone(), document))
                 .collect::<HashMap<_, _>>();
+        let snippet = DocumentSnippet::try_from("snippet" /* unused for in-memory db */)?;
         let documents = embeddings
             .into_iter()
             .map(|(id, embedding)| {
                 let document = documents.remove(&id).unwrap(/* document must already exist */);
                 IngestedDocument {
                     id,
-                    snippet: String::new(/* unused for in-memory db */),
+                    snippet: snippet.clone(),
                     properties: document.properties,
                     tags: document.tags,
                     embedding,

@@ -14,7 +14,7 @@
 
 use std::{borrow::Borrow, collections::HashMap};
 
-use derive_more::{AsRef, Deref, Display, Into};
+use derive_more::{Deref, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -29,16 +29,17 @@ use xayn_ai_coi::Document as AiDocument;
 use crate::error::common::{
     InvalidDocumentId,
     InvalidDocumentPropertyId,
+    InvalidDocumentSnippet,
     InvalidDocumentTag,
     InvalidUserId,
 };
 
-macro_rules! id_wrapper {
-    ($($visibility:vis $name:ident, $error:ident, $is_valid:expr);* $(;)?) => {
+macro_rules! string_wrapper {
+    ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $is_valid:expr);* $(;)?) => {
         $(
-            /// A unique identifier.
+            $(#[$attribute])*
             #[derive(
-                AsRef,
+                Deref,
                 Into,
                 Clone,
                 Debug,
@@ -55,9 +56,15 @@ macro_rules! id_wrapper {
             #[sqlx(transparent)]
             $visibility struct $name(String);
 
-            impl $name {
-                $visibility fn new(value: impl Into<String>) -> Result<Self, $error> {
-                    let value = value.into();
+            impl TryFrom<String> for $name {
+                type Error = $error;
+
+                fn try_from(mut value: String) -> Result<Self, Self::Error> {
+                    let trimmed = value.trim();
+                    if trimmed.len() < value.len() {
+                        value = trimmed.to_string();
+                    }
+
                     if $is_valid(&value) {
                         Ok(Self(value))
                     } else {
@@ -66,19 +73,11 @@ macro_rules! id_wrapper {
                 }
             }
 
-            impl TryFrom<String> for $name {
-                type Error = $error;
-
-                fn try_from(value: String) -> Result<Self, Self::Error> {
-                    Self::new(value)
-                }
-            }
-
             impl TryFrom<&str> for $name {
                 type Error = $error;
 
                 fn try_from(value: &str) -> Result<Self, Self::Error> {
-                    Self::new(value)
+                    value.to_string().try_into()
                 }
             }
 
@@ -103,17 +102,23 @@ fn is_valid_id(value: &str) -> bool {
     (1..=256).contains(&value.len()) && RE.is_match(value)
 }
 
-fn is_valid_tag(value: &str) -> bool {
+fn is_valid_string(value: &str, len: usize) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]+$").unwrap());
 
-    (1..=256).contains(&value.len()) && RE.is_match(value)
+    (1..=len).contains(&value.len()) && RE.is_match(value)
 }
 
-id_wrapper! {
+string_wrapper! {
+    /// A unique document identifier.
     pub(crate) DocumentId, InvalidDocumentId, is_valid_id;
+    /// A unique document property identifier.
     pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_id;
+    /// A unique user identifier.
     pub(crate) UserId, InvalidUserId, is_valid_id;
-    pub(crate) DocumentTag, InvalidDocumentTag, is_valid_tag;
+    /// A document snippet.
+    pub(crate) DocumentSnippet, InvalidDocumentSnippet, |value| is_valid_string(value, 1024);
+    /// A document tag.
+    pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
 }
 
 #[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize)]
@@ -174,7 +179,7 @@ pub(crate) struct IngestedDocument {
     pub(crate) id: DocumentId,
 
     /// Snippet used to calculate embeddings for a document.
-    pub(crate) snippet: String,
+    pub(crate) snippet: DocumentSnippet,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
@@ -192,7 +197,7 @@ pub(crate) struct IngestedDocument {
 #[derive(Debug)]
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
-    pub(crate) snippet: String,
+    pub(crate) snippet: DocumentSnippet,
     pub(crate) properties: DocumentProperties,
     pub(crate) tags: Vec<DocumentTag>,
     pub(crate) is_candidate: bool,
@@ -204,23 +209,23 @@ mod tests {
 
     #[test]
     fn test_id() {
-        assert!(DocumentId::new("abcdefghijklmnopqrstruvwxyz").is_ok());
-        assert!(DocumentId::new("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
-        assert!(DocumentId::new("0123456789").is_ok());
-        assert!(DocumentId::new("_-:@.").is_ok());
-        assert!(DocumentId::new("").is_err());
-        assert!(DocumentId::new(["a"; 257].join("")).is_err());
-        assert!(DocumentId::new("!?ß").is_err());
+        assert!(DocumentId::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentId::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentId::try_from("0123456789").is_ok());
+        assert!(DocumentId::try_from("_-:@.").is_ok());
+        assert!(DocumentId::try_from("").is_err());
+        assert!(DocumentId::try_from(["a"; 257].join("")).is_err());
+        assert!(DocumentId::try_from("!?ß").is_err());
     }
 
     #[test]
     fn test_tag() {
-        assert!(DocumentTag::new("abcdefghijklmnopqrstruvwxyz").is_ok());
-        assert!(DocumentTag::new("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
-        assert!(DocumentTag::new("0123456789").is_ok());
-        assert!(DocumentTag::new(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
-        assert!(DocumentTag::new("").is_err());
-        assert!(DocumentTag::new(["a"; 257].join("")).is_err());
-        assert!(DocumentTag::new("\0").is_err());
+        assert!(DocumentTag::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentTag::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentTag::try_from("0123456789").is_ok());
+        assert!(DocumentTag::try_from(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
+        assert!(DocumentTag::try_from("").is_err());
+        assert!(DocumentTag::try_from(["a"; 257].join("")).is_err());
+        assert!(DocumentTag::try_from("\0").is_err());
     }
 }

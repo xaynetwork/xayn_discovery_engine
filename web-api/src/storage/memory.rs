@@ -45,6 +45,7 @@ use crate::{
         DocumentProperties,
         DocumentProperty,
         DocumentPropertyId,
+        DocumentSnippet,
         DocumentTag,
         ExcerptedDocument,
         IngestedDocument,
@@ -57,7 +58,7 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
-    snippet: String,
+    snippet: DocumentSnippet,
     properties: DocumentProperties,
     tags: Vec<DocumentTag>,
     is_candidate: bool,
@@ -702,7 +703,7 @@ mod tests {
     #[tokio::test]
     async fn test_knn_search() {
         let ids = (0..3)
-            .map(|id| DocumentId::new(id.to_string()).unwrap())
+            .map(|id| DocumentId::try_from(id.to_string()).unwrap())
             .collect_vec();
         let embeddings = [
             [1., 0., 0.].try_into().unwrap(),
@@ -714,7 +715,7 @@ mod tests {
             .zip(embeddings)
             .map(|(id, embedding)| IngestedDocument {
                 id: id.clone(),
-                snippet: String::new(),
+                snippet: "snippet".try_into().unwrap(),
                 properties: DocumentProperties::default(),
                 tags: Vec::new(),
                 embedding,
@@ -769,14 +770,15 @@ mod tests {
     #[tokio::test]
     async fn test_serde() {
         let storage = Storage::default();
-        let doc_id = DocumentId::new("42").unwrap();
+        let doc_id = DocumentId::try_from("42").unwrap();
+        let snippet = DocumentSnippet::try_from("snippet").unwrap();
         let tags = vec![DocumentTag::try_from("tag").unwrap()];
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
             vec![IngestedDocument {
                 id: doc_id.clone(),
-                snippet: "snippet".into(),
+                snippet: snippet.clone(),
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
                 embedding: embedding.clone(),
@@ -785,7 +787,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let user_id = UserId::new("abc").unwrap();
+        let user_id = UserId::try_from("abc").unwrap();
         storage::Interaction::update_interactions(
             &storage,
             &user_id,
@@ -812,7 +814,7 @@ mod tests {
             .unwrap();
         assert_eq!(documents.len(), 1);
         assert_eq!(documents[0].id, doc_id);
-        assert_eq!(documents[0].snippet, "snippet");
+        assert_eq!(documents[0].snippet, snippet);
         let documents = storage::Document::get_personalized(&storage, [&doc_id])
             .await
             .unwrap();

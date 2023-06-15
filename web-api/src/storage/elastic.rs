@@ -32,6 +32,7 @@ use crate::{
         DocumentProperties,
         DocumentProperty,
         DocumentPropertyId,
+        DocumentSnippet,
         DocumentTag,
     },
     storage::{KnnSearchParams, Warning},
@@ -316,7 +317,7 @@ impl Client {
 
 #[derive(Debug, Serialize)]
 struct IngestedDocument<'a> {
-    snippet: &'a str,
+    snippet: &'a DocumentSnippet,
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
     tags: &'a [DocumentTag],
