@@ -187,7 +187,7 @@ impl DocumentProperties {
         properties: HashMap<DocumentPropertyId, DocumentProperty>,
         size: usize,
     ) -> Result<Self, InvalidDocumentProperties> {
-        if size <= 2_048 {
+        if size <= 2_560 {
             Ok(Self(properties))
         } else {
             Err(InvalidDocumentProperties { size })

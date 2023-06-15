@@ -32,7 +32,6 @@ info:
     Properties are optional data for documents, which are usually needed to properly show the document back to the user, when it returns as a personalized document.
     If for example, you'd wish to integrate a type of carousel view, listing a total of 10 personalized documents in a "for you"-section, then you might choose to display each document as an image and title, with a url to link the user to when pressed.
     For this, you would need three document properties: `image`, `link` and `title`.
-    You are free to add as many properties as needed, up to a total size of 2KB.
 tags:
   - name: back office
     description: System management, including documents and properties.

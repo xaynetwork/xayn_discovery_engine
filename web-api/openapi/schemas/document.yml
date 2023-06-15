@@ -30,7 +30,9 @@ DocumentProperty:
   example: "News title"
 
 DocumentProperties:
-  description: Mostly arbitrary properties that can be attached to a document. A key must be a valid `DocumentPropertyId`.
+  description: |
+    Mostly arbitrary properties that can be attached to a document, up to 2.5KB in size.
+    A key must be a valid `DocumentPropertyId`.
   type: object
   properties:
     publication_date:
