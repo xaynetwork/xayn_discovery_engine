@@ -55,36 +55,47 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(crate) min_similarity: Option<f32>,
-    pub(super) strategy: SearchStrategy<'a>,
+    pub(super) strategy: SearchStrategy,
 }
 
-#[derive(Copy, Clone)]
-pub(crate) enum SearchStrategy<'a> {
+#[derive(Clone, Debug)]
+pub(crate) enum SearchStrategy {
     Knn,
     Hybrid {
         /// An additional query which will be run in parallel with the KNN search.
-        query: &'a str,
+        query: String,
     },
-    #[allow(dead_code)]
-    DevHybrid {
-        query: &'a str,
+    HybridEsRrf {
+        query: String,
+        rank_constant: Option<u32>,
+    },
+    HybridDev {
+        query: String,
         normalize_knn: NormalizationFn,
         normalize_bm25: NormalizationFn,
         merge_fn: MergeFn,
     },
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum NormalizationFn {
     Identity,
     Normalize,
     NormalizeIfMaxGt1,
 }
 
-#[derive(Copy, Clone, Deserialize)]
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum MergeFn {
-    Weighted,
-    AverageDuplicatesOnly,
+    Sum {
+        knn_weight: Option<f32>,
+        bm25_weight: Option<f32>,
+    },
+    AverageDuplicatesOnly {},
+    Rrf {
+        rank_constant: Option<f32>,
+    },
 }
 
 #[derive(Debug, Deref, DerefMut, From)]

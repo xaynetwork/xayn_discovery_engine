@@ -14,7 +14,7 @@
 
 mod client;
 
-use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
+use std::{collections::HashMap, convert::identity, hash::Hash, mem::replace, ops::AddAssign};
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
@@ -48,18 +48,25 @@ struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a>,
+        mut params: KnnSearchParams<'a>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
-        match params.strategy {
+        match replace(&mut params.strategy, SearchStrategy::Knn) {
             SearchStrategy::Knn => self.knn_search(params).await,
+            SearchStrategy::HybridEsRrf {
+                query,
+                rank_constant,
+            } => {
+                self.hybrid_search_es_rrf(params, query, rank_constant)
+                    .await
+            }
             SearchStrategy::Hybrid { query } => {
                 let normalize_knn = identity;
                 let normalize_bm25 = normalize_scores_if_max_gt_1;
                 let merge_fn = merge_scores_average_duplicates_only;
-                self.hybrid_search(params, query, normalize_knn, normalize_bm25, merge_fn)
+                self.hybrid_search(params, &query, normalize_knn, normalize_bm25, merge_fn)
                     .await
             }
-            SearchStrategy::DevHybrid {
+            SearchStrategy::HybridDev {
                 query,
                 normalize_knn,
                 normalize_bm25,
@@ -67,7 +74,7 @@ impl Client {
             } => {
                 self.hybrid_search(
                     params,
-                    query,
+                    &query,
                     normalize_knn.to_fn(),
                     normalize_bm25.to_fn(),
                     merge_fn.to_fn(),
@@ -92,10 +99,10 @@ impl Client {
         Ok(self.search_request(request).await?)
     }
 
-    async fn hybrid_search<'a>(
+    async fn hybrid_search(
         &self,
-        params: KnnSearchParams<'a>,
-        query: &'a str,
+        params: KnnSearchParams<'_>,
+        query: &str,
         normalize_knn: impl FnOnce(ScoreMap) -> ScoreMap,
         normalize_bm25: impl FnOnce(ScoreMap) -> ScoreMap,
         merge_function: impl FnOnce(ScoreMap, ScoreMap) -> ScoreMap,
@@ -128,6 +135,46 @@ impl Client {
 
         let merged = merge_function(normalize_knn(knn_scores), normalize_bm25(bm25_scores));
         Ok(take_highest_n_scores(count, merged))
+    }
+
+    async fn hybrid_search_es_rrf<'a>(
+        &self,
+        params: KnnSearchParams<'a>,
+        query: String,
+        rank_constant: Option<u32>,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        let count = params.count;
+
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        } = params.create_common_knn_search_parts();
+
+        let request = merge_json_objects([
+            knn_object,
+            generic_parameters,
+            json_object!({
+                "query": { "bool": merge_json_objects([
+                    inner_filter,
+                    json_object!({
+                        "must": { "match": { "snippet": query }}
+                    })
+                ]) },
+                "rank": {
+                    "rrf": {
+                        // must be >= "size"
+                        "window_size": count,
+                        //FIXME If we stabilize this we can omit `rank_constant` if its `None` to
+                        //      safe a few bytes. But during testing we always encode it to always
+                        //      run with the same parameters, even if ES changes the default.
+                        "rank_constant": rank_constant.unwrap_or(60)
+                    }
+                }
+            }),
+        ]);
+
+        Ok(self.search_request(request).await?)
     }
 
     pub(super) async fn insert_documents(
@@ -457,6 +504,24 @@ where
     collect_summing_repeated(weighted)
 }
 
+/// Reciprocal Rank Fusion
+fn rrf<K>(k: f32, scores: impl IntoIterator<Item = HashMap<K, f32>>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let rrf_scores = scores.into_iter().flat_map(|scores| {
+        scores
+            .into_iter()
+            .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+            .enumerate()
+            .map(|(rank0, (document, _))| {
+                #[allow(clippy::cast_precision_loss)]
+                (document, (k + rank0 as f32 + 1.).recip())
+            })
+    });
+    collect_summing_repeated(rrf_scores)
+}
+
 fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> HashMap<K, f32>
 where
     K: Eq + Hash,
@@ -499,8 +564,19 @@ impl NormalizationFn {
 impl MergeFn {
     fn to_fn(self) -> Box<dyn Fn(ScoreMap, ScoreMap) -> ScoreMap> {
         match self {
-            MergeFn::Weighted => Box::new(|l, r| merge_scores_weighted([(0.5, l), (0.5, r)])),
-            MergeFn::AverageDuplicatesOnly => Box::new(merge_scores_average_duplicates_only),
+            MergeFn::Sum {
+                knn_weight,
+                bm25_weight,
+            } => Box::new(move |knn, bm25| {
+                merge_scores_weighted([
+                    (knn_weight.unwrap_or(0.5), knn),
+                    (bm25_weight.unwrap_or(0.5), bm25),
+                ])
+            }),
+            MergeFn::AverageDuplicatesOnly {} => Box::new(merge_scores_average_duplicates_only),
+            MergeFn::Rrf { rank_constant } => {
+                Box::new(move |s1, s2| rrf(rank_constant.unwrap_or(60.), [s1, s2]))
+            }
         }
     }
 }

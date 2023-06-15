@@ -46,7 +46,7 @@ use crate::{
         warning::Warning,
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
-    storage::{self, KnnSearchParams, SearchStrategy},
+    storage::{self, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
     Error,
 };
 
@@ -329,6 +329,60 @@ struct UnvalidatedSemanticSearchQuery {
     personalize: Option<UnvalidatedPersonalize>,
     #[serde(default)]
     enable_hybrid_search: bool,
+    #[serde(default, rename = "_dev")]
+    dev: Option<DevOptions>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+#[serde(default)]
+struct DevOptions {
+    hybrid: Option<HybridDevOption>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum HybridDevOption {
+    EsRrf {
+        rank_constant: Option<u32>,
+    },
+    Customize {
+        normalize_knn: NormalizationFn,
+        normalize_bm25: NormalizationFn,
+        merge_fn: MergeFn,
+    },
+}
+
+fn create_search_strategy(
+    enable_hybrid_search: bool,
+    dev: Option<&DevOptions>,
+    query: Option<String>,
+) -> SearchStrategy {
+    if !enable_hybrid_search {
+        return SearchStrategy::Knn;
+    }
+    let Some(query) = query else {
+        return SearchStrategy::Knn;
+    };
+    let Some(DevOptions { hybrid: Some(hybrid) }) = dev else {
+        return SearchStrategy::Hybrid { query };
+    };
+
+    match hybrid.clone() {
+        HybridDevOption::EsRrf { rank_constant } => SearchStrategy::HybridEsRrf {
+            query,
+            rank_constant,
+        },
+        HybridDevOption::Customize {
+            normalize_knn,
+            normalize_bm25,
+            merge_fn,
+        } => SearchStrategy::HybridDev {
+            query,
+            normalize_knn,
+            normalize_bm25,
+            merge_fn,
+        },
+    }
 }
 
 impl UnvalidatedSemanticSearchQuery {
@@ -344,8 +398,10 @@ impl UnvalidatedSemanticSearchQuery {
             published_after,
             personalize,
             enable_hybrid_search,
+            dev,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
+
         Ok(SemanticSearchQuery {
             document: document.validate()?,
             published_after,
@@ -359,6 +415,7 @@ impl UnvalidatedSemanticSearchQuery {
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
             enable_hybrid_search,
+            dev,
         })
     }
 }
@@ -416,6 +473,7 @@ struct SemanticSearchQuery {
     published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
+    dev: Option<DevOptions>,
 }
 
 enum InputDocument {
@@ -461,6 +519,7 @@ async fn semantic_search(
         personalize,
         published_after,
         enable_hybrid_search,
+        dev,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -468,18 +527,23 @@ async fn semantic_search(
     } else {
         Vec::new()
     };
-    let (embedding, query) = match document {
+    let (embedding, strategy) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
             excluded.push(id);
-            (embedding, None)
+            (
+                embedding,
+                create_search_strategy(enable_hybrid_search, dev.as_ref(), None),
+            )
         }
         InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
-            let query = enable_hybrid_search.then_some(query);
-            (embedding, query)
+            (
+                embedding,
+                create_search_strategy(enable_hybrid_search, dev.as_ref(), Some(query)),
+            )
         }
     };
 
@@ -492,11 +556,7 @@ async fn semantic_search(
             num_candidates: count,
             published_after,
             min_similarity,
-            strategy: if let Some(query) = query.as_deref() {
-                SearchStrategy::Hybrid { query }
-            } else {
-                SearchStrategy::Knn
-            },
+            strategy,
         },
     )
     .await?;
