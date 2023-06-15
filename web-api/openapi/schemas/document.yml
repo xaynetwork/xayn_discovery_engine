@@ -25,7 +25,9 @@ DocumentPropertyId:
   example: "title"
 
 DocumentTag:
-  description: A tag of a document can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
+  description: |
+    A tag of a document can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
+    Enclosing whitespace will be trimmed.
   type: string
   pattern: '^[^\x00]+$'
   minLength: 1

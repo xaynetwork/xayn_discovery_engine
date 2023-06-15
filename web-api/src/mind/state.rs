@@ -75,7 +75,7 @@ impl State {
                     id: document.id,
                     snippet: document.snippet,
                     properties: DocumentProperties::default(),
-                    tags: vec![document.category, document.subcategory],
+                    tags: vec![document.category, document.subcategory].try_into()?,
                     embedding,
                     is_candidate: true,
                 })

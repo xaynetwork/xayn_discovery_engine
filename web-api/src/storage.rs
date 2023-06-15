@@ -36,6 +36,7 @@ use crate::{
         DocumentId,
         DocumentPropertyId,
         DocumentTag,
+        DocumentTags,
         ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
@@ -240,11 +241,8 @@ pub(crate) trait Tag {
     async fn get(&self, user_id: &UserId) -> Result<TagWeights, Error>;
 
     /// Sets the document tags if the document exists.
-    async fn put(
-        &self,
-        document_id: &DocumentId,
-        tags: &[DocumentTag],
-    ) -> Result<Option<()>, Error>;
+    async fn put(&self, document_id: &DocumentId, tags: &DocumentTags)
+        -> Result<Option<()>, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
