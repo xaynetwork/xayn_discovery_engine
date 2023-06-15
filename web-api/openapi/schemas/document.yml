@@ -22,8 +22,7 @@ DocumentProperty:
   oneOf:
     - type: boolean
     - type: number
-    - type:
-      $ref: '#/DocumentPropertyString'
+    - $ref: '#/DocumentPropertyString'
     - type: array
       minItems: 1
       items:
