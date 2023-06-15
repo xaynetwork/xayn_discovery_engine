@@ -278,7 +278,7 @@ impl Client {
             "script": {
                 "source": "ctx._source.properties = params.properties",
                 "params": {
-                    "properties": DocumentProperties::new()
+                    "properties": DocumentProperties::default()
                 }
             },
             "_source": false

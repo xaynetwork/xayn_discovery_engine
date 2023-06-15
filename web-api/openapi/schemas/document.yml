@@ -3,8 +3,31 @@ DocumentId:
   $ref: './id.yml#/Id'
   example: "document_id"
 
+DocumentPropertyId:
+  description: Id of a property of a document.
+  $ref: './id.yml#/IdNoDot'
+  example: "title"
+
+DocumentPropertyString:
+  description: |
+    Arbitrary string property that can be attached to a document.
+    Enclosing whitespace will be trimmed.
+  type: string
+  pattern: '^[^\x00]+$'
+  minLength: 1
+  maxLength: 256
+
 DocumentProperty:
   description: Arbitrary property that can be attached to a document.
+  oneOf:
+    - type: boolean
+    - type: number
+    - type:
+      $ref: '#/DocumentPropertyString'
+    - type: array
+      minItems: 1
+      items:
+        $ref: '#/DocumentPropertyString'
   example: "News title"
 
 DocumentProperties:
@@ -13,16 +36,12 @@ DocumentProperties:
   properties:
     publication_date:
       $ref: './time.yml#/PublicationDate'
-  additionalProperties: true
+  additionalProperties:
+    $ref: '#/DocumentProperty'
   example:
     title: "News title"
     image_url: "http://example.com/news_image.jpg"
     link: "http://example.com/this_news"
-
-DocumentPropertyId:
-  description: Id of a property of a document.
-  $ref: './id.yml#/IdNoDot'
-  example: "title"
 
 DocumentTag:
   description: |

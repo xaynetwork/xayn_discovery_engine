@@ -24,6 +24,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Coi;
 use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
@@ -254,6 +255,12 @@ pub(crate) trait Tag {
     /// Sets the document tags if the document exists.
     async fn put(&self, document_id: &DocumentId, tags: &DocumentTags)
         -> Result<Option<()>, Error>;
+}
+
+#[async_trait(?Send)]
+pub(crate) trait Size {
+    /// Gets the size in bytes of the json value.
+    async fn json(&self, value: &Value) -> Result<usize, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

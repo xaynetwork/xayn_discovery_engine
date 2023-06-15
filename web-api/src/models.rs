@@ -14,10 +14,11 @@
 
 use std::{borrow::Borrow, collections::HashMap};
 
-use derive_more::{Deref, Display, Into};
+use derive_more::{Deref, DerefMut, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::{
     postgres::{PgHasArrayType, PgTypeInfo},
     FromRow,
@@ -28,12 +29,21 @@ use xayn_ai_coi::Document as AiDocument;
 
 use crate::error::common::{
     InvalidDocumentId,
+    InvalidDocumentProperties,
+    InvalidDocumentProperty,
     InvalidDocumentPropertyId,
     InvalidDocumentSnippet,
     InvalidDocumentTag,
     InvalidDocumentTags,
     InvalidUserId,
 };
+
+fn trim(string: &mut String) {
+    let trimmed = string.trim();
+    if trimmed.len() < string.len() {
+        *string = trimmed.to_string();
+    }
+}
 
 macro_rules! string_wrapper {
     ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $is_valid:expr);* $(;)?) => {
@@ -61,10 +71,7 @@ macro_rules! string_wrapper {
                 type Error = $error;
 
                 fn try_from(mut value: String) -> Result<Self, Self::Error> {
-                    let trimmed = value.trim();
-                    if trimmed.len() < value.len() {
-                        value = trimmed.to_string();
-                    }
+                    trim(&mut value);
 
                     if $is_valid(&value) {
                         Ok(Self(value))
@@ -130,12 +137,72 @@ string_wrapper! {
     pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
 }
 
-#[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deref, Deserialize, Into, PartialEq, Serialize)]
 #[serde(transparent)]
-pub(crate) struct DocumentProperty(serde_json::Value);
+pub(crate) struct DocumentProperty(Value);
+
+impl TryFrom<Value> for DocumentProperty {
+    type Error = InvalidDocumentProperty;
+
+    fn try_from(mut property: Value) -> Result<Self, Self::Error> {
+        match &mut property {
+            Value::Bool(_) | Value::Number(_) => {}
+            Value::String(string) => {
+                trim(string);
+                if !is_valid_string(string, 256) {
+                    return Err(InvalidDocumentProperty { value: property });
+                }
+            }
+            Value::Array(array) => {
+                if array.is_empty() {
+                    return Err(InvalidDocumentProperty { value: property });
+                }
+                for value in array {
+                    let Value::String(ref mut string) = value else {
+                        return Err(InvalidDocumentProperty { value: property });
+                    };
+                    trim(string);
+                    if !is_valid_string(string, 256) {
+                        return Err(InvalidDocumentProperty { value: property });
+                    }
+                }
+            }
+            Value::Null | Value::Object(_) => {
+                return Err(InvalidDocumentProperty { value: property })
+            }
+        };
+
+        Ok(Self(property))
+    }
+}
 
 /// Arbitrary properties that can be attached to a document.
-pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
+#[derive(Clone, Debug, Default, Deref, DerefMut, Deserialize, FromRow, PartialEq, Serialize)]
+#[serde(transparent)]
+#[sqlx(transparent)]
+pub(crate) struct DocumentProperties(HashMap<DocumentPropertyId, DocumentProperty>);
+
+impl DocumentProperties {
+    pub(crate) fn new(
+        properties: HashMap<DocumentPropertyId, DocumentProperty>,
+        size: usize,
+    ) -> Result<Self, InvalidDocumentProperties> {
+        if size <= 2_048 {
+            Ok(Self(properties))
+        } else {
+            Err(InvalidDocumentProperties { size })
+        }
+    }
+}
+
+impl IntoIterator for DocumentProperties {
+    type Item = <HashMap<DocumentPropertyId, DocumentProperty> as IntoIterator>::Item;
+    type IntoIter = <HashMap<DocumentPropertyId, DocumentProperty> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
 
 /// Arbitrary tags that can be associated to a document.
 #[derive(Clone, Debug, Default, Deref, Deserialize, PartialEq, Serialize, Type)]

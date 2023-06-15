@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
@@ -188,7 +190,7 @@ async fn personalized_documents(
 struct PersonalizedDocumentData {
     id: DocumentId,
     score: f32,
-    #[serde(skip_serializing_if = "DocumentProperties::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     properties: DocumentProperties,
 }
 

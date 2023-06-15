@@ -24,6 +24,7 @@ use async_trait::async_trait;
 pub(crate) use client::{Database, DatabaseBuilder};
 use either::Either;
 use itertools::Itertools;
+use serde_json::Value;
 use sqlx::{
     types::{
         chrono::{DateTime, Utc},
@@ -714,6 +715,21 @@ impl Database {
         }
         Ok(())
     }
+
+    async fn size_of_json(
+        tx: &mut Transaction<'_, Postgres>,
+        value: &Value,
+    ) -> Result<usize, Error> {
+        sqlx::query_as::<_, (i32,)>("SELECT pg_column_size($1);")
+            .bind(Json(value))
+            .fetch_one(tx)
+            .await
+            .map(
+                #[allow(clippy::cast_sign_loss)]
+                |size| size.0 as usize,
+            )
+            .map_err(Into::into)
+    }
 }
 
 #[async_trait(?Send)]
@@ -1221,5 +1237,16 @@ impl storage::Tag for Storage {
         tx.commit().await?;
 
         Ok(inserted)
+    }
+}
+
+#[async_trait(?Send)]
+impl storage::Size for Storage {
+    async fn json(&self, value: &Value) -> Result<usize, Error> {
+        let mut tx = self.postgres.begin().await?;
+        let size = Database::size_of_json(&mut tx, value).await?;
+        tx.commit().await?;
+
+        Ok(size)
     }
 }

@@ -19,11 +19,11 @@ use actix_web::{
     HttpResponse,
     Responder,
 };
-use anyhow::bail;
+use anyhow::anyhow;
 use chrono::DateTime;
 use itertools::{Either, Itertools};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
@@ -34,19 +34,20 @@ use crate::{
     app::TenantState,
     error::common::{
         BadRequest,
-        DocumentIdAsObject,
         DocumentNotFound,
         DocumentPropertyNotFound,
         FailedToDeleteSomeDocuments,
         FailedToIngestDocuments,
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
+        InvalidDocumentProperty,
     },
     models::{
         self,
         DocumentId,
         DocumentProperties,
         DocumentProperty,
+        DocumentPropertyId,
         DocumentSnippet,
         DocumentTags,
     },
@@ -95,7 +96,7 @@ struct UnvalidatedIngestedDocument {
     id: String,
     snippet: String,
     #[serde(default)]
-    properties: HashMap<String, DocumentProperty>,
+    properties: HashMap<String, Value>,
     #[serde(default)]
     tags: Vec<String>,
     #[serde(default)]
@@ -158,60 +159,64 @@ impl NewIsCandidate {
     }
 }
 
+async fn validate_document_properties(
+    properties: impl IntoIterator<Item = (String, Value)>,
+    storage: &impl storage::Size,
+) -> Result<DocumentProperties, Error> {
+    let properties = properties
+        .into_iter()
+        .map(|(id, property)| Ok::<_, Error>((id.try_into()?, property.try_into()?)))
+        .try_collect::<_, HashMap<_, DocumentProperty>, _>()?;
+    if let Some(publication_date) = properties.get("publication_date") {
+        let Some(publication_date) = publication_date.as_str() else {
+            return Err(InvalidDocumentProperty { value: publication_date.clone().into() }.into());
+        };
+        DateTime::parse_from_rfc3339(publication_date)?;
+    }
+    let size = storage::Size::json(storage, &serde_json::to_value(&properties)?).await?;
+
+    DocumentProperties::new(properties, size).map_err(Into::into)
+}
+
 impl UnvalidatedIngestedDocument {
-    fn validate(self) -> Result<IngestedDocument, DocumentIdAsObject> {
-        let validate = || -> anyhow::Result<_> {
-            let id = self.id.as_str().try_into()?;
-            let snippet = if self.summarize {
-                summarize(
-                    &Summarizer::Naive,
-                    &Source::PlainText { text: self.snippet },
-                    &Config::default(),
-                )
-            } else {
-                self.snippet
-            }
+    async fn validate(self, storage: &impl storage::Size) -> Result<IngestedDocument, Error> {
+        let id = self.id.as_str().try_into()?;
+        let snippet = if self.summarize {
+            summarize(
+                &Summarizer::Naive,
+                &Source::PlainText { text: self.snippet },
+                &Config::default(),
+            )
+        } else {
+            self.snippet
+        }
+        .try_into()?;
+        let properties = validate_document_properties(self.properties, storage).await?;
+        let tags = self
+            .tags
+            .into_iter()
+            .map(TryInto::try_into)
+            .try_collect::<_, Vec<_>, _>()?
             .try_into()?;
-            let properties = self
-                .properties
-                .into_iter()
-                .map(|(id, property)| id.try_into().map(|id| (id, property)))
-                .try_collect::<_, DocumentProperties, _>()?;
-            if let Some(publication_date) = properties.get("publication_date") {
-                if let Some(publication_date) = publication_date.as_str() {
-                    DateTime::parse_from_rfc3339(publication_date)?;
-                } else {
-                    bail!("publication date must be a rfc3339 compatible date-time string");
-                }
+
+        let is_candidate_op = match (self.is_candidate, self.default_is_candidate) {
+            (Some(value), None) => IsCandidateOp::SetTo(value),
+            (None, Some(value)) => IsCandidateOp::DefaultTo(value),
+            (None, None) => IsCandidateOp::SetTo(true),
+            (Some(_), Some(_)) => {
+                return Err(anyhow!(
+                    "You can only use either of is_candidate or default_is_candidate"
+                )
+                .into());
             }
-            let tags = self
-                .tags
-                .into_iter()
-                .map(TryInto::try_into)
-                .try_collect::<_, Vec<_>, _>()?
-                .try_into()?;
-
-            let is_candidate_op = match (self.is_candidate, self.default_is_candidate) {
-                (Some(_), Some(_)) => {
-                    bail!("You can only use either of is_candidate or default_is_candidate");
-                }
-                (Some(value), None) => IsCandidateOp::SetTo(value),
-                (None, Some(value)) => IsCandidateOp::DefaultTo(value),
-                (None, None) => IsCandidateOp::SetTo(true),
-            };
-
-            Ok(IngestedDocument {
-                id,
-                snippet,
-                properties,
-                tags,
-                is_candidate_op,
-            })
         };
 
-        validate().map_err(|error| {
-            info!("Invalid document '{}': {:#?}", self.id, error);
-            self.id.into()
+        Ok(IngestedDocument {
+            id,
+            snippet,
+            properties,
+            tags,
+            is_candidate_op,
         })
     }
 }
@@ -241,11 +246,18 @@ async fn upsert_documents(
         .into());
     }
 
-    let (mut documents, invalid_documents) = body
-        .documents
-        .into_iter()
-        .map(UnvalidatedIngestedDocument::validate)
-        .partition_result::<Vec<_>, Vec<_>, _, _>();
+    let mut documents = Vec::with_capacity(body.documents.len());
+    let mut invalid_documents = Vec::new();
+    for document in body.documents {
+        let id = document.id.clone();
+        match UnvalidatedIngestedDocument::validate(document, &storage).await {
+            Ok(document) => documents.push(document),
+            Err(error) => {
+                info!("Invalid document '{id}': {error:#?}");
+                invalid_documents.push(id.into());
+            }
+        }
+    }
 
     let ids = documents.iter().enumerate().fold(
         HashMap::with_capacity(documents.len()),
@@ -488,7 +500,7 @@ pub(crate) async fn get_document_properties(
 
 #[derive(Debug, Deserialize)]
 struct DocumentPropertiesRequest {
-    properties: HashMap<String, DocumentProperty>,
+    properties: HashMap<String, Value>,
 }
 
 #[instrument(skip(properties, storage))]
@@ -498,11 +510,7 @@ async fn put_document_properties(
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
-    let properties = properties
-        .properties
-        .into_iter()
-        .map(|(id, property)| id.try_into().map(|id| (id, property)))
-        .try_collect()?;
+    let properties = validate_document_properties(properties.properties, &storage).await?;
     storage::DocumentProperties::put(&storage, &document_id, &properties)
         .await?
         .ok_or(DocumentNotFound)?;
@@ -546,7 +554,7 @@ async fn get_document_property(
 
 #[derive(Debug, Deserialize)]
 struct DocumentPropertyRequest {
-    property: DocumentProperty,
+    property: Value,
 }
 
 #[instrument(skip(storage))]
@@ -557,8 +565,18 @@ async fn put_document_property(
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
-    let property_id = property_id.try_into()?;
-    storage::DocumentProperty::put(&storage, &document_id, &property_id, &body.property)
+    let property_id = DocumentPropertyId::try_from(property_id)?;
+    let property = DocumentProperty::try_from(body.property)?;
+
+    let properties = storage::DocumentProperties::get(&storage, &document_id)
+        .await?
+        .ok_or(DocumentNotFound)?
+        .into_iter()
+        .chain([(property_id.clone(), property.clone())])
+        .map(|(property_id, property)| (property_id.into(), property.into()));
+    validate_document_properties(properties, &storage).await?;
+
+    storage::DocumentProperty::put(&storage, &document_id, &property_id, &property)
         .await?
         .ok_or(DocumentNotFound)?;
 
