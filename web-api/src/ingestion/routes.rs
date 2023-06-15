@@ -48,7 +48,7 @@ use crate::{
         DocumentProperties,
         DocumentProperty,
         DocumentSnippet,
-        DocumentTag,
+        DocumentTags,
     },
     storage,
     Error,
@@ -111,7 +111,7 @@ struct IngestedDocument {
     id: DocumentId,
     snippet: DocumentSnippet,
     properties: DocumentProperties,
-    tags: Vec<DocumentTag>,
+    tags: DocumentTags,
     is_candidate_op: IsCandidateOp,
 }
 
@@ -184,7 +184,12 @@ impl UnvalidatedIngestedDocument {
                     bail!("publication date must be a rfc3339 compatible date-time string");
                 }
             }
-            let tags = self.tags.into_iter().map(TryInto::try_into).try_collect()?;
+            let tags = self
+                .tags
+                .into_iter()
+                .map(TryInto::try_into)
+                .try_collect::<_, Vec<_>, _>()?
+                .try_into()?;
 
             let is_candidate_op = match (self.is_candidate, self.default_is_candidate) {
                 (Some(_), Some(_)) => {

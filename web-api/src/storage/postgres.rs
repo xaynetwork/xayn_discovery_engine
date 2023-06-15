@@ -47,6 +47,7 @@ use crate::{
         DocumentProperty,
         DocumentPropertyId,
         DocumentTag,
+        DocumentTags,
         ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
@@ -66,7 +67,7 @@ struct QueriedDeletedDocument {
 #[derive(FromRow)]
 struct QueriedInteractedDocument {
     document_id: DocumentId,
-    tags: Vec<DocumentTag>,
+    tags: DocumentTags,
     embedding: NormalizedEmbedding,
 }
 
@@ -74,7 +75,7 @@ struct QueriedInteractedDocument {
 struct QueriedPersonalizedDocument {
     document_id: DocumentId,
     properties: Json<DocumentProperties>,
-    tags: Vec<DocumentTag>,
+    tags: DocumentTags,
     embedding: NormalizedEmbedding,
 }
 
@@ -1188,7 +1189,7 @@ impl storage::Tag for Storage {
     async fn put(
         &self,
         document_id: &DocumentId,
-        tags: &[DocumentTag],
+        tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.begin().await?;
 

@@ -75,6 +75,14 @@ pub(crate) struct InvalidDocumentTag {
 
 impl_application_error!(InvalidDocumentTag => BAD_REQUEST, INFO);
 
+/// Malsized document tags.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentTags {
+    pub(crate) size: usize,
+}
+
+impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
+
 /// Malformed document snippet.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentSnippet {
