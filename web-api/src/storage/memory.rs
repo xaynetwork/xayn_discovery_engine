@@ -737,7 +737,6 @@ mod tests {
                 count: 2,
                 num_candidates: 2,
                 published_after: None,
-                min_similarity: None,
                 strategy: SearchStrategy::Knn,
             },
         )
@@ -756,7 +755,6 @@ mod tests {
                 count: 3,
                 num_candidates: 3,
                 published_after: None,
-                min_similarity: None,
                 strategy: SearchStrategy::Knn,
             },
         )

@@ -380,16 +380,7 @@ impl KnnSearchParams<'_> {
     fn create_common_knn_search_parts(&self) -> KnnSearchParts {
         let inner_filter = self.create_search_filter();
         let knn_object = self.create_knn_request_object(&inner_filter);
-
-        let mut generic_parameters = json_object!({
-            "size": self.count
-        });
-
-        if let Some(min_score) = self.min_similarity {
-            generic_parameters.extend(json_object!({
-                "min_score": min_score,
-            }));
-        }
+        let generic_parameters = json_object!({ "size": self.count });
 
         KnnSearchParts {
             knn_object,

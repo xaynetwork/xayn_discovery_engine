@@ -326,7 +326,6 @@ impl UnvalidatedInputUser {
 struct UnvalidatedSemanticSearchQuery {
     document: UnvalidatedInputDocument,
     count: Option<usize>,
-    min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
     #[serde(default)]
@@ -396,7 +395,6 @@ impl UnvalidatedSemanticSearchQuery {
         let Self {
             document,
             count,
-            min_similarity,
             published_after,
             personalize,
             enable_hybrid_search,
@@ -412,7 +410,6 @@ impl UnvalidatedSemanticSearchQuery {
                 semantic_search_config.max_number_documents,
                 semantic_search_config.default_number_documents,
             )?,
-            min_similarity: min_similarity.map(|value| value.clamp(0., 1.)),
             personalize: personalize
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
@@ -471,7 +468,6 @@ impl UnvalidatedPersonalize {
 struct SemanticSearchQuery {
     document: InputDocument,
     count: usize,
-    min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
@@ -517,7 +513,6 @@ async fn semantic_search(
     let SemanticSearchQuery {
         document,
         count,
-        min_similarity,
         personalize,
         published_after,
         enable_hybrid_search,
@@ -557,7 +552,6 @@ async fn semantic_search(
             count,
             num_candidates: count,
             published_after,
-            min_similarity,
             strategy,
         },
     )
