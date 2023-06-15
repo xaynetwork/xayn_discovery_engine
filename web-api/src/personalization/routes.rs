@@ -329,7 +329,6 @@ struct UnvalidatedSemanticSearchQuery {
     personalize: Option<UnvalidatedPersonalize>,
     #[serde(default)]
     enable_hybrid_search: bool,
-    // TODO[pmk/now] to we keep enable_hybrid_search
     #[serde(default, rename = "_dev")]
     dev: Option<DevOptions>,
 }
