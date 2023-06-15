@@ -180,13 +180,6 @@ components:
           $ref: '#/components/schemas/Count'
         published_after:
           $ref: './schemas/time.yml#/PublishedAfter'
-        min_similarity:
-          description: Minimal similarity of a document to consider it as search candidate.
-          type: number
-          format: float
-          minimum: 0
-          maximum: 1
-          default: 0
         personalize:
           description: Personalize the ranking of candidates based on a users preferences.
           type: object

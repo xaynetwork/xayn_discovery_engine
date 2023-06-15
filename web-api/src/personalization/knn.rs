@@ -81,7 +81,6 @@ where
                         count,
                         num_candidates,
                         published_after: self.published_after,
-                        min_similarity: None,
                         strategy: SearchStrategy::Knn,
                     },
                 )

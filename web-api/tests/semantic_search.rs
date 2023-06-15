@@ -117,60 +117,6 @@ fn test_semantic_search() {
 }
 
 #[test]
-fn test_semantic_search_min_similarity() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(
-                &client,
-                &ingestion_url,
-                &[
-                    IngestedDocument {
-                        id: "d1".into(),
-                        snippet: "Computers are made of technology.".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d2".into(),
-                        snippet: "Mountains smaller than a river.".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d3".into(),
-                        snippet: "Computer technology is made".into(),
-                        properties: None,
-                    },
-                ],
-            )
-            .await?;
-
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "id": "d1" },
-                        "min_similarity": 0.6
-                    }))
-                    .build()?,
-                StatusCode::OK,
-            )
-            .await;
-
-            if let [first] = &documents[..] {
-                assert_eq!(first.id, "d3");
-                assert!((0.6..=1.0).contains(&first.score));
-            } else {
-                panic!("Unexpected number of documents: {documents:?}");
-            }
-
-            Ok(())
-        },
-    );
-}
-
-#[test]
 fn test_semantic_search_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
