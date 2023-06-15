@@ -55,6 +55,18 @@ use crate::{
     Error,
 };
 
+// https://datatracker.ietf.org/doc/html/draft-dalal-deprecation-header-00
+macro_rules! deprecate {
+    ($fn:ident($($args:tt)*)) => {
+        |$($args)*| async {
+            $fn($($args)*).await.customize().append_header((
+                ::actix_web::http::header::HeaderName::from_static("deprecation"),
+                ::actix_web::http::header::HeaderValue::from_static("version=\"current\""),
+            ))
+        }
+    };
+}
+
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     config
         .service(
@@ -83,13 +95,13 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
         // all routes below are deprecated and undocumented and will be removed in the future
         .service(
             web::resource("/candidates")
-                .route(web::get().to(get_document_candidates))
-                .route(web::put().to(set_document_candidates)),
+                .route(web::get().to(deprecate!(get_document_candidates(state))))
+                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
         )
         .service(
             web::resource("/documents/candidates")
-                .route(web::get().to(get_document_candidates))
-                .route(web::put().to(set_document_candidates)),
+                .route(web::get().to(deprecate!(get_document_candidates(state))))
+                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
         );
 }
 
