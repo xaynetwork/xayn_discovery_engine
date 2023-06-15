@@ -283,6 +283,7 @@ impl Client {
             return Ok(HashMap::new());
         }
         body.insert("_source".into(), json!(false));
+        body.insert("track_total_hits".into(), json!(false));
         self.query_with_json::<_, SearchResponse<I, NoSource>>(
             self.create_url(["_search"], None),
             Some(body),
