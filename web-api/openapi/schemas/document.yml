@@ -21,7 +21,7 @@ DocumentProperties:
 
 DocumentPropertyId:
   description: Id of a property of a document.
-  $ref: './id.yml#/Id'
+  $ref: './id.yml#/IdNoDot'
   example: "title"
 
 DocumentTag:
