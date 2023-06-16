@@ -12,7 +12,7 @@
                 "similarity": "dot_product"
             },
             "properties": {
-                "dynamic": "runtime",
+                "dynamic": false,
                 "properties": {
                     "publication_date": {
                         "type": "date"
