@@ -11,6 +11,9 @@
                 "index": true,
                 "similarity": "dot_product"
             },
+            "tags": {
+                "type": "keyword"
+            },
             "properties": {
                 "dynamic": false,
                 "properties": {
