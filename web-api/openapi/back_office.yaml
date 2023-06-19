@@ -14,7 +14,7 @@ info:
 
     ## Document
     By document, we refer to a cohesive text, for example a complete news article.
-    However, we only require a simple representation for our system to work. Consisting just of a unique id, a text snippet and optional properties.
+    However, we only require a simple representation for our system to work. Consisting just of a unique id, a text snippet, optional properties and optional tags.
     The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one paragraph.
 
     ### Id
@@ -44,14 +44,14 @@ paths:
     post:
       tags:
         - back office
-      summary: Add documents to the system
+      summary: Add documents to the system.
       description: |
         Add documents to the system.
 
         The system will create a representation of the document that will be used to match it against the preferences of a user.
 
-        **Important note:** Currently we allow up to a maximum of 100 documents per batch size. If you need to add more, then
-        please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
+        **Important note:** If you need to add more documents than the maximum batch size, then
+        please split up the total amount of documents in separate calls.
 
         **Important note:** If a document id appears multiple times, only the last document with that id is retained.
 
@@ -69,7 +69,7 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
         '500':
-          description: all or some of the documents were not successfully uploaded
+          description: All or some of the documents were not successfully uploaded
           content:
             application/json:
               schema:
@@ -78,8 +78,7 @@ paths:
       tags:
         - back office
       summary: Delete all listed documents.
-      description: |-
-        Delete all documents listed in the request body.
+      description: Delete all documents listed in the request body.
       operationId: deleteDocuments
       requestBody:
         required: true

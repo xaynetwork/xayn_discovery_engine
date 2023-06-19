@@ -23,7 +23,6 @@ info:
     In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
     For example, it could contain an image url, a full article url, the publication date, the author or much more.
     The properties that were added when the document was submitted to us, are just mirrored here.
-    \
 tags:
   - name: front office
     description: Handles interactions between users and documents and allows to fetch personalized documents per user.
