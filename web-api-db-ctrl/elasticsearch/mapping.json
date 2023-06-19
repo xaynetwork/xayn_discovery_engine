@@ -1,5 +1,6 @@
 {
     "mappings": {
+        "dynamic": "strict",
         "properties": {
             "snippet": {
                 "type": "text"
@@ -9,6 +10,9 @@
                 "dims": 384,
                 "index": true,
                 "similarity": "dot_product"
+            },
+            "tags": {
+                "type": "keyword"
             },
             "properties": {
                 "dynamic": false,
