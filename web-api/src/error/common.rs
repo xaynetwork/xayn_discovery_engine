@@ -108,6 +108,16 @@ pub(crate) struct InvalidDocumentSnippet {
 
 impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
 
+/// Malsized document count.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentCount {
+    pub(crate) count: usize,
+    pub(crate) min: usize,
+    pub(crate) max: usize,
+}
+
+impl_application_error!(InvalidDocumentCount => BAD_REQUEST, INFO);
+
 /// Failed to delete some documents.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct FailedToDeleteSomeDocuments {

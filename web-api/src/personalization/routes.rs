@@ -44,7 +44,7 @@ use super::{
 use crate::{
     app::TenantState,
     error::{
-        common::{BadRequest, DocumentNotFound},
+        common::{BadRequest, DocumentNotFound, InvalidDocumentCount},
         warning::Warning,
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
@@ -143,7 +143,7 @@ impl PersonalizedDocumentsQuery {
         &self,
         config: &PersonalizationConfig,
     ) -> Result<PersonalizeBy<'_>, Error> {
-        let count = validate_return_count(
+        let count = validate_count(
             self.count,
             config.max_number_documents,
             config.default_number_documents,
@@ -405,7 +405,7 @@ impl UnvalidatedSemanticSearchQuery {
         Ok(SemanticSearchQuery {
             document: document.validate()?,
             published_after,
-            count: validate_return_count(
+            count: validate_count(
                 count,
                 semantic_search_config.max_number_documents,
                 semantic_search_config.default_number_documents,
@@ -484,17 +484,17 @@ struct Personalize {
     user: InputUser,
 }
 
-fn validate_return_count(
-    input: Option<usize>,
-    max_value: usize,
-    default_value: usize,
-) -> Result<usize, Error> {
-    let count = input.map_or(default_value, |count| count.min(max_value));
+fn validate_count(
+    count: Option<usize>,
+    max: usize,
+    default: usize,
+) -> Result<usize, InvalidDocumentCount> {
+    let count = count.unwrap_or(default);
 
-    if count > 0 {
+    if (1..=max).contains(&count) {
         Ok(count)
     } else {
-        Err(BadRequest::from("count has to be at least 1").into())
+        Err(InvalidDocumentCount { count, min: 1, max })
     }
 }
 
