@@ -1,4 +1,4 @@
-# 2.0.0
+# 2.0.0 - 2023-06-19
 
 - trim whitespace around ids, snippets, tags and string properties
 - disallow underscore prefixes in all ids and dots in property ids
