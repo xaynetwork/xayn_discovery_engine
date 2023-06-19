@@ -79,6 +79,10 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::get().to(get_document_candidates))
                 .route(web::put().to(set_document_candidates)),
         )
+        .service(
+            web::resource("/documents/_indexed_properties")
+                .route(web::post().to(create_indexed_properties)),
+        )
         .service(web::resource("/documents/{document_id}").route(web::delete().to(delete_document)))
         .service(
             web::resource("/documents/{document_id}/properties")
@@ -614,6 +618,45 @@ async fn delete_document_property(
         .ok_or(DocumentNotFound)?
         .ok_or(DocumentPropertyNotFound)?;
 
+    Ok(HttpResponse::NoContent())
+}
+
+type CreateIndexedPropertiesRequest = HashMap<DocumentPropertyId, CreateIndexedProperty>;
+//FIXME import
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum IndexedPropertyType {
+    String,
+    Date,
+    #[serde(alias = "string[]")]
+    StringArray,
+}
+
+#[derive(Debug, Deserialize)]
+struct CreateIndexedProperty {
+    #[allow(dead_code)]
+    r#type: IndexedPropertyType,
+}
+
+#[instrument(skip(_storage))]
+async fn create_indexed_properties(
+    Json(create_properties): Json<CreateIndexedPropertiesRequest>,
+    TenantState(_storage): TenantState,
+) -> Result<impl Responder, Error> {
+    // TODO from each entry create schema_update = IndexedPropertySchema::new(name, r#type)
+    // TODO fold all schemas into one update
+    // let current_schema = storage.load_indexed_properties_schema().await?;
+    // TODO check compatibility with current schema
+    // TODO store schema update => update ES mapping & call _update_by_query
+    todo!();
+    Ok(HttpResponse::NoContent())
+}
+
+#[instrument(skip(_storage))]
+async fn get_indexed_properties_schema(
+    TenantState(_storage): TenantState,
+) -> Result<impl Responder, Error> {
+    todo!(/* IndexedProperties::load_schema(&_storage).map_err(Error::from) */);
     Ok(HttpResponse::NoContent())
 }
 
