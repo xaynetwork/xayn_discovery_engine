@@ -128,7 +128,9 @@ pub fn bench_rerank<S>(
             tags: tags
                 .into_iter()
                 .map(|tag| tag.try_into().unwrap())
-                .collect_vec(),
+                .collect_vec()
+                .try_into()
+                .unwrap(),
         })
         .collect_vec();
     let tag_weights = tag_weights
@@ -172,7 +174,9 @@ mod tests {
                         "general".try_into().unwrap(),
                         "specific".try_into().unwrap(),
                     ]
-                };
+                }
+                .try_into()
+                .unwrap();
 
                 PersonalizedDocument {
                     id,

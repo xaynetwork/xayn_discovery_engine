@@ -24,6 +24,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Coi;
 use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
@@ -36,6 +37,7 @@ use crate::{
         DocumentId,
         DocumentPropertyId,
         DocumentTag,
+        DocumentTags,
         ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
@@ -54,8 +56,8 @@ pub(crate) struct KnnSearchParams<'a> {
     // must be >= count
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
-    pub(crate) min_similarity: Option<f32>,
     pub(super) strategy: SearchStrategy,
+    pub(super) include_properties: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -132,6 +134,7 @@ pub(crate) trait Document {
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn get_excerpted(
@@ -251,11 +254,14 @@ pub(crate) trait Tag {
     async fn get(&self, user_id: &UserId) -> Result<TagWeights, Error>;
 
     /// Sets the document tags if the document exists.
-    async fn put(
-        &self,
-        document_id: &DocumentId,
-        tags: &[DocumentTag],
-    ) -> Result<Option<()>, Error>;
+    async fn put(&self, document_id: &DocumentId, tags: &DocumentTags)
+        -> Result<Option<()>, Error>;
+}
+
+#[async_trait(?Send)]
+pub(crate) trait Size {
+    /// Gets the size in bytes of the json value.
+    async fn json(&self, value: &Value) -> Result<usize, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

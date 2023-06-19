@@ -53,7 +53,7 @@ impl DocumentCandidatesResponse {
 }
 
 async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, Error> {
-    let request = client.get(url.join("/documents/candidates")?).build()?;
+    let request = client.get(url.join("/documents/_candidates")?).build()?;
     let response = send_assert_json(client, request, StatusCode::OK).await;
 
     Ok(response)
@@ -61,7 +61,7 @@ async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, E
 
 async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) -> Result<(), Error> {
     let request = client
-        .put(url.join("/documents/candidates")?)
+        .put(url.join("/documents/_candidates")?)
         .json(&json!({ "documents": ids.into_iter().map(|id| json!({ "id": id })).collect_vec() }))
         .build()?;
     send_assert(client, request, StatusCode::NO_CONTENT).await;
@@ -159,7 +159,7 @@ fn test_candidates_warning() {
         let error = send_assert_json::<ServerError>(
             &client,
             client
-                .put(url.join("/documents/candidates")?)
+                .put(url.join("/documents/_candidates")?)
                 .json(&json!({
                     "documents": [
                         { "id": "d1" },

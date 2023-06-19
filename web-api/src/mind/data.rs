@@ -23,7 +23,7 @@ use rand::{rngs::StdRng, seq::IteratorRandom, SeedableRng};
 use serde::{de, Deserialize, Deserializer};
 use xayn_test_utils::error::Panic;
 
-use crate::models::{DocumentId, DocumentTag, UserId};
+use crate::models::{DocumentId, DocumentSnippet, DocumentTag, UserId};
 
 pub(super) fn deserialize_clicked_documents<'de, D>(
     deserializer: D,
@@ -35,7 +35,7 @@ where
         .as_ref()
         .map(|m| {
             m.split(' ')
-                .map(|document| DocumentId::new(document).map_err(de::Error::custom))
+                .map(|document| document.try_into().map_err(de::Error::custom))
                 .try_collect::<_, Vec<_>, _>()
         })
         .transpose()
@@ -60,7 +60,7 @@ where
                 .split_once('-')
                 .ok_or_else(|| de::Error::custom("missing document id"))
                 .and_then(|(document_id, was_clicked)| {
-                    let document_id = DocumentId::new(document_id).map_err(de::Error::custom)?;
+                    let document_id = document_id.try_into().map_err(de::Error::custom)?;
                     let was_clicked = match was_clicked {
                         "0" => Ok(false),
                         "1" => Ok(true),
@@ -95,7 +95,7 @@ pub(super) struct Document {
     pub(super) subcategory: DocumentTag,
     #[allow(dead_code)]
     title: String,
-    pub(super) snippet: String,
+    pub(super) snippet: DocumentSnippet,
     #[allow(dead_code)]
     url: String,
 }
@@ -105,7 +105,7 @@ impl Document {
     pub(super) fn is_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
-            self.category.as_ref() == main_category || self.subcategory.as_ref() == sub_category
+            *self.category == main_category || *self.subcategory == sub_category
         })
     }
 
@@ -113,7 +113,7 @@ impl Document {
     pub(super) fn is_semi_interesting(&self, user_interests: &[String]) -> bool {
         user_interests.iter().any(|interest| {
             let (main_category, sub_category) = interest.split_once('/').unwrap();
-            self.category.as_ref() == main_category || self.subcategory.as_ref() != sub_category
+            *self.category == main_category || *self.subcategory != sub_category
         })
     }
 }

@@ -45,7 +45,9 @@ use crate::{
         DocumentProperties,
         DocumentProperty,
         DocumentPropertyId,
+        DocumentSnippet,
         DocumentTag,
+        DocumentTags,
         ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
@@ -57,9 +59,9 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
-    snippet: String,
+    snippet: DocumentSnippet,
     properties: DocumentProperties,
-    tags: Vec<DocumentTag>,
+    tags: DocumentTags,
     is_candidate: bool,
 }
 
@@ -256,6 +258,7 @@ impl storage::Document for Storage {
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let documents = self.documents.read().await;
         let documents = ids
@@ -270,7 +273,9 @@ impl storage::Document for Storage {
                             id: id.clone(),
                             score: 1.,
                             embedding: embedding.clone(),
-                            properties: document.properties.clone(),
+                            properties: include_properties
+                                .then(|| document.properties.clone())
+                                .unwrap_or_default(),
                             tags: document.tags.clone(),
                         })
                 })
@@ -657,10 +662,10 @@ impl storage::Tag for Storage {
     async fn put(
         &self,
         document_id: &DocumentId,
-        tags: &[DocumentTag],
+        tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
         if let Some(document) = self.documents.write().await.0.get_mut(document_id) {
-            document.tags = tags.to_vec();
+            document.tags = tags.clone();
             Ok(Some(()))
         } else {
             Ok(None)
@@ -702,7 +707,7 @@ mod tests {
     #[tokio::test]
     async fn test_knn_search() {
         let ids = (0..3)
-            .map(|id| DocumentId::new(id.to_string()).unwrap())
+            .map(|id| DocumentId::try_from(id.to_string()).unwrap())
             .collect_vec();
         let embeddings = [
             [1., 0., 0.].try_into().unwrap(),
@@ -714,9 +719,9 @@ mod tests {
             .zip(embeddings)
             .map(|(id, embedding)| IngestedDocument {
                 id: id.clone(),
-                snippet: String::new(),
+                snippet: "snippet".try_into().unwrap(),
                 properties: DocumentProperties::default(),
-                tags: Vec::new(),
+                tags: DocumentTags::default(),
                 embedding,
                 is_candidate: true,
             })
@@ -735,8 +740,8 @@ mod tests {
                 count: 2,
                 num_candidates: 2,
                 published_after: None,
-                min_similarity: None,
                 strategy: SearchStrategy::Knn,
+                include_properties: false,
             },
         )
         .await
@@ -754,8 +759,8 @@ mod tests {
                 count: 3,
                 num_candidates: 3,
                 published_after: None,
-                min_similarity: None,
                 strategy: SearchStrategy::Knn,
+                include_properties: false,
             },
         )
         .await
@@ -769,14 +774,15 @@ mod tests {
     #[tokio::test]
     async fn test_serde() {
         let storage = Storage::default();
-        let doc_id = DocumentId::new("42").unwrap();
-        let tags = vec![DocumentTag::try_from("tag").unwrap()];
+        let doc_id = DocumentId::try_from("42").unwrap();
+        let snippet = DocumentSnippet::try_from("snippet").unwrap();
+        let tags = DocumentTags::try_from(vec!["tag".try_into().unwrap()]).unwrap();
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
             vec![IngestedDocument {
                 id: doc_id.clone(),
-                snippet: "snippet".into(),
+                snippet: snippet.clone(),
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
                 embedding: embedding.clone(),
@@ -785,7 +791,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let user_id = UserId::new("abc").unwrap();
+        let user_id = UserId::try_from("abc").unwrap();
         storage::Interaction::update_interactions(
             &storage,
             &user_id,
@@ -812,8 +818,8 @@ mod tests {
             .unwrap();
         assert_eq!(documents.len(), 1);
         assert_eq!(documents[0].id, doc_id);
-        assert_eq!(documents[0].snippet, "snippet");
-        let documents = storage::Document::get_personalized(&storage, [&doc_id])
+        assert_eq!(documents[0].snippet, snippet);
+        let documents = storage::Document::get_personalized(&storage, [&doc_id], true)
             .await
             .unwrap();
         assert_eq!(documents.len(), 1);

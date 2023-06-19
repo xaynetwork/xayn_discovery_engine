@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
@@ -42,7 +44,7 @@ use super::{
 use crate::{
     app::TenantState,
     error::{
-        common::{BadRequest, DocumentNotFound},
+        common::{BadRequest, DocumentNotFound, InvalidDocumentCount},
         warning::Warning,
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
@@ -129,11 +131,17 @@ pub(crate) async fn update_interactions(
     Ok(())
 }
 
+const fn default_include_properties() -> bool {
+    true
+}
+
 /// Represents personalized documents query params.
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocumentsQuery {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
+    #[serde(default = "default_include_properties")]
+    include_properties: bool,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -141,7 +149,7 @@ impl PersonalizedDocumentsQuery {
         &self,
         config: &PersonalizationConfig,
     ) -> Result<PersonalizeBy<'_>, Error> {
-        let count = validate_return_count(
+        let count = validate_count(
             self.count,
             config.max_number_documents,
             config.default_number_documents,
@@ -168,6 +176,7 @@ async fn personalized_documents(
         &state.config.personalization,
         params.to_personalize_by_knn(state.config.as_ref())?,
         Utc::now(),
+        params.include_properties,
     )
     .await
     .map(|documents| {
@@ -188,7 +197,7 @@ async fn personalized_documents(
 struct PersonalizedDocumentData {
     id: DocumentId,
     score: f32,
-    #[serde(skip_serializing_if = "DocumentProperties::is_empty")]
+    #[serde(skip_serializing_if = "HashMap::is_empty")]
     properties: DocumentProperties,
 }
 
@@ -231,6 +240,7 @@ pub(crate) async fn personalize_documents_by(
     personalization: &PersonalizationConfig,
     by: PersonalizeBy<'_>,
     time: DateTime<Utc>,
+    include_properties: bool,
 ) -> Result<Option<Vec<PersonalizedDocument>>, Error> {
     storage::Interaction::user_seen(storage, user_id, time).await?;
 
@@ -259,12 +269,18 @@ pub(crate) async fn personalize_documents_by(
                 count,
                 published_after,
                 time,
+                include_properties,
             }
             .run_on(storage)
             .await?
         }
         PersonalizeBy::Documents(documents) => {
-            storage::Document::get_personalized(storage, documents.iter().copied()).await?
+            storage::Document::get_personalized(
+                storage,
+                documents.iter().copied(),
+                include_properties,
+            )
+            .await?
         }
     };
 
@@ -324,13 +340,14 @@ impl UnvalidatedInputUser {
 struct UnvalidatedSemanticSearchQuery {
     document: UnvalidatedInputDocument,
     count: Option<usize>,
-    min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
     #[serde(default)]
     enable_hybrid_search: bool,
     #[serde(default, rename = "_dev")]
     dev: Option<DevOptions>,
+    #[serde(default = "default_include_properties")]
+    include_properties: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -394,28 +411,28 @@ impl UnvalidatedSemanticSearchQuery {
         let Self {
             document,
             count,
-            min_similarity,
             published_after,
             personalize,
             enable_hybrid_search,
             dev,
+            include_properties,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
 
         Ok(SemanticSearchQuery {
             document: document.validate()?,
             published_after,
-            count: validate_return_count(
+            count: validate_count(
                 count,
                 semantic_search_config.max_number_documents,
                 semantic_search_config.default_number_documents,
             )?,
-            min_similarity: min_similarity.map(|value| value.clamp(0., 1.)),
             personalize: personalize
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
                 .transpose()?,
             enable_hybrid_search,
             dev,
+            include_properties,
         })
     }
 }
@@ -442,15 +459,15 @@ impl UnvalidatedInputDocument {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct UnvalidatedPersonalize {
-    #[serde(default = "true_fn")]
-    exclude_seen: bool,
-    user: UnvalidatedInputUser,
+const fn default_exclude_seen() -> bool {
+    true
 }
 
-fn true_fn() -> bool {
-    true
+#[derive(Debug, Deserialize)]
+struct UnvalidatedPersonalize {
+    #[serde(default = "default_exclude_seen")]
+    exclude_seen: bool,
+    user: UnvalidatedInputUser,
 }
 
 impl UnvalidatedPersonalize {
@@ -469,11 +486,11 @@ impl UnvalidatedPersonalize {
 struct SemanticSearchQuery {
     document: InputDocument,
     count: usize,
-    min_similarity: Option<f32>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
     dev: Option<DevOptions>,
+    include_properties: bool,
 }
 
 enum InputDocument {
@@ -486,17 +503,17 @@ struct Personalize {
     user: InputUser,
 }
 
-fn validate_return_count(
-    input: Option<usize>,
-    max_value: usize,
-    default_value: usize,
-) -> Result<usize, Error> {
-    let count = input.map_or(default_value, |count| count.min(max_value));
+fn validate_count(
+    count: Option<usize>,
+    max: usize,
+    default: usize,
+) -> Result<usize, InvalidDocumentCount> {
+    let count = count.unwrap_or(default);
 
-    if count > 0 {
+    if (1..=max).contains(&count) {
         Ok(count)
     } else {
-        Err(BadRequest::from("count has to be at least 1").into())
+        Err(InvalidDocumentCount { count, min: 1, max })
     }
 }
 
@@ -515,11 +532,11 @@ async fn semantic_search(
     let SemanticSearchQuery {
         document,
         count,
-        min_similarity,
         personalize,
         published_after,
         enable_hybrid_search,
         dev,
+        include_properties,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -555,8 +572,8 @@ async fn semantic_search(
             count,
             num_candidates: count,
             published_after,
-            min_similarity,
             strategy,
+            include_properties,
         },
     )
     .await?;
