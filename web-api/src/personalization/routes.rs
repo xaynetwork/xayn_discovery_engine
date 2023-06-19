@@ -131,11 +131,17 @@ pub(crate) async fn update_interactions(
     Ok(())
 }
 
+const fn default_true() -> bool {
+    true
+}
+
 /// Represents personalized documents query params.
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocumentsQuery {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
+    #[serde(default = "default_true")]
+    include_properties: bool,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -170,6 +176,7 @@ async fn personalized_documents(
         &state.config.personalization,
         params.to_personalize_by_knn(state.config.as_ref())?,
         Utc::now(),
+        params.include_properties,
     )
     .await
     .map(|documents| {
@@ -233,6 +240,7 @@ pub(crate) async fn personalize_documents_by(
     personalization: &PersonalizationConfig,
     by: PersonalizeBy<'_>,
     time: DateTime<Utc>,
+    include_properties: bool,
 ) -> Result<Option<Vec<PersonalizedDocument>>, Error> {
     storage::Interaction::user_seen(storage, user_id, time).await?;
 
@@ -261,12 +269,18 @@ pub(crate) async fn personalize_documents_by(
                 count,
                 published_after,
                 time,
+                include_properties,
             }
             .run_on(storage)
             .await?
         }
         PersonalizeBy::Documents(documents) => {
-            storage::Document::get_personalized(storage, documents.iter().copied()).await?
+            storage::Document::get_personalized(
+                storage,
+                documents.iter().copied(),
+                include_properties,
+            )
+            .await?
         }
     };
 
@@ -332,6 +346,8 @@ struct UnvalidatedSemanticSearchQuery {
     enable_hybrid_search: bool,
     #[serde(default, rename = "_dev")]
     dev: Option<DevOptions>,
+    #[serde(default = "default_true")]
+    include_properties: bool,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -399,6 +415,7 @@ impl UnvalidatedSemanticSearchQuery {
             personalize,
             enable_hybrid_search,
             dev,
+            include_properties,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
 
@@ -415,6 +432,7 @@ impl UnvalidatedSemanticSearchQuery {
                 .transpose()?,
             enable_hybrid_search,
             dev,
+            include_properties,
         })
     }
 }
@@ -443,13 +461,9 @@ impl UnvalidatedInputDocument {
 
 #[derive(Debug, Deserialize)]
 struct UnvalidatedPersonalize {
-    #[serde(default = "true_fn")]
+    #[serde(default = "default_true")]
     exclude_seen: bool,
     user: UnvalidatedInputUser,
-}
-
-fn true_fn() -> bool {
-    true
 }
 
 impl UnvalidatedPersonalize {
@@ -472,6 +486,7 @@ struct SemanticSearchQuery {
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
     dev: Option<DevOptions>,
+    include_properties: bool,
 }
 
 enum InputDocument {
@@ -517,6 +532,7 @@ async fn semantic_search(
         published_after,
         enable_hybrid_search,
         dev,
+        include_properties,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -553,6 +569,7 @@ async fn semantic_search(
             num_candidates: count,
             published_after,
             strategy,
+            include_properties,
         },
     )
     .await?;

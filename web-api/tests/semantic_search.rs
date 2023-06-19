@@ -151,7 +151,8 @@ fn test_semantic_search_with_query() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true
+                        "enable_hybrid_search": true,
+                        "include_properties": true
                     }))
                     .build()?,
                 StatusCode::OK,

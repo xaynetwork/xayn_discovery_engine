@@ -73,14 +73,6 @@ struct QueriedInteractedDocument {
 }
 
 #[derive(FromRow)]
-struct QueriedPersonalizedDocument {
-    document_id: DocumentId,
-    properties: Json<DocumentProperties>,
-    tags: DocumentTags,
-    embedding: NormalizedEmbedding,
-}
-
-#[derive(FromRow)]
 struct QueriedCoi {
     coi_id: CoiId,
     embedding: NormalizedEmbedding,
@@ -244,12 +236,16 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
         scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let mut builder = QueryBuilder::new(
-            "SELECT document_id, properties, tags, embedding
+        let mut builder = QueryBuilder::new(format!(
+            "SELECT document_id, embedding, tags {}
             FROM document
             WHERE document_id IN ",
-        );
+            include_properties
+                .then_some(", properties")
+                .unwrap_or_default(),
+        ));
         let ids = ids.into_iter();
         let mut documents = Vec::with_capacity(ids.len());
         let mut ids = ids.filter(|id| scores(id).is_some()).peekable();
@@ -260,15 +256,25 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row| {
-                        QueriedPersonalizedDocument::from_row(&row).map(|document| {
-                            let score = scores(&document.document_id).unwrap(/* filtered ids */);
-                            PersonalizedDocument {
-                                id: document.document_id,
-                                score,
-                                embedding: document.embedding,
-                                properties: document.properties.0,
-                                tags: document.tags,
-                            }
+                        let (id, embedding, tags, properties) = if include_properties {
+                            FromRow::from_row(&row).map(
+                                |(id, embedding, tags, Json(properties))| {
+                                    (id, embedding, tags, properties)
+                                },
+                            )
+                        } else {
+                            FromRow::from_row(&row).map(|(id, embedding, tags)| {
+                                (id, embedding, tags, DocumentProperties::default())
+                            })
+                        }?;
+                        let score = scores(&id).unwrap(/* filtered ids */);
+
+                        Ok(PersonalizedDocument {
+                            id,
+                            score,
+                            embedding,
+                            properties,
+                            tags,
                         })
                     })
                     .fetch_all(&mut *tx)
@@ -748,9 +754,11 @@ impl storage::Document for Storage {
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
-        let documents = Database::get_personalized(&mut tx, ids, |_| Some(1.0)).await?;
+        let documents =
+            Database::get_personalized(&mut tx, ids, |_| Some(1.0), include_properties).await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -780,10 +788,15 @@ impl storage::Document for Storage {
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
+        let include_properties = params.include_properties;
         let scores = self.elastic.get_by_embedding(params).await?;
-        let documents =
-            Database::get_personalized(&mut tx, scores.keys(), |id| scores.get(id).copied())
-                .await?;
+        let documents = Database::get_personalized(
+            &mut tx,
+            scores.keys(),
+            |id| scores.get(id).copied(),
+            include_properties,
+        )
+        .await?;
         tx.commit().await?;
 
         Ok(documents)

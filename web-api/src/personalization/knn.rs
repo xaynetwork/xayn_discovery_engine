@@ -36,6 +36,7 @@ pub(super) struct CoiSearch<'a, I> {
     pub(super) count: usize,
     pub(super) published_after: Option<DateTime<Utc>>,
     pub(super) time: DateTime<Utc>,
+    pub(super) include_properties: bool,
 }
 
 impl<'a, I> CoiSearch<'a, I>
@@ -82,6 +83,7 @@ where
                         num_candidates,
                         published_after: self.published_after,
                         strategy: SearchStrategy::Knn,
+                        include_properties: self.include_properties,
                     },
                 )
                 .await
@@ -146,6 +148,7 @@ mod tests {
             count: 10,
             published_after: None,
             time: Utc::now(),
+            include_properties: false,
         }
         .run_on(&storage)
         .await
