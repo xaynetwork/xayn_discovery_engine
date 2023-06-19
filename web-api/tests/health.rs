@@ -19,7 +19,7 @@ use xayn_integration_tests::{send_assert, test_app, UNCHANGED_CONFIG};
 use xayn_web_api::Ingestion;
 
 #[test]
-fn test_candidates_all() {
+fn test_health() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |_client, url, _| async move {
         // make sure not to use any presets from `test_app`, like e.g. the
         // X-Xayn-Tenant-Id header.

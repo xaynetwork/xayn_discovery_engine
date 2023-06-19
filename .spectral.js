@@ -1,6 +1,6 @@
 const ibmCloudValidationRules = require('@ibm-cloud/openapi-ruleset');
-const { enumCaseConvention, operationIdCaseConvention } = require('@ibm-cloud/openapi-ruleset/src/functions');
-const { schemas } = require('@ibm-cloud/openapi-ruleset/src/collections');
+const { enumCaseConvention, pathSegmentCaseConvention } = require('@ibm-cloud/openapi-ruleset/src/functions');
+const { paths, schemas } = require('@ibm-cloud/openapi-ruleset/src/collections');
 
 module.exports = {
   extends: ibmCloudValidationRules,
@@ -28,6 +28,23 @@ module.exports = {
         function: enumCaseConvention,
         functionOptions: {
           type: 'pascal',
+        },
+      },
+    },
+    'path-segment-case-convention': {
+      description: 'Path segments must be snake case',
+      message: '{{error}}',
+      resolved: true,
+      given: paths,
+      severity: 'error',
+      then: {
+        function: pathSegmentCaseConvention,
+        functionOptions: {
+          type: 'snake',
+          separator: {
+            char: '_',
+            allowLeading: true
+          }
         },
       },
     },

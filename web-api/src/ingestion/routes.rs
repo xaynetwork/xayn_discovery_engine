@@ -55,20 +55,27 @@ use crate::{
     Error,
 };
 
+// https://datatracker.ietf.org/doc/html/draft-dalal-deprecation-header-00
+macro_rules! deprecate {
+    ($fn:ident($($args:tt)*)) => {
+        |$($args)*| async {
+            $fn($($args)*).await.customize().append_header((
+                ::actix_web::http::header::HeaderName::from_static("deprecation"),
+                ::actix_web::http::header::HeaderValue::from_static("version=\"current\""),
+            ))
+        }
+    };
+}
+
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     config
-        .service(
-            web::resource("/candidates")
-                .route(web::get().to(get_document_candidates))
-                .route(web::put().to(set_document_candidates)),
-        )
         .service(
             web::resource("/documents")
                 .route(web::post().to(upsert_documents))
                 .route(web::delete().to(delete_documents)),
         )
         .service(
-            web::resource("/documents/candidates")
+            web::resource("/documents/_candidates")
                 .route(web::get().to(get_document_candidates))
                 .route(web::put().to(set_document_candidates)),
         )
@@ -84,6 +91,17 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::get().to(get_document_property))
                 .route(web::put().to(put_document_property))
                 .route(web::delete().to(delete_document_property)),
+        )
+        // all routes below are deprecated and undocumented and will be removed in the future
+        .service(
+            web::resource("/candidates")
+                .route(web::get().to(deprecate!(get_document_candidates(state))))
+                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
+        )
+        .service(
+            web::resource("/documents/candidates")
+                .route(web::get().to(deprecate!(get_document_candidates(state))))
+                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
         );
 }
 
