@@ -131,7 +131,7 @@ pub(crate) async fn update_interactions(
     Ok(())
 }
 
-const fn default_true() -> bool {
+const fn default_include_properties() -> bool {
     true
 }
 
@@ -140,7 +140,7 @@ const fn default_true() -> bool {
 struct PersonalizedDocumentsQuery {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_include_properties")]
     include_properties: bool,
 }
 
@@ -346,7 +346,7 @@ struct UnvalidatedSemanticSearchQuery {
     enable_hybrid_search: bool,
     #[serde(default, rename = "_dev")]
     dev: Option<DevOptions>,
-    #[serde(default = "default_true")]
+    #[serde(default = "default_include_properties")]
     include_properties: bool,
 }
 
@@ -459,9 +459,13 @@ impl UnvalidatedInputDocument {
     }
 }
 
+const fn default_exclude_seen() -> bool {
+    true
+}
+
 #[derive(Debug, Deserialize)]
 struct UnvalidatedPersonalize {
-    #[serde(default = "default_true")]
+    #[serde(default = "default_exclude_seen")]
     exclude_seen: bool,
     user: UnvalidatedInputUser,
 }
