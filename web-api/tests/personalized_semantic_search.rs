@@ -63,9 +63,6 @@ async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Erro
 struct PersonalizedDocumentData {
     id: String,
     score: f32,
-    #[allow(dead_code)]
-    #[serde(default)]
-    properties: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]

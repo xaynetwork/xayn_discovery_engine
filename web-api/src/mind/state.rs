@@ -91,12 +91,15 @@ impl State {
         &self,
         embeddings: Vec<(DocumentId, NormalizedEmbedding)>,
     ) -> Result<(), Panic> {
-        let mut documents =
-            storage::Document::get_personalized(&self.storage, embeddings.iter().map(|(id, _)| id))
-                .await?
-                .into_iter()
-                .map(|document| (document.id.clone(), document))
-                .collect::<HashMap<_, _>>();
+        let mut documents = storage::Document::get_personalized(
+            &self.storage,
+            embeddings.iter().map(|(id, _)| id),
+            true,
+        )
+        .await?
+        .into_iter()
+        .map(|document| (document.id.clone(), document))
+        .collect::<HashMap<_, _>>();
         let snippet = DocumentSnippet::try_from("snippet" /* unused for in-memory db */)?;
         let documents = embeddings
             .into_iter()
@@ -150,6 +153,7 @@ impl State {
             &self.personalization,
             by,
             time,
+            false,
         )
         .await
         .map(|documents| {

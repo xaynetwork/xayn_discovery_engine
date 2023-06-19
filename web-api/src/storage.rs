@@ -57,6 +57,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(super) strategy: SearchStrategy,
+    pub(super) include_properties: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -133,6 +134,7 @@ pub(crate) trait Document {
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn get_excerpted(

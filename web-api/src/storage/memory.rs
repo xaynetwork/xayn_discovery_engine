@@ -258,6 +258,7 @@ impl storage::Document for Storage {
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let documents = self.documents.read().await;
         let documents = ids
@@ -272,7 +273,9 @@ impl storage::Document for Storage {
                             id: id.clone(),
                             score: 1.,
                             embedding: embedding.clone(),
-                            properties: document.properties.clone(),
+                            properties: include_properties
+                                .then(|| document.properties.clone())
+                                .unwrap_or_default(),
                             tags: document.tags.clone(),
                         })
                 })
@@ -738,6 +741,7 @@ mod tests {
                 num_candidates: 2,
                 published_after: None,
                 strategy: SearchStrategy::Knn,
+                include_properties: false,
             },
         )
         .await
@@ -756,6 +760,7 @@ mod tests {
                 num_candidates: 3,
                 published_after: None,
                 strategy: SearchStrategy::Knn,
+                include_properties: false,
             },
         )
         .await
@@ -814,7 +819,7 @@ mod tests {
         assert_eq!(documents.len(), 1);
         assert_eq!(documents[0].id, doc_id);
         assert_eq!(documents[0].snippet, snippet);
-        let documents = storage::Document::get_personalized(&storage, [&doc_id])
+        let documents = storage::Document::get_personalized(&storage, [&doc_id], true)
             .await
             .unwrap();
         assert_eq!(documents.len(), 1);

@@ -39,8 +39,8 @@ paths:
       summary: Gets personalized documents for the user.
       description: |-
         Returns a list of documents personalized for the given `user_id`.
-        Each document contains the id, the score and the properties that are attached to the document.
-        The score is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+        Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+        The documents also contain their properties if this is requested and the properties are not empty.
         Documents that have been interacted with by the user are filtered out from the result.
         Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
       operationId: getPersonalizedDocuments
@@ -49,10 +49,10 @@ paths:
         - name: count
           in: query
           description:
-            $ref: "#/components/schemas/Count/description"
+            $ref: '#/components/schemas/Count/description'
           required: false
           schema:
-            $ref: "#/components/schemas/Count"
+            $ref: '#/components/schemas/Count'
         - name: published_after
           in: query
           description:
@@ -60,6 +60,13 @@ paths:
           required: false
           schema:
             $ref: './schemas/time.yml#/PublishedAfter'
+        - name: include_properties
+          in: query
+          description:
+            $ref: '#/components/schemas/IncludeProperties/description'
+          required: false
+          schema:
+            $ref: '#/components/schemas/IncludeProperties'
       responses:
         '200':
           description: successful operation
@@ -111,8 +118,8 @@ paths:
       summary: Returns documents similar to the given document.
       description: |-
         Returns a list of documents that are semantically similar to the one given as input.
-        Each document contains the id, the score and the properties.
-        The score is a value between 0 and 1 where a higher value means that the document is more similar to the one in input
+        Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document is more similar to the one in input.
+        The documents also contain their properties if this is requested and the properties are not empty.
       operationId: getSimilarDocuments
       requestBody:
         required: true
@@ -142,6 +149,10 @@ components:
       minimum: 1
       maximum: 100
       default: 10
+    IncludeProperties:
+      description: Include the properties of each document in the response
+      type: boolean
+      default: true
     PersonalizedDocumentData:
       type: object
       required: [id, score]
@@ -180,6 +191,8 @@ components:
           $ref: '#/components/schemas/Count'
         published_after:
           $ref: './schemas/time.yml#/PublishedAfter'
+        include_properties:
+          $ref: '#/components/schemas/IncludeProperties'
         personalize:
           description: Personalize the ranking of candidates based on a users preferences.
           type: object
