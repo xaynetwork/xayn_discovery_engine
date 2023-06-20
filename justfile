@@ -226,6 +226,7 @@ install-openapi-validator:
     npm install -g \
       @stoplight/spectral-cli@${SPECTRAL_CLI_VERSION} \
       @ibm-cloud/openapi-ruleset@${IBM_OPENAPI_RULESET_VERSION} \
+      @ibm-cloud/openapi-ruleset-utilities@${IBM_OPENAPI_RULESET_UTILITIES_VERSION} \
       validator@${VALIDATOR_VERSION}
 
 validate-openapi:

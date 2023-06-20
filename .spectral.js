@@ -1,44 +1,44 @@
 const ibmCloudValidationRules = require('@ibm-cloud/openapi-ruleset');
-const { enumCaseConvention, pathSegmentCaseConvention } = require('@ibm-cloud/openapi-ruleset/src/functions');
-const { paths, schemas } = require('@ibm-cloud/openapi-ruleset/src/collections');
+const { enumCasingConvention, pathSegmentCasingConvention } = require('@ibm-cloud/openapi-ruleset/src/functions');
+const { operations, paths, schemas } = require('@ibm-cloud/openapi-ruleset-utilities/src/collections');
 
 module.exports = {
   extends: ibmCloudValidationRules,
   rules: {
-    'enum-case-convention': {
-      description: 'enum names must follow pascal case',
+    'ibm-enum-casing-convention': {
+      description: 'Enum names must be pascal case',
       message: '{{error}}',
       resolved: true,
       given: schemas,
       severity: 'error',
       then: {
-        function: enumCaseConvention,
+        function: enumCasingConvention,
         functionOptions: {
           type: 'pascal',
         },
       },
     },
-    'operation-id-case-convention': {
+    'ibm-operationid-casing-convention': {
       description: 'Operation ids must be pascal case',
       message: '{{error}}',
       resolved: true,
-      given: schemas,
+      given: operations,
       severity: 'error',
       then: {
-        function: enumCaseConvention,
+        function: enumCasingConvention,
         functionOptions: {
           type: 'pascal',
         },
       },
     },
-    'path-segment-case-convention': {
+    'ibm-path-segment-casing-convention': {
       description: 'Path segments must be snake case',
       message: '{{error}}',
       resolved: true,
       given: paths,
       severity: 'error',
       then: {
-        function: pathSegmentCaseConvention,
+        function: pathSegmentCasingConvention,
         functionOptions: {
           type: 'snake',
           separator: {
@@ -48,17 +48,17 @@ module.exports = {
         },
       },
     },
-    'major-version-in-path': 'off',
-    'schema-description': 'off',
-    'inline-property-schema': 'off',
-    'property-description': 'off',
+    'ibm-major-version-in-path': 'off',
+    'ibm-schema-description': 'off',
+    'ibm-avoid-inline-schemas': 'off',
+    'ibm-property-description': 'off',
     'oas3-api-servers': 'off',
-    'delete-body': 'off',
-    'prohibit-summary-sentence-style': 'off',
-    'collection-array-property': 'off',
+    'ibm-no-body-for-delete': 'off',
+    'ibm-summary-sentence-style': 'off',
+    'ibm-collection-array-property': 'off',
     // the rule set wants to enforce a specific error schema
-    'response-error-response-schema': 'off',
-    'patch-request-content-type': 'off',
+    'ibm-error-response-schemas': 'off',
+    'ibm-patch-request-content-type': 'off',
   },
   overrides: [
     {
@@ -67,7 +67,7 @@ module.exports = {
         "web-api/openapi/back_office.yaml#/components/schemas/DocumentCandidatesResponse",
       ],
       rules: {
-        "array-boundary": "off",
+        "ibm-array-attributes": "off",
       },
     },
   ],
