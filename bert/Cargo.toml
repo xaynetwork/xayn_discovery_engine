@@ -8,22 +8,24 @@ license = { workspace = true }
 [dependencies]
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
-figment = { workspace = true, features = ["toml"] }
+figment = { workspace = true }
 itertools = { workspace = true }
-lindera = "0.23.0"
+lindera-core = "0.25.0"
+lindera-dictionary = "0.25.0"
+lindera-tokenizer = "0.25.0"
 ndarray = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true, optional = true }
 thiserror = { workspace = true }
-tokenizers = { version = "0.13.2", default-features = false, features = ["onig"] }
-tract-onnx = "0.19.7"
+tokenizers = { version = "0.13.3", default-features = false }
+tract-onnx = "0.20.7"
 xayn-test-utils = { path = "../test-utils" }
 
 [dev-dependencies]
 criterion = { workspace = true }
 csv = { workspace = true }
-indicatif = "0.17.3"
+indicatif = "0.17.5"
 
 [[example]]
 name = "bert"
