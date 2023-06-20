@@ -10,22 +10,21 @@ on:
 
 jobs:
   generate-docs:
-    runs-on: ubuntu-latest
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v14
+    timeout-minutes: 5
     steps:
-    - uses: actions/checkout@24cb9080177205b6e8c946b17badbe402adc938f # v3.4.0
+      - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-    - name: Generate front-office docs
-      uses: seeebiii/redoc-cli-github-action@c9649b33918da5eb290b81cd03a943caea091540 # v10
-      with:
-        args: 'bundle web-api/openapi/front_office.yaml -o front_office.html'
+      - name: Generate front-office docs
+        run: redocly build-docs web-api/openapi/front_office.yaml -o front_office.html
 
-    - name: Generate back-office docs
-      uses: seeebiii/redoc-cli-github-action@c9649b33918da5eb290b81cd03a943caea091540 # v10
-      with:
-        args: 'bundle web-api/openapi/back_office.yaml -o back_office.html'
+      - name: Generate back-office docs
+        run: redocly build-docs web-api/openapi/back_office.yaml -o back_office.html
 
-    - name: Deploy generated docs to GitHub Pages
-      uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847 # v3.9.3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_dir: ./
+      - name: Deploy generated docs to GitHub Pages
+        uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847 # v3.9.3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./

@@ -186,7 +186,9 @@ build-ci-image $IMAGE_NAME $IMAGE_TAG:
       --build-arg cargo_sort_version="${CARGO_SORT_VERSION}" \
       --build-arg spectral_cli_version="${SPECTRAL_CLI_VERSION}" \
       --build-arg ibm_openapi_ruleset_version="${IBM_OPENAPI_RULESET_VERSION}" \
+      --build-arg ibm_openapi_ruleset_utilities_version="${IBM_OPENAPI_RULESET_UTILITIES_VERSION}" \
       --build-arg validator_version="${VALIDATOR_VERSION}" \
+      --build-arg redocly_cli_version="${REDOCLY_CLI_VERSION}" \
       --tag "${IMAGE_NAME}:${IMAGE_TAG}" \
       - < .github/docker/Dockerfile.ci-image
 
@@ -236,6 +238,15 @@ validate-openapi:
     for file in ls web-api/openapi/*.yaml; do
         spectral lint --verbose -F warn "$file"
     done
+
+install-openapi-generator:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    npm install -g \
+      @redocly/cli@${REDOCLY_CLI_VERSION}
+
+generate-openapi api:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    redocly preview-docs web-api/openapi/{{api}}.yaml
 
 validate-migrations-unchanged cmp_ref:
     #!/usr/bin/env -S bash -eu -o pipefail
