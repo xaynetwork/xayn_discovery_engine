@@ -5,7 +5,9 @@ ARG just_version
 ARG cargo_sort_version
 ARG spectral_cli_version
 ARG ibm_openapi_ruleset_version
+ARG ibm_openapi_ruleset_utilities_version
 ARG validator_version
+ARG redocly_cli_version
 
 USER root
 
@@ -19,7 +21,7 @@ RUN set -eux; \
     rm -rf /var/lib/apt/lists/*;
 
 # Begin: Rust base
-# Taken from https://github.com/rust-lang/docker-rust/blob/e715973ebf70db0f75722a8d68339fe4a2ecf8c8/1.69.0/bookworm/slim/Dockerfile
+# Taken from https://github.com/rust-lang/docker-rust/blob/dcb74d779e8a74263dc8b91d58d8ce7f3c0c805b/1.70.0/bookworm/slim/Dockerfile
 
 ENV RUSTUP_HOME=/usr/local/rustup \
     CARGO_HOME=/usr/local/cargo \
@@ -67,4 +69,6 @@ RUN set -eux; \
     npm install -g \
       @stoplight/spectral-cli@${spectral_cli_version} \
       @ibm-cloud/openapi-ruleset@${ibm_openapi_ruleset_version} \
-      validator@${validator_version}
+      @ibm-cloud/openapi-ruleset-utilities@${ibm_openapi_ruleset_utilities_version} \
+      validator@${validator_version} \
+      @redocly/cli@${redocly_cli_version}
