@@ -163,7 +163,7 @@ mod tests {
             IncompatibleUpdate::PropertyIsAlreadyIndexed {
                 property: "foo".try_into().unwrap()
             }
-        )
+        );
     }
 
     #[test]
@@ -211,13 +211,10 @@ mod tests {
             IndexedPropertyType::Date
         ]);
 
-        assert_eq!(&value, &json!([
-            "bool",
-            "number",
-            "string",
-            "string[]",
-            "date"
-        ]));
+        assert_eq!(
+            &value,
+            &json!(["bool", "number", "string", "string[]", "date"])
+        );
 
         assert_eq!(
             serde_json::from_value::<Vec<IndexedPropertyType>>(value).unwrap(),

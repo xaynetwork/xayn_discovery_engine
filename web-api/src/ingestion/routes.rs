@@ -621,14 +621,15 @@ async fn delete_document_property(
     Ok(HttpResponse::NoContent())
 }
 
-#[instrument(skip(storage))]
+#[instrument(skip(state, storage))]
 async fn create_indexed_properties(
+    state: Data<AppState>,
     Json(update): Json<IndexedPropertiesSchemaUpdate>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    // TODO[pmk/now] max property count from congfig
+    let max_indexed_properties = state.config.ingestion.max_indexed_properties;
     Ok(Json(
-        IndexedProperties::extend_schema(&storage, update, 11).await?,
+        IndexedProperties::extend_schema(&storage, update, max_indexed_properties).await?,
     ))
 }
 
