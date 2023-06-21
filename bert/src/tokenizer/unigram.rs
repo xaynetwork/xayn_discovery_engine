@@ -78,8 +78,8 @@ mod tests {
     // Encoder of "hello world" should produce ids [0, 33600, 31, 8999, 2]
     #[test]
     fn test_new() {
-        let config = Config::new(e5().unwrap()).unwrap();
-        let tokenizer = Tokenizer::unigram::new(&config).unwrap();
+        let config = Config::new_unigram(e5().unwrap()).unwrap();
+        let tokenizer = Tokenizer::new(&config).unwrap();
         let encoding = tokenizer.encode("hello world").unwrap();
         assert!(encoding.token_ids.shape() == &[1, 5]);
         assert!(encoding.token_ids == Array2::from_shape_vec((1, 5), vec![0, 33600, 31, 8999, 2]).unwrap());

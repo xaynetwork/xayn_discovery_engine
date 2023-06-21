@@ -25,7 +25,7 @@ use crate::{
     model::Model,
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
-    tokenizer::{bert::Tokenizer, Tokenize},
+    tokenizer::{bert::Tokenizer, Tokenize, unigram},
 };
 
 /// A pipeline configuration.
@@ -116,6 +116,26 @@ impl Config<Tokenizer, NonePooler> {
         })
     }
 }
+
+impl Config<unigram::Tokenizer, NonePooler> {
+    /// Creates a pipeline configuration.
+    pub fn new_unigram(dir: impl Into<PathBuf>) -> Result<Self, Error> {
+        let dir = dir.into();
+        let toml = Figment::from(Toml::file(dir.join("config.toml")));
+        let token_size = (toml.extract_inner::<usize>(Self::MIN_TOKEN_SIZE)?
+            + toml.extract_inner::<usize>(Self::MAX_TOKEN_SIZE)?)
+            / 2;
+
+        Ok(Self {
+            dir,
+            toml,
+            token_size,
+            tokenizer: PhantomData,
+            pooler: PhantomData,
+        })
+    }
+}
+
 
 impl<T, P> Config<T, P> {
     const MIN_TOKEN_SIZE: &str = "tokenizer.tokens.size.min";
