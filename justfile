@@ -222,12 +222,12 @@ validate-openapi:
         spectral lint --verbose -F warn "$file"
     done
 
-install-openapi-generator:
+install-openapi-doc-generator:
     #!/usr/bin/env -S bash -eux -o pipefail
     npm install -g \
       @redocly/cli@${REDOCLY_CLI_VERSION}
 
-generate-openapi api:
+generate-openapi-doc api:
     #!/usr/bin/env -S bash -eux -o pipefail
     redocly preview-docs web-api/openapi/{{api}}.yaml
 

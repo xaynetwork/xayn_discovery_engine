@@ -132,7 +132,7 @@ string_wrapper! {
     /// A unique user identifier.
     pub(crate) UserId, InvalidUserId, is_valid_id;
     /// A document snippet.
-    pub(crate) DocumentSnippet, InvalidDocumentSnippet, |value| is_valid_string(value, 1024);
+    pub(crate) DocumentSnippet, InvalidDocumentSnippet, |value| is_valid_string(value, 2_048);
     /// A document tag.
     pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
 }
@@ -149,7 +149,7 @@ impl TryFrom<Value> for DocumentProperty {
             Value::Bool(_) | Value::Number(_) => {}
             Value::String(string) => {
                 trim(string);
-                if !is_valid_string(string, 256) {
+                if !is_valid_string(string, 2_048) {
                     return Err(InvalidDocumentProperty { value: property });
                 }
             }
@@ -162,7 +162,7 @@ impl TryFrom<Value> for DocumentProperty {
                         return Err(InvalidDocumentProperty { value: property });
                     };
                     trim(string);
-                    if !is_valid_string(string, 256) {
+                    if !is_valid_string(string, 2_048) {
                         return Err(InvalidDocumentProperty { value: property });
                     }
                 }

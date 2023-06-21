@@ -12,10 +12,11 @@ DocumentPropertyString:
   description: |
     Arbitrary string property that can be attached to a document.
     Enclosing whitespace will be trimmed.
+    The length constraints are in bytes, not characters.
   type: string
   pattern: '^[^\x00]+$'
   minLength: 1
-  maxLength: 256
+  maxLength: 2048
 
 DocumentProperty:
   description: Arbitrary property that can be attached to a document.
@@ -48,6 +49,7 @@ DocumentTag:
   description: |
     A tag of a document can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
     Enclosing whitespace will be trimmed.
+    The length constraints are in bytes, not characters.
   type: string
   pattern: '^[^\x00]+$'
   minLength: 1
@@ -55,7 +57,9 @@ DocumentTag:
   example: "tag"
 
 DocumentSearchQuery:
-  description: A search query can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
+  description: |
+    A search query can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
+    The length constraints are in bytes, not characters.
   type: string
   pattern: ".+"
   minLength: 1
