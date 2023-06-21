@@ -24,6 +24,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut, From};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Coi;
 use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
@@ -36,6 +37,7 @@ use crate::{
         DocumentId,
         DocumentPropertyId,
         DocumentTag,
+        DocumentTags,
         ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
@@ -46,18 +48,56 @@ use crate::{
     Error,
 };
 
-pub(crate) struct KnnSearchParams<'a, I> {
-    pub(crate) excluded: I,
+pub(crate) struct KnnSearchParams<'a> {
+    pub(crate) excluded: &'a [DocumentId],
     pub(crate) embedding: &'a NormalizedEmbedding,
     /// The number of documents which will be returned if there are enough fitting documents.
     pub(crate) count: usize,
     // must be >= count
     pub(crate) num_candidates: usize,
     pub(crate) published_after: Option<DateTime<Utc>>,
-    pub(crate) min_similarity: Option<f32>,
-    /// An additional query which will be run in parallel with the KNN search.
-    pub(super) query: Option<&'a str>,
-    pub(crate) time: DateTime<Utc>,
+    pub(super) strategy: SearchStrategy,
+    pub(super) include_properties: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum SearchStrategy {
+    Knn,
+    Hybrid {
+        /// An additional query which will be run in parallel with the KNN search.
+        query: String,
+    },
+    HybridEsRrf {
+        query: String,
+        rank_constant: Option<u32>,
+    },
+    HybridDev {
+        query: String,
+        normalize_knn: NormalizationFn,
+        normalize_bm25: NormalizationFn,
+        merge_fn: MergeFn,
+    },
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum NormalizationFn {
+    Identity,
+    Normalize,
+    NormalizeIfMaxGt1,
+}
+
+#[derive(Copy, Clone, Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum MergeFn {
+    Sum {
+        knn_weight: Option<f32>,
+        bm25_weight: Option<f32>,
+    },
+    AverageDuplicatesOnly {},
+    Rrf {
+        rank_constant: Option<f32>,
+    },
 }
 
 #[derive(Debug, Deref, DerefMut, From)]
@@ -94,6 +134,7 @@ pub(crate) trait Document {
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     async fn get_excerpted(
@@ -105,7 +146,7 @@ pub(crate) trait Document {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     /// Inserts the documents and reports failed ids.
@@ -213,11 +254,14 @@ pub(crate) trait Tag {
     async fn get(&self, user_id: &UserId) -> Result<TagWeights, Error>;
 
     /// Sets the document tags if the document exists.
-    async fn put(
-        &self,
-        document_id: &DocumentId,
-        tags: &[DocumentTag],
-    ) -> Result<Option<()>, Error>;
+    async fn put(&self, document_id: &DocumentId, tags: &DocumentTags)
+        -> Result<Option<()>, Error>;
+}
+
+#[async_trait(?Send)]
+pub(crate) trait Size {
+    /// Gets the size in bytes of the json value.
+    async fn json(&self, value: &Value) -> Result<usize, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

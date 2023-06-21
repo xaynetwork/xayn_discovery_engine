@@ -14,15 +14,17 @@
 
 mod client;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, convert::identity, hash::Hash, mem::replace, ops::AddAssign};
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::json;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
+use xayn_web_api_shared::serde::{json_object, merge_json_objects, JsonObject};
 
+use super::{MergeFn, NormalizationFn, SearchStrategy};
 use crate::{
     models::{
         self,
@@ -30,7 +32,8 @@ use crate::{
         DocumentProperties,
         DocumentProperty,
         DocumentPropertyId,
-        DocumentTag,
+        DocumentSnippet,
+        DocumentTags,
     },
     storage::{KnnSearchParams, Warning},
     Error,
@@ -44,108 +47,135 @@ use crate::{
 struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
 
 impl Client {
-    #[allow(clippy::too_many_lines)]
     pub(super) async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        mut params: KnnSearchParams<'a>,
     ) -> Result<HashMap<DocumentId, f32>, Error> {
-        // knn search with `k`/`num_candidates` set to zero is a bad request
-        if params.count == 0 {
-            return Ok(HashMap::new());
+        match replace(&mut params.strategy, SearchStrategy::Knn) {
+            SearchStrategy::Knn => self.knn_search(params).await,
+            SearchStrategy::HybridEsRrf {
+                query,
+                rank_constant,
+            } => {
+                self.hybrid_search_es_rrf(params, query, rank_constant)
+                    .await
+            }
+            SearchStrategy::Hybrid { query } => {
+                let normalize_knn = identity;
+                let normalize_bm25 = normalize_scores_if_max_gt_1;
+                let merge_fn = merge_scores_average_duplicates_only;
+                self.hybrid_search(params, &query, normalize_knn, normalize_bm25, merge_fn)
+                    .await
+            }
+            SearchStrategy::HybridDev {
+                query,
+                normalize_knn,
+                normalize_bm25,
+                merge_fn,
+            } => {
+                self.hybrid_search(
+                    params,
+                    &query,
+                    normalize_knn.to_fn(),
+                    normalize_bm25.to_fn(),
+                    merge_fn.to_fn(),
+                )
+                .await
+            }
         }
+    }
 
-        let time = params.time.to_rfc3339();
-        // the existing documents are not filtered in the query to avoid too much work for a cold
-        // path, filtering them afterwards can occasionally lead to less than k results though
-        let excluded_ids = json!({
-            "ids": {
-                "values": params.excluded.into_iter().collect_vec()
-            }
-        });
-        let Value::Object(mut filter) = (
-            if let Some(published_after) = params.published_after {
-                // published_after != null && published_after <= publication_date <= time
-                json!({
-                    "filter": {
-                        "range": {
-                            "properties.publication_date": {
-                                "gte": published_after.to_rfc3339(),
-                                "lte": time
-                            }
-                        }
-                    },
-                    "must_not": excluded_ids
-                })
-            } else {
-                // published_after == null || published_after <= time
-                json!({
-                    "must_not": [
-                        excluded_ids,
-                        {
-                            "range": {
-                                "properties.publication_date": {
-                                    "gt": time
-                                }
-                            }
-                        }
-                    ]
-                })
-            }
-        ) else {
-            unreachable!(/* filter is a json object */);
-        };
+    async fn knn_search<'a>(
+        &self,
+        params: KnnSearchParams<'a>,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter: _,
+        } = params.create_common_knn_search_parts();
 
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
-        let Value::Object(mut body) = json!({
-            "knn": {
-                "field": "embedding",
-                "query_vector": params.embedding,
-                "k": params.count,
-                "num_candidates": params.num_candidates,
-                "filter": {
-                    "bool": filter
+        let request = merge_json_objects([knn_object, generic_parameters]);
+
+        Ok(self.search_request(request).await?)
+    }
+
+    async fn hybrid_search(
+        &self,
+        params: KnnSearchParams<'_>,
+        query: &str,
+        normalize_knn: impl FnOnce(ScoreMap) -> ScoreMap,
+        normalize_bm25: impl FnOnce(ScoreMap) -> ScoreMap,
+        merge_function: impl FnOnce(ScoreMap, ScoreMap) -> ScoreMap,
+    ) -> Result<ScoreMap, Error> {
+        let count = params.count;
+
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        } = params.create_common_knn_search_parts();
+
+        let knn_request = merge_json_objects([knn_object, generic_parameters.clone()]);
+
+        let knn_scores = self.search_request(knn_request).await?;
+
+        let bm_25 = merge_json_objects([
+            json_object!({
+                "query": { "bool": merge_json_objects([
+                    inner_filter,
+                    json_object!({
+                        "must": { "match": { "snippet": query }}
+                    })
+                ]) }
+            }),
+            generic_parameters,
+        ]);
+        // FIXME parallelize polling
+        let bm25_scores = self.search_request(bm_25).await?;
+
+        let merged = merge_function(normalize_knn(knn_scores), normalize_bm25(bm25_scores));
+        Ok(take_highest_n_scores(count, merged))
+    }
+
+    async fn hybrid_search_es_rrf<'a>(
+        &self,
+        params: KnnSearchParams<'a>,
+        query: String,
+        rank_constant: Option<u32>,
+    ) -> Result<HashMap<DocumentId, f32>, Error> {
+        let count = params.count;
+
+        let KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        } = params.create_common_knn_search_parts();
+
+        let request = merge_json_objects([
+            knn_object,
+            generic_parameters,
+            json_object!({
+                "query": { "bool": merge_json_objects([
+                    inner_filter,
+                    json_object!({
+                        "must": { "match": { "snippet": query }}
+                    })
+                ]) },
+                "rank": {
+                    "rrf": {
+                        // must be >= "size"
+                        "window_size": count,
+                        //FIXME If we stabilize this we can omit `rank_constant` if its `None` to
+                        //      safe a few bytes. But during testing we always encode it to always
+                        //      run with the same parameters, even if ES changes the default.
+                        "rank_constant": rank_constant.unwrap_or(60)
+                    }
                 }
-            },
-            "size": params.count,
-            "_source": false
-        }) else {
-            unreachable!(/* body is a json object */);
-        };
-        if let Some(min_similarity) = params.min_similarity {
-            body.insert("min_score".to_string(), json!(min_similarity));
-        }
-        let mut knn_scores = self.search_request(&body).await?;
+            }),
+        ]);
 
-        if let Some(query) = params.query {
-            body.remove("knn");
-            filter.insert("must".to_string(), json!({ "match": { "snippet": query }}));
-            body.insert("query".to_string(), json!({ "bool": filter }));
-
-            let bm25_scores = self.search_request(body).await?;
-            let max_bm25_score = bm25_scores
-                .values()
-                .max_by(|s1, s2| s1.total_cmp(s2))
-                .copied()
-                .unwrap_or_default()
-                .max(1.0);
-
-            // mixed knn and bm25 scores need to be normalized
-            for (id, bm25_score) in bm25_scores {
-                let bm25_score = bm25_score / max_bm25_score;
-                knn_scores
-                    .entry(id)
-                    .and_modify(|knn_score| *knn_score = 0.5 * *knn_score + 0.5 * bm25_score)
-                    .or_insert(bm25_score);
-            }
-
-            knn_scores = knn_scores
-                .into_iter()
-                .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
-                .take(params.count)
-                .collect();
-        }
-
-        Ok(knn_scores)
+        Ok(self.search_request(request).await?)
     }
 
     pub(super) async fn insert_documents(
@@ -248,7 +278,7 @@ impl Client {
             "script": {
                 "source": "ctx._source.properties = params.properties",
                 "params": {
-                    "properties": DocumentProperties::new()
+                    "properties": DocumentProperties::default()
                 }
             },
             "_source": false
@@ -311,7 +341,7 @@ impl Client {
     pub(super) async fn insert_document_tags(
         &self,
         id: &DocumentId,
-        tags: &[DocumentTag],
+        tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
         let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
@@ -334,8 +364,211 @@ impl Client {
 
 #[derive(Debug, Serialize)]
 struct IngestedDocument<'a> {
-    snippet: &'a str,
+    snippet: &'a DocumentSnippet,
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
-    tags: &'a [DocumentTag],
+    tags: &'a DocumentTags,
+}
+
+struct KnnSearchParts {
+    knn_object: JsonObject,
+    generic_parameters: JsonObject,
+    inner_filter: JsonObject,
+}
+
+impl KnnSearchParams<'_> {
+    fn create_common_knn_search_parts(&self) -> KnnSearchParts {
+        let inner_filter = self.create_search_filter();
+        let knn_object = self.create_knn_request_object(&inner_filter);
+        let generic_parameters = json_object!({ "size": self.count });
+
+        KnnSearchParts {
+            knn_object,
+            generic_parameters,
+            inner_filter,
+        }
+    }
+
+    fn create_search_filter(&self) -> JsonObject {
+        let mut filter = JsonObject::new();
+        if !self.excluded.is_empty() {
+            // existing documents are not filtered in the query to avoid too much work for a cold
+            // path, filtering them afterwards can occasionally lead to less than k results though
+            filter.insert(
+                "must_not".to_string(),
+                json!({ "ids": { "values": self.excluded } }),
+            );
+        }
+        if let Some(published_after) = self.published_after {
+            // published_after != null && published_after <= publication_date
+            let published_after = published_after.to_rfc3339();
+            filter.insert(
+                "filter".to_string(),
+                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
+            );
+        }
+        filter
+    }
+
+    fn create_knn_request_object(&self, filter: &JsonObject) -> JsonObject {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/search-search.html
+        let mut obj = json_object!({
+            "knn": {
+                "field": "embedding",
+                "query_vector": self.embedding,
+                "k": self.count,
+                "num_candidates": self.num_candidates,
+            }
+        });
+        if !filter.is_empty() {
+            obj["knn"]
+                .as_object_mut()
+                .unwrap()
+                .insert("filter".into(), json!({ "bool": filter }));
+        }
+        obj
+    }
+}
+
+fn normalize_scores<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let max_score = scores
+        .values()
+        .max_by(|l, r| l.total_cmp(r))
+        .copied()
+        .unwrap_or_default();
+
+    for score in scores.values_mut() {
+        *score /= max_score;
+    }
+
+    scores
+}
+
+fn normalize_scores_if_max_gt_1<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let max_score = scores
+        .values()
+        .max_by(|l, r| l.total_cmp(r))
+        .copied()
+        .unwrap_or_default()
+        .max(1.0);
+
+    for score in scores.values_mut() {
+        *score /= max_score;
+    }
+
+    scores
+}
+
+fn merge_scores_average_duplicates_only<K>(
+    mut scores_1: HashMap<K, f32>,
+    scores_2: HashMap<K, f32>,
+) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    for (key, value) in scores_2 {
+        scores_1
+            .entry(key)
+            .and_modify(|score| *score = (*score + value) / 2.)
+            .or_insert(value);
+    }
+    scores_1
+}
+
+fn merge_scores_weighted<K>(
+    scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>,
+) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let weighted = scores.into_iter().flat_map(|(weight, mut scores)| {
+        for score in scores.values_mut() {
+            *score *= weight;
+        }
+        scores
+    });
+    collect_summing_repeated(weighted)
+}
+
+/// Reciprocal Rank Fusion
+fn rrf<K>(k: f32, scores: impl IntoIterator<Item = HashMap<K, f32>>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    let rrf_scores = scores.into_iter().flat_map(|scores| {
+        scores
+            .into_iter()
+            .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+            .enumerate()
+            .map(|(rank0, (document, _))| {
+                #[allow(clippy::cast_precision_loss)]
+                (document, (k + rank0 as f32 + 1.).recip())
+            })
+    });
+    collect_summing_repeated(rrf_scores)
+}
+
+fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    scores
+        .into_iter()
+        .fold(HashMap::new(), |mut acc, (key, value)| {
+            acc.entry(key).or_default().add_assign(value);
+            acc
+        })
+}
+
+fn take_highest_n_scores<K>(n: usize, scores: HashMap<K, f32>) -> HashMap<K, f32>
+where
+    K: Eq + Hash,
+{
+    if scores.len() <= n {
+        return scores;
+    }
+
+    scores
+        .into_iter()
+        .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+        .take(n)
+        .collect()
+}
+
+type ScoreMap = HashMap<DocumentId, f32>;
+
+impl NormalizationFn {
+    fn to_fn(self) -> Box<dyn Fn(ScoreMap) -> ScoreMap> {
+        match self {
+            NormalizationFn::Identity => Box::new(identity),
+            NormalizationFn::Normalize => Box::new(normalize_scores),
+            NormalizationFn::NormalizeIfMaxGt1 => Box::new(normalize_scores_if_max_gt_1),
+        }
+    }
+}
+
+impl MergeFn {
+    fn to_fn(self) -> Box<dyn Fn(ScoreMap, ScoreMap) -> ScoreMap> {
+        match self {
+            MergeFn::Sum {
+                knn_weight,
+                bm25_weight,
+            } => Box::new(move |knn, bm25| {
+                merge_scores_weighted([
+                    (knn_weight.unwrap_or(0.5), knn),
+                    (bm25_weight.unwrap_or(0.5), bm25),
+                ])
+            }),
+            MergeFn::AverageDuplicatesOnly {} => Box::new(merge_scores_average_duplicates_only),
+            MergeFn::Rrf { rank_constant } => {
+                Box::new(move |s1, s2| rrf(rank_constant.unwrap_or(60.), [s1, s2]))
+            }
+        }
+    }
 }

@@ -25,7 +25,7 @@ use xayn_test_utils::error::Panic;
 use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
-    models::{DocumentId, DocumentProperties, IngestedDocument, UserId},
+    models::{DocumentId, DocumentProperties, DocumentSnippet, IngestedDocument, UserId},
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -75,7 +75,7 @@ impl State {
                     id: document.id,
                     snippet: document.snippet,
                     properties: DocumentProperties::default(),
-                    tags: vec![document.category, document.subcategory],
+                    tags: vec![document.category, document.subcategory].try_into()?,
                     embedding,
                     is_candidate: true,
                 })
@@ -91,19 +91,23 @@ impl State {
         &self,
         embeddings: Vec<(DocumentId, NormalizedEmbedding)>,
     ) -> Result<(), Panic> {
-        let mut documents =
-            storage::Document::get_personalized(&self.storage, embeddings.iter().map(|(id, _)| id))
-                .await?
-                .into_iter()
-                .map(|document| (document.id.clone(), document))
-                .collect::<HashMap<_, _>>();
+        let mut documents = storage::Document::get_personalized(
+            &self.storage,
+            embeddings.iter().map(|(id, _)| id),
+            true,
+        )
+        .await?
+        .into_iter()
+        .map(|document| (document.id.clone(), document))
+        .collect::<HashMap<_, _>>();
+        let snippet = DocumentSnippet::try_from("snippet" /* unused for in-memory db */)?;
         let documents = embeddings
             .into_iter()
             .map(|(id, embedding)| {
                 let document = documents.remove(&id).unwrap(/* document must already exist */);
                 IngestedDocument {
                     id,
-                    snippet: String::new(/* unused for in-memory db */),
+                    snippet: snippet.clone(),
                     properties: document.properties,
                     tags: document.tags,
                     embedding,
@@ -149,6 +153,7 @@ impl State {
             &self.personalization,
             by,
             time,
+            false,
         )
         .await
         .map(|documents| {

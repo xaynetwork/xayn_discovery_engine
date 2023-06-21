@@ -19,10 +19,11 @@ use std::{
 };
 
 use itertools::Itertools;
-use lindera::{
-    dictionary::DictionaryConfig as JapaneseDictionaryConfig,
-    mode::Mode as JapaneseMode,
-    tokenizer::{Tokenizer as JapanesePreTokenizer, TokenizerConfig as JapanesePreTokenizerConfig},
+use lindera_core::mode::Mode as JapaneseMode;
+use lindera_dictionary::DictionaryConfig as JapaneseDictionaryConfig;
+use lindera_tokenizer::tokenizer::{
+    Tokenizer as JapanesePreTokenizer,
+    TokenizerConfig as JapanesePreTokenizerConfig,
 };
 use ndarray::Array2;
 use tokenizers::{

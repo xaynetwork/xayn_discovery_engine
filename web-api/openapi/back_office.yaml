@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Back Office API
-  version: 1.1.0
+  version: 2.0.0
   description: |-
     # Back Office
     This API acts as a create/read/update/delete interface for anything related to documents.
@@ -14,14 +14,13 @@ info:
 
     ## Document
     By document, we refer to a cohesive text, for example a complete news article.
-    However, we only require a simple representation for our system to work. Consisting just of a unique ID, a text snippet and optional properties.
+    However, we only require a simple representation for our system to work. Consisting just of a unique id, a text snippet, optional properties and optional tags.
     The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one paragraph.
 
     ### Id
-    The document_id is a unique identifier for a single document.
-    We don't require a specific format, it just needs to comply to the following regexp: `^[a-zA-Z0-9_:@.-]+$`.
+    The document id is a unique identifier for a single document.
 
-    ## Snippet
+    ### Snippet
     A snippet is a reduced representation of a larger text, for example if the document would be a news article, then its text would be the news article in a pure textual format.
     In order for our system to work correctly, it is important that the snippet is just the size of one or two paragraphs, and that the snippet's text clearly summarises the larger text.
     For example, let's take a news article which talks about the effects of inflation.
@@ -29,12 +28,10 @@ info:
     A bad snippet would for example be just taking the very first paragraph of a document, which could sometimes work, but could also lead to:
     "December 20th 2020. Article written by Jane Doe. On this bright and sunny day, people might forget about their worries sometimes."
 
-    ## Properties
-    Properties are optional entries for documents, which are usually needed to properly show the document back to the user, when it returns as a personalized document.
+    ### Properties
+    Properties are optional data for documents, which are usually needed to properly show the document back to the user, when it returns as a personalized document.
     If for example, you'd wish to integrate a type of carousel view, listing a total of 10 personalized documents in a "for you"-section, then you might choose to display each document as an image and title, with a url to link the user to when pressed.
     For this, you would need three document properties: `image`, `link` and `title`.
-    You are free to add as many properties as needed.
-    \
 tags:
   - name: back office
     description: System management, including documents and properties.
@@ -47,14 +44,14 @@ paths:
     post:
       tags:
         - back office
-      summary: Add documents to the system
+      summary: Add documents to the system.
       description: |
         Add documents to the system.
 
         The system will create a representation of the document that will be used to match it against the preferences of a user.
 
-        **Important note:** Currently we allow up to a maximum of 100 documents per batch size. If you need to add more, then
-        please split up the total amount of documents in separate calls, where each call contains at maximum 100 documents.
+        **Important note:** If you need to add more documents than the maximum batch size, then
+        please split up the total amount of documents in separate calls.
 
         **Important note:** If a document id appears multiple times, only the last document with that id is retained.
 
@@ -72,7 +69,7 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
         '500':
-          description: all or some of the documents were not successfully uploaded
+          description: All or some of the documents were not successfully uploaded
           content:
             application/json:
               schema:
@@ -81,8 +78,7 @@ paths:
       tags:
         - back office
       summary: Delete all listed documents.
-      description: |-
-        Delete all documents listed in the request body.
+      description: Delete all documents listed in the request body.
       operationId: deleteDocuments
       requestBody:
         required: true
@@ -96,14 +92,13 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
 
-  /documents/candidates:
+  /documents/_candidates:
     get:
       tags:
         - back office
-      deprecated: true
-      operationId: listDocumentCandidatesDeprecated
       summary: Get the documents considered for recommendations.
       description: Get the documents considered for recommendations.
+      operationId: listDocumentCandidates
       responses:
         '200':
           description: successful operation
@@ -116,10 +111,9 @@ paths:
     put:
       tags:
         - back office
-      deprecated: true
-      operationId: replaceDocumentCandidatesDeprecated
       summary: Set the documents considered for recommendations.
       description: Set the documents considered for recommendations.
+      operationId: replaceDocumentCandidates
       requestBody:
         required: true
         content:
@@ -248,40 +242,6 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
 
-  /candidates:
-    get:
-      tags:
-        - back office
-      summary: Get the documents considered for recommendations.
-      description: Get the documents considered for recommendations.
-      operationId: listDocumentCandidates
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/DocumentCandidatesResponse'
-        '400':
-          $ref: './responses/generic.yml#/BadRequest'
-    put:
-      tags:
-        - back office
-      summary: Set the documents considered for recommendations.
-      description: Set the documents considered for recommendations.
-      operationId: replaceDocumentCandidates
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DocumentCandidatesRequest'
-      responses:
-        '204':
-          description: successful operation
-        '400':
-          $ref: './responses/generic.yml#/BadRequest'
-
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -323,11 +283,14 @@ components:
         id:
           $ref: './schemas/document.yml#/DocumentId'
         snippet:
-          description: Text that will be used to match the document against the user interests.
+          description: |
+            Text that will be used to match the document against the user interests.
+            Enclosing whitespace will be trimmed.
+            If `summarize` is enabled, then the length applies to the summarized instead of the original snippet.
           type: string
           minLength: 1
           maxLength: 1024
-          pattern: '.+'
+          pattern: '^[^\x00]+$'
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
         tags:

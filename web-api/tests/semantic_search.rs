@@ -117,60 +117,6 @@ fn test_semantic_search() {
 }
 
 #[test]
-fn test_semantic_search_min_similarity() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(
-                &client,
-                &ingestion_url,
-                &[
-                    IngestedDocument {
-                        id: "d1".into(),
-                        snippet: "Computers are made of technology.".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d2".into(),
-                        snippet: "Mountains smaller than a river.".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d3".into(),
-                        snippet: "Computer technology is made".into(),
-                        properties: None,
-                    },
-                ],
-            )
-            .await?;
-
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "id": "d1" },
-                        "min_similarity": 0.6
-                    }))
-                    .build()?,
-                StatusCode::OK,
-            )
-            .await;
-
-            if let [first] = &documents[..] {
-                assert_eq!(first.id, "d3");
-                assert!((0.6..=1.0).contains(&first.score));
-            } else {
-                panic!("Unexpected number of documents: {documents:?}");
-            }
-
-            Ok(())
-        },
-    );
-}
-
-#[test]
 fn test_semantic_search_with_query() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
@@ -205,7 +151,8 @@ fn test_semantic_search_with_query() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true
+                        "enable_hybrid_search": true,
+                        "include_properties": true
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -225,6 +172,143 @@ fn test_semantic_search_with_query() {
             } else {
                 panic!("Unexpected number of documents: {documents:?}");
             }
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_semantic_search_with_dev_options() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(
+                &client,
+                &ingestion_url,
+                &[
+                    IngestedDocument {
+                        id: "d1".into(),
+                        snippet: "this is one sentence which we have".into(),
+                        properties: None,
+                    },
+                    IngestedDocument {
+                        id: "d2".into(),
+                        snippet: "duck duck quack".into(),
+                        properties: Some(json!({ "dodo": 4 })),
+                    },
+                    IngestedDocument {
+                        id: "d3".into(),
+                        snippet: "this is another sentence which we have".into(),
+                        properties: None,
+                    },
+                ],
+            )
+            .await?;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": { "customize": {
+                            "normalize_knn": "identity",
+                            "normalize_bm25": "normalize_if_max_gt1",
+                            "merge_fn": { "sum": {}}
+                        } } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": { "customize": {
+                            "normalize_knn": "normalize",
+                            "normalize_bm25": "normalize",
+                            "merge_fn": { "sum": {}}
+                        } } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": { "customize": {
+                            "normalize_knn": "identity",
+                            "normalize_bm25": "identity",
+                            "merge_fn": { "rrf": { "k": 60. }}
+                        } } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
+}
+
+#[ignore = "current license is non-compliant for [Reciprocal Rank Fusion (RRF)]"]
+#[test]
+fn test_semantic_search_with_dev_options_es_rrf() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(
+                &client,
+                &ingestion_url,
+                &[
+                    IngestedDocument {
+                        id: "d1".into(),
+                        snippet: "this is one sentence which we have".into(),
+                        properties: None,
+                    },
+                    IngestedDocument {
+                        id: "d2".into(),
+                        snippet: "duck duck quack".into(),
+                        properties: Some(json!({ "dodo": 4 })),
+                    },
+                    IngestedDocument {
+                        id: "d3".into(),
+                        snippet: "this is another sentence which we have".into(),
+                        properties: None,
+                    },
+                ],
+            )
+            .await?;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": { "es_rrf": { } } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
 
             Ok(())
         },

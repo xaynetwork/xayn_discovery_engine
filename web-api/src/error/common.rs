@@ -21,6 +21,7 @@ use actix_web::http::StatusCode;
 use derive_more::From;
 use displaydoc::Display;
 use serde::Serialize;
+use serde_json::Value;
 use thiserror::Error;
 use tracing::Level;
 use xayn_ai_bert::InvalidEmbedding;
@@ -67,6 +68,22 @@ pub(crate) struct InvalidDocumentPropertyId {
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
+/// Malformed document property.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentProperty {
+    pub(crate) value: Value,
+}
+
+impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);
+
+/// Malsized document properties.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentProperties {
+    pub(crate) size: usize,
+}
+
+impl_application_error!(InvalidDocumentProperties => BAD_REQUEST, INFO);
+
 /// Malformed document tag.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentTag {
@@ -74,6 +91,32 @@ pub(crate) struct InvalidDocumentTag {
 }
 
 impl_application_error!(InvalidDocumentTag => BAD_REQUEST, INFO);
+
+/// Malsized document tags.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentTags {
+    pub(crate) size: usize,
+}
+
+impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
+
+/// Malformed document snippet.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentSnippet {
+    pub(crate) value: String,
+}
+
+impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
+
+/// Malsized document count.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentCount {
+    pub(crate) count: usize,
+    pub(crate) min: usize,
+    pub(crate) max: usize,
+}
+
+impl_application_error!(InvalidDocumentCount => BAD_REQUEST, INFO);
 
 /// Failed to delete some documents.
 #[derive(Debug, Error, Display, Serialize)]
@@ -143,6 +186,12 @@ impl From<elastic::Error> for Error {
     }
 }
 
+impl From<chrono::ParseError> for Error {
+    fn from(error: chrono::ParseError) -> Self {
+        InternalError::from_std(error).into()
+    }
+}
+
 #[derive(Serialize, Debug, From)]
 #[from(types(DocumentId))]
 pub(crate) struct DocumentIdAsObject {
@@ -180,8 +229,8 @@ impl ApplicationError for InternalError {
         Level::ERROR
     }
 
-    fn encode_details(&self) -> serde_json::Value {
-        serde_json::Value::Null
+    fn encode_details(&self) -> Value {
+        Value::Null
     }
 }
 

@@ -14,10 +14,11 @@
 
 use std::{borrow::Borrow, collections::HashMap};
 
-use derive_more::{AsRef, Deref, Display, Into};
+use derive_more::{Deref, DerefMut, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use sqlx::{
     postgres::{PgHasArrayType, PgTypeInfo},
     FromRow,
@@ -28,17 +29,28 @@ use xayn_ai_coi::Document as AiDocument;
 
 use crate::error::common::{
     InvalidDocumentId,
+    InvalidDocumentProperties,
+    InvalidDocumentProperty,
     InvalidDocumentPropertyId,
+    InvalidDocumentSnippet,
     InvalidDocumentTag,
+    InvalidDocumentTags,
     InvalidUserId,
 };
 
-macro_rules! id_wrapper {
-    ($($visibility:vis $name:ident, $error:ident, $is_valid:expr);* $(;)?) => {
+fn trim(string: &mut String) {
+    let trimmed = string.trim();
+    if trimmed.len() < string.len() {
+        *string = trimmed.to_string();
+    }
+}
+
+macro_rules! string_wrapper {
+    ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $is_valid:expr);* $(;)?) => {
         $(
-            /// A unique identifier.
+            $(#[$attribute])*
             #[derive(
-                AsRef,
+                Deref,
                 Into,
                 Clone,
                 Debug,
@@ -55,9 +67,12 @@ macro_rules! id_wrapper {
             #[sqlx(transparent)]
             $visibility struct $name(String);
 
-            impl $name {
-                $visibility fn new(value: impl Into<String>) -> Result<Self, $error> {
-                    let value = value.into();
+            impl TryFrom<String> for $name {
+                type Error = $error;
+
+                fn try_from(mut value: String) -> Result<Self, Self::Error> {
+                    trim(&mut value);
+
                     if $is_valid(&value) {
                         Ok(Self(value))
                     } else {
@@ -66,19 +81,11 @@ macro_rules! id_wrapper {
                 }
             }
 
-            impl TryFrom<String> for $name {
-                type Error = $error;
-
-                fn try_from(value: String) -> Result<Self, Self::Error> {
-                    Self::new(value)
-                }
-            }
-
             impl TryFrom<&str> for $name {
                 type Error = $error;
 
                 fn try_from(value: &str) -> Result<Self, Self::Error> {
-                    Self::new(value)
+                    value.to_string().try_into()
                 }
             }
 
@@ -98,30 +105,132 @@ macro_rules! id_wrapper {
 }
 
 fn is_valid_id(value: &str) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[a-zA-Z0-9_\-:@.]+$").unwrap());
+    static RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@.][a-zA-Z0-9\-:@._]*$").unwrap());
 
     (1..=256).contains(&value.len()) && RE.is_match(value)
 }
 
-fn is_valid_tag(value: &str) -> bool {
+fn is_valid_property_id(value: &str) -> bool {
+    static RE: Lazy<Regex> =
+        Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@][a-zA-Z0-9\-:@_]*$").unwrap());
+
+    (1..=256).contains(&value.len()) && RE.is_match(value)
+}
+
+fn is_valid_string(value: &str, len: usize) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]+$").unwrap());
 
-    (1..=256).contains(&value.len()) && RE.is_match(value)
+    (1..=len).contains(&value.len()) && RE.is_match(value)
 }
 
-id_wrapper! {
+string_wrapper! {
+    /// A unique document identifier.
     pub(crate) DocumentId, InvalidDocumentId, is_valid_id;
-    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_id;
+    /// A unique document property identifier.
+    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_property_id;
+    /// A unique user identifier.
     pub(crate) UserId, InvalidUserId, is_valid_id;
-    pub(crate) DocumentTag, InvalidDocumentTag, is_valid_tag;
+    /// A document snippet.
+    pub(crate) DocumentSnippet, InvalidDocumentSnippet, |value| is_valid_string(value, 1024);
+    /// A document tag.
+    pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
 }
 
-#[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deref, Deserialize, Into, PartialEq, Serialize)]
 #[serde(transparent)]
-pub(crate) struct DocumentProperty(serde_json::Value);
+pub(crate) struct DocumentProperty(Value);
+
+impl TryFrom<Value> for DocumentProperty {
+    type Error = InvalidDocumentProperty;
+
+    fn try_from(mut property: Value) -> Result<Self, Self::Error> {
+        match &mut property {
+            Value::Bool(_) | Value::Number(_) => {}
+            Value::String(string) => {
+                trim(string);
+                if !is_valid_string(string, 256) {
+                    return Err(InvalidDocumentProperty { value: property });
+                }
+            }
+            Value::Array(array) => {
+                if array.is_empty() {
+                    return Err(InvalidDocumentProperty { value: property });
+                }
+                for value in array {
+                    let Value::String(ref mut string) = value else {
+                        return Err(InvalidDocumentProperty { value: property });
+                    };
+                    trim(string);
+                    if !is_valid_string(string, 256) {
+                        return Err(InvalidDocumentProperty { value: property });
+                    }
+                }
+            }
+            Value::Null | Value::Object(_) => {
+                return Err(InvalidDocumentProperty { value: property })
+            }
+        };
+
+        Ok(Self(property))
+    }
+}
 
 /// Arbitrary properties that can be attached to a document.
-pub(crate) type DocumentProperties = HashMap<DocumentPropertyId, DocumentProperty>;
+#[derive(Clone, Debug, Default, Deref, DerefMut, Deserialize, FromRow, PartialEq, Serialize)]
+#[serde(transparent)]
+#[sqlx(transparent)]
+pub(crate) struct DocumentProperties(HashMap<DocumentPropertyId, DocumentProperty>);
+
+impl DocumentProperties {
+    pub(crate) fn new(
+        properties: HashMap<DocumentPropertyId, DocumentProperty>,
+        size: usize,
+    ) -> Result<Self, InvalidDocumentProperties> {
+        if size <= 2_560 {
+            Ok(Self(properties))
+        } else {
+            Err(InvalidDocumentProperties { size })
+        }
+    }
+}
+
+impl IntoIterator for DocumentProperties {
+    type Item = <HashMap<DocumentPropertyId, DocumentProperty> as IntoIterator>::Item;
+    type IntoIter = <HashMap<DocumentPropertyId, DocumentProperty> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+/// Arbitrary tags that can be associated to a document.
+#[derive(Clone, Debug, Default, Deref, Deserialize, PartialEq, Serialize, Type)]
+#[serde(transparent)]
+#[sqlx(transparent)]
+pub(crate) struct DocumentTags(Vec<DocumentTag>);
+
+impl TryFrom<Vec<DocumentTag>> for DocumentTags {
+    type Error = InvalidDocumentTags;
+
+    fn try_from(tags: Vec<DocumentTag>) -> Result<Self, Self::Error> {
+        let size = tags.len();
+        if size <= 10 {
+            Ok(Self(tags))
+        } else {
+            Err(InvalidDocumentTags { size })
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a DocumentTags {
+    type Item = <&'a Vec<DocumentTag> as IntoIterator>::Item;
+    type IntoIter = <&'a Vec<DocumentTag> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.iter()
+    }
+}
 
 /// Represents a result from an interaction query.
 #[derive(Clone, Debug)]
@@ -133,7 +242,7 @@ pub(crate) struct InteractedDocument {
     pub(crate) embedding: NormalizedEmbedding,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
 }
 
 /// Represents a result from a personalization query.
@@ -152,7 +261,7 @@ pub(crate) struct PersonalizedDocument {
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
 }
 
 impl AiDocument for PersonalizedDocument {
@@ -174,13 +283,13 @@ pub(crate) struct IngestedDocument {
     pub(crate) id: DocumentId,
 
     /// Snippet used to calculate embeddings for a document.
-    pub(crate) snippet: String,
+    pub(crate) snippet: DocumentSnippet,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
 
     /// The tags associated to the document.
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
 
     /// Embedding from smbert.
     pub(crate) embedding: NormalizedEmbedding,
@@ -192,9 +301,9 @@ pub(crate) struct IngestedDocument {
 #[derive(Debug)]
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
-    pub(crate) snippet: String,
+    pub(crate) snippet: DocumentSnippet,
     pub(crate) properties: DocumentProperties,
-    pub(crate) tags: Vec<DocumentTag>,
+    pub(crate) tags: DocumentTags,
     pub(crate) is_candidate: bool,
 }
 
@@ -203,24 +312,38 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_id() {
-        assert!(DocumentId::new("abcdefghijklmnopqrstruvwxyz").is_ok());
-        assert!(DocumentId::new("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
-        assert!(DocumentId::new("0123456789").is_ok());
-        assert!(DocumentId::new("_-:@.").is_ok());
-        assert!(DocumentId::new("").is_err());
-        assert!(DocumentId::new(["a"; 257].join("")).is_err());
-        assert!(DocumentId::new("!?ß").is_err());
+    fn test_is_valid_id() {
+        assert!(is_valid_id("abcdefghijklmnopqrstruvwxyz"));
+        assert!(is_valid_id("ABCDEFGHIJKLMNOPQURSTUVWXYZ"));
+        assert!(is_valid_id("0123456789"));
+        assert!(is_valid_id("-_:@."));
+        assert!(!is_valid_id(""));
+        assert!(!is_valid_id("_"));
+        assert!(!is_valid_id(&["a"; 257].join("")));
+        assert!(!is_valid_id("!?ß"));
     }
 
     #[test]
-    fn test_tag() {
-        assert!(DocumentTag::new("abcdefghijklmnopqrstruvwxyz").is_ok());
-        assert!(DocumentTag::new("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
-        assert!(DocumentTag::new("0123456789").is_ok());
-        assert!(DocumentTag::new(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
-        assert!(DocumentTag::new("").is_err());
-        assert!(DocumentTag::new(["a"; 257].join("")).is_err());
-        assert!(DocumentTag::new("\0").is_err());
+    fn test_is_valid_property_id() {
+        assert!(is_valid_property_id("abcdefghijklmnopqrstruvwxyz"));
+        assert!(is_valid_property_id("ABCDEFGHIJKLMNOPQURSTUVWXYZ"));
+        assert!(is_valid_property_id("0123456789"));
+        assert!(is_valid_property_id("-_:@"));
+        assert!(!is_valid_property_id(""));
+        assert!(!is_valid_property_id("_"));
+        assert!(!is_valid_property_id("."));
+        assert!(!is_valid_property_id(&["a"; 257].join("")));
+        assert!(!is_valid_property_id("!?ß"));
+    }
+
+    #[test]
+    fn test_is_valid_string() {
+        assert!(is_valid_string("abcdefghijklmnopqrstruvwxyz", 256));
+        assert!(is_valid_string("ABCDEFGHIJKLMNOPQURSTUVWXYZ", 256));
+        assert!(is_valid_string("0123456789", 256));
+        assert!(is_valid_string(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€", 256));
+        assert!(!is_valid_string("", 256));
+        assert!(!is_valid_string(&["a"; 257].join(""), 256));
+        assert!(!is_valid_string("\0", 256));
     }
 }

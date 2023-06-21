@@ -24,6 +24,7 @@ use async_trait::async_trait;
 pub(crate) use client::{Database, DatabaseBuilder};
 use either::Either;
 use itertools::Itertools;
+use serde_json::Value;
 use sqlx::{
     types::{
         chrono::{DateTime, Utc},
@@ -47,6 +48,7 @@ use crate::{
         DocumentProperty,
         DocumentPropertyId,
         DocumentTag,
+        DocumentTags,
         ExcerptedDocument,
         IngestedDocument,
         InteractedDocument,
@@ -66,15 +68,7 @@ struct QueriedDeletedDocument {
 #[derive(FromRow)]
 struct QueriedInteractedDocument {
     document_id: DocumentId,
-    tags: Vec<DocumentTag>,
-    embedding: NormalizedEmbedding,
-}
-
-#[derive(FromRow)]
-struct QueriedPersonalizedDocument {
-    document_id: DocumentId,
-    properties: Json<DocumentProperties>,
-    tags: Vec<DocumentTag>,
+    tags: DocumentTags,
     embedding: NormalizedEmbedding,
 }
 
@@ -242,12 +236,16 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
         scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let mut builder = QueryBuilder::new(
-            "SELECT document_id, properties, tags, embedding
+        let mut builder = QueryBuilder::new(format!(
+            "SELECT document_id, embedding, tags {}
             FROM document
             WHERE document_id IN ",
-        );
+            include_properties
+                .then_some(", properties")
+                .unwrap_or_default(),
+        ));
         let ids = ids.into_iter();
         let mut documents = Vec::with_capacity(ids.len());
         let mut ids = ids.filter(|id| scores(id).is_some()).peekable();
@@ -258,15 +256,25 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row| {
-                        QueriedPersonalizedDocument::from_row(&row).map(|document| {
-                            let score = scores(&document.document_id).unwrap(/* filtered ids */);
-                            PersonalizedDocument {
-                                id: document.document_id,
-                                score,
-                                embedding: document.embedding,
-                                properties: document.properties.0,
-                                tags: document.tags,
-                            }
+                        let (id, embedding, tags, properties) = if include_properties {
+                            FromRow::from_row(&row).map(
+                                |(id, embedding, tags, Json(properties))| {
+                                    (id, embedding, tags, properties)
+                                },
+                            )
+                        } else {
+                            FromRow::from_row(&row).map(|(id, embedding, tags)| {
+                                (id, embedding, tags, DocumentProperties::default())
+                            })
+                        }?;
+                        let score = scores(&id).unwrap(/* filtered ids */);
+
+                        Ok(PersonalizedDocument {
+                            id,
+                            score,
+                            embedding,
+                            properties,
+                            tags,
                         })
                     })
                     .fetch_all(&mut *tx)
@@ -713,6 +721,21 @@ impl Database {
         }
         Ok(())
     }
+
+    async fn size_of_json(
+        tx: &mut Transaction<'_, Postgres>,
+        value: &Value,
+    ) -> Result<usize, Error> {
+        sqlx::query_as::<_, (i32,)>("SELECT pg_column_size($1);")
+            .bind(Json(value))
+            .fetch_one(tx)
+            .await
+            .map(
+                #[allow(clippy::cast_sign_loss)]
+                |size| size.0 as usize,
+            )
+            .map_err(Into::into)
+    }
 }
 
 #[async_trait(?Send)]
@@ -731,9 +754,11 @@ impl storage::Document for Storage {
     async fn get_personalized(
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
-        let documents = Database::get_personalized(&mut tx, ids, |_| Some(1.0)).await?;
+        let documents =
+            Database::get_personalized(&mut tx, ids, |_| Some(1.0), include_properties).await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -760,13 +785,18 @@ impl storage::Document for Storage {
 
     async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a, impl IntoIterator<Item = &'a DocumentId>>,
+        params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
+        let include_properties = params.include_properties;
         let scores = self.elastic.get_by_embedding(params).await?;
-        let documents =
-            Database::get_personalized(&mut tx, scores.keys(), |id| scores.get(id).copied())
-                .await?;
+        let documents = Database::get_personalized(
+            &mut tx,
+            scores.keys(),
+            |id| scores.get(id).copied(),
+            include_properties,
+        )
+        .await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -1188,7 +1218,7 @@ impl storage::Tag for Storage {
     async fn put(
         &self,
         document_id: &DocumentId,
-        tags: &[DocumentTag],
+        tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.begin().await?;
 
@@ -1220,5 +1250,16 @@ impl storage::Tag for Storage {
         tx.commit().await?;
 
         Ok(inserted)
+    }
+}
+
+#[async_trait(?Send)]
+impl storage::Size for Storage {
+    async fn json(&self, value: &Value) -> Result<usize, Error> {
+        let mut tx = self.postgres.begin().await?;
+        let size = Database::size_of_json(&mut tx, value).await?;
+        tx.commit().await?;
+
+        Ok(size)
     }
 }

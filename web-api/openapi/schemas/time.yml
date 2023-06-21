@@ -7,14 +7,30 @@ PublicationDate:
   maxLength: 40
   example: "2000-05-14T20:22:50Z"
   description: |
-    A RFC3339 compatible date-time
-
+    A RFC3339 compatible date-time:
     - can be in the future
     - will be converted to and then stored as UTC
-    - sub-second resolution is not guaranteed.
-    - while `properties.publication_date` is in the future the document will not be
-      returned for personalized documents, once it is no longer in the future it will
-      automatically be considered for personalization from then on
+    - sub-second resolution is not guaranteed
+
+PublishedAfter:
+  type:
+    $ref: '#/PublicationDate/type'
+  format:
+    $ref: '#/PublicationDate/format'
+  minLength:
+    $ref: '#/PublicationDate/minLength'
+  maxLength:
+    $ref: '#/PublicationDate/maxLength'
+  example:
+    $ref: '#/PublicationDate/example'
+  description: |
+    Only include documents which have been published after given datetime.
+    If used documents without a `properties.publication_date` will be ignored.
+
+    A RFC3339 compatible date-time:
+    - can be in the future
+    - will be converted to and then stored as UTC
+    - sub-second resolution is not guaranteed
 
 Timestamp:
   type: string
@@ -29,4 +45,4 @@ Timestamp:
 
     - can be in the future
     - will be converted to and then stored as UTC
-    - sub-second resolution is not guaranteed.
+    - sub-second resolution is not guaranteed

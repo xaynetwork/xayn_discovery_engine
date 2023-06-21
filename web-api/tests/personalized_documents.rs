@@ -12,11 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+
 use anyhow::Error;
 use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
-use serde_json::json;
+use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_web_api::{Ingestion, Personalization};
 
@@ -88,7 +90,7 @@ struct PersonalizedDocumentData {
     id: String,
     score: f32,
     #[serde(default)]
-    properties: serde_json::Value,
+    properties: HashMap<String, Value>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
@@ -108,12 +110,16 @@ async fn personalize(
     client: &Client,
     personalization_url: &Url,
     published_after: Option<&str>,
+    include_properties: Option<bool>,
 ) -> Result<Vec<PersonalizedDocumentData>, Error> {
     let mut request = client
         .get(personalization_url.join("/users/u1/personalized_documents")?)
         .query(&[("count", "5")]);
     if let Some(published_after) = published_after {
         request = request.query(&[("published_after", published_after)]);
+    }
+    if let Some(include_properties) = include_properties {
+        request = request.query(&[("include_properties", &include_properties.to_string())]);
     }
     let request = request.build()?;
 
@@ -169,10 +175,10 @@ fn test_personalization_all_dates() {
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
-            let documents = personalize(&client, &personalization_url, None).await?;
+            let documents = personalize(&client, &personalization_url, None, None).await?;
             assert_order!(
                 &documents,
-                ["d8", "d6", "d1", "d3"],
+                ["d8", "d6", "d1", "d5"],
                 "unexpected personalized documents: {documents:?}",
             );
             Ok(())
@@ -187,11 +193,16 @@ fn test_personalization_limited_dates() {
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
-            let documents =
-                personalize(&client, &personalization_url, Some("2022-01-01T00:00:00Z")).await?;
+            let documents = personalize(
+                &client,
+                &personalization_url,
+                Some("2022-01-01T00:00:00Z"),
+                None,
+            )
+            .await?;
             assert_order!(
                 &documents,
-                ["d1", "d3"],
+                ["d1", "d5", "d4", "d3"],
                 "unexpected personalized documents: {documents:?}",
             );
             Ok(())
@@ -206,7 +217,7 @@ fn test_personalization_with_tags() {
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_tags(&client, &ingestion_url).await?;
-            let documents = personalize(&client, &personalization_url, None).await?;
+            let documents = personalize(&client, &personalization_url, None, None).await?;
             assert_order!(
                 &documents,
                 ["d5", "d6", "d1", "d8"],
@@ -215,4 +226,41 @@ fn test_personalization_with_tags() {
             Ok(())
         },
     );
+}
+
+fn personalization_include_properties(include_properties: bool) {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest_with_dates(&client, &ingestion_url).await?;
+            let documents = personalize(
+                &client,
+                &personalization_url,
+                None,
+                Some(include_properties),
+            )
+            .await?;
+            let is_empty = documents
+                .iter()
+                .map(|document| document.properties.is_empty())
+                .collect_vec();
+            if include_properties {
+                assert_eq!(is_empty, [true, false, false, false]);
+            } else {
+                assert_eq!(is_empty, [true, true, true, true]);
+            }
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_personalization_include_properties() {
+    personalization_include_properties(true);
+}
+
+#[test]
+fn test_personalization_exclude_properties() {
+    personalization_include_properties(false);
 }
