@@ -175,23 +175,6 @@ build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     docker build -f "$CRATE_PATH/Dockerfile" -t "xayn-$CRATE_PATH-$BIN" "$out"
     rm -rf "$out"
 
-build-ci-image $IMAGE_NAME $IMAGE_TAG:
-    #!/usr/bin/env -S bash -eux -o pipefail
-    set -eux
-    RUST_VERSION=$(perl -ne 'print $1 if /channel = \"(.*)\"/' {{justfile_directory()}}/rust-toolchain.toml)
-
-    docker build \
-      --build-arg rust_version="${RUST_VERSION}" \
-      --build-arg just_version="${JUST_VERSION}" \
-      --build-arg cargo_sort_version="${CARGO_SORT_VERSION}" \
-      --build-arg spectral_cli_version="${SPECTRAL_CLI_VERSION}" \
-      --build-arg ibm_openapi_ruleset_version="${IBM_OPENAPI_RULESET_VERSION}" \
-      --build-arg ibm_openapi_ruleset_utilities_version="${IBM_OPENAPI_RULESET_UTILITIES_VERSION}" \
-      --build-arg validator_version="${VALIDATOR_VERSION}" \
-      --build-arg redocly_cli_version="${REDOCLY_CLI_VERSION}" \
-      --tag "${IMAGE_NAME}:${IMAGE_TAG}" \
-      - < .github/docker/Dockerfile.ci-image
-
 compose-all-build $SMBERT="xaynia_v0002":
     #!/usr/bin/env -S bash -eux -o pipefail
     {{just_executable()}} build-service-image web-api personalization
