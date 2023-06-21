@@ -59,11 +59,17 @@ mod summarizers;
 /// ```
 pub fn summarize(summarizer: &Summarizer, source: &Source, config: &Config) -> String {
     let text = source.to_readable_text();
-    match summarizer {
+    let summary = match summarizer {
         Summarizer::Naive => summarizers::naive::summarize(&text, config.num_sentences),
         Summarizer::RankBased => {
             summarizers::rank_based::summarize(&text, &[], config.num_sentences)
         }
+    };
+
+    if summary.is_empty() {
+        text
+    } else {
+        summary
     }
 }
 
