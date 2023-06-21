@@ -12,6 +12,8 @@ PublicationDate:
     - will be converted to and then stored as UTC
     - sub-second resolution is not guaranteed
 
+    The length constraints are in bytes, not characters.
+
 PublishedAfter:
   type:
     $ref: '#/PublicationDate/type'
@@ -32,6 +34,8 @@ PublishedAfter:
     - will be converted to and then stored as UTC
     - sub-second resolution is not guaranteed
 
+    The length constraints are in bytes, not characters.
+
 Timestamp:
   type: string
   format: date-time
@@ -46,3 +50,5 @@ Timestamp:
     - can be in the future
     - will be converted to and then stored as UTC
     - sub-second resolution is not guaranteed
+
+    The length constraints are in bytes, not characters.
