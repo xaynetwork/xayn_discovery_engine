@@ -51,7 +51,7 @@ use crate::{
         DocumentSnippet,
         DocumentTags,
     },
-    storage,
+    storage::{self, property_filter::IndexedPropertiesSchemaUpdate, IndexedProperties},
     Error,
 };
 
@@ -621,43 +621,22 @@ async fn delete_document_property(
     Ok(HttpResponse::NoContent())
 }
 
-type CreateIndexedPropertiesRequest = HashMap<DocumentPropertyId, CreateIndexedProperty>;
-//FIXME import
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-enum IndexedPropertyType {
-    String,
-    Date,
-    #[serde(alias = "string[]")]
-    StringArray,
-}
-
-#[derive(Debug, Deserialize)]
-struct CreateIndexedProperty {
-    #[allow(dead_code)]
-    r#type: IndexedPropertyType,
-}
-
-#[instrument(skip(_storage))]
+#[instrument(skip(storage))]
 async fn create_indexed_properties(
-    Json(create_properties): Json<CreateIndexedPropertiesRequest>,
-    TenantState(_storage): TenantState,
+    Json(update): Json<IndexedPropertiesSchemaUpdate>,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    // TODO from each entry create schema_update = IndexedPropertySchema::new(name, r#type)
-    // TODO fold all schemas into one update
-    // let current_schema = storage.load_indexed_properties_schema().await?;
-    // TODO check compatibility with current schema
-    // TODO store schema update => update ES mapping & call _update_by_query
-    todo!();
-    Ok(HttpResponse::NoContent())
+    // TODO[pmk/now] max property count from congfig
+    Ok(Json(
+        IndexedProperties::extend_schema(&storage, update, 11).await?,
+    ))
 }
 
-#[instrument(skip(_storage))]
+#[instrument(skip(storage))]
 async fn get_indexed_properties_schema(
-    TenantState(_storage): TenantState,
+    TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    todo!(/* IndexedProperties::load_schema(&_storage).map_err(Error::from) */);
-    Ok(HttpResponse::NoContent())
+    Ok(Json(IndexedProperties::load_schema(&storage).await?))
 }
 
 #[derive(Deserialize, Debug)]

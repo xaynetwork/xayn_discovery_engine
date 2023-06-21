@@ -28,7 +28,7 @@ use xayn_ai_bert::InvalidEmbedding;
 use xayn_web_api_shared::elastic;
 
 use super::application::{impl_application_error, ApplicationError};
-use crate::{models::DocumentId, Error};
+use crate::{models::DocumentId, storage::property_filter::IncompatibleUpdate, Error};
 
 impl_application_error!(InvalidEmbedding => INTERNAL_SERVER_ERROR, ERROR);
 
@@ -155,6 +155,35 @@ impl_application_error!(FailedToSetSomeDocumentCandidates => BAD_REQUEST, INFO);
 pub(crate) struct HistoryTooSmall;
 
 impl_application_error!(HistoryTooSmall => BAD_REQUEST, INFO);
+
+impl ApplicationError for IncompatibleUpdate {
+    fn status_code(&self) -> StatusCode {
+        StatusCode::BAD_REQUEST
+    }
+
+    fn kind(&self) -> &str {
+        match self {
+            IncompatibleUpdate::PropertyIsAlreadyIndexed { .. } => {
+                "IncompatibleUpdate::PropertyIsAlreadyIndexed"
+            }
+            IncompatibleUpdate::TooManyProperties { .. } => "IncompatibleUpdate::ToManyProperties",
+        }
+    }
+
+    fn level(&self) -> Level {
+        Level::INFO
+    }
+
+    fn encode_details(&self) -> Value {
+        serde_json::to_value(self).unwrap_or_else(|error| {
+            tracing::error!(
+                %error,
+                "serializing error details failed",
+            );
+            Value::Null
+        })
+    }
+}
 
 /// Custom error for 400 Bad Request status code.
 #[derive(Debug, Error, Display, Serialize, From)]
