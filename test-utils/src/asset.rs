@@ -56,6 +56,11 @@ pub fn smroberta() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "smroberta_tokenizer_v0000"])
 }
 
+/// Resolves the path to the e5 like model.
+pub fn e5() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "e5"])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

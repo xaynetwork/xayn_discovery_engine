@@ -14,6 +14,7 @@
 
 pub mod bert;
 pub mod roberta;
+pub mod unigram;
 
 use derive_more::{Deref, From};
 use ndarray::Array2;
