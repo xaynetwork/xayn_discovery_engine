@@ -286,10 +286,11 @@ components:
           description: |
             Text that will be used to match the document against the user interests.
             Enclosing whitespace will be trimmed.
+            The length constraints are in bytes, not characters.
             If `summarize` is enabled, then the length applies to the summarized instead of the original snippet.
           type: string
           minLength: 1
-          maxLength: 1024
+          maxLength: 2048
           pattern: '^[^\x00]+$'
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
