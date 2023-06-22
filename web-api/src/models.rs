@@ -187,7 +187,7 @@ impl DocumentProperties {
         }
 
         // properties set to null are treated as if that field has no value
-        properties.retain(|_, property| property.0 != Value::Null);
+        properties.retain(|_, property| !property.is_null());
         Ok(Self(properties))
     }
 }
