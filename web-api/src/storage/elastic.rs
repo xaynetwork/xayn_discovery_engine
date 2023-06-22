@@ -18,13 +18,19 @@ use std::{collections::HashMap, convert::identity, hash::Hash, mem::replace, ops
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 use xayn_web_api_shared::serde::{json_object, merge_json_objects, JsonObject};
 
-use super::{MergeFn, NormalizationFn, SearchStrategy};
+use super::{
+    property_filter::IndexedPropertiesSchemaUpdate,
+    MergeFn,
+    NormalizationFn,
+    SearchStrategy,
+};
 use crate::{
     models::{
         self,
@@ -35,7 +41,7 @@ use crate::{
         DocumentSnippet,
         DocumentTags,
     },
-    storage::{KnnSearchParams, Warning},
+    storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
 };
 
@@ -239,7 +245,7 @@ impl Client {
                 }
             }
         });
-        self.query_with_json::<_, IgnoredResponse>(url, Some(body))
+        self.query_with_json::<_, IgnoredResponse>(Method::POST, url, Some(body))
             .await?;
 
         Ok(())
@@ -263,7 +269,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
     }
@@ -285,7 +291,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
     }
@@ -310,7 +316,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
     }
@@ -333,7 +339,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| Some(())))
     }
@@ -356,9 +362,64 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
+    }
+
+    pub(super) async fn extend_elasticsearch_mapping(
+        &self,
+        updates: &IndexedPropertiesSchemaUpdate,
+    ) -> Result<(), Error> {
+        if updates.len() == 0 {
+            return Ok(());
+        }
+        let mut properties = JsonObject::new();
+        for (id, definition) in updates {
+            let r#type = match definition.r#type {
+                IndexedPropertyType::Bool => "boolean",
+                IndexedPropertyType::Number => "double",
+                IndexedPropertyType::String | IndexedPropertyType::StringArray => "keyword",
+                IndexedPropertyType::Date => "date",
+            };
+            properties.insert(
+                id.as_str().into(),
+                json!({
+                    "type": r#type
+                }),
+            );
+        }
+        let body = json!({
+            "properties": properties
+        });
+
+        let url = self.create_url(["_mapping"], []);
+        self.query_with_json::<_, IgnoredResponse>(Method::PUT, url, Some(body))
+            .await?;
+
+        self.update_indices_in_background().await?;
+
+        Ok(())
+    }
+
+    async fn update_indices_in_background(&self) -> Result<(), Error> {
+        let url = self.create_url(
+            ["_update_by_query"],
+            [
+                ("conflicts", Some("proceed")),
+                //FIXME add a way to async query the status of the update
+                //      ES will return a task handle we can use for this.
+                ("wait_for_completion", Some("false")),
+                ("refresh", Some("true")),
+                //TODO make it configurable, currently it's 500_000 documents per second
+                //      (500 batch requests per second * 1000 documents per batch)
+                //     but I have no idea what a good value is
+                ("requests_per_second", Some("500")),
+            ],
+        );
+        self.query_with_json::<(), IgnoredResponse>(Method::POST, url, None)
+            .await?;
+        Ok(())
     }
 }
 

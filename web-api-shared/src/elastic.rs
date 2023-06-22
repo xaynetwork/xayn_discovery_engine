@@ -270,7 +270,7 @@ impl Client {
 
         let body = serialize_to_ndjson(requests)?;
 
-        self.query_with_bytes::<_, BulkResponse<I>>(url, Some((headers, body)))
+        self.query_with_bytes::<_, BulkResponse<I>>(Method::POST, url, Some((headers, body)))
             .await?
             .ok_or_else(|| Error::EndpointNotFound("_bulk"))
     }
@@ -285,6 +285,7 @@ impl Client {
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
         self.query_with_json::<_, SearchResponse<I, NoSource>>(
+            Method::POST,
             self.create_url(["_search"], None),
             Some(body),
         )
@@ -305,6 +306,7 @@ impl Client {
 
     pub async fn query_with_bytes<B, T>(
         &self,
+        method: Method,
         url: Url,
         post_data: Option<(HeaderMap<HeaderValue>, B)>,
     ) -> Result<Option<T>, Error>
@@ -312,11 +314,10 @@ impl Client {
         B: Into<Body>,
         T: DeserializeOwned,
     {
-        let request_builder = if let Some((headers, body)) = post_data {
-            self.client.post(url).headers(headers).body(body)
-        } else {
-            self.client.get(url)
-        };
+        let mut request_builder = self.client.request(method, url);
+        if let Some((headers, body)) = post_data {
+            request_builder = request_builder.headers(headers).body(body)
+        }
 
         let response = self.auth.apply_to(request_builder).send().await?;
 
@@ -333,7 +334,12 @@ impl Client {
         }
     }
 
-    pub async fn query_with_json<B, T>(&self, url: Url, body: Option<B>) -> Result<Option<T>, Error>
+    pub async fn query_with_json<B, T>(
+        &self,
+        method: Method,
+        url: Url,
+        body: Option<B>,
+    ) -> Result<Option<T>, Error>
     where
         B: Serialize,
         T: DeserializeOwned,
@@ -347,7 +353,7 @@ impl Client {
             })
             .transpose()?;
 
-        self.query_with_bytes(url, post_data).await
+        self.query_with_bytes(method, url, post_data).await
     }
 }
 
