@@ -154,9 +154,6 @@ impl TryFrom<Value> for DocumentProperty {
                 }
             }
             Value::Array(array) => {
-                if array.is_empty() {
-                    return Err(InvalidDocumentProperty { value: property });
-                }
                 for value in array {
                     let Value::String(ref mut string) = value else {
                         return Err(InvalidDocumentProperty { value: property });
