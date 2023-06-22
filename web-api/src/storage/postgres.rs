@@ -1291,7 +1291,7 @@ impl storage::IndexedProperties for Storage {
         let mut schema = self.load_schema_with_transaction(&mut tx).await?;
         schema.update(&update, max_properties)?;
         self.extend_postgres_schema(&mut tx, &update).await?;
-        self.extend_elasticsearch_mapping(&update).await?;
+        //TODO self.elastic.extend_elasticsearch_mapping(&update).await?;
         tx.commit().await?;
         Ok(schema)
     }
@@ -1326,15 +1326,6 @@ impl Storage {
             .build()
             .execute(tx)
             .await?;
-        Ok(())
-    }
-
-    async fn extend_elasticsearch_mapping(
-        &self,
-        _update: &IndexedPropertiesSchemaUpdate,
-    ) -> Result<(), Error> {
-        #![allow(clippy::unused_async)]
-        //TODO
         Ok(())
     }
 }
