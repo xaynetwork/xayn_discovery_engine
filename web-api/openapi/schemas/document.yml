@@ -21,7 +21,7 @@ DocumentPropertyString:
 DocumentProperty:
   description: | 
     Arbitrary property that can be attached to a document.
-    When a property is set to `null` it is treated as though that property has no values.
+    When a property is set to `null`, it is treated as if that property had no values.
   oneOf:
     - type: boolean
       nullable: true
