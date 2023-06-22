@@ -146,7 +146,7 @@ impl TryFrom<Value> for DocumentProperty {
 
     fn try_from(mut property: Value) -> Result<Self, Self::Error> {
         match &mut property {
-            Value::Bool(_) | Value::Number(_) => {}
+            Value::Bool(_) | Value::Number(_) | Value::Null => {}
             Value::String(string) => {
                 trim(string);
                 if !is_valid_string(string, 2_048) {
@@ -164,9 +164,7 @@ impl TryFrom<Value> for DocumentProperty {
                     }
                 }
             }
-            Value::Null | Value::Object(_) => {
-                return Err(InvalidDocumentProperty { value: property })
-            }
+            Value::Object(_) => return Err(InvalidDocumentProperty { value: property }),
         };
 
         Ok(Self(property))
@@ -181,14 +179,16 @@ pub(crate) struct DocumentProperties(HashMap<DocumentPropertyId, DocumentPropert
 
 impl DocumentProperties {
     pub(crate) fn new(
-        properties: HashMap<DocumentPropertyId, DocumentProperty>,
+        mut properties: HashMap<DocumentPropertyId, DocumentProperty>,
         size: usize,
     ) -> Result<Self, InvalidDocumentProperties> {
-        if size <= 2_560 {
-            Ok(Self(properties))
-        } else {
-            Err(InvalidDocumentProperties { size })
+        if size > 2_560 {
+            return Err(InvalidDocumentProperties { size });
         }
+
+        // properties set to null are treated as if that field has no value
+        properties.retain(|_, property| property.0 != Value::Null);
+        Ok(Self(properties))
     }
 }
 
