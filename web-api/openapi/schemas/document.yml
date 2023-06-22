@@ -22,16 +22,18 @@ DocumentProperty:
   description: | 
     Arbitrary property that can be attached to a document.
     When a property is set to `null` it is treated as though that property has no values.
-  type:
-    nullable: true
-    oneOf:
-      - type: boolean
-      - type: number
-      - $ref: '#/DocumentPropertyString'
-      - type: array
-        minItems: 0
-        items:
-          $ref: '#/DocumentPropertyString'
+  oneOf:
+    - type: boolean
+      nullable: true
+    - type: number
+      nullable: true
+    - $ref: '#/DocumentPropertyString'
+      nullable: true
+    - type: array
+      nullable: true
+      minItems: 0
+      items:
+        $ref: '#/DocumentPropertyString'
   example: "News title"
 
 DocumentProperties:
