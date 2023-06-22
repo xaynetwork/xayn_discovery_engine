@@ -19,12 +19,18 @@ DocumentPropertyString:
   maxLength: 2048
 
 DocumentProperty:
-  description: Arbitrary property that can be attached to a document.
+  description: | 
+    Arbitrary property that can be attached to a document.
+    When a property is set to `null`, it is treated as if that property had no values.
   oneOf:
     - type: boolean
+      nullable: true
     - type: number
+      nullable: true
     - $ref: '#/DocumentPropertyString'
+      nullable: true
     - type: array
+      nullable: true
       minItems: 0
       items:
         $ref: '#/DocumentPropertyString'
