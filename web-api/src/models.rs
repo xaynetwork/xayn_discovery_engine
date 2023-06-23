@@ -124,8 +124,8 @@ fn is_valid_string(value: &str, len: usize) -> bool {
     (1..=len).contains(&value.len()) && RE.is_match(value)
 }
 
-fn is_valid_string_property(value: &str, len: usize) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]+$").unwrap());
+fn is_valid_string_empty_ok(value: &str, len: usize) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]*$").unwrap());
 
     (0..=len).contains(&value.len()) && RE.is_match(value)
 }
@@ -154,8 +154,7 @@ impl TryFrom<Value> for DocumentProperty {
         match &mut property {
             Value::Bool(_) | Value::Number(_) | Value::Null => {}
             Value::String(string) => {
-                trim(string);
-                if !is_valid_string_property(string, 2_048) {
+                if !is_valid_string_empty_ok(string, 2_048) {
                     return Err(InvalidDocumentProperty { value: property });
                 }
             }
@@ -348,5 +347,16 @@ mod tests {
         assert!(!is_valid_string("", 256));
         assert!(!is_valid_string(&["a"; 257].join(""), 256));
         assert!(!is_valid_string("\0", 256));
+    }
+
+    #[test]
+    fn test_is_valid_string_empty_ok() {
+        assert!(is_valid_string_empty_ok("abcdefghijklmnopqrstruvwxyz", 256));
+        assert!(is_valid_string_empty_ok("ABCDEFGHIJKLMNOPQURSTUVWXYZ", 256));
+        assert!(is_valid_string_empty_ok("0123456789", 256));
+        assert!(is_valid_string_empty_ok(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€", 256));
+        assert!(is_valid_string_empty_ok("", 256));
+        assert!(!is_valid_string_empty_ok(&["a"; 257].join(""), 256));
+        assert!(!is_valid_string_empty_ok("\0", 256));
     }
 }
