@@ -30,7 +30,11 @@ use sqlx::{
         chrono::{DateTime, Utc},
         Json,
     },
-    Executor, FromRow, Postgres, QueryBuilder, Transaction,
+    Executor,
+    FromRow,
+    Postgres,
+    QueryBuilder,
+    Transaction,
 };
 use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
@@ -38,16 +42,27 @@ use xayn_ai_coi::{Coi, CoiId, CoiStats};
 
 use super::{
     property_filter::{
-        IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate, IndexedPropertyDefinition,
+        IndexedPropertiesSchema,
+        IndexedPropertiesSchemaUpdate,
+        IndexedPropertyDefinition,
         IndexedPropertyType,
     },
-    InteractionUpdateContext, TagWeights,
+    InteractionUpdateContext,
+    TagWeights,
 };
 use crate::{
     models::{
-        DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId, DocumentTag,
-        DocumentTags, ExcerptedDocument, IngestedDocument, InteractedDocument,
-        PersonalizedDocument, UserId,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentTag,
+        DocumentTags,
+        ExcerptedDocument,
+        IngestedDocument,
+        InteractedDocument,
+        PersonalizedDocument,
+        UserId,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
     Error,

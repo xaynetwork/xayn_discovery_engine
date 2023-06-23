@@ -390,7 +390,12 @@ impl Client {
             );
         }
         let body = json!({
-            "properties": properties
+            "properties": {
+                "properties": {
+                    // the properties of the field named properties in the properties of a document
+                    "properties": properties
+                }
+            }
         });
 
         let url = self.create_url(["_mapping"], []);
