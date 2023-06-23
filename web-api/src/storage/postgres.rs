@@ -1303,7 +1303,7 @@ impl Storage {
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<IndexedPropertiesSchema, Error> {
         let schema = sqlx::query_as::<_, (DocumentPropertyId, IndexedPropertyType)>(
-            "SELECT (name, type) FROM indexed_property_definition;",
+            "SELECT name, type FROM indexed_property_definition;",
         )
         .fetch_all(tx)
         .await?

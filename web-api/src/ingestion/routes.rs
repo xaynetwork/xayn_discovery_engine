@@ -81,7 +81,8 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
         )
         .service(
             web::resource("/documents/_indexed_properties")
-                .route(web::post().to(create_indexed_properties)),
+                .route(web::post().to(create_indexed_properties))
+                .route(web::get().to(get_indexed_properties_schema)),
         )
         .service(web::resource("/documents/{document_id}").route(web::delete().to(delete_document)))
         .service(
