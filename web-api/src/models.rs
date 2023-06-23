@@ -354,7 +354,10 @@ mod tests {
         assert!(is_valid_string_empty_ok("abcdefghijklmnopqrstruvwxyz", 256));
         assert!(is_valid_string_empty_ok("ABCDEFGHIJKLMNOPQURSTUVWXYZ", 256));
         assert!(is_valid_string_empty_ok("0123456789", 256));
-        assert!(is_valid_string_empty_ok(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€", 256));
+        assert!(is_valid_string_empty_ok(
+            " .:,;-_#'+*^°!\"§$%&/()=?\\´`@€",
+            256
+        ));
         assert!(is_valid_string_empty_ok("", 256));
         assert!(!is_valid_string_empty_ok(&["a"; 257].join(""), 256));
         assert!(!is_valid_string_empty_ok("\0", 256));
