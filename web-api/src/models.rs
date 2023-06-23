@@ -184,15 +184,13 @@ pub(crate) struct DocumentProperties(HashMap<DocumentPropertyId, DocumentPropert
 
 impl DocumentProperties {
     pub(crate) fn new(
-        mut properties: HashMap<DocumentPropertyId, DocumentProperty>,
+        properties: HashMap<DocumentPropertyId, DocumentProperty>,
         size: usize,
     ) -> Result<Self, InvalidDocumentProperties> {
         if size > 2_560 {
             return Err(InvalidDocumentProperties { size });
         }
 
-        // properties set to null are treated as if that field has no value
-        properties.retain(|_, property| !property.is_null());
         Ok(Self(properties))
     }
 }

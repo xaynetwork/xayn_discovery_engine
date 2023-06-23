@@ -11,7 +11,6 @@ DocumentPropertyId:
 DocumentPropertyString:
   description: |
     Arbitrary string property that can be attached to a document.
-    Enclosing whitespace will be trimmed.
     The length constraints are in bytes, not characters.
   type: string
   pattern: '^[^\x00]+$'
@@ -21,7 +20,8 @@ DocumentPropertyString:
 DocumentProperty:
   description: | 
     Arbitrary property that can be attached to a document.
-    When a property is set to `null`, it is treated as if that property had no values.
+    When a property is set to null, or an empty array it is treated as though that property has no values.
+    This means that they will not appear in searches with filter on this properties.
   oneOf:
     - type: boolean
       nullable: true
