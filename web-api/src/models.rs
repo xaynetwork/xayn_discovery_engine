@@ -124,6 +124,12 @@ fn is_valid_string(value: &str, len: usize) -> bool {
     (1..=len).contains(&value.len()) && RE.is_match(value)
 }
 
+fn is_valid_string_property(value: &str, len: usize) -> bool {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]+$").unwrap());
+
+    (0..=len).contains(&value.len()) && RE.is_match(value)
+}
+
 string_wrapper! {
     /// A unique document identifier.
     pub(crate) DocumentId, InvalidDocumentId, is_valid_id;
@@ -149,7 +155,7 @@ impl TryFrom<Value> for DocumentProperty {
             Value::Bool(_) | Value::Number(_) | Value::Null => {}
             Value::String(string) => {
                 trim(string);
-                if !is_valid_string(string, 2_048) {
+                if !is_valid_string_property(string, 2_048) {
                     return Err(InvalidDocumentProperty { value: property });
                 }
             }
