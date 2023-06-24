@@ -156,34 +156,7 @@ pub(crate) struct HistoryTooSmall;
 
 impl_application_error!(HistoryTooSmall => BAD_REQUEST, INFO);
 
-impl ApplicationError for IncompatibleUpdate {
-    fn status_code(&self) -> StatusCode {
-        StatusCode::BAD_REQUEST
-    }
-
-    fn kind(&self) -> &str {
-        match self {
-            IncompatibleUpdate::PropertyIsAlreadyIndexed { .. } => {
-                "IncompatibleUpdate::PropertyIsAlreadyIndexed"
-            }
-            IncompatibleUpdate::TooManyProperties { .. } => "IncompatibleUpdate::ToManyProperties",
-        }
-    }
-
-    fn level(&self) -> Level {
-        Level::INFO
-    }
-
-    fn encode_details(&self) -> Value {
-        serde_json::to_value(self).unwrap_or_else(|error| {
-            tracing::error!(
-                %error,
-                "serializing error details failed",
-            );
-            Value::Null
-        })
-    }
-}
+impl_application_error!(IncompatibleUpdate => BAD_REQUEST, INFO);
 
 /// Custom error for 400 Bad Request status code.
 #[derive(Debug, Error, Display, Serialize, From)]
