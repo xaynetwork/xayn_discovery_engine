@@ -28,7 +28,11 @@ use xayn_ai_bert::InvalidEmbedding;
 use xayn_web_api_shared::elastic;
 
 use super::application::{impl_application_error, ApplicationError};
-use crate::{models::DocumentId, storage::property_filter::IncompatibleUpdate, Error};
+use crate::{
+    models::{DocumentId, DocumentPropertyId},
+    storage::property_filter::{IncompatibleUpdate, IndexedPropertyType},
+    Error,
+};
 
 impl_application_error!(InvalidEmbedding => INTERNAL_SERVER_ERROR, ERROR);
 
@@ -68,10 +72,27 @@ pub(crate) struct InvalidDocumentPropertyId {
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
-/// Malformed document property.
+/// Malformed property {document}/{property}, {invalid_reason}: {invalid_value}
 #[derive(Debug, Error, Display, Serialize)]
+// there are some false positives with clippy and displaydoc
+#[allow(clippy::doc_markdown)]
 pub(crate) struct InvalidDocumentProperty {
-    pub(crate) value: Value,
+    pub(crate) document: DocumentId,
+    pub(crate) property: DocumentPropertyId,
+    pub(crate) invalid_value: Value,
+    pub(crate) invalid_reason: InvalidDocumentPropertyReason,
+}
+
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) enum InvalidDocumentPropertyReason {
+    /// unsupported value
+    UnsupportedType,
+    /// malformed datetime string
+    MalformedDateTimeString,
+    /// incompatible type (expected {expected:?})
+    IncompatibleType { expected: IndexedPropertyType },
+    /// string to long or contains invalid characters
+    InvalidString,
 }
 
 impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);
@@ -84,7 +105,7 @@ pub(crate) struct InvalidDocumentProperties {
 
 impl_application_error!(InvalidDocumentProperties => BAD_REQUEST, INFO);
 
-/// Malformed document tag.
+/// Malsized document tag.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentTag {
     pub(crate) value: String,

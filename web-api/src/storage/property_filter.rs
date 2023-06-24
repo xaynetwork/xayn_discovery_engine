@@ -16,11 +16,16 @@
 
 use std::collections::HashMap;
 
+use chrono::DateTime;
 use derive_more::{Deref, Display, From, IntoIterator};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use thiserror::Error;
 
-use crate::models::DocumentPropertyId;
+use crate::{
+    error::common::{InvalidDocumentProperty, InvalidDocumentPropertyReason},
+    models::{DocumentId, DocumentProperty, DocumentPropertyId},
+};
 
 #[derive(Debug, Display, PartialEq, Error, Serialize)]
 #[non_exhaustive]
@@ -69,6 +74,45 @@ impl IndexedPropertiesSchema {
         }
         self.properties.extend(schema_update.into_iter());
         Ok(())
+    }
+
+    pub(crate) fn validate_property(
+        &self,
+        document: &DocumentId,
+        property: &DocumentPropertyId,
+        value: &DocumentProperty,
+    ) -> Result<(), InvalidDocumentProperty> {
+        // This code only checks additional validity constraints coming from on a schema
+        // but an otherwise expect a valid property, hence why we accept a `&DocumentProperty`
+        // instead of a `&Value`.
+        let value = &**value;
+        let Some(definition) = self.properties.get(property) else {
+            return Ok(())
+        };
+        match (value, definition.r#type) {
+            (Value::Bool(_), IndexedPropertyType::Bool)
+            | (Value::Number(_), IndexedPropertyType::Number)
+            | (Value::String(_), IndexedPropertyType::String)
+            // we only accept string arrays as valid properties
+            | (Value::Array(_), IndexedPropertyType::StringArray) => Ok(()),
+            (Value::String(string), IndexedPropertyType::Date) => {
+                DateTime::parse_from_rfc3339(string).map_err(|_| InvalidDocumentProperty {
+                    document: document.clone(),
+                    property: property.clone(),
+                    invalid_value: value.clone(),
+                    invalid_reason: InvalidDocumentPropertyReason::MalformedDateTimeString,
+                })?;
+                Ok(())
+            },
+            (_, r#type) => Err(InvalidDocumentProperty {
+                document: document.clone(),
+                property: property.clone(),
+                invalid_value: value.clone(),
+                invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
+                    expected: r#type,
+                },
+            }),
+        }
     }
 }
 

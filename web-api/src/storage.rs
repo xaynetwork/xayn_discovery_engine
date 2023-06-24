@@ -269,6 +269,11 @@ pub(crate) trait Size {
 
 #[async_trait(?Send)]
 pub(crate) trait IndexedProperties {
+    async fn cached_schema(&self) -> Result<IndexedPropertiesSchema, Error> {
+        // TODO[pmk/now] cache it
+        self.load_schema().await
+    }
+
     async fn load_schema(&self) -> Result<IndexedPropertiesSchema, Error>;
 
     async fn extend_schema(

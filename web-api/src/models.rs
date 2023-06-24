@@ -27,15 +27,19 @@ use sqlx::{
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Document as AiDocument;
 
-use crate::error::common::{
-    InvalidDocumentId,
-    InvalidDocumentProperties,
-    InvalidDocumentProperty,
-    InvalidDocumentPropertyId,
-    InvalidDocumentSnippet,
-    InvalidDocumentTag,
-    InvalidDocumentTags,
-    InvalidUserId,
+use crate::{
+    error::common::{
+        InvalidDocumentId,
+        InvalidDocumentProperties,
+        InvalidDocumentProperty,
+        InvalidDocumentPropertyId,
+        InvalidDocumentPropertyReason,
+        InvalidDocumentSnippet,
+        InvalidDocumentTag,
+        InvalidDocumentTags,
+        InvalidUserId,
+    },
+    storage::property_filter::IndexedPropertyType,
 };
 
 fn trim(string: &mut String) {
@@ -147,32 +151,56 @@ string_wrapper! {
 #[serde(transparent)]
 pub(crate) struct DocumentProperty(Value);
 
-impl TryFrom<Value> for DocumentProperty {
-    type Error = InvalidDocumentProperty;
-
-    fn try_from(mut property: Value) -> Result<Self, Self::Error> {
-        match &mut property {
+impl DocumentProperty {
+    pub(crate) fn try_from_value(
+        document_id: &DocumentId,
+        property_id: &DocumentPropertyId,
+        mut value: Value,
+    ) -> Result<Self, InvalidDocumentProperty> {
+        match &mut value {
             Value::Bool(_) | Value::Number(_) | Value::Null => {}
             Value::String(string) => {
                 if !is_valid_string_empty_ok(string, 2_048) {
-                    return Err(InvalidDocumentProperty { value: property });
+                    return Err(InvalidDocumentProperty {
+                        document: document_id.clone(),
+                        property: property_id.clone(),
+                        invalid_value: value.clone(),
+                        invalid_reason: InvalidDocumentPropertyReason::InvalidString,
+                    });
                 }
             }
             Value::Array(array) => {
                 for value in array {
                     let Value::String(ref mut string) = value else {
-                        return Err(InvalidDocumentProperty { value: property });
+                        return Err(InvalidDocumentProperty {
+                            document: document_id.clone(),
+                            property: property_id.clone(),
+                            invalid_value: value.clone(),
+                            invalid_reason: InvalidDocumentPropertyReason::IncompatibleType { expected: IndexedPropertyType::String },
+                        });
                     };
                     trim(string);
                     if !is_valid_string(string, 2_048) {
-                        return Err(InvalidDocumentProperty { value: property });
+                        return Err(InvalidDocumentProperty {
+                            document: document_id.clone(),
+                            property: property_id.clone(),
+                            invalid_value: value.clone(),
+                            invalid_reason: InvalidDocumentPropertyReason::InvalidString,
+                        });
                     }
                 }
             }
-            Value::Object(_) => return Err(InvalidDocumentProperty { value: property }),
+            Value::Object(_) => {
+                return Err(InvalidDocumentProperty {
+                    document: document_id.clone(),
+                    property: property_id.clone(),
+                    invalid_value: value.clone(),
+                    invalid_reason: InvalidDocumentPropertyReason::UnsupportedType,
+                });
+            }
         };
 
-        Ok(Self(property))
+        Ok(Self(value))
     }
 }
 
