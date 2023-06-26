@@ -269,6 +269,7 @@ pub(crate) trait Size {
 #[async_trait(?Send)]
 pub(crate) trait IndexedProperties {
     async fn load_schema(&self) -> Result<IndexedPropertiesSchema, Error>;
+
     async fn extend_schema(
         &self,
         update: IndexedPropertiesSchemaUpdate,

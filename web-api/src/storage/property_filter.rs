@@ -24,7 +24,6 @@ use crate::models::DocumentPropertyId;
 
 #[derive(Debug, Display, PartialEq, Error, Serialize)]
 #[non_exhaustive]
-
 pub(crate) enum IncompatibleUpdate {
     #[display(fmt = "Property {property} is already defined.")]
     PropertyIsAlreadyIndexed { property: DocumentPropertyId },
@@ -37,13 +36,14 @@ pub(crate) enum IncompatibleUpdate {
 //Hint: Currently the API and internal definition match so we use the same type.
 #[derive(Debug, Clone, Default, IntoIterator, Serialize, Deserialize)]
 #[serde(transparent)]
-pub(crate) struct IndexedPropertiesSchemaUpdate(
-    #[into_iterator(owned, ref)] IndexedPropertiesSchema,
-);
+pub(crate) struct IndexedPropertiesSchemaUpdate {
+    #[into_iterator(owned, ref)]
+    properties: HashMap<DocumentPropertyId, IndexedPropertyDefinition>,
+}
 
 impl IndexedPropertiesSchemaUpdate {
     pub(crate) fn len(&self) -> usize {
-        self.0.len()
+        self.properties.len()
     }
 }
 
@@ -61,10 +61,10 @@ impl IndexedPropertiesSchema {
 
     pub(crate) fn update(
         &mut self,
-        schema_update: &IndexedPropertiesSchemaUpdate,
+        schema_update: IndexedPropertiesSchemaUpdate,
         max_total_properties: usize,
     ) -> Result<(), IncompatibleUpdate> {
-        for (property, _) in schema_update {
+        for (property, _) in &schema_update {
             if self.properties.contains_key(property) {
                 return Err(IncompatibleUpdate::PropertyIsAlreadyIndexed {
                     property: property.clone(),
@@ -78,7 +78,7 @@ impl IndexedPropertiesSchema {
                 allowed: max_total_properties,
             });
         }
-        self.properties.extend(schema_update.clone().into_iter());
+        self.properties.extend(schema_update.into_iter());
         Ok(())
     }
 }
@@ -92,8 +92,7 @@ pub(crate) struct IndexedPropertyDefinition {
 //Hint: Currently the API and internal definition match so we use the same type.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, sqlx::Type)]
 #[serde(rename_all = "snake_case")]
-#[sqlx(type_name = "indexed_property_type")]
-#[sqlx(rename_all = "snake_case")]
+#[sqlx(type_name = "indexed_property_type", rename_all = "snake_case")]
 pub(crate) enum IndexedPropertyType {
     Boolean,
     Number,
@@ -110,24 +109,32 @@ mod tests {
 
     use super::*;
 
-    impl IndexedPropertiesSchema {
-        fn from_iter<'a>(iter: impl IntoIterator<Item = (&'a str, IndexedPropertyType)>) -> Self {
-            let properties = iter
-                .into_iter()
-                .map(|(name, r#type)| {
-                    (
-                        DocumentPropertyId::try_from(name).unwrap(),
-                        IndexedPropertyDefinition { r#type },
-                    )
-                })
-                .collect();
-            Self { properties }
+    fn property_map_from_iter<'a>(
+        iter: impl IntoIterator<Item = (&'a str, IndexedPropertyType)>,
+    ) -> HashMap<DocumentPropertyId, IndexedPropertyDefinition> {
+        iter.into_iter()
+            .map(|(name, r#type)| {
+                (
+                    DocumentPropertyId::try_from(name).unwrap(),
+                    IndexedPropertyDefinition { r#type },
+                )
+            })
+            .collect()
+    }
+
+    impl<'a> FromIterator<(&'a str, IndexedPropertyType)> for IndexedPropertiesSchema {
+        fn from_iter<T: IntoIterator<Item = (&'a str, IndexedPropertyType)>>(iter: T) -> Self {
+            Self {
+                properties: property_map_from_iter(iter),
+            }
         }
     }
 
-    impl IndexedPropertiesSchemaUpdate {
-        fn from_iter<'a>(iter: impl IntoIterator<Item = (&'a str, IndexedPropertyType)>) -> Self {
-            Self(IndexedPropertiesSchema::from_iter(iter))
+    impl<'a> FromIterator<(&'a str, IndexedPropertyType)> for IndexedPropertiesSchemaUpdate {
+        fn from_iter<T: IntoIterator<Item = (&'a str, IndexedPropertyType)>>(iter: T) -> Self {
+            Self {
+                properties: property_map_from_iter(iter),
+            }
         }
     }
 
@@ -142,7 +149,7 @@ mod tests {
             ("bart", IndexedPropertyType::Number),
         ]);
 
-        schema.update(&update, 11).expect("to be compatible");
+        schema.update(update, 11).expect("to be compatible");
     }
 
     #[test]
@@ -156,7 +163,7 @@ mod tests {
             ("bart", IndexedPropertyType::Number),
         ]);
 
-        let err = schema.update(&update, 11).unwrap_err();
+        let err = schema.update(update, 11).unwrap_err();
 
         assert_eq!(
             err,
@@ -175,7 +182,7 @@ mod tests {
             ("baz", IndexedPropertyType::Keyword),
         ]);
 
-        let err = schema.update(&update, 2).unwrap_err();
+        let err = schema.update(update, 2).unwrap_err();
 
         assert_eq!(
             err,
@@ -191,7 +198,7 @@ mod tests {
         ]);
         let update = IndexedPropertiesSchemaUpdate::from_iter([]);
 
-        let err = schema.update(&update, 1).unwrap_err();
+        let err = schema.update(update, 1).unwrap_err();
 
         assert_eq!(
             err,

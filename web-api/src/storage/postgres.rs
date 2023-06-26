@@ -1277,7 +1277,7 @@ impl storage::Size for Storage {
 impl storage::IndexedProperties for Storage {
     async fn load_schema(&self) -> Result<IndexedPropertiesSchema, Error> {
         let mut tx = self.postgres.begin().await?;
-        let schema = self.load_schema_with_transaction(&mut tx).await?;
+        let schema = Database::load_schema(&mut tx).await?;
         tx.commit().await?;
         Ok(schema)
     }
@@ -1288,22 +1288,21 @@ impl storage::IndexedProperties for Storage {
         max_properties: usize,
     ) -> Result<IndexedPropertiesSchema, Error> {
         let mut tx = self.postgres.begin().await?;
-        let mut schema = self.load_schema_with_transaction(&mut tx).await?;
-        schema.update(&update, max_properties)?;
-        self.extend_postgres_schema(&mut tx, &update).await?;
+        let mut schema = Database::load_schema(&mut tx).await?;
+        schema.update(update.clone(), max_properties)?;
+        Database::extend_postgres_schema(&mut tx, &update).await?;
         //TODO self.elastic.extend_elasticsearch_mapping(&update).await?;
         tx.commit().await?;
         Ok(schema)
     }
 }
 
-impl Storage {
-    async fn load_schema_with_transaction(
-        &self,
+impl Database {
+    async fn load_schema(
         tx: &mut Transaction<'_, Postgres>,
     ) -> Result<IndexedPropertiesSchema, Error> {
         let schema = sqlx::query_as::<_, (DocumentPropertyId, IndexedPropertyType)>(
-            "SELECT name, type FROM indexed_property_definition;",
+            "SELECT name, type FROM indexed_property;",
         )
         .fetch_all(tx)
         .await?
@@ -1315,11 +1314,10 @@ impl Storage {
     }
 
     async fn extend_postgres_schema(
-        &self,
         tx: &mut Transaction<'_, Postgres>,
         update: &IndexedPropertiesSchemaUpdate,
     ) -> Result<(), Error> {
-        QueryBuilder::new("INSERT INTO indexed_property_definition(name, type) ")
+        QueryBuilder::new("INSERT INTO indexed_property(name, type) ")
             .push_values(update, |mut builder, (name, def)| {
                 builder.push_bind(name).push_bind(def.r#type);
             })

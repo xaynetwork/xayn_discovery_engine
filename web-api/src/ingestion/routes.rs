@@ -629,16 +629,16 @@ async fn create_indexed_properties(
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let max_indexed_properties = state.config.ingestion.max_indexed_properties;
-    Ok(Json(
-        IndexedProperties::extend_schema(&storage, update, max_indexed_properties).await?,
-    ))
+    IndexedProperties::extend_schema(&storage, update, max_indexed_properties)
+        .await
+        .map(Json)
 }
 
 #[instrument(skip(storage))]
 async fn get_indexed_properties_schema(
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    Ok(Json(IndexedProperties::load_schema(&storage).await?))
+    IndexedProperties::load_schema(&storage).await.map(Json)
 }
 
 #[derive(Deserialize, Debug)]

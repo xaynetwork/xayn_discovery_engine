@@ -20,10 +20,10 @@ CREATE TYPE indexed_property_type AS ENUM (
     'date'
 );
 
-CREATE TABLE indexed_property_definition (
+CREATE TABLE indexed_property (
     name TEXT NOT NULL PRIMARY KEY,
     type indexed_property_type NOT NULL
 );
 
-INSERT INTO indexed_property_definition(name, type)
-    VALUES ('publication_date', 'date')
+INSERT INTO indexed_property(name, type)
+    VALUES ('publication_date', 'date');
