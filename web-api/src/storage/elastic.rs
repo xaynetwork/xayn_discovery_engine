@@ -377,9 +377,9 @@ impl Client {
         let mut properties = JsonObject::new();
         for (id, definition) in updates {
             let r#type = match definition.r#type {
-                IndexedPropertyType::Bool => "boolean",
+                IndexedPropertyType::Boolean => "boolean",
                 IndexedPropertyType::Number => "double",
-                IndexedPropertyType::String | IndexedPropertyType::StringArray => "keyword",
+                IndexedPropertyType::Keyword | IndexedPropertyType::StringArray => "keyword",
                 IndexedPropertyType::Date => "date",
             };
             properties.insert(
