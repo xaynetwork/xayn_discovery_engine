@@ -35,9 +35,7 @@ DocumentProperty:
     - type: number
     - $ref: '#/DocumentPropertyString'
     - type: array
-      minItems: 0
-      items:
-        $ref: '#/DocumentPropertyString'
+    - $ref: '#/DocumentPropertyArrayString'
 
   example: "News title"
 
