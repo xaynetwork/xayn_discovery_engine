@@ -30,13 +30,12 @@ DocumentProperty:
     Arbitrary data that can be attached to a document. A subset of JSON is supported.
     When a property is set to null, or an empty array it is treated as though that property has no values.
     This means that they will not appear in searches with filter on this properties.
-  anyOf:
+  oneOf:
     - type: 'null'
-    - oneOf:
-        - type: boolean
-        - type: number
-        - $ref: '#/DocumentPropertyString'
-        - $ref: '#/DocumentPropertyArrayString'
+    - type: boolean
+    - type: number
+    - $ref: '#/DocumentPropertyString'
+    - $ref: '#/DocumentPropertyArrayString'
 
   example: "News title"
 
