@@ -21,9 +21,9 @@ DocumentPropertyArrayString:
   description: | 
     Array of non-null string.
   type: array
-    minItems: 0
-    items:
-      $ref: '#/DocumentPropertyString'
+  minItems: 0
+  items:
+    $ref: '#/DocumentPropertyString'
 
 DocumentProperty:
   description: | 
