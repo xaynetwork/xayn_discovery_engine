@@ -105,7 +105,7 @@ pub(crate) struct InvalidDocumentProperties {
 
 impl_application_error!(InvalidDocumentProperties => BAD_REQUEST, INFO);
 
-/// Malsized document tag.
+/// Malformed document tag.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentTag {
     pub(crate) value: String,
