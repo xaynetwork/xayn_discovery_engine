@@ -31,14 +31,14 @@ DocumentProperty:
     When a property is set to null, or an empty array it is treated as though that property has no values.
     This means that they will not appear in searches with filter on this properties.
   oneOf:
-    - type: null
     - type: boolean
-      # nullable: true
     - type: number
-      # nullable: true
     - $ref: '#/DocumentPropertyString'
-      # nullable: true
-    - $ref: '#/DocumentPropertyArrayString'
+    - type: array
+      minItems: 0
+      items:
+        $ref: '#/DocumentPropertyString'
+
   example: "News title"
 
 DocumentProperties:
