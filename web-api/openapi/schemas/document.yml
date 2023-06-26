@@ -14,26 +14,31 @@ DocumentPropertyString:
     The length constraints are in bytes, not characters.
   type: string
   pattern: '^[^\x00]+$'
-  minLength: 1
+  minLength: 0
   maxLength: 2048
 
-DocumentProperty:
+DocumentPropertyArrayString:
   description: | 
-    Arbitrary property that can be attached to a document.
-    When a property is set to null, or an empty array it is treated as though that property has no values.
-    This means that they will not appear in searches with filter on this properties.
-  oneOf:
-    - type: boolean
-      nullable: true
-    - type: number
-      nullable: true
-    - $ref: '#/DocumentPropertyString'
-      nullable: true
+    Array of non-null string.
     - type: array
-      nullable: true
       minItems: 0
       items:
         $ref: '#/DocumentPropertyString'
+
+DocumentProperty:
+  description: | 
+    Arbitrary data that can be attached to a document. A subset of JSON is supported.
+    When a property is set to null, or an empty array it is treated as though that property has no values.
+    This means that they will not appear in searches with filter on this properties.
+  oneOf:
+    - type: null
+    - type: boolean
+      # nullable: true
+    - type: number
+      # nullable: true
+    - $ref: '#/DocumentPropertyString'
+      # nullable: true
+    - $ref: '#/DocumentPropertyArrayString'
   example: "News title"
 
 DocumentProperties:
