@@ -28,8 +28,8 @@ DocumentPropertyArrayString:
 DocumentProperty:
   description: | 
     Arbitrary data that can be attached to a document. A subset of JSON is supported.
-    When a property is set to null, or an empty array it is treated as though that property has no values.
-    This means that they will not appear in searches with filter on this properties.
+    When a property is set to null or an empty array, it is treated as if that property had no values.
+    This means that they won't appear in searches with filters on these properties.
   oneOf:
     - type: 'null'
     - type: boolean
