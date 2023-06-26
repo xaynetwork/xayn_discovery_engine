@@ -95,9 +95,9 @@ pub(crate) struct IndexedPropertyDefinition {
 #[sqlx(type_name = "indexed_property_type")]
 #[sqlx(rename_all = "snake_case")]
 pub(crate) enum IndexedPropertyType {
-    Bool,
+    Boolean,
     Number,
-    String,
+    Keyword,
     #[serde(rename = "string[]")]
     #[sqlx(rename = "string[]")]
     StringArray,
@@ -134,11 +134,11 @@ mod tests {
     #[test]
     fn test_update_checking_works_with_no_overlap() {
         let mut schema = IndexedPropertiesSchema::from_iter([
-            ("foo", IndexedPropertyType::String),
+            ("foo", IndexedPropertyType::Keyword),
             ("bar", IndexedPropertyType::Number),
         ]);
         let update = IndexedPropertiesSchemaUpdate::from_iter([
-            ("foot", IndexedPropertyType::String),
+            ("foot", IndexedPropertyType::Keyword),
             ("bart", IndexedPropertyType::Number),
         ]);
 
@@ -148,11 +148,11 @@ mod tests {
     #[test]
     fn test_update_checking_works_with_overlap() {
         let mut schema = IndexedPropertiesSchema::from_iter([
-            ("foo", IndexedPropertyType::String),
+            ("foo", IndexedPropertyType::Keyword),
             ("bar", IndexedPropertyType::Number),
         ]);
         let update = IndexedPropertiesSchemaUpdate::from_iter([
-            ("foo", IndexedPropertyType::String),
+            ("foo", IndexedPropertyType::Keyword),
             ("bart", IndexedPropertyType::Number),
         ]);
 
@@ -168,10 +168,11 @@ mod tests {
 
     #[test]
     fn test_update_checks_max_properties() {
-        let mut schema = IndexedPropertiesSchema::from_iter([("foo", IndexedPropertyType::String)]);
+        let mut schema =
+            IndexedPropertiesSchema::from_iter([("foo", IndexedPropertyType::Keyword)]);
         let update = IndexedPropertiesSchemaUpdate::from_iter([
-            ("bar", IndexedPropertyType::String),
-            ("baz", IndexedPropertyType::String),
+            ("bar", IndexedPropertyType::Keyword),
+            ("baz", IndexedPropertyType::Keyword),
         ]);
 
         let err = schema.update(&update, 2).unwrap_err();
@@ -185,7 +186,7 @@ mod tests {
         );
 
         let mut schema = IndexedPropertiesSchema::from_iter([
-            ("foo", IndexedPropertyType::String),
+            ("foo", IndexedPropertyType::Keyword),
             ("bar", IndexedPropertyType::Number),
         ]);
         let update = IndexedPropertiesSchemaUpdate::from_iter([]);
@@ -204,24 +205,24 @@ mod tests {
     #[test]
     fn test_type_serialization() {
         let value = json!([
-            IndexedPropertyType::Bool,
+            IndexedPropertyType::Boolean,
             IndexedPropertyType::Number,
-            IndexedPropertyType::String,
+            IndexedPropertyType::Keyword,
             IndexedPropertyType::StringArray,
             IndexedPropertyType::Date
         ]);
 
         assert_eq!(
             &value,
-            &json!(["bool", "number", "string", "string[]", "date"])
+            &json!(["boolean", "number", "keyword", "string[]", "date"])
         );
 
         assert_eq!(
             serde_json::from_value::<Vec<IndexedPropertyType>>(value).unwrap(),
             vec![
-                IndexedPropertyType::Bool,
+                IndexedPropertyType::Boolean,
                 IndexedPropertyType::Number,
-                IndexedPropertyType::String,
+                IndexedPropertyType::Keyword,
                 IndexedPropertyType::StringArray,
                 IndexedPropertyType::Date
             ]
