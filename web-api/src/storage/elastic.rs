@@ -367,14 +367,14 @@ impl Client {
             .map(|_| ()))
     }
 
-    pub(super) async fn extend_elasticsearch_mapping(
+    pub(super) async fn extend_mapping(
         &self,
         updates: &IndexedPropertiesSchemaUpdate,
     ) -> Result<(), Error> {
         if updates.len() == 0 {
             return Ok(());
         }
-        let mut properties = JsonObject::new();
+        let mut properties = JsonObject::with_capacity(updates.len());
         for (id, definition) in updates {
             let r#type = match definition.r#type {
                 IndexedPropertyType::Boolean => "boolean",
@@ -382,12 +382,7 @@ impl Client {
                 IndexedPropertyType::Keyword | IndexedPropertyType::StringArray => "keyword",
                 IndexedPropertyType::Date => "date",
             };
-            properties.insert(
-                id.as_str().into(),
-                json!({
-                    "type": r#type
-                }),
-            );
+            properties.insert(id.as_str().into(), json!({ "type": r#type }));
         }
         let body = json!({
             "properties": {
@@ -416,9 +411,7 @@ impl Client {
                 //      ES will return a task handle we can use for this.
                 ("wait_for_completion", Some("false")),
                 ("refresh", Some("true")),
-                //TODO make it configurable, currently it's 500_000 documents per second
-                //      (500 batch requests per second * 1000 documents per batch)
-                //     but I have no idea what a good value is
+                //TODO make it configurable, currently it's 500 documents per second
                 ("requests_per_second", Some("500")),
             ],
         );

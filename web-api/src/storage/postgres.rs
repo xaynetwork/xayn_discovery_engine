@@ -1291,7 +1291,7 @@ impl storage::IndexedProperties for Storage {
         let mut schema = Database::load_schema(&mut tx).await?;
         schema.update(update.clone(), max_properties)?;
         Database::extend_postgres_schema(&mut tx, &update).await?;
-        self.elastic.extend_elasticsearch_mapping(&update).await?;
+        self.elastic.extend_mapping(&update).await?;
         tx.commit().await?;
         Ok(schema)
     }
