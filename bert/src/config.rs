@@ -25,7 +25,7 @@ use crate::{
     model::Model,
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
-    tokenizer::{bert::Tokenizer, Tokenize, unigram},
+    tokenizer::{bert::Tokenizer, Tokenize, generic_hf},
 };
 
 /// A pipeline configuration.
@@ -117,7 +117,7 @@ impl Config<Tokenizer, NonePooler> {
     }
 }
 
-impl Config<unigram::Tokenizer, NonePooler> {
+impl Config<generic_hf::MyTokenizer, NonePooler> {
     /// Creates a pipeline configuration.
     pub fn new_unigram(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         let dir = dir.into();

@@ -14,7 +14,7 @@
 
 pub mod bert;
 pub mod roberta;
-pub mod unigram;
+pub mod generic_hf;
 
 use derive_more::{Deref, From};
 use ndarray::Array2;
