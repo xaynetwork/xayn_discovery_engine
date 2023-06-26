@@ -50,6 +50,8 @@ module.exports = {
     },
     'ibm-major-version-in-path': 'off',
     'ibm-schema-description': 'off',
+    // spectral has is own rules to check schema that support v3.1
+    'ibm-schema-type-format': 'off',
     'ibm-avoid-inline-schemas': 'off',
     'ibm-property-description': 'off',
     'oas3-api-servers': 'off',
