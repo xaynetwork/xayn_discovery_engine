@@ -276,13 +276,14 @@ fn test_check_new_property_values_against_schema() {
             ("p4", "bad".into()),
             ("p5", false.into()),
         ] {
-            let _res = send_assert_json::<Value>(
+            let id = make_id();
+            let res = send_assert_json::<Value>(
                 &client,
                 client
                     .post(ingestion_url.join("/documents")?)
                     .json(&json!({
                         "documents": [
-                            { "id": make_id(), "snippet": "snippet 3", "properties": {
+                            { "id": id, "snippet": "snippet 3", "properties": {
                                 property: bad_value
                             } }
                         ]
@@ -292,8 +293,8 @@ fn test_check_new_property_values_against_schema() {
             )
             .await;
 
-            //TODO current ingestion code eats error details
-            // assert_eq!(res, json!({}));
+            //FIXME current ingestion code eats error details
+            assert_eq!(&res["details"]["documents"], &json!([{ "id": id }]));
         }
 
         for (property, bad_value, expected_type) in [
@@ -351,9 +352,7 @@ fn test_check_new_property_values_against_schema() {
                 &client,
                 client
                     .put(url)
-                    .json(&json!({
-                        "property": bad_value
-                    }))
+                    .json(&json!({ "property": bad_value }))
                     .build()?,
                 StatusCode::BAD_REQUEST,
             )
