@@ -1,3 +1,10 @@
+# 2.2.0 - 2023-06-26
+- Allow empty string for properties
+- Do not trim string properties
+
+# 2.1.0 - 2023-06-22
+- Allow empty array and null value for properties
+
 # 2.0.0 - 2023-06-19
 
 - trim whitespace around ids, snippets, tags and string properties
