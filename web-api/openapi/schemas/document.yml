@@ -34,7 +34,6 @@ DocumentProperty:
     - type: boolean
     - type: number
     - $ref: '#/DocumentPropertyString'
-    - type: array
     - $ref: '#/DocumentPropertyArrayString'
 
   example: "News title"
