@@ -384,7 +384,10 @@ impl Client {
                 IndexedPropertyType::Keyword | IndexedPropertyType::KeywordArray => "keyword",
                 IndexedPropertyType::Date => "date",
             };
-            properties.insert(id.as_str().into(), json!({ "type": r#type }));
+            properties.insert(
+                id.as_str().into(),
+                json!({ "type": r#type, "ignore_malformed": true }),
+            );
         }
         let body = json!({
             "properties": {
