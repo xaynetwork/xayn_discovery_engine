@@ -5,8 +5,8 @@ const { operations, paths, schemas } = require('@ibm-cloud/openapi-ruleset-utili
 module.exports = {
   extends: ibmCloudValidationRules,
   rules: {
-    // In json-schema enum is used for any kind of "one of this string value"
-    // situations, which is not limited to strict rust enum variant names.
+    // In json-schema enum is used for any kind of "one of this string values"
+    // situations, which is not limited to verbatim rust enum variant names.
     // Additionally linter overrides only work for types defined in the root
     // document. So we can't declare exceptions for the cases where it's not
     // a verbatim rust enum variant name.
