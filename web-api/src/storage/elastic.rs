@@ -378,17 +378,29 @@ impl Client {
         }
         let mut properties = JsonObject::with_capacity(updates.len());
         for (id, definition) in updates {
-            let r#type = match definition.r#type {
-                IndexedPropertyType::Boolean => "boolean",
-                IndexedPropertyType::Number => "double",
-                IndexedPropertyType::Keyword | IndexedPropertyType::KeywordArray => "keyword",
-                IndexedPropertyType::Date => "date",
+            // We ignore malformed values here for two reasons:
+            // 1. set/add candidates can push documents to ES which contain
+            //    malformed values
+            // 2. if we somehow end up with a out-of-sync schema at least everything
+            //    else but this property will still work correctly
+            //
+            // Note that `keyword` is excluded as it accepts anything and in turn is
+            // from ES POV never malformed.
+            let def = match definition.r#type {
+                IndexedPropertyType::Boolean => {
+                    json!({ "type": "boolean", "ignore_malformed": true })
+                }
+                IndexedPropertyType::Number => {
+                    json!({ "type": "double", "ignore_malformed": true })
+                }
+                IndexedPropertyType::Keyword | IndexedPropertyType::KeywordArray => {
+                    json!({ "type": "keyword" })
+                }
+                IndexedPropertyType::Date => json!({ "type": "date", "ignore_malformed": true }),
             };
-            properties.insert(
-                id.as_str().into(),
-                json!({ "type": r#type, "ignore_malformed": true }),
-            );
+            properties.insert(id.as_str().into(), def);
         }
+
         let body = json!({
             "properties": {
                 "properties": {

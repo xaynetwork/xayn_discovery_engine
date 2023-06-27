@@ -144,13 +144,16 @@ fn test_creating_indexed_properties() {
                 properties_mapping,
                 &json!({
                     "publication_date": {
-                        "type": "date"
+                        "type": "date",
+                        "ignore_malformed": true
                     },
                     "p1": {
-                        "type": "boolean"
+                        "type": "boolean",
+                        "ignore_malformed": true,
                     },
                     "p2": {
-                        "type": "double"
+                        "type": "double",
+                        "ignore_malformed": true,
                     },
                     "p3": {
                         "type": "keyword"
@@ -159,7 +162,8 @@ fn test_creating_indexed_properties() {
                         "type": "keyword"
                     },
                     "p5": {
-                        "type": "date"
+                        "type": "date",
+                        "ignore_malformed": true,
                     },
                     "p6": {
                         "type": "keyword"
