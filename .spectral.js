@@ -5,19 +5,7 @@ const { operations, paths, schemas } = require('@ibm-cloud/openapi-ruleset-utili
 module.exports = {
   extends: ibmCloudValidationRules,
   rules: {
-    'ibm-enum-casing-convention': {
-      description: 'Enum names must be pascal case',
-      message: '{{error}}',
-      resolved: true,
-      given: schemas,
-      severity: 'error',
-      then: {
-        function: enumCasingConvention,
-        functionOptions: {
-          type: 'pascal',
-        },
-      },
-    },
+    'ibm-enum-casing-convention': false,
     'ibm-operationid-casing-convention': {
       description: 'Operation ids must be pascal case',
       message: '{{error}}',

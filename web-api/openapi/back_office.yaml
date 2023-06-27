@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Back Office API
-  version: 2.2.0
+  version: 2.3.0
   description: |-
     # Back Office
     This API acts as a create/read/update/delete interface for anything related to documents.
@@ -179,7 +179,7 @@ paths:
       responses:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
-        '200':
+        '201':
           description: successful operation
           content:
             application/json:
@@ -342,12 +342,26 @@ components:
       properties:
         properties:
           $ref: './schemas/document.yml#/IndexedPropertiesSchema'
+      example:
+        properties:
+          foo:
+            type: keyword
+          bar:
+            type: date
     IndexedPropertiesSchemaResponse:
       type: object
       required: [properties]
       properties:
         properties:
          $ref: './schemas/document.yml#/IndexedPropertiesSchema'
+      example:
+        properties:
+          foo:
+            type: keyword
+          bar:
+            type: date
+          publication_date:
+            type: date
     IngestedDocument:
       type: object
       required: [id, snippet]

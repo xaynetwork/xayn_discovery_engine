@@ -22,6 +22,7 @@ use actix_web::{
 use anyhow::anyhow;
 use chrono::DateTime;
 use itertools::{Either, Itertools};
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::time::Instant;
@@ -631,7 +632,7 @@ async fn create_indexed_properties(
     let max_indexed_properties = state.config.ingestion.max_indexed_properties;
     IndexedProperties::extend_schema(&storage, update, max_indexed_properties)
         .await
-        .map(Json)
+        .map(|res| Json(res).customize().with_status(StatusCode::CREATED))
 }
 
 #[instrument(skip(storage))]
