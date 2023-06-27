@@ -74,7 +74,7 @@ module.exports = {
     },
     {
       files: [
-        "web-api/openapi/schemas/document.yml#/IndexedPropertyType",
+        "web-api/openapi/schemas/document.yml#/IndexedPropertyType.enum",
       ],
       rules: {
         "ibm-enum-casing-convention": "off",
