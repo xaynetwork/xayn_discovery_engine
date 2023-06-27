@@ -170,7 +170,7 @@ paths:
         background job. Functionality to check the completion of that job is not yet
         implemented.
       operationId: createIndexedProperties
-      request:
+      requestBody:
         required: true
         content:
           application/json:
