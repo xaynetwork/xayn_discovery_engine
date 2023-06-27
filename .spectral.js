@@ -74,11 +74,8 @@ module.exports = {
     },
     {
       files: [
-        "web-api/openapi/schemas/document.yml#/IndexedPropertyType.enum[0]",
-        "web-api/openapi/schemas/document.yml#/IndexedPropertyType.enum[1]",
-        "web-api/openapi/schemas/document.yml#/IndexedPropertyType.enum[2]",
-        "web-api/openapi/schemas/document.yml#/IndexedPropertyType.enum[3]",
-        "web-api/openapi/schemas/document.yml#/IndexedPropertyType.enum[4]",
+        // disabling it only for the affected type doesn't work
+        "web-api/openapi/schemas/document.yml",
       ],
       rules: {
         "ibm-enum-casing-convention": "off",
