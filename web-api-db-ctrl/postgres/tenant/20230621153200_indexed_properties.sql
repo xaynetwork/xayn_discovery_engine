@@ -13,10 +13,10 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 CREATE TYPE indexed_property_type AS ENUM (
-    'bool',
+    'boolean',
     'number',
-    'string',
-    'string[]',
+    'keyword',
+    'keyword[]',
     'date'
 );
 

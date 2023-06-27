@@ -97,8 +97,8 @@ pub(crate) enum IndexedPropertyType {
     Boolean,
     Number,
     Keyword,
-    #[serde(rename = "string[]")]
-    #[sqlx(rename = "string[]")]
+    #[serde(rename = "keyword[]")]
+    #[sqlx(rename = "keyword[]")]
     StringArray,
     Date,
 }
@@ -221,7 +221,7 @@ mod tests {
 
         assert_eq!(
             &value,
-            &json!(["boolean", "number", "keyword", "string[]", "date"])
+            &json!(["boolean", "number", "keyword", "keyword[]", "date"])
         );
 
         assert_eq!(
