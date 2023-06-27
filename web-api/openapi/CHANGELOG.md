@@ -1,3 +1,8 @@
+# 2.3.0 - 2023-06-27
+
+- added endpoints for retrieving and extending the
+  indexed property schema
+
 # 2.2.0 - 2023-06-26
 - Allow empty string for properties
 - Do not trim string properties
