@@ -14,6 +14,7 @@
 
 use reqwest::StatusCode;
 use serde_json::{json, Value};
+use toml::toml;
 use url::Url;
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
 use xayn_web_api::Ingestion;
@@ -173,13 +174,18 @@ fn test_creating_indexed_properties() {
 
 #[test]
 fn test_check_new_property_values_against_schema() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, ingestion_url, _| async move {
-        let mut count = 0;
-        let mut make_id = || {
-            count += 1;
-            format!("d{}", count)
-        };
-        send_assert(
+    test_app::<Ingestion, _>(
+        Some(toml! {
+            [ingestion.index_update]
+            method = "background"
+        }),
+        |client, ingestion_url, _| async move {
+            let mut count = 0;
+            let mut make_id = || {
+                count += 1;
+                format!("d{}", count)
+            };
+            send_assert(
             &client,
             client
                 .post(ingestion_url.join("/documents")?)
@@ -194,186 +200,190 @@ fn test_check_new_property_values_against_schema() {
         )
         .await;
 
-        let res = send_assert_json::<Value>(
-            &client,
-            client
-                .post(ingestion_url.join("/documents/_indexed_properties")?)
-                .json(&json!({
+            let res = send_assert_json::<Value>(
+                &client,
+                client
+                    .post(ingestion_url.join("/documents/_indexed_properties")?)
+                    .json(&json!({
+                        "properties": {
+                            "p1": {
+                                "type": "boolean"
+                            },
+                            "p2": {
+                                "type": "number"
+                            },
+                            "p3": {
+                                "type": "keyword"
+                            },
+                            "p4": {
+                                "type": "keyword[]"
+                            },
+                            "p5": {
+                                "type": "date"
+                            }
+                        }
+                    }))
+                    .build()?,
+                StatusCode::ACCEPTED,
+            )
+            .await;
+
+            assert_eq!(
+                res,
+                json!({
                     "properties": {
                         "p1": {
-                            "type": "bool"
+                            "type": "boolean"
                         },
                         "p2": {
                             "type": "number"
                         },
                         "p3": {
-                            "type": "string"
+                            "type": "keyword"
                         },
                         "p4": {
-                            "type": "string[]"
+                            "type": "keyword[]"
                         },
                         "p5": {
                             "type": "date"
+                        },
+                        "publication_date": {
+                            "type": "date"
                         }
                     }
-                }))
-                .build()?,
-            StatusCode::ACCEPTED,
-        )
-        .await;
+                })
+            );
 
-        assert_eq!(
-            res,
-            json!({
-                "properties": {
-                    "p1": {
-                        "type": "bool"
-                    },
-                    "p2": {
-                        "type": "number"
-                    },
-                    "p3": {
-                        "type": "string"
-                    },
-                    "p4": {
-                        "type": "string[]"
-                    },
-                    "p5": {
-                        "type": "date"
-                    },
-                    "publication_date": {
-                        "type": "date"
-                    }
-                }
-            })
-        );
-
-        send_assert(
-            &client,
-            client
-                .post(ingestion_url.join("/documents")?)
-                .json(&json!({
-                    "documents": [
-                        { "id": make_id(), "snippet": "snippet 3", "properties": {
-                            "p1": true,
-                            "p2": 21,
-                            "p3": "a label",
-                            "p4": ["one", "two"],
-                            "p5": "2023-06-26T07:23:54Z"
-                        } }
-                    ]
-                }))
-                .build()?,
-            StatusCode::CREATED,
-        )
-        .await;
-
-        for (property, bad_value) in [
-            ("p1", Value::String("bad".into())),
-            ("p2", "bad".into()),
-            ("p3", 123.into()),
-            ("p4", 32.into()),
-            ("p4", "bad".into()),
-            ("p5", false.into()),
-        ] {
-            let id = make_id();
-            let res = send_assert_json::<Value>(
+            send_assert(
                 &client,
                 client
                     .post(ingestion_url.join("/documents")?)
                     .json(&json!({
                         "documents": [
-                            { "id": id, "snippet": "snippet 3", "properties": {
-                                property: bad_value
+                            { "id": make_id(), "snippet": "snippet 3", "properties": {
+                                "p1": true,
+                                "p2": 21,
+                                "p3": "a label",
+                                "p4": ["one", "two"],
+                                "p5": "2023-06-26T07:23:54Z"
                             } }
                         ]
                     }))
                     .build()?,
-                StatusCode::BAD_REQUEST,
+                StatusCode::CREATED,
             )
             .await;
 
-            //FIXME current ingestion code eats error details
-            assert_eq!(&res["details"]["documents"], &json!([{ "id": id }]));
-        }
+            for (property, bad_value) in [
+                ("p1", Value::String("bad".into())),
+                ("p2", "bad".into()),
+                ("p3", 123.into()),
+                ("p4", 32.into()),
+                ("p4", "bad".into()),
+                ("p5", false.into()),
+            ] {
+                let id = make_id();
+                let res = send_assert_json::<Value>(
+                    &client,
+                    client
+                        .post(ingestion_url.join("/documents")?)
+                        .json(&json!({
+                            "documents": [
+                                { "id": id, "snippet": "snippet 3", "properties": {
+                                    property: bad_value
+                                } }
+                            ]
+                        }))
+                        .build()?,
+                    StatusCode::BAD_REQUEST,
+                )
+                .await;
 
-        for (property, bad_value, expected_type) in [
-            ("p1", Value::String("bad".into()), "bool"),
-            ("p2", "bad".into(), "number"),
-            ("p3", 123.into(), "string"),
-            ("p4", 32.into(), "string[]"),
-            ("p4", "bad".into(), "string[]"),
-            ("p5", false.into(), "date"),
-        ] {
-            let res = send_assert_json::<Value>(
-                &client,
-                client
-                    .put(ingestion_url.join("/documents/d1/properties")?)
-                    .json(&json!({
-                        "properties": {
-                            property: bad_value,
+                //FIXME current ingestion code eats error details
+                assert_eq!(&res["details"]["documents"], &json!([{ "id": id }]));
+            }
+
+            for (property, bad_value, expected_type) in [
+                ("p1", Value::String("bad".into()), "boolean"),
+                ("p2", "bad".into(), "number"),
+                ("p3", 123.into(), "keyword"),
+                ("p4", 32.into(), "keyword[]"),
+                ("p4", "bad".into(), "keyword[]"),
+                ("p5", false.into(), "date"),
+            ] {
+                let res = send_assert_json::<Value>(
+                    &client,
+                    client
+                        .put(ingestion_url.join("/documents/d1/properties")?)
+                        .json(&json!({
+                            "properties": {
+                                property: bad_value,
+                            },
+                        }))
+                        .build()?,
+                    StatusCode::BAD_REQUEST,
+                )
+                .await;
+
+                assert_eq!(&res["kind"], &json!("InvalidDocumentProperty"));
+                assert_eq!(
+                    &res["details"],
+                    &json!({
+                        "document": "d1",
+                        "property": property,
+                        "invalid_reason": {
+                            "IncompatibleType": {
+                                "expected": expected_type
+                            },
                         },
-                    }))
-                    .build()?,
-                StatusCode::BAD_REQUEST,
-            )
-            .await;
+                        "invalid_value": bad_value,
+                    })
+                );
+            }
 
-            assert_eq!(&res["kind"], &json!("InvalidDocumentProperty"));
-            assert_eq!(
-                &res["details"],
-                &json!({
-                    "document": "d1",
-                    "property": property,
-                    "invalid_reason": {
-                        "IncompatibleType": {
-                            "expected": expected_type
+            for (property, bad_value, expected_type) in [
+                ("p1", Value::String("bad".into()), "boolean"),
+                ("p2", "bad".into(), "number"),
+                ("p3", 123.into(), "keyword"),
+                ("p4", 32.into(), "keyword[]"),
+                ("p4", "bad".into(), "keyword[]"),
+                ("p5", false.into(), "date"),
+            ] {
+                let mut url = Url::clone(&ingestion_url);
+                url.path_segments_mut().unwrap().extend([
+                    "documents",
+                    "d2",
+                    "properties",
+                    property,
+                ]);
+
+                let res = send_assert_json::<Value>(
+                    &client,
+                    client
+                        .put(url)
+                        .json(&json!({ "property": bad_value }))
+                        .build()?,
+                    StatusCode::BAD_REQUEST,
+                )
+                .await;
+
+                assert_eq!(&res["kind"], &json!("InvalidDocumentProperty"));
+                assert_eq!(
+                    &res["details"],
+                    &json!({
+                        "document": "d2",
+                        "property": property,
+                        "invalid_reason": {
+                            "IncompatibleType": {
+                                "expected": expected_type
+                            },
                         },
-                    },
-                    "invalid_value": bad_value,
-                })
-            );
-        }
+                        "invalid_value": bad_value,
+                    })
+                );
+            }
 
-        for (property, bad_value, expected_type) in [
-            ("p1", Value::String("bad".into()), "bool"),
-            ("p2", "bad".into(), "number"),
-            ("p3", 123.into(), "string"),
-            ("p4", 32.into(), "string[]"),
-            ("p4", "bad".into(), "string[]"),
-            ("p5", false.into(), "date"),
-        ] {
-            let mut url = Url::clone(&ingestion_url);
-            url.path_segments_mut()
-                .unwrap()
-                .extend(["documents", "d2", "properties", property]);
-
-            let res = send_assert_json::<Value>(
-                &client,
-                client
-                    .put(url)
-                    .json(&json!({ "property": bad_value }))
-                    .build()?,
-                StatusCode::BAD_REQUEST,
-            )
-            .await;
-
-            assert_eq!(&res["kind"], &json!("InvalidDocumentProperty"));
-            assert_eq!(
-                &res["details"],
-                &json!({
-                    "document": "d2",
-                    "property": property,
-                    "invalid_reason": {
-                        "IncompatibleType": {
-                            "expected": expected_type
-                        },
-                    },
-                    "invalid_value": bad_value,
-                })
-            );
-        }
-
-        Ok(())
-    });
+            Ok(())
+        },
+    );
 }

@@ -645,7 +645,9 @@ async fn create_indexed_properties(
 async fn get_indexed_properties_schema(
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    storage::IndexedProperties::load_schema(&storage).await.map(Json)
+    storage::IndexedProperties::load_schema(&storage)
+        .await
+        .map(Json)
 }
 
 #[derive(Deserialize, Debug)]
