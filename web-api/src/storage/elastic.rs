@@ -21,6 +21,7 @@ use itertools::Itertools;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 use xayn_web_api_shared::serde::{json_object, merge_json_objects, JsonObject};
@@ -370,6 +371,7 @@ impl Client {
     pub(super) async fn extend_mapping(
         &self,
         updates: &IndexedPropertiesSchemaUpdate,
+        index_update_config: &IndexUpdateConfig,
     ) -> Result<(), Error> {
         if updates.len() == 0 {
             return Ok(());
@@ -379,7 +381,7 @@ impl Client {
             let r#type = match definition.r#type {
                 IndexedPropertyType::Boolean => "boolean",
                 IndexedPropertyType::Number => "double",
-                IndexedPropertyType::Keyword | IndexedPropertyType::StringArray => "keyword",
+                IndexedPropertyType::Keyword | IndexedPropertyType::KeywordArray => "keyword",
                 IndexedPropertyType::Date => "date",
             };
             properties.insert(id.as_str().into(), json!({ "type": r#type }));
@@ -397,28 +399,70 @@ impl Client {
         self.query_with_json::<_, IgnoredResponse>(Method::PUT, url, Some(body))
             .await?;
 
-        self.update_indices_in_background().await?;
+        info!("extended ES _mapping");
+
+        self.update_indices(index_update_config).await?;
 
         Ok(())
     }
 
-    async fn update_indices_in_background(&self) -> Result<(), Error> {
+    async fn update_indices(&self, config: &IndexUpdateConfig) -> Result<(), Error> {
+        let wait_for_completion = match config.method {
+            IndexUpdateMethod::Background => false,
+            IndexUpdateMethod::DangerWaitForCompletion => true,
+        };
+
         let url = self.create_url(
             ["_update_by_query"],
             [
                 ("conflicts", Some("proceed")),
                 //FIXME add a way to async query the status of the update
                 //      ES will return a task handle we can use for this.
-                ("wait_for_completion", Some("false")),
+                (
+                    "wait_for_completion",
+                    Some(&wait_for_completion.to_string()),
+                ),
                 ("refresh", Some("true")),
-                //TODO make it configurable, currently it's 500 documents per second
-                ("requests_per_second", Some("500")),
+                (
+                    "requests_per_second",
+                    Some(&config.requests_per_second.to_string()),
+                ),
             ],
         );
         self.query_with_json::<(), IgnoredResponse>(Method::POST, url, None)
             .await?;
+
+        info!("started index update process");
+
         Ok(())
     }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub(crate) struct IndexUpdateConfig {
+    requests_per_second: usize,
+    method: IndexUpdateMethod,
+}
+
+impl Default for IndexUpdateConfig {
+    fn default() -> Self {
+        Self {
+            requests_per_second: 500,
+            method: IndexUpdateMethod::Background,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum IndexUpdateMethod {
+    /// Run updates in the background without feedback for completion.
+    Background,
+    /// This can put the DB into an inconsistent state if it hits timeouts.
+    ///
+    /// Never use this in production.
+    DangerWaitForCompletion,
 }
 
 #[derive(Debug, Serialize)]

@@ -36,7 +36,11 @@ stdout = """
   },
   "ingestion": {
     "max_document_batch_size": 100,
-    "max_indexed_properties": 11
+    "max_indexed_properties": 11,
+    "index_update": {
+      "requests_per_second": 500,
+      "method": "background"
+    }
   },
   "embedding": {
     "directory": "assets",

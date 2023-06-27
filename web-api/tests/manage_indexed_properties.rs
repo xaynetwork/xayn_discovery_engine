@@ -30,16 +30,16 @@ fn test_creating_indexed_properties() {
                     .json(&json!({
                         "properties": {
                             "p1": {
-                                "type": "bool"
+                                "type": "boolean"
                             },
                             "p2": {
                                 "type": "number"
                             },
                             "p3": {
-                                "type": "string"
+                                "type": "keyword"
                             },
                             "p4": {
-                                "type": "string[]"
+                                "type": "keyword[]"
                             },
                             "p5": {
                                 "type": "date"
@@ -56,16 +56,16 @@ fn test_creating_indexed_properties() {
                 json!({
                     "properties": {
                         "p1": {
-                            "type": "bool"
+                            "type": "boolean"
                         },
                         "p2": {
                             "type": "number"
                         },
                         "p3": {
-                            "type": "string"
+                            "type": "keyword"
                         },
                         "p4": {
-                            "type": "string[]"
+                            "type": "keyword[]"
                         },
                         "p5": {
                             "type": "date"
@@ -84,7 +84,7 @@ fn test_creating_indexed_properties() {
                     .json(&json!({
                         "properties": {
                             "p6": {
-                                "type": "string"
+                                "type": "keyword"
                             }
                         }
                     }))
@@ -98,22 +98,22 @@ fn test_creating_indexed_properties() {
                 json!({
                     "properties": {
                         "p1": {
-                            "type": "bool"
+                            "type": "boolean"
                         },
                         "p2": {
                             "type": "number"
                         },
                         "p3": {
-                            "type": "string"
+                            "type": "keyword"
                         },
                         "p4": {
-                            "type": "string[]"
+                            "type": "keyword[]"
                         },
                         "p5": {
                             "type": "date"
                         },
                         "p6": {
-                            "type": "string"
+                            "type": "keyword"
                         },
                         "publication_date": {
                             "type": "date"
