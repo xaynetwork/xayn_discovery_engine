@@ -188,8 +188,8 @@ async fn validate_document_properties(
 ) -> Result<DocumentProperties, Error> {
     let properties = properties
         .into_iter()
-        .map(|(id, property)| {
-            let property_id = DocumentPropertyId::try_from(id)?;
+        .map(|(property_id, property)| {
+            let property_id = DocumentPropertyId::try_from(property_id)?;
             let property = DocumentProperty::try_from_value(document_id, &property_id, property)?;
             Ok((property_id, property))
         })

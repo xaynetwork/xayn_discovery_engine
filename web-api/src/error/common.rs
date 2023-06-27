@@ -91,7 +91,7 @@ pub(crate) enum InvalidDocumentPropertyReason {
     MalformedDateTimeString,
     /// incompatible type (expected {expected:?})
     IncompatibleType { expected: IndexedPropertyType },
-    /// string to long or contains invalid characters
+    /// string too long or contains invalid characters
     InvalidString,
 }
 

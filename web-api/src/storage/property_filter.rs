@@ -82,12 +82,12 @@ impl IndexedPropertiesSchema {
         property: &DocumentPropertyId,
         value: &DocumentProperty,
     ) -> Result<(), InvalidDocumentProperty> {
-        // This code only checks additional validity constraints coming from on a schema
-        // but an otherwise expect a valid property, hence why we accept a `&DocumentProperty`
+        // This code only checks additional validity constraints coming from a schema
+        // but otherwise expect a valid property, hence why we take a `&DocumentProperty`
         // instead of a `&Value`.
         let value = &**value;
         let Some(definition) = self.properties.get(property) else {
-            return Ok(())
+            return Ok(());
         };
         match (value, definition.r#type) {
             (Value::Bool(_), IndexedPropertyType::Boolean)
