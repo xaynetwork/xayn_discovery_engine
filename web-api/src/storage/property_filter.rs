@@ -90,11 +90,11 @@ impl IndexedPropertiesSchema {
             return Ok(())
         };
         match (value, definition.r#type) {
-            (Value::Bool(_), IndexedPropertyType::Bool)
+            (Value::Bool(_), IndexedPropertyType::Boolean)
             | (Value::Number(_), IndexedPropertyType::Number)
-            | (Value::String(_), IndexedPropertyType::String)
+            | (Value::String(_), IndexedPropertyType::Keyword)
             // we only accept string arrays as valid properties
-            | (Value::Array(_), IndexedPropertyType::StringArray) => Ok(()),
+            | (Value::Array(_), IndexedPropertyType::KeywordArray) => Ok(()),
             (Value::String(string), IndexedPropertyType::Date) => {
                 DateTime::parse_from_rfc3339(string).map_err(|_| InvalidDocumentProperty {
                     document: document.clone(),
