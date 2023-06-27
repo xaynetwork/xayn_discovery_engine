@@ -12,29 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    fs::{read_to_string, File},
-    io::BufReader,
-};
-
 use ndarray::Array2;
 use tokenizers::{
-    normalizers::Precompiled,
-    pre_tokenizers::{
-        metaspace::Metaspace,
-        sequence::Sequence,
-        whitespace::WhitespaceSplit,
-        PreTokenizerWrapper,
-    },
-    processors::template::{TemplateProcessing, TemplateProcessingBuilder},
-    utils::{
-        padding::{PaddingDirection, PaddingParams, PaddingStrategy},
-        truncation::{TruncationDirection, TruncationParams, TruncationStrategy},
-    },
     Error,
-    Model,
-    TokenizerBuilder,
-    TokenizerImpl,
     tokenizer::Tokenizer as HfTokenizer
 };
 
@@ -44,14 +24,14 @@ use crate::{
 };
 
 /// A pre-configured E5 tokenizer.
-pub struct MyTokenizer{
+pub struct Tokenizer{
     hf_tokenizer: HfTokenizer,
 }
 
-impl Tokenize for MyTokenizer {
+impl Tokenize for Tokenizer {
     fn new<P>(config: &Config<Self, P>) -> Result<Self, Error> {
         let tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json"))?;
-        Ok(MyTokenizer{hf_tokenizer: tokenizer})
+        Ok(Tokenizer{hf_tokenizer: tokenizer})
     }
 
     fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
@@ -79,9 +59,9 @@ mod tests {
     #[test]
     fn test_new() {
         let config = Config::new_unigram(e5().unwrap()).unwrap();
-        let tokenizer = MyTokenizer::new(&config).unwrap();
+        let tokenizer = Tokenizer::new(&config).unwrap();
         let encoding = tokenizer.encode("hello world").unwrap();
-        assert!(encoding.token_ids.shape() == &[1, 5]);
+        assert!(encoding.token_ids.shape() == [1, 5]);
         assert!(encoding.token_ids == Array2::from_shape_vec((1, 5), vec![0, 33600, 31, 8999, 2]).unwrap());
     }
 }
