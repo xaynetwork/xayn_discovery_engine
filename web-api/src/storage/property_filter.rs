@@ -99,7 +99,7 @@ pub(crate) enum IndexedPropertyType {
     Keyword,
     #[serde(rename = "keyword[]")]
     #[sqlx(rename = "keyword[]")]
-    StringArray,
+    KeywordArray,
     Date,
 }
 
@@ -215,7 +215,7 @@ mod tests {
             IndexedPropertyType::Boolean,
             IndexedPropertyType::Number,
             IndexedPropertyType::Keyword,
-            IndexedPropertyType::StringArray,
+            IndexedPropertyType::KeywordArray,
             IndexedPropertyType::Date
         ]);
 
@@ -230,7 +230,7 @@ mod tests {
                 IndexedPropertyType::Boolean,
                 IndexedPropertyType::Number,
                 IndexedPropertyType::Keyword,
-                IndexedPropertyType::StringArray,
+                IndexedPropertyType::KeywordArray,
                 IndexedPropertyType::Date
             ]
         );
