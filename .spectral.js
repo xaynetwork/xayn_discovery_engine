@@ -5,19 +5,12 @@ const { operations, paths, schemas } = require('@ibm-cloud/openapi-ruleset-utili
 module.exports = {
   extends: ibmCloudValidationRules,
   rules: {
-    'ibm-enum-casing-convention': {
-      description: 'Enum names must be pascal case',
-      message: '{{error}}',
-      resolved: true,
-      given: schemas,
-      severity: 'error',
-      then: {
-        function: enumCasingConvention,
-        functionOptions: {
-          type: 'pascal',
-        },
-      },
-    },
+    // In json-schema enum is used for any kind of "one of this string value"
+    // situations, which is not limited to strict rust enum variant names.
+    // Additionally linter overrides only work for types defined in the root
+    // document. So we can't declare exceptions for the cases where it's not
+    // a verbatim rust enum variant name.
+    'ibm-enum-casing-convention': "off",
     'ibm-operationid-casing-convention': {
       description: 'Operation ids must be pascal case',
       message: '{{error}}',
@@ -71,15 +64,6 @@ module.exports = {
       rules: {
         "ibm-array-attributes": "off",
       },
-    },
-    {
-      files: [
-        // disabling it only for the affected type doesn't work
-        "web-api/openapi/schemas/document.yml",
-      ],
-      rules: {
-        "ibm-enum-casing-convention": "off",
-      }
     },
   ],
 };
