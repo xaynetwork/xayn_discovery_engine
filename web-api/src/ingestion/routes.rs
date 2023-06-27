@@ -632,7 +632,7 @@ async fn create_indexed_properties(
     let max_indexed_properties = state.config.ingestion.max_indexed_properties;
     IndexedProperties::extend_schema(&storage, update, max_indexed_properties)
         .await
-        .map(|res| Json(res).customize().with_status(StatusCode::CREATED))
+        .map(|res| Json(res).customize().with_status(StatusCode::ACCEPTED))
 }
 
 #[instrument(skip(storage))]

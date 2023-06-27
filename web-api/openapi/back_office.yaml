@@ -179,8 +179,10 @@ paths:
       responses:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
-        '201':
-          description: successful operation
+        '202':
+          description: |-
+            the new complete indexed property schema is returned,
+            through updating the index happens in a background job
           content:
             application/json:
               schema:
