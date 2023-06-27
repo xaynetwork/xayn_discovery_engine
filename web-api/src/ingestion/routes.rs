@@ -195,7 +195,7 @@ async fn validate_document_properties(
         })
         .try_collect::<_, HashMap<_, _>, Error>()?;
 
-    let schema = storage.cached_schema().await?;
+    let schema = storage.load_schema().await?;
     for (property, value) in &properties {
         schema.validate_property(document_id, property, value)?;
     }
