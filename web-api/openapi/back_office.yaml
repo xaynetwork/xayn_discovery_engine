@@ -126,6 +126,66 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
 
+  /documents/_indexed_properties:
+    get:
+      tags:
+        - back office
+      summary: Get the schema of all indexed properties.
+      description: Get the schema of all indexed properties.
+      operationId: getIndexedPropertiesSchema
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndexedPropertiesSchemaResponse'
+    post:
+      tags:
+        - back office
+      summary: Add additional indexed properties to the schema.
+      description: |-
+        Add additional indexed properties to the schema.
+
+        The schema can have at most 11 properties in total, including the
+        automatic created `publication_date` property.
+
+        If you plan to create multiple indexed properties it is strongly
+        recommended to do so with one request.
+
+        For now it is not possible to modify or delete indexed properties
+        through the API.
+
+        To use a property with query filters it is necessary to once add it to
+        the list of indexed properties using this endpoint.
+
+        Newly ingested documents are checked to be compatible with the indexed
+        property schema, i.e. if they have a property in the schema it's value must
+        be compatible (same type, in case of `date` a string in rfc3339 date time format).
+
+        Due to technical limitation existing documents are not checked to be compatible
+        with the new indexed properties added with this request, they will instead be
+        treated as if they didn't had that property wrt. the filter/index. Besides that
+        existing documents with matching properties are added to the index in a
+        background job. Functionality to check the completion of that job is not yet
+        implemented.
+      operationId: createIndexedProperties
+      request:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExtendIndexedPropertiesRequest'
+      responses:
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IndexedPropertiesSchemaResponse'
+
   /documents/{document_id}:
     parameters:
       - $ref: './parameters/path/document_id.yml'
@@ -276,6 +336,18 @@ components:
       example:
         properties:
           title: "News title"
+    ExtendIndexedPropertiesRequest:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+          $ref: './schemas/document.yml#/IndexedPropertiesSchema'
+    IndexedPropertiesSchemaResponse:
+      type: object
+      required: [properties]
+      properties:
+        properties:
+         $ref: './schemas/document.yml#/IndexedPropertiesSchema'
     IngestedDocument:
       type: object
       required: [id, snippet]
