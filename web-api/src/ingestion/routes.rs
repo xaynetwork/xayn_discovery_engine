@@ -316,6 +316,7 @@ async fn upsert_documents(
                     document.id,
                     (
                         document.snippet,
+                        document.was_summarized,
                         document.properties,
                         document.tags,
                         document.is_candidate,
@@ -330,21 +331,25 @@ async fn upsert_documents(
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
-                .map(|(snippet, properties, tags, is_candidate)| {
-                    ((snippet, properties, tags), *is_candidate)
-                })
+                .map(
+                    |(snippet, was_summarized, properties, tags, is_candidate)| {
+                        ((snippet, was_summarized, properties, tags), *is_candidate)
+                    },
+                )
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(snippet, _, _)| snippet != &document.snippet);
+            let new_snippet = data.map_or(true, |(snippet, was_summarized, _, _)| {
+                snippet != &document.snippet || *was_summarized != Some(document.summary.is_some())
+            });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
 
             if new_snippet {
                 Either::Left((document, new_is_candidate))
             } else {
-                let new_properties = data.map_or(true, |(_, properties, _)| {
+                let new_properties = data.map_or(true, |(_, _, properties, _)| {
                     properties != &document.properties
                 });
-                let new_tags = data.map_or(true, |(_, _, tags)| tags != &document.tags);
+                let new_tags = data.map_or(true, |(_, _, _, tags)| tags != &document.tags);
                 Either::Right((document, new_properties, new_tags, new_is_candidate))
             }
         });
@@ -391,6 +396,7 @@ async fn upsert_documents(
                 Ok(embedding) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
+                    was_summarized: Some(document.summary.is_some()),
                     properties: document.properties,
                     tags: document.tags,
                     embedding,

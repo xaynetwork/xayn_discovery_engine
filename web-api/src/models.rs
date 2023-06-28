@@ -313,6 +313,11 @@ pub(crate) struct IngestedDocument {
     /// Snippet used to calculate embeddings for a document.
     pub(crate) snippet: DocumentSnippet,
 
+    /// Indicates weather the embedding was created using a summarizer.
+    ///
+    /// For now we don't always know this for all documents.
+    pub(crate) was_summarized: Option<bool>,
+
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
 
@@ -330,6 +335,7 @@ pub(crate) struct IngestedDocument {
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
     pub(crate) snippet: DocumentSnippet,
+    pub(crate) was_summarized: Option<bool>,
     pub(crate) properties: DocumentProperties,
     pub(crate) tags: DocumentTags,
     pub(crate) is_candidate: bool,
