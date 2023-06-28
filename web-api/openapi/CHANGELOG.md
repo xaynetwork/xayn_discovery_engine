@@ -1,4 +1,4 @@
-# 2.3.0 - 2023-06-27
+# 2.3.0 - 2023-06-28
 
 - added endpoints for retrieving and extending the
   indexed property schema
