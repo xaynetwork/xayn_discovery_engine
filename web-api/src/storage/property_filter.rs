@@ -35,7 +35,6 @@ pub(crate) enum IncompatibleUpdate {
 
 //Hint: Currently the API and internal definition match so we use the same type.
 #[derive(Debug, Clone, Default, Deref, IntoIterator, Serialize, Deserialize)]
-#[serde(transparent)]
 pub(crate) struct IndexedPropertiesSchemaUpdate {
     #[into_iterator(owned, ref)]
     properties: HashMap<DocumentPropertyId, IndexedPropertyDefinition>,
