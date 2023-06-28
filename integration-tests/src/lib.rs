@@ -651,6 +651,9 @@ pub fn build_test_config_from_parts_and_model(
         .to_string();
 
     let mut config = toml! {
+        [ingestion.index_update]
+        method = "danger_wait_for_completion"
+
         [storage]
         postgres = pg_config
         elastic = es_config
