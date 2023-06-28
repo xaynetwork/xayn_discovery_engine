@@ -16,7 +16,7 @@
 
 use std::collections::HashMap;
 
-use derive_more::{Display, From, IntoIterator};
+use derive_more::{Deref, Display, From, IntoIterator};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -34,31 +34,21 @@ pub(crate) enum IncompatibleUpdate {
 }
 
 //Hint: Currently the API and internal definition match so we use the same type.
-#[derive(Debug, Clone, Default, IntoIterator, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Deref, IntoIterator, Serialize, Deserialize)]
 #[serde(transparent)]
 pub(crate) struct IndexedPropertiesSchemaUpdate {
     #[into_iterator(owned, ref)]
     properties: HashMap<DocumentPropertyId, IndexedPropertyDefinition>,
 }
 
-impl IndexedPropertiesSchemaUpdate {
-    pub(crate) fn len(&self) -> usize {
-        self.properties.len()
-    }
-}
-
 //Hint: Currently the API and internal definition match so we use the same type.
-#[derive(Debug, Clone, Default, IntoIterator, From, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Deref, IntoIterator, From, Serialize, Deserialize)]
 pub(crate) struct IndexedPropertiesSchema {
     #[into_iterator(owned, ref)]
     properties: HashMap<DocumentPropertyId, IndexedPropertyDefinition>,
 }
 
 impl IndexedPropertiesSchema {
-    pub(crate) fn len(&self) -> usize {
-        self.properties.len()
-    }
-
     pub(crate) fn update(
         &mut self,
         schema_update: IndexedPropertiesSchemaUpdate,
