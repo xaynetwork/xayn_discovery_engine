@@ -67,12 +67,15 @@ pub struct Config {
 #[serde(default)]
 pub struct IngestionConfig {
     pub(crate) max_document_batch_size: usize,
+    pub(crate) max_indexed_properties: usize,
 }
 
 impl Default for IngestionConfig {
     fn default() -> Self {
         Self {
             max_document_batch_size: 100,
+            // 10 + publication_date
+            max_indexed_properties: 11,
         }
     }
 }

@@ -40,7 +40,16 @@ use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiId, CoiStats};
 
-use super::{InteractionUpdateContext, TagWeights};
+use super::{
+    property_filter::{
+        IndexedPropertiesSchema,
+        IndexedPropertiesSchemaUpdate,
+        IndexedPropertyDefinition,
+        IndexedPropertyType,
+    },
+    InteractionUpdateContext,
+    TagWeights,
+};
 use crate::{
     models::{
         DocumentId,
@@ -1261,5 +1270,60 @@ impl storage::Size for Storage {
         tx.commit().await?;
 
         Ok(size)
+    }
+}
+
+#[async_trait(?Send)]
+impl storage::IndexedProperties for Storage {
+    async fn load_schema(&self) -> Result<IndexedPropertiesSchema, Error> {
+        let mut tx = self.postgres.begin().await?;
+        let schema = Database::load_schema(&mut tx).await?;
+        tx.commit().await?;
+        Ok(schema)
+    }
+
+    async fn extend_schema(
+        &self,
+        update: IndexedPropertiesSchemaUpdate,
+        max_properties: usize,
+    ) -> Result<IndexedPropertiesSchema, Error> {
+        let mut tx = self.postgres.begin().await?;
+        let mut schema = Database::load_schema(&mut tx).await?;
+        schema.update(update.clone(), max_properties)?;
+        Database::extend_postgres_schema(&mut tx, &update).await?;
+        //TODO self.elastic.extend_elasticsearch_mapping(&update).await?;
+        tx.commit().await?;
+        Ok(schema)
+    }
+}
+
+impl Database {
+    async fn load_schema(
+        tx: &mut Transaction<'_, Postgres>,
+    ) -> Result<IndexedPropertiesSchema, Error> {
+        let schema = sqlx::query_as::<_, (DocumentPropertyId, IndexedPropertyType)>(
+            "SELECT name, type FROM indexed_property;",
+        )
+        .fetch_all(tx)
+        .await?
+        .into_iter()
+        .map(|(id, r#type)| (id, IndexedPropertyDefinition { r#type }))
+        .collect::<HashMap<_, _>>();
+
+        Ok(schema.into())
+    }
+
+    async fn extend_postgres_schema(
+        tx: &mut Transaction<'_, Postgres>,
+        update: &IndexedPropertiesSchemaUpdate,
+    ) -> Result<(), Error> {
+        QueryBuilder::new("INSERT INTO indexed_property(name, type) ")
+            .push_values(update, |mut builder, (name, def)| {
+                builder.push_bind(name).push_bind(def.r#type);
+            })
+            .build()
+            .execute(tx)
+            .await?;
+        Ok(())
     }
 }

@@ -18,7 +18,7 @@ DocumentPropertyString:
   maxLength: 2048
 
 DocumentPropertyArrayString:
-  description: | 
+  description: |
     Array of non-null string.
   type: array
   minItems: 0
@@ -26,7 +26,7 @@ DocumentPropertyArrayString:
     $ref: '#/DocumentPropertyString'
 
 DocumentProperty:
-  description: | 
+  description: |
     Arbitrary data that can be attached to a document. A subset of JSON is supported.
     When a property is set to null or an empty array, it is treated as if that property had no values.
     This means that they won't appear in searches with filters on these properties.
@@ -73,7 +73,7 @@ DocumentSearchQuery:
   pattern: ".+"
   minLength: 1
   maxLength: 512
-  example: "inflation is causing world-wide price hikes, especially for energy and food consumption"  
+  example: "inflation is causing world-wide price hikes, especially for energy and food consumption"
 
 History:
   type: array
@@ -112,3 +112,28 @@ InputDocument:
       $ref: '#/DocumentId'
     query:
       $ref: '#/DocumentSearchQuery'
+
+IndexedPropertiesSchema:
+  type: object
+  description: |-
+    A mapping of document property ids to indexed property definitions.
+
+    Be aware that the keys of the object must be valid `DocumentPropertyId`.
+  additionalProperties:
+    $ref: '#/IndexedPropertyDefinition'
+
+IndexedPropertyDefinition:
+  type: object
+  required: [type]
+  properties:
+    type:
+      $ref: '#/IndexedPropertyType'
+
+IndexedPropertyType:
+  type: string
+  enum:
+    - boolean
+    - number
+    - keyword
+    - keyword[]
+    - date

@@ -22,6 +22,7 @@ use actix_web::{
 use anyhow::anyhow;
 use chrono::DateTime;
 use itertools::{Either, Itertools};
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::time::Instant;
@@ -51,7 +52,7 @@ use crate::{
         DocumentSnippet,
         DocumentTags,
     },
-    storage,
+    storage::{self, property_filter::IndexedPropertiesSchemaUpdate, IndexedProperties},
     Error,
 };
 
@@ -78,6 +79,11 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
             web::resource("/documents/_candidates")
                 .route(web::get().to(get_document_candidates))
                 .route(web::put().to(set_document_candidates)),
+        )
+        .service(
+            web::resource("/documents/_indexed_properties")
+                .route(web::post().to(create_indexed_properties))
+                .route(web::get().to(get_indexed_properties_schema)),
         )
         .service(web::resource("/documents/{document_id}").route(web::delete().to(delete_document)))
         .service(
@@ -615,6 +621,25 @@ async fn delete_document_property(
         .ok_or(DocumentPropertyNotFound)?;
 
     Ok(HttpResponse::NoContent())
+}
+
+#[instrument(skip(state, storage))]
+async fn create_indexed_properties(
+    state: Data<AppState>,
+    Json(update): Json<IndexedPropertiesSchemaUpdate>,
+    TenantState(storage): TenantState,
+) -> Result<impl Responder, Error> {
+    let max_indexed_properties = state.config.ingestion.max_indexed_properties;
+    IndexedProperties::extend_schema(&storage, update, max_indexed_properties)
+        .await
+        .map(|res| Json(res).customize().with_status(StatusCode::ACCEPTED))
+}
+
+#[instrument(skip(storage))]
+async fn get_indexed_properties_schema(
+    TenantState(storage): TenantState,
+) -> Result<impl Responder, Error> {
+    IndexedProperties::load_schema(&storage).await.map(Json)
 }
 
 #[derive(Deserialize, Debug)]

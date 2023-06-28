@@ -28,7 +28,7 @@ use xayn_ai_bert::InvalidEmbedding;
 use xayn_web_api_shared::elastic;
 
 use super::application::{impl_application_error, ApplicationError};
-use crate::{models::DocumentId, Error};
+use crate::{models::DocumentId, storage::property_filter::IncompatibleUpdate, Error};
 
 impl_application_error!(InvalidEmbedding => INTERNAL_SERVER_ERROR, ERROR);
 
@@ -155,6 +155,8 @@ impl_application_error!(FailedToSetSomeDocumentCandidates => BAD_REQUEST, INFO);
 pub(crate) struct HistoryTooSmall;
 
 impl_application_error!(HistoryTooSmall => BAD_REQUEST, INFO);
+
+impl_application_error!(IncompatibleUpdate => BAD_REQUEST, INFO);
 
 /// Custom error for 400 Bad Request status code.
 #[derive(Debug, Error, Display, Serialize, From)]

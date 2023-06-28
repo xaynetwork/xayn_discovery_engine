@@ -35,7 +35,8 @@ stdout = """
     }
   },
   "ingestion": {
-    "max_document_batch_size": 100
+    "max_document_batch_size": 100,
+    "max_indexed_properties": 11
   },
   "embedding": {
     "directory": "assets",
