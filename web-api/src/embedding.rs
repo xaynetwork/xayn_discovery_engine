@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_bert::{
     tokenizer::bert,
     AveragePooler,
-    AvgBert,
+    AvgE5,
     Config as BertConfig,
     NormalizedEmbedding,
 };
@@ -41,7 +41,7 @@ impl Default for Config {
 }
 
 pub(crate) struct Embedder {
-    bert: AvgBert,
+    bert: AvgE5,
 }
 
 impl Embedder {
@@ -68,11 +68,11 @@ impl Embedder {
                 config_file.display()
             );
         }
-        let bert = BertConfig::new(path)?
-            .with_tokenizer::<bert::Tokenizer>()
-            .with_pooler::<AveragePooler>()
-            .with_token_size(config.token_size)?
-            .build()?;
+        let bert = BertConfig::new_unigram(path)
+            .unwrap()
+            .with_pooler()
+            .build()
+            .unwrap();
 
         Ok(Embedder { bert })
     }
