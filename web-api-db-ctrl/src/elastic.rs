@@ -211,6 +211,9 @@ mod tests {
             .expect(
                 "path mappings.properties.properties.properties.publication_date must be given",
             );
-        assert_eq!(publication_date, &json!({ "type": "date" }));
+        assert_eq!(
+            publication_date,
+            &json!({ "type": "date", "ignore_malformed": true })
+        );
     }
 }

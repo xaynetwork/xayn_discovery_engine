@@ -18,7 +18,8 @@
                 "dynamic": false,
                 "properties": {
                     "publication_date": {
-                        "type": "date"
+                        "type": "date",
+                        "ignore_malformed": true
                     }
                 }
             }
