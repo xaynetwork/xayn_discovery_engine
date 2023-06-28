@@ -1,6 +1,4 @@
-#!/bin/bash
-
-set -e
+#!/usr/bin/env -S bash -e
 
 files_to_check() {
     find . \

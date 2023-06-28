@@ -1,5 +1,4 @@
-#!/bin/bash
-set -eu -o pipefail
+#!/usr/bin/env -S bash -eu -o pipefail
 
 realpath() {
     [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
