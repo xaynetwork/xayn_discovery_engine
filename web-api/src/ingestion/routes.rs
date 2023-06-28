@@ -221,7 +221,7 @@ impl UnvalidatedIngestedDocument {
                 &Config::default(),
             )
         });
-        
+
         let properties = validate_document_properties(&id, self.properties, storage).await?;
         let tags = self
             .tags
