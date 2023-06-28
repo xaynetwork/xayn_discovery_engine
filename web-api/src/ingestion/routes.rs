@@ -339,7 +339,11 @@ async fn upsert_documents(
                 .unzip();
 
             let new_snippet = data.map_or(true, |(snippet, was_summarized, _, _)| {
-                snippet != &document.snippet || *was_summarized != Some(document.summary.is_some())
+                snippet != &document.snippet || {
+                    // as we previously stored the summary any document for which we don't
+                    // know if it was summarized and has the same snippet was not summarized
+                    was_summarized.unwrap_or_default() != document.summary.is_some()
+                }
             });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
 
@@ -396,7 +400,7 @@ async fn upsert_documents(
                 Ok(embedding) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
-                    was_summarized: Some(document.summary.is_some()),
+                    was_summarized: document.summary.is_some(),
                     properties: document.properties,
                     tags: document.tags,
                     embedding,

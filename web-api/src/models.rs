@@ -314,9 +314,7 @@ pub(crate) struct IngestedDocument {
     pub(crate) snippet: DocumentSnippet,
 
     /// Indicates weather the embedding was created using a summarizer.
-    ///
-    /// For now we don't always know this for all documents.
-    pub(crate) was_summarized: Option<bool>,
+    pub(crate) was_summarized: bool,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
