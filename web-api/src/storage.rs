@@ -16,6 +16,7 @@ pub(crate) mod elastic;
 #[cfg(test)]
 pub(crate) mod memory;
 pub(crate) mod postgres;
+pub(crate) mod property_filter;
 mod utils;
 
 use std::collections::HashMap;
@@ -30,6 +31,7 @@ use xayn_ai_coi::Coi;
 use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 
+use self::property_filter::{IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate};
 use crate::{
     app::SetupError,
     models::{
@@ -262,6 +264,17 @@ pub(crate) trait Tag {
 pub(crate) trait Size {
     /// Gets the size in bytes of the json value.
     async fn json(&self, value: &Value) -> Result<usize, Error>;
+}
+
+#[async_trait(?Send)]
+pub(crate) trait IndexedProperties {
+    async fn load_schema(&self) -> Result<IndexedPropertiesSchema, Error>;
+
+    async fn extend_schema(
+        &self,
+        update: IndexedPropertiesSchemaUpdate,
+        max_properties: usize,
+    ) -> Result<IndexedPropertiesSchema, Error>;
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]

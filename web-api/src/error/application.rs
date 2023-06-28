@@ -108,8 +108,7 @@ macro_rules! impl_application_error {
             fn encode_details(&self) -> ::serde_json::Value {
                 ::serde_json::to_value(self)
                     .unwrap_or_else(|error| {
-                        ::tracing::event!(
-                            ::tracing::Level::$level,
+                        ::tracing::error!(
                             %error,
                             "serializing error details failed",
                         );
