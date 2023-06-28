@@ -148,7 +148,7 @@ paths:
         Add additional indexed properties to the schema.
 
         The schema can have at most 11 properties in total, including the
-        automatic created `publication_date` property.
+        automatically created `publication_date` property.
 
         If you plan to create multiple indexed properties it is strongly
         recommended to do so with one request.
@@ -164,7 +164,7 @@ paths:
         be compatible (same type, in case of `date` a string in rfc3339 date time format).
 
         Due to technical limitation existing documents are not checked to be compatible
-        with the new indexed properties added with this request, they will instead be
+        with the new indexed properties added with this request. Incompatible documents will instead be
         treated as if they didn't had that property wrt. the filter/index. Besides that
         existing documents with matching properties are added to the index in a
         background job. Functionality to check the completion of that job is not yet
@@ -177,8 +177,6 @@ paths:
             schema:
               $ref: '#/components/schemas/ExtendIndexedPropertiesRequest'
       responses:
-        '400':
-          $ref: './responses/generic.yml#/BadRequest'
         '202':
           description: |-
             the new complete indexed property schema is returned,
@@ -187,6 +185,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/IndexedPropertiesSchemaResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}:
     parameters:

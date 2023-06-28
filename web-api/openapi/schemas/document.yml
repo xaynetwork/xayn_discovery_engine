@@ -118,7 +118,7 @@ IndexedPropertiesSchema:
   description: |-
     A mapping of document properties id to indexed property definitions.
 
-    Be aware that the keys of the object must be valid document property id.
+    Be aware that the keys of the object must be valid `DocumentPropertyId`.
   additionalProperties:
     $ref: '#/IndexedPropertyDefinition'
 
