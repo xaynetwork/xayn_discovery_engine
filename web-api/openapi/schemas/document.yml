@@ -116,7 +116,7 @@ InputDocument:
 IndexedPropertiesSchema:
   type: object
   description: |-
-    A mapping of document properties id to indexed property definitions.
+    A mapping of document property ids to indexed property definitions.
 
     Be aware that the keys of the object must be valid `DocumentPropertyId`.
   additionalProperties:
