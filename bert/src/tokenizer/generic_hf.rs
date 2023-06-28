@@ -15,7 +15,10 @@
 use ndarray::Array2;
 use tokenizers::{
     Error,
-    tokenizer::Tokenizer as HfTokenizer
+    tokenizer::Tokenizer as HfTokenizer,
+    utils::{
+        padding::{PaddingDirection, PaddingParams, PaddingStrategy},
+    },
 };
 
 use crate::{
@@ -30,7 +33,19 @@ pub struct Tokenizer{
 
 impl Tokenize for Tokenizer {
     fn new<P>(config: &Config<Self, P>) -> Result<Self, Error> {
-        let tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json"))?;
+        let mut tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json"))?;
+        let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
+        let padding = PaddingParams {
+            strategy: PaddingStrategy::Fixed(config.token_size),
+            direction: PaddingDirection::Right,
+            pad_to_multiple_of: None,
+            pad_id: tokenizer
+                .token_to_id(&padding_token)
+                .ok_or("missing padding token")?,
+            pad_type_id: 0,
+            pad_token: padding_token,
+        };
+        tokenizer.with_padding(Some(padding));
         Ok(Tokenizer{hf_tokenizer: tokenizer})
     }
 
@@ -61,7 +76,8 @@ mod tests {
         let config = Config::new_unigram(e5().unwrap()).unwrap();
         let tokenizer = Tokenizer::new(&config).unwrap();
         let encoding = tokenizer.encode("hello world").unwrap();
-        assert!(encoding.token_ids.shape() == [1, 5]);
-        assert!(encoding.token_ids == Array2::from_shape_vec((1, 5), vec![0, 33600, 31, 8999, 2]).unwrap());
+        assert!(encoding.token_ids.shape() == [1, 258]);
+        let first_ten_ids = encoding.token_ids.iter().take(10).copied().collect::<Vec<_>>();
+        assert!(first_ten_ids == vec![0, 33600, 31, 8999, 2, 1, 1, 1, 1, 1]);
     }
 }

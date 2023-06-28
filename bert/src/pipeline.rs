@@ -98,17 +98,17 @@ impl<T, P> Pipeline<T, P> {
 
 #[cfg(test)]
 mod tests {
-    use xayn_test_utils::asset::smbert_mocked;
+    use xayn_test_utils::asset::e5;
 
     use super::*;
     use crate::{
         config::Config,
         pooler::{AveragePooler, FirstPooler, NonePooler},
-        tokenizer::bert::Tokenizer,
+        tokenizer::generic_hf::Tokenizer,
     };
 
     fn pipeline<P>() -> Pipeline<Tokenizer, P> {
-        Config::new(smbert_mocked().unwrap())
+        Config::new_unigram(e5().unwrap())
             .unwrap()
             .with_pooler()
             .build()
