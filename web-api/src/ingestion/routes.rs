@@ -133,6 +133,7 @@ struct UnvalidatedIngestedDocument {
 struct IngestedDocument {
     id: DocumentId,
     snippet: DocumentSnippet,
+    summary: Option<String>,
     properties: DocumentProperties,
     tags: DocumentTags,
     is_candidate_op: IsCandidateOp,
@@ -210,16 +211,17 @@ impl UnvalidatedIngestedDocument {
         storage: &(impl storage::Size + storage::IndexedProperties),
     ) -> Result<IngestedDocument, Error> {
         let id = self.id.as_str().try_into()?;
-        let snippet = if self.summarize {
+        let snippet = DocumentSnippet::try_from(self.snippet)?;
+        let summary = self.summarize.then(|| {
             summarize(
                 &Summarizer::Naive,
-                &Source::PlainText { text: self.snippet },
+                &Source::PlainText {
+                    text: snippet.as_str().to_owned(),
+                },
                 &Config::default(),
             )
-        } else {
-            self.snippet
-        }
-        .try_into()?;
+        });
+        
         let properties = validate_document_properties(&id, self.properties, storage).await?;
         let tags = self
             .tags
@@ -243,6 +245,7 @@ impl UnvalidatedIngestedDocument {
         Ok(IngestedDocument {
             id,
             snippet,
+            summary,
             properties,
             tags,
             is_candidate_op,
@@ -295,6 +298,7 @@ async fn upsert_documents(
             ids
         },
     );
+    // Hint: detects duplicate ids
     if ids.len() != documents.len() {
         documents = documents
             .into_iter()
@@ -382,7 +386,8 @@ async fn upsert_documents(
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
-            match state.embedder.run(&document.snippet) {
+            let short_text = document.summary.as_deref().unwrap_or(&document.snippet);
+            match state.embedder.run(short_text) {
                 Ok(embedding) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
