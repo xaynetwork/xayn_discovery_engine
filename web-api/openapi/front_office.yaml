@@ -118,7 +118,9 @@ paths:
       description: |-
         This endpoint allows you to search through the documents in different ways.
         When a document id is used, the system will return documents that are similar to the one in input.
-        When a query is provided, the system will return documents that are similar to the query. If `enable_hybrid_search` is passed that the system will also perform keyword matching between the query and the documents. It is possible to personalise the result by passing a user id or history; in this case, the system will consider the user's interests to rank the documents.         
+        When a query is provided, the system will return documents that are similar to the query.
+        If `enable_hybrid_search` is passed, then the system will also perform keyword matching between the query and the documents.
+        It is possible to personalize the result by passing a user id or history. In this case, the system will consider the user's interests to rank the documents.         
         Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document is more similar to the one in input.
         The documents also contain their properties if this is requested and the properties are not empty.
       operationId: getSimilarDocuments
