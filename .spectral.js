@@ -67,7 +67,7 @@ module.exports = {
     },
     {
       files: [
-        "web-api/openapi/front_office.yaml#/components/schemas/FilterString/additionalProperties/properties",
+        "web-api/openapi/front_office.yaml#/components/schemas/FilterCompare/additionalProperties/properties",
       ],
       rules: {
         "ibm-property-casing-convention": "off",

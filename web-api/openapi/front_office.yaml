@@ -163,7 +163,7 @@ components:
       description: Include the properties of each document in the response
       type: boolean
       default: true
-    FilterString:
+    FilterCompare:
       type: object
       additionalProperties:
         type: object
@@ -173,11 +173,12 @@ components:
         minProperties: 1
         maxProperties: 1
     Filter:
-      description: Filter the documents wrt their properties. A key must be a valid `DocumentPropertyId`.
+      description: |
+        Filter the documents wrt their properties.
+        A key must be a valid `DocumentPropertyId`.
+        The `DocumentProperty` type corresponding to the `DocumentPropertyId` must support the filter operation.
       oneOf:
-        - $ref: '#/components/schemas/FilterString'
-      minProperties: 1
-      maxProperties: 1
+        - $ref: '#/components/schemas/FilterCompare'
     PersonalizedDocumentData:
       type: object
       required: [id, score]
