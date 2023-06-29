@@ -1,6 +1,4 @@
-#!/bin/bash
-
-set -e
+#!/usr/bin/env -S bash -e
 
 source .env
 RUST_VERSION=$(perl -ne 'print $1 if /channel = \"(.*)\"/' rust-toolchain.toml)
