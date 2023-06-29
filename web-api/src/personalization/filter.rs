@@ -151,10 +151,89 @@ impl<'de> Deserialize<'de> for Compare {
     }
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+pub(crate) enum CombineOp {
+    #[serde(rename = "$and")]
+    And,
+    #[serde(rename = "$or")]
+    Or,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct Combine {
+    pub(crate) operation: CombineOp,
+    pub(crate) filters: Vec<Filter>,
+}
+
+impl<'de> Deserialize<'de> for Combine {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct CombineVisitor;
+
+        impl<'de> Visitor<'de> for CombineVisitor {
+            type Value = Combine;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a json object")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: MapAccess<'de>,
+            {
+                const EXPECTED: &&str = &"exactly one combination operator";
+                let Some((operation, filters)) = map.next_entry::<_, Vec<_>>()? else {
+                    return Err(A::Error::invalid_length(0, EXPECTED));
+                };
+                if map.next_entry::<CombineOp, Vec<Filter>>()?.is_some() {
+                    return Err(A::Error::invalid_length(
+                        2 + map.size_hint().unwrap_or_default(),
+                        EXPECTED,
+                    ));
+                }
+                if filters.len() > 10 {
+                    return Err(A::Error::invalid_length(
+                        filters.len(),
+                        &"at most 10 combination arguments",
+                    ));
+                }
+                if !is_below_level(&filters, 2) {
+                    return Err(A::Error::invalid_value(
+                        Unexpected::Other("more than two times nested combination"),
+                        &"at most two times nested combination",
+                    ));
+                }
+
+                Ok(Combine { operation, filters })
+            }
+        }
+
+        deserializer.deserialize_map(CombineVisitor)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(untagged)]
 pub(crate) enum Filter {
     Compare(Compare),
+    Combine(Combine),
+}
+
+fn is_below_level(filters: &[Filter], max: usize) -> bool {
+    (max > 0)
+        .then(|| filters.iter().all(|filter| filter.is_below_level(max - 1)))
+        .unwrap_or_default()
+}
+
+impl Filter {
+    fn is_below_level(&self, max: usize) -> bool {
+        match self {
+            Self::Compare(_) => true,
+            Self::Combine(combine) => is_below_level(&combine.filters, max),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -262,6 +341,194 @@ mod tests {
             .unwrap_err()
             .to_string(),
             "invalid length 2, expected a json object with exactly one left comparison argument at line 1 column 68",
+        );
+    }
+
+    #[test]
+    fn test_is_below_level() {
+        let compare = Filter::Compare(Compare {
+            operation: CompareOp::Eq,
+            field: "prop".try_into().unwrap(),
+            value: json!("test").try_into().unwrap(),
+        });
+        assert!(compare.is_below_level(0));
+
+        let filters = Vec::new();
+        assert!(!is_below_level(&filters, 0));
+        assert!(is_below_level(&filters, 1));
+        let combine_0 = Filter::Combine(Combine {
+            operation: CombineOp::And,
+            filters,
+        });
+        assert!(!combine_0.is_below_level(0));
+        assert!(combine_0.is_below_level(1));
+
+        let filters = vec![compare.clone()];
+        assert!(!is_below_level(&filters, 0));
+        assert!(is_below_level(&filters, 1));
+        let combine_1 = Filter::Combine(Combine {
+            operation: CombineOp::And,
+            filters,
+        });
+        assert!(!combine_1.is_below_level(0));
+        assert!(combine_1.is_below_level(1));
+
+        let filters = vec![compare.clone(), combine_0];
+        assert!(!is_below_level(&filters, 1));
+        assert!(is_below_level(&filters, 2));
+        let combine = Filter::Combine(Combine {
+            operation: CombineOp::And,
+            filters,
+        });
+        assert!(!combine.is_below_level(1));
+        assert!(combine.is_below_level(2));
+
+        let filters = vec![compare, combine_1];
+        assert!(!is_below_level(&filters, 1));
+        assert!(is_below_level(&filters, 2));
+        let combine = Filter::Combine(Combine {
+            operation: CombineOp::And,
+            filters,
+        });
+        assert!(!combine.is_below_level(1));
+        assert!(combine.is_below_level(2));
+    }
+
+    #[test]
+    fn test_combine() {
+        let compare = Filter::Compare(Compare {
+            operation: CompareOp::Eq,
+            field: "prop".try_into().unwrap(),
+            value: json!("test").try_into().unwrap(),
+        });
+        let combine_0 = Combine {
+            operation: CombineOp::And,
+            filters: Vec::new(),
+        };
+        assert_eq!(
+            serde_json::from_str::<Combine>(r#"{ "$and": [] }"#).unwrap(),
+            combine_0,
+        );
+
+        let combine_1 = Combine {
+            operation: CombineOp::And,
+            filters: vec![compare.clone()],
+        };
+        assert_eq!(
+            serde_json::from_str::<Combine>(r#"{ "$and": [ { "prop": { "$eq": "test" } } ] }"#)
+                .unwrap(),
+            combine_1,
+        );
+
+        let combine_0 = Combine {
+            operation: CombineOp::And,
+            filters: vec![compare.clone(), Filter::Combine(combine_0)],
+        };
+        assert_eq!(
+            serde_json::from_str::<Combine>(
+                r#"{ "$and": [ { "prop": { "$eq": "test" } }, { "$and": [] } ] }"#
+            )
+            .unwrap(),
+            combine_0,
+        );
+
+        let combine_1 = Combine {
+            operation: CombineOp::And,
+            filters: vec![compare, Filter::Combine(combine_1)],
+        };
+        assert_eq!(
+            serde_json::from_str::<Combine>(
+                r#"{ "$and": [
+                    { "prop": { "$eq": "test" } },
+                    { "$and": [ { "prop": { "$eq": "test" } } ] }
+                ] }"#
+            )
+            .unwrap(),
+            combine_1,
+        );
+
+        assert_eq!(
+            serde_json::from_str::<Combine>("{}")
+                .unwrap_err()
+                .to_string(),
+            "invalid length 0, expected exactly one combination operator at line 1 column 2",
+        );
+        assert_eq!(
+            serde_json::from_str::<Combine>(r#"{ "$and": [], "$and": [] }"#)
+                .unwrap_err()
+                .to_string(),
+            "invalid length 2, expected exactly one combination operator at line 1 column 26",
+        );
+        assert_eq!(
+            serde_json::from_str::<Combine>(r#"{ "$and": [ { "$and": [], "$and": [] } ] }"#)
+                .unwrap_err()
+                .to_string(),
+            "data did not match any variant of untagged enum Filter at line 1 column 40",
+        );
+        assert_eq!(
+            serde_json::from_str::<Combine>(r#"{ "$and": [ { "$and": [ { "$and": [] } ] } ] }"#)
+                .unwrap_err()
+                .to_string(),
+            "invalid value: more than two times nested combination, ".to_string()
+                + "expected at most two times nested combination at line 1 column 46",
+        );
+        assert_eq!(
+            serde_json::from_str::<Combine>(
+                r#"{ "$and": [
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } },
+                    { "prop": { "$eq": "test" } }
+                ] }"#
+            )
+            .unwrap_err()
+            .to_string(),
+            "invalid length 11, expected at most 10 combination arguments at line 13 column 19",
+        );
+    }
+
+    #[test]
+    fn test_filter() {
+        assert_eq!(
+            serde_json::from_str::<Filter>(
+                r#"{ "$and": [
+                    { "$or": [ { "p1": { "$eq": "a" } }, { "p2": { "$in": ["b", "c"] } } ] },
+                    { "p3": { "$eq": "d" } } 
+                ] }"#
+            )
+            .unwrap(),
+            Filter::Combine(Combine {
+                operation: CombineOp::And,
+                filters: vec![
+                    Filter::Combine(Combine {
+                        operation: CombineOp::Or,
+                        filters: vec![
+                            Filter::Compare(Compare {
+                                operation: CompareOp::Eq,
+                                field: "p1".try_into().unwrap(),
+                                value: json!("a").try_into().unwrap()
+                            }),
+                            Filter::Compare(Compare {
+                                operation: CompareOp::In,
+                                field: "p2".try_into().unwrap(),
+                                value: json!(["b", "c"]).try_into().unwrap()
+                            })
+                        ]
+                    }),
+                    Filter::Compare(Compare {
+                        operation: CompareOp::Eq,
+                        field: "p3".try_into().unwrap(),
+                        value: json!("d").try_into().unwrap()
+                    })
+                ]
+            }),
         );
     }
 }
