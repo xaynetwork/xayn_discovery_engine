@@ -14,8 +14,9 @@
 
 use std::fmt;
 
+use derive_more::Deref;
 use serde::{
-    de::{Error, MapAccess, Unexpected, Visitor},
+    de::{Error, MapAccess, SeqAccess, Unexpected, Visitor},
     Deserialize,
     Deserializer,
 };
@@ -159,10 +160,68 @@ pub(crate) enum CombineOp {
     Or,
 }
 
+#[derive(Clone, Debug, Deref, PartialEq)]
+pub(crate) struct Filters(Vec<Filter>);
+
+impl Filters {
+    fn is_below_level(&self, max: usize) -> bool {
+        (max > 0)
+            .then(|| self.iter().all(|filter| filter.is_below_level(max - 1)))
+            .unwrap_or_default()
+    }
+}
+
+impl<'de> Deserialize<'de> for Filters {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct FiltersVisitor;
+
+        impl FiltersVisitor {
+            const MAX_LEN: usize = 10;
+        }
+
+        impl<'de> Visitor<'de> for FiltersVisitor {
+            type Value = Filters;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str(&format!(
+                    "a json array with at most {} combination arguments",
+                    Self::MAX_LEN,
+                ))
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: SeqAccess<'de>,
+            {
+                let size = seq.size_hint().unwrap_or_default();
+                if size > Self::MAX_LEN {
+                    return Err(A::Error::invalid_length(size, &Self));
+                }
+
+                let mut filters = Vec::with_capacity(size);
+                while let Some(filter) = seq.next_element()? {
+                    if filters.len() < Self::MAX_LEN {
+                        filters.push(filter);
+                    } else {
+                        return Err(A::Error::invalid_length(filters.len() + 1, &Self));
+                    }
+                }
+
+                Ok(Filters(filters))
+            }
+        }
+
+        deserializer.deserialize_seq(FiltersVisitor)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Combine {
     pub(crate) operation: CombineOp,
-    pub(crate) filters: Vec<Filter>,
+    pub(crate) filters: Filters,
 }
 
 impl<'de> Deserialize<'de> for Combine {
@@ -184,7 +243,7 @@ impl<'de> Deserialize<'de> for Combine {
                 A: MapAccess<'de>,
             {
                 const EXPECTED: &&str = &"exactly one combination operator";
-                let Some((operation, filters)) = map.next_entry::<_, Vec<_>>()? else {
+                let Some((operation, filters)) = map.next_entry::<_, Filters>()? else {
                     return Err(A::Error::invalid_length(0, EXPECTED));
                 };
                 if map.next_entry::<CombineOp, Vec<Filter>>()?.is_some() {
@@ -193,13 +252,7 @@ impl<'de> Deserialize<'de> for Combine {
                         EXPECTED,
                     ));
                 }
-                if filters.len() > 10 {
-                    return Err(A::Error::invalid_length(
-                        filters.len(),
-                        &"at most 10 combination arguments",
-                    ));
-                }
-                if !is_below_level(&filters, 2) {
+                if !filters.is_below_level(2) {
                     return Err(A::Error::invalid_value(
                         Unexpected::Other("more than two times nested combination"),
                         &"at most two times nested combination",
@@ -221,17 +274,11 @@ pub(crate) enum Filter {
     Combine(Combine),
 }
 
-fn is_below_level(filters: &[Filter], max: usize) -> bool {
-    (max > 0)
-        .then(|| filters.iter().all(|filter| filter.is_below_level(max - 1)))
-        .unwrap_or_default()
-}
-
 impl Filter {
     fn is_below_level(&self, max: usize) -> bool {
         match self {
             Self::Compare(_) => true,
-            Self::Combine(combine) => is_below_level(&combine.filters, max),
+            Self::Combine(combine) => combine.filters.is_below_level(max),
         }
     }
 }
@@ -353,9 +400,9 @@ mod tests {
         });
         assert!(compare.is_below_level(0));
 
-        let filters = Vec::new();
-        assert!(!is_below_level(&filters, 0));
-        assert!(is_below_level(&filters, 1));
+        let filters = Filters(Vec::new());
+        assert!(!filters.is_below_level(0));
+        assert!(filters.is_below_level(1));
         let combine_0 = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
@@ -363,9 +410,9 @@ mod tests {
         assert!(!combine_0.is_below_level(0));
         assert!(combine_0.is_below_level(1));
 
-        let filters = vec![compare.clone()];
-        assert!(!is_below_level(&filters, 0));
-        assert!(is_below_level(&filters, 1));
+        let filters = Filters(vec![compare.clone()]);
+        assert!(!filters.is_below_level(0));
+        assert!(filters.is_below_level(1));
         let combine_1 = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
@@ -373,9 +420,9 @@ mod tests {
         assert!(!combine_1.is_below_level(0));
         assert!(combine_1.is_below_level(1));
 
-        let filters = vec![compare.clone(), combine_0];
-        assert!(!is_below_level(&filters, 1));
-        assert!(is_below_level(&filters, 2));
+        let filters = Filters(vec![compare.clone(), combine_0]);
+        assert!(!filters.is_below_level(1));
+        assert!(filters.is_below_level(2));
         let combine = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
@@ -383,9 +430,9 @@ mod tests {
         assert!(!combine.is_below_level(1));
         assert!(combine.is_below_level(2));
 
-        let filters = vec![compare, combine_1];
-        assert!(!is_below_level(&filters, 1));
-        assert!(is_below_level(&filters, 2));
+        let filters = Filters(vec![compare, combine_1]);
+        assert!(!filters.is_below_level(1));
+        assert!(filters.is_below_level(2));
         let combine = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
@@ -403,7 +450,7 @@ mod tests {
         });
         let combine_0 = Combine {
             operation: CombineOp::And,
-            filters: Vec::new(),
+            filters: Filters(Vec::new()),
         };
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [] }"#).unwrap(),
@@ -412,7 +459,7 @@ mod tests {
 
         let combine_1 = Combine {
             operation: CombineOp::And,
-            filters: vec![compare.clone()],
+            filters: Filters(vec![compare.clone()]),
         };
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [ { "prop": { "$eq": "test" } } ] }"#)
@@ -422,7 +469,7 @@ mod tests {
 
         let combine_0 = Combine {
             operation: CombineOp::And,
-            filters: vec![compare.clone(), Filter::Combine(combine_0)],
+            filters: Filters(vec![compare.clone(), Filter::Combine(combine_0)]),
         };
         assert_eq!(
             serde_json::from_str::<Combine>(
@@ -434,7 +481,7 @@ mod tests {
 
         let combine_1 = Combine {
             operation: CombineOp::And,
-            filters: vec![compare, Filter::Combine(combine_1)],
+            filters: Filters(vec![compare, Filter::Combine(combine_1)]),
         };
         assert_eq!(
             serde_json::from_str::<Combine>(
@@ -490,7 +537,7 @@ mod tests {
             )
             .unwrap_err()
             .to_string(),
-            "invalid length 11, expected at most 10 combination arguments at line 13 column 19",
+            "invalid length 11, expected a json array with at most 10 combination arguments at line 13 column 17",
         );
     }
 
@@ -506,10 +553,10 @@ mod tests {
             .unwrap(),
             Filter::Combine(Combine {
                 operation: CombineOp::And,
-                filters: vec![
+                filters: Filters(vec![
                     Filter::Combine(Combine {
                         operation: CombineOp::Or,
-                        filters: vec![
+                        filters: Filters(vec![
                             Filter::Compare(Compare {
                                 operation: CompareOp::Eq,
                                 field: "p1".try_into().unwrap(),
@@ -520,14 +567,14 @@ mod tests {
                                 field: "p2".try_into().unwrap(),
                                 value: json!(["b", "c"]).try_into().unwrap()
                             })
-                        ]
+                        ])
                     }),
                     Filter::Compare(Compare {
                         operation: CompareOp::Eq,
                         field: "p3".try_into().unwrap(),
                         value: json!("d").try_into().unwrap()
                     })
-                ]
+                ])
             }),
         );
     }
