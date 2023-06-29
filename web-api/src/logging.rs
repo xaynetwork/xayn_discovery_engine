@@ -93,7 +93,10 @@ pub fn initialize_global(config: &Config) -> Result<(), TryInitError> {
 fn create_trace_dispatch(level: LevelFilter, file: Option<&Path>) -> Dispatch {
     let subscriber = tracing_subscriber::registry();
 
-    let stdout_log = tracing_subscriber::fmt::layer().with_ansi(false);
+    let stdout_log = tracing_subscriber::fmt::layer()
+        .json()
+        .flatten_event(true)
+        .with_current_span(false);
 
     let sqlx_query_no_info = Targets::new()
         .with_default(level)
