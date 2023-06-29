@@ -170,6 +170,8 @@ components:
         properties:
           $eq:
             $ref: ./schemas/document.yml#/DocumentPropertyString
+          $in:
+            $ref: ./schemas/document.yml#/DocumentPropertyArrayString
         minProperties: 1
         maxProperties: 1
     Filter:

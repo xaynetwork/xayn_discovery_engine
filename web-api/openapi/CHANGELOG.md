@@ -2,6 +2,7 @@
 
 - Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` endpoints:
     - string equality
+    - array of strings containment
 
 # 2.3.0 - 2023-06-28
 

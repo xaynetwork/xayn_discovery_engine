@@ -26,6 +26,8 @@ use crate::models::{DocumentProperty, DocumentPropertyId};
 pub(crate) enum CompareOp {
     #[serde(rename = "$eq")]
     Eq,
+    #[serde(rename = "$in")]
+    In,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -68,6 +70,17 @@ impl<'de> Deserialize<'de> for CompareWith {
                         if !value.is_string() {
                             return Err(A::Error::invalid_type(
                                 Unexpected::Other("no string property"),
+                                &Self,
+                            ));
+                        }
+                    }
+                    CompareOp::In => {
+                        if value
+                            .as_array()
+                            .map_or(true, |value| value.iter().any(|value| !value.is_string()))
+                        {
+                            return Err(A::Error::invalid_type(
+                                Unexpected::Other("no array of strings property"),
                                 &Self,
                             ));
                         }
@@ -147,7 +160,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_compare_with() {
+    fn test_compare_with_string() {
         assert_eq!(
             serde_json::from_str::<CompareWith>(r#"{ "$eq": "test" }"#).unwrap(),
             CompareWith {
@@ -176,6 +189,37 @@ mod tests {
     }
 
     #[test]
+    fn test_compare_with_array_string() {
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(r#"{ "$in": ["test", "this"] }"#).unwrap(),
+            CompareWith {
+                operation: CompareOp::In,
+                value: json!(["test", "this"]).try_into().unwrap(),
+            },
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>("{}")
+                .unwrap_err()
+                .to_string(),
+            "invalid length 0, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 2",
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(
+                r#"{ "$in": ["test", "this"], "$in": ["test", "that"] }"#
+            )
+            .unwrap_err()
+            .to_string(),
+            "invalid length 2, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 52",
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(r#"{ "$in": "test" }"#)
+                .unwrap_err()
+                .to_string(),
+            "invalid type: no array of strings property, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 17",
+        );
+    }
+
+    #[test]
     fn test_compare() {
         assert_eq!(
             serde_json::from_str::<Compare>(r#"{ "prop": { "$eq": "test" } }"#).unwrap(),
@@ -186,6 +230,14 @@ mod tests {
             },
         );
         assert_eq!(
+            serde_json::from_str::<Compare>(r#"{ "prop": { "$in": ["test", "this"] } }"#).unwrap(),
+            Compare {
+                operation: CompareOp::In,
+                field: "prop".try_into().unwrap(),
+                value: json!(["test", "this"]).try_into().unwrap(),
+            },
+        );
+        assert_eq!(
             serde_json::from_str::<Compare>("{}")
                 .unwrap_err()
                 .to_string(),
@@ -193,11 +245,11 @@ mod tests {
         );
         assert_eq!(
             serde_json::from_str::<Compare>(
-                r#"{ "prop1": { "$eq": "test" }, "prop2": { "$eq": "test" } }"#
+                r#"{ "prop1": { "$eq": "test" }, "prop2": { "$in": ["test", "this"] } }"#
             )
             .unwrap_err()
             .to_string(),
-            "invalid length 2, expected a json object with exactly one left comparison argument at line 1 column 58",
+            "invalid length 2, expected a json object with exactly one left comparison argument at line 1 column 68",
         );
     }
 }

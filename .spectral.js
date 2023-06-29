@@ -60,6 +60,7 @@ module.exports = {
       files: [
         "web-api/openapi/back_office.yaml#/components/schemas/DocumentCandidatesRequest",
         "web-api/openapi/back_office.yaml#/components/schemas/DocumentCandidatesResponse",
+        "web-api/openapi/schemas/document.yml#/DocumentPropertyArrayString",
       ],
       rules: {
         "ibm-array-attributes": "off",
