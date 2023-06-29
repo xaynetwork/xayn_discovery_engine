@@ -51,6 +51,7 @@ use super::{
     TagWeights,
 };
 use crate::{
+    ingestion::IngestionConfig,
     models::{
         DocumentId,
         DocumentProperties,
@@ -1285,13 +1286,15 @@ impl storage::IndexedProperties for Storage {
     async fn extend_schema(
         &self,
         update: IndexedPropertiesSchemaUpdate,
-        max_properties: usize,
+        ingestion_config: &IngestionConfig,
     ) -> Result<IndexedPropertiesSchema, Error> {
         let mut tx = self.postgres.begin().await?;
         let mut schema = Database::load_schema(&mut tx).await?;
-        schema.update(update.clone(), max_properties)?;
+        schema.update(update.clone(), ingestion_config.max_indexed_properties)?;
         Database::extend_postgres_schema(&mut tx, &update).await?;
-        //TODO self.elastic.extend_elasticsearch_mapping(&update).await?;
+        self.elastic
+            .extend_mapping(&update, &ingestion_config.index_update)
+            .await?;
         tx.commit().await?;
         Ok(schema)
     }
@@ -1317,6 +1320,9 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         update: &IndexedPropertiesSchemaUpdate,
     ) -> Result<(), Error> {
+        if update.len() == 0 {
+            return Ok(());
+        }
         QueryBuilder::new("INSERT INTO indexed_property(name, type) ")
             .push_values(update, |mut builder, (name, def)| {
                 builder.push_bind(name).push_bind(def.r#type);

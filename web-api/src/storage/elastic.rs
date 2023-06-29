@@ -18,13 +18,20 @@ use std::{collections::HashMap, convert::identity, hash::Hash, mem::replace, ops
 
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
+use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 use xayn_web_api_shared::serde::{json_object, merge_json_objects, JsonObject};
 
-use super::{MergeFn, NormalizationFn, SearchStrategy};
+use super::{
+    property_filter::IndexedPropertiesSchemaUpdate,
+    MergeFn,
+    NormalizationFn,
+    SearchStrategy,
+};
 use crate::{
     models::{
         self,
@@ -35,7 +42,7 @@ use crate::{
         DocumentSnippet,
         DocumentTags,
     },
-    storage::{KnnSearchParams, Warning},
+    storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
 };
 
@@ -239,7 +246,7 @@ impl Client {
                 }
             }
         });
-        self.query_with_json::<_, IgnoredResponse>(url, Some(body))
+        self.query_with_json::<_, IgnoredResponse>(Method::POST, url, Some(body))
             .await?;
 
         Ok(())
@@ -263,7 +270,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
     }
@@ -285,7 +292,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
     }
@@ -310,7 +317,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
     }
@@ -333,7 +340,7 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| Some(())))
     }
@@ -356,10 +363,121 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(url, body)
+            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
             .await?
             .map(|_| ()))
     }
+
+    pub(super) async fn extend_mapping(
+        &self,
+        updates: &IndexedPropertiesSchemaUpdate,
+        index_update_config: &IndexUpdateConfig,
+    ) -> Result<(), Error> {
+        if updates.len() == 0 {
+            return Ok(());
+        }
+        let mut properties = JsonObject::with_capacity(updates.len());
+        for (id, definition) in updates {
+            // We ignore malformed values here for two reasons:
+            // 1. set/add candidates can push documents to ES which contain
+            //    malformed values
+            // 2. if we somehow end up with a out-of-sync schema at least everything
+            //    else but this property will still work correctly
+            //
+            // Note that `keyword` is excluded as it accepts anything and in turn is
+            // from ES POV never malformed.
+            let def = match definition.r#type {
+                IndexedPropertyType::Boolean => {
+                    json!({ "type": "boolean", "ignore_malformed": true })
+                }
+                IndexedPropertyType::Number => {
+                    json!({ "type": "double", "ignore_malformed": true })
+                }
+                IndexedPropertyType::Keyword | IndexedPropertyType::KeywordArray => {
+                    json!({ "type": "keyword" })
+                }
+                IndexedPropertyType::Date => json!({ "type": "date", "ignore_malformed": true }),
+            };
+            properties.insert(id.as_str().into(), def);
+        }
+
+        let body = json!({
+            "properties": {
+                "properties": {
+                    // the properties of the field named properties in the properties of a document
+                    "properties": properties
+                }
+            }
+        });
+
+        let url = self.create_url(["_mapping"], []);
+        self.query_with_json::<_, IgnoredResponse>(Method::PUT, url, Some(body))
+            .await?;
+
+        info!("extended ES _mapping");
+
+        self.update_indices(index_update_config).await?;
+
+        Ok(())
+    }
+
+    async fn update_indices(&self, config: &IndexUpdateConfig) -> Result<(), Error> {
+        let wait_for_completion = match config.method {
+            IndexUpdateMethod::Background => false,
+            IndexUpdateMethod::DangerWaitForCompletion => true,
+        };
+
+        let url = self.create_url(
+            ["_update_by_query"],
+            [
+                ("conflicts", Some("proceed")),
+                //FIXME add a way to async query the status of the update
+                //      ES will return a task handle we can use for this.
+                (
+                    "wait_for_completion",
+                    Some(&wait_for_completion.to_string()),
+                ),
+                ("refresh", Some("true")),
+                (
+                    "requests_per_second",
+                    Some(&config.requests_per_second.to_string()),
+                ),
+            ],
+        );
+        self.query_with_json::<(), IgnoredResponse>(Method::POST, url, None)
+            .await?;
+
+        info!("started index update process");
+
+        Ok(())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(default)]
+pub(crate) struct IndexUpdateConfig {
+    requests_per_second: usize,
+    method: IndexUpdateMethod,
+}
+
+impl Default for IndexUpdateConfig {
+    fn default() -> Self {
+        Self {
+            requests_per_second: 500,
+            method: IndexUpdateMethod::Background,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum IndexUpdateMethod {
+    /// Run updates in the background without feedback for completion.
+    Background,
+    /// This can put the DB into an inconsistent state if it hits timeouts.
+    ///
+    /// Never use this in production.
+    DangerWaitForCompletion,
 }
 
 #[derive(Debug, Serialize)]

@@ -24,7 +24,7 @@ use crate::{
     embedding,
     logging,
     net,
-    storage,
+    storage::{self, elastic::IndexUpdateConfig},
     tenants,
 };
 
@@ -68,6 +68,7 @@ pub struct Config {
 pub struct IngestionConfig {
     pub(crate) max_document_batch_size: usize,
     pub(crate) max_indexed_properties: usize,
+    pub(crate) index_update: IndexUpdateConfig,
 }
 
 impl Default for IngestionConfig {
@@ -76,6 +77,7 @@ impl Default for IngestionConfig {
             max_document_batch_size: 100,
             // 10 + publication_date
             max_indexed_properties: 11,
+            index_update: IndexUpdateConfig::default(),
         }
     }
 }

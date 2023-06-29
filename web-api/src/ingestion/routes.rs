@@ -20,7 +20,6 @@ use actix_web::{
     Responder,
 };
 use anyhow::anyhow;
-use chrono::DateTime;
 use itertools::{Either, Itertools};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -41,7 +40,6 @@ use crate::{
         FailedToIngestDocuments,
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
-        InvalidDocumentProperty,
     },
     models::{
         self,
@@ -52,7 +50,7 @@ use crate::{
         DocumentSnippet,
         DocumentTags,
     },
-    storage::{self, property_filter::IndexedPropertiesSchemaUpdate, IndexedProperties},
+    storage::{self, property_filter::IndexedPropertiesSchemaUpdate},
     Error,
 };
 
@@ -184,26 +182,33 @@ impl NewIsCandidate {
 }
 
 async fn validate_document_properties(
+    document_id: &DocumentId,
     properties: impl IntoIterator<Item = (String, Value)>,
-    storage: &impl storage::Size,
+    storage: &(impl storage::Size + storage::IndexedProperties),
 ) -> Result<DocumentProperties, Error> {
     let properties = properties
         .into_iter()
-        .map(|(id, property)| Ok::<_, Error>((id.try_into()?, property.try_into()?)))
-        .try_collect::<_, HashMap<_, DocumentProperty>, _>()?;
-    if let Some(publication_date) = properties.get("publication_date") {
-        let Some(publication_date) = publication_date.as_str() else {
-            return Err(InvalidDocumentProperty { value: publication_date.clone().into() }.into());
-        };
-        DateTime::parse_from_rfc3339(publication_date)?;
-    }
-    let size = storage::Size::json(storage, &serde_json::to_value(&properties)?).await?;
+        .map(|(property_id, property)| {
+            let property_id = DocumentPropertyId::try_from(property_id)?;
+            let property = DocumentProperty::try_from_value(document_id, &property_id, property)?;
+            Ok((property_id, property))
+        })
+        .try_collect::<_, HashMap<_, _>, Error>()?;
 
+    let schema = storage.load_schema().await?;
+    for (property, value) in &properties {
+        schema.validate_property(document_id, property, value)?;
+    }
+
+    let size = storage::Size::json(storage, &serde_json::to_value(&properties)?).await?;
     DocumentProperties::new(properties, size).map_err(Into::into)
 }
 
 impl UnvalidatedIngestedDocument {
-    async fn validate(self, storage: &impl storage::Size) -> Result<IngestedDocument, Error> {
+    async fn validate(
+        self,
+        storage: &(impl storage::Size + storage::IndexedProperties),
+    ) -> Result<IngestedDocument, Error> {
         let id = self.id.as_str().try_into()?;
         let snippet = if self.summarize {
             summarize(
@@ -215,7 +220,7 @@ impl UnvalidatedIngestedDocument {
             self.snippet
         }
         .try_into()?;
-        let properties = validate_document_properties(self.properties, storage).await?;
+        let properties = validate_document_properties(&id, self.properties, storage).await?;
         let tags = self
             .tags
             .into_iter()
@@ -534,7 +539,8 @@ async fn put_document_properties(
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
-    let properties = validate_document_properties(properties.properties, &storage).await?;
+    let properties =
+        validate_document_properties(&document_id, properties.properties, &storage).await?;
     storage::DocumentProperties::put(&storage, &document_id, &properties)
         .await?
         .ok_or(DocumentNotFound)?;
@@ -590,7 +596,7 @@ async fn put_document_property(
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
     let property_id = DocumentPropertyId::try_from(property_id)?;
-    let property = DocumentProperty::try_from(body.property)?;
+    let property = DocumentProperty::try_from_value(&document_id, &property_id, body.property)?;
 
     let properties = storage::DocumentProperties::get(&storage, &document_id)
         .await?
@@ -598,7 +604,8 @@ async fn put_document_property(
         .into_iter()
         .chain([(property_id.clone(), property.clone())])
         .map(|(property_id, property)| (property_id.into(), property.into()));
-    validate_document_properties(properties, &storage).await?;
+
+    validate_document_properties(&document_id, properties, &storage).await?;
 
     storage::DocumentProperty::put(&storage, &document_id, &property_id, &property)
         .await?
@@ -629,8 +636,7 @@ async fn create_indexed_properties(
     Json(update): Json<IndexedPropertiesSchemaUpdate>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    let max_indexed_properties = state.config.ingestion.max_indexed_properties;
-    IndexedProperties::extend_schema(&storage, update, max_indexed_properties)
+    storage::IndexedProperties::extend_schema(&storage, update, &state.config.ingestion)
         .await
         .map(|res| Json(res).customize().with_status(StatusCode::ACCEPTED))
 }
@@ -639,7 +645,9 @@ async fn create_indexed_properties(
 async fn get_indexed_properties_schema(
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    IndexedProperties::load_schema(&storage).await.map(Json)
+    storage::IndexedProperties::load_schema(&storage)
+        .await
+        .map(Json)
 }
 
 #[derive(Deserialize, Debug)]

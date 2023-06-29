@@ -34,6 +34,7 @@ use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 use self::property_filter::{IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate};
 use crate::{
     app::SetupError,
+    ingestion::IngestionConfig,
     models::{
         self,
         DocumentId,
@@ -273,7 +274,7 @@ pub(crate) trait IndexedProperties {
     async fn extend_schema(
         &self,
         update: IndexedPropertiesSchemaUpdate,
-        max_properties: usize,
+        ingestion_config: &IngestionConfig,
     ) -> Result<IndexedPropertiesSchema, Error>;
 }
 
