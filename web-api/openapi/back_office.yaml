@@ -338,32 +338,32 @@ components:
       example:
         properties:
           title: "News title"
-    ExtendIndexedPropertiesRequest:
-      type: object
-      required: [properties]
-      properties:
-        properties:
-          $ref: './schemas/document.yml#/IndexedPropertiesSchema'
-      example:
-        properties:
-          foo:
-            type: keyword
-          bar:
-            type: date
-    IndexedPropertiesSchemaResponse:
-      type: object
-      required: [properties]
-      properties:
-        properties:
-         $ref: './schemas/document.yml#/IndexedPropertiesSchema'
-      example:
-        properties:
-          foo:
-            type: keyword
-          bar:
-            type: date
-          publication_date:
-            type: date
+    # ExtendIndexedPropertiesRequest:
+    #   type: object
+    #   required: [properties]
+    #   properties:
+    #     properties:
+    #       $ref: './schemas/document.yml#/IndexedPropertiesSchema'
+    #   example:
+    #     properties:
+    #       foo:
+    #         type: keyword
+    #       bar:
+    #         type: date
+    # IndexedPropertiesSchemaResponse:
+    #   type: object
+    #   required: [properties]
+    #   properties:
+    #     properties:
+    #      $ref: './schemas/document.yml#/IndexedPropertiesSchema'
+    #   example:
+    #     properties:
+    #       foo:
+    #         type: keyword
+    #       bar:
+    #         type: date
+    #       publication_date:
+    #         type: date
     IngestedDocument:
       type: object
       required: [id, snippet]
