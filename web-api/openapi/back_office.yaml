@@ -126,67 +126,67 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
 
-  /documents/_indexed_properties:
-    get:
-      tags:
-        - back office
-      summary: Get the schema of all indexed properties.
-      description: Get the schema of all indexed properties.
-      operationId: getIndexedPropertiesSchema
-      responses:
-        '200':
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IndexedPropertiesSchemaResponse'
-    post:
-      tags:
-        - back office
-      summary: Add additional indexed properties to the schema.
-      description: |-
-        Add additional indexed properties to the schema.
+  # /documents/_indexed_properties:
+  #   get:
+  #     tags:
+  #       - back office
+  #     summary: Get the schema of all indexed properties.
+  #     description: Get the schema of all indexed properties.
+  #     operationId: getIndexedPropertiesSchema
+  #     responses:
+  #       '200':
+  #         description: successful operation
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/IndexedPropertiesSchemaResponse'
+  #   post:
+  #     tags:
+  #       - back office
+  #     summary: Add additional indexed properties to the schema.
+  #     description: |-
+  #       Add additional indexed properties to the schema.
 
-        The schema can have at most 11 properties in total, including the
-        automatically created `publication_date` property.
+  #       The schema can have at most 11 properties in total, including the
+  #       automatically created `publication_date` property.
 
-        If you plan to create multiple indexed properties it is strongly
-        recommended to do so with one request.
+  #       If you plan to create multiple indexed properties it is strongly
+  #       recommended to do so with one request.
 
-        For now it is not possible to modify or delete indexed properties
-        through the API.
+  #       For now it is not possible to modify or delete indexed properties
+  #       through the API.
 
-        To use a property with query filters it is necessary to once add it to
-        the list of indexed properties using this endpoint.
+  #       To use a property with query filters it is necessary to once add it to
+  #       the list of indexed properties using this endpoint.
 
-        Newly ingested documents are checked to be compatible with the indexed
-        property schema, i.e. if they have a property in the schema it's value must
-        be compatible (same type, in case of `date` a string in rfc3339 date time format).
+  #       Newly ingested documents are checked to be compatible with the indexed
+  #       property schema, i.e. if they have a property in the schema it's value must
+  #       be compatible (same type, in case of `date` a string in rfc3339 date time format).
 
-        Due to technical limitation existing documents are not checked to be compatible
-        with the new indexed properties added with this request. Incompatible documents will instead be
-        treated as if they didn't had that property wrt. the filter/index. Besides that
-        existing documents with matching properties are added to the index in a
-        background job. Functionality to check the completion of that job is not yet
-        implemented.
-      operationId: createIndexedProperties
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ExtendIndexedPropertiesRequest'
-      responses:
-        '202':
-          description: |-
-            the new complete indexed property schema is returned,
-            through updating the index happens in a background job
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/IndexedPropertiesSchemaResponse'
-        '400':
-          $ref: './responses/generic.yml#/BadRequest'
+  #       Due to technical limitation existing documents are not checked to be compatible
+  #       with the new indexed properties added with this request. Incompatible documents will instead be
+  #       treated as if they didn't had that property wrt. the filter/index. Besides that
+  #       existing documents with matching properties are added to the index in a
+  #       background job. Functionality to check the completion of that job is not yet
+  #       implemented.
+  #     operationId: createIndexedProperties
+  #     requestBody:
+  #       required: true
+  #       content:
+  #         application/json:
+  #           schema:
+  #             $ref: '#/components/schemas/ExtendIndexedPropertiesRequest'
+  #     responses:
+  #       '202':
+  #         description: |-
+  #           the new complete indexed property schema is returned,
+  #           through updating the index happens in a background job
+  #         content:
+  #           application/json:
+  #             schema:
+  #               $ref: '#/components/schemas/IndexedPropertiesSchemaResponse'
+  #       '400':
+  #         $ref: './responses/generic.yml#/BadRequest'
 
   /documents/{document_id}:
     parameters:
@@ -338,32 +338,32 @@ components:
       example:
         properties:
           title: "News title"
-    ExtendIndexedPropertiesRequest:
-      type: object
-      required: [properties]
-      properties:
-        properties:
-          $ref: './schemas/document.yml#/IndexedPropertiesSchema'
-      example:
-        properties:
-          foo:
-            type: keyword
-          bar:
-            type: date
-    IndexedPropertiesSchemaResponse:
-      type: object
-      required: [properties]
-      properties:
-        properties:
-         $ref: './schemas/document.yml#/IndexedPropertiesSchema'
-      example:
-        properties:
-          foo:
-            type: keyword
-          bar:
-            type: date
-          publication_date:
-            type: date
+    # ExtendIndexedPropertiesRequest:
+    #   type: object
+    #   required: [properties]
+    #   properties:
+    #     properties:
+    #       $ref: './schemas/document.yml#/IndexedPropertiesSchema'
+    #   example:
+    #     properties:
+    #       foo:
+    #         type: keyword
+    #       bar:
+    #         type: date
+    # IndexedPropertiesSchemaResponse:
+    #   type: object
+    #   required: [properties]
+    #   properties:
+    #     properties:
+    #      $ref: './schemas/document.yml#/IndexedPropertiesSchema'
+    #   example:
+    #     properties:
+    #       foo:
+    #         type: keyword
+    #       bar:
+    #         type: date
+    #       publication_date:
+    #         type: date
     IngestedDocument:
       type: object
       required: [id, snippet]
