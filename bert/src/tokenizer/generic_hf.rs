@@ -18,6 +18,7 @@ use tokenizers::{
     tokenizer::Tokenizer as HfTokenizer,
     utils::{
         padding::{PaddingDirection, PaddingParams, PaddingStrategy},
+        truncation::{TruncationDirection, TruncationParams, TruncationStrategy},
     },
 };
 
@@ -45,7 +46,14 @@ impl Tokenize for Tokenizer {
             pad_type_id: 0,
             pad_token: padding_token,
         };
+        let truncation = TruncationParams {
+            direction: TruncationDirection::Right,
+            max_length: config.token_size,
+            strategy: TruncationStrategy::LongestFirst,
+            stride: 0,
+        };
         tokenizer.with_padding(Some(padding));
+        tokenizer.with_truncation(Some(truncation));
         Ok(Tokenizer{hf_tokenizer: tokenizer})
     }
 
