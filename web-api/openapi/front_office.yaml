@@ -11,7 +11,7 @@ info:
     All the request bodies in this API are JSON encoded and their `Content-Type` headers should be set to `application/json`.
 
     ## Auth
-    The API requires to set the `authorizationToken` when used with the provided token.
+    The API requires to set the `authorizationToken` header when used with the provided token.
 
     ## User
     Each method requires a `user_id`.
