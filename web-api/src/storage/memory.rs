@@ -742,6 +742,7 @@ mod tests {
                 published_after: None,
                 strategy: SearchStrategy::Knn,
                 include_properties: false,
+                filter: None,
             },
         )
         .await
@@ -761,6 +762,7 @@ mod tests {
                 published_after: None,
                 strategy: SearchStrategy::Knn,
                 include_properties: false,
+                filter: None,
             },
         )
         .await

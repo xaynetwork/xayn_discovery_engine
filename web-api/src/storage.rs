@@ -47,6 +47,7 @@ use crate::{
         PersonalizedDocument,
         UserId,
     },
+    personalization::filter::Filter,
     tenants,
     Error,
 };
@@ -61,6 +62,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) published_after: Option<DateTime<Utc>>,
     pub(super) strategy: SearchStrategy,
     pub(super) include_properties: bool,
+    pub(super) filter: Option<&'a Filter>,
 }
 
 #[derive(Clone, Debug)]

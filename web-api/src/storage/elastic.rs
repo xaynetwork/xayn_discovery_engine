@@ -13,6 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 mod client;
+mod filter;
 
 use std::{collections::HashMap, convert::identity, hash::Hash, mem::replace, ops::AddAssign};
 
@@ -505,27 +506,6 @@ impl KnnSearchParams<'_> {
             generic_parameters,
             inner_filter,
         }
-    }
-
-    fn create_search_filter(&self) -> JsonObject {
-        let mut filter = JsonObject::new();
-        if !self.excluded.is_empty() {
-            // existing documents are not filtered in the query to avoid too much work for a cold
-            // path, filtering them afterwards can occasionally lead to less than k results though
-            filter.insert(
-                "must_not".to_string(),
-                json!({ "ids": { "values": self.excluded } }),
-            );
-        }
-        if let Some(published_after) = self.published_after {
-            // published_after != null && published_after <= publication_date
-            let published_after = published_after.to_rfc3339();
-            filter.insert(
-                "filter".to_string(),
-                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
-            );
-        }
-        filter
     }
 
     fn create_knn_request_object(&self, filter: &JsonObject) -> JsonObject {
