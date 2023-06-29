@@ -164,6 +164,8 @@ pub(crate) enum CombineOp {
 pub(crate) struct Filters(Vec<Filter>);
 
 impl Filters {
+    const MAX_LEN: usize = 10;
+
     fn is_below_level(&self, max: usize) -> bool {
         (max > 0)
             .then(|| self.iter().all(|filter| filter.is_below_level(max - 1)))
@@ -178,17 +180,13 @@ impl<'de> Deserialize<'de> for Filters {
     {
         struct FiltersVisitor;
 
-        impl FiltersVisitor {
-            const MAX_LEN: usize = 10;
-        }
-
         impl<'de> Visitor<'de> for FiltersVisitor {
             type Value = Filters;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str(&format!(
                     "a json array with at most {} combination arguments",
-                    Self::MAX_LEN,
+                    Self::Value::MAX_LEN,
                 ))
             }
 
@@ -197,13 +195,13 @@ impl<'de> Deserialize<'de> for Filters {
                 A: SeqAccess<'de>,
             {
                 let size = seq.size_hint().unwrap_or_default();
-                if size > Self::MAX_LEN {
+                if size > Self::Value::MAX_LEN {
                     return Err(A::Error::invalid_length(size, &Self));
                 }
 
                 let mut filters = Vec::with_capacity(size);
                 while let Some(filter) = seq.next_element()? {
-                    if filters.len() < Self::MAX_LEN {
+                    if filters.len() < Self::Value::MAX_LEN {
                         filters.push(filter);
                     } else {
                         return Err(A::Error::invalid_length(filters.len() + 1, &Self));
@@ -224,6 +222,10 @@ pub(crate) struct Combine {
     pub(crate) filters: Filters,
 }
 
+impl Combine {
+    const MAX_LEVEL: usize = 2;
+}
+
 impl<'de> Deserialize<'de> for Combine {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -235,27 +237,32 @@ impl<'de> Deserialize<'de> for Combine {
             type Value = Combine;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a json object")
+                formatter.write_str(&format!(
+                    "a json object with exactly one combination operator and at most {} times nested combinations",
+                    Self::Value::MAX_LEVEL,
+                ))
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
             where
                 A: MapAccess<'de>,
             {
-                const EXPECTED: &&str = &"exactly one combination operator";
                 let Some((operation, filters)) = map.next_entry::<_, Filters>()? else {
-                    return Err(A::Error::invalid_length(0, EXPECTED));
+                    return Err(A::Error::invalid_length(0, &Self));
                 };
                 if map.next_entry::<CombineOp, Vec<Filter>>()?.is_some() {
                     return Err(A::Error::invalid_length(
                         2 + map.size_hint().unwrap_or_default(),
-                        EXPECTED,
+                        &Self,
                     ));
                 }
-                if !filters.is_below_level(2) {
+                if !filters.is_below_level(Self::Value::MAX_LEVEL) {
                     return Err(A::Error::invalid_value(
-                        Unexpected::Other("more than two times nested combination"),
-                        &"at most two times nested combination",
+                        Unexpected::Other(&format!(
+                            "more than {} times nested combinations",
+                            Self::Value::MAX_LEVEL,
+                        )),
+                        &Self,
                     ));
                 }
 
@@ -498,13 +505,13 @@ mod tests {
             serde_json::from_str::<Combine>("{}")
                 .unwrap_err()
                 .to_string(),
-            "invalid length 0, expected exactly one combination operator at line 1 column 2",
+            "invalid length 0, expected a json object with exactly one combination operator and at most 2 times nested combinations at line 1 column 2",
         );
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [], "$and": [] }"#)
                 .unwrap_err()
                 .to_string(),
-            "invalid length 2, expected exactly one combination operator at line 1 column 26",
+                "invalid length 2, expected a json object with exactly one combination operator and at most 2 times nested combinations at line 1 column 26",
         );
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [ { "$and": [], "$and": [] } ] }"#)
@@ -516,8 +523,7 @@ mod tests {
             serde_json::from_str::<Combine>(r#"{ "$and": [ { "$and": [ { "$and": [] } ] } ] }"#)
                 .unwrap_err()
                 .to_string(),
-            "invalid value: more than two times nested combination, ".to_string()
-                + "expected at most two times nested combination at line 1 column 46",
+                "invalid value: more than 2 times nested combinations, expected a json object with exactly one combination operator and at most 2 times nested combinations at line 1 column 46",
         );
         assert_eq!(
             serde_json::from_str::<Combine>(
