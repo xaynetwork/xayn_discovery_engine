@@ -23,6 +23,8 @@ DocumentPropertyArrayString:
   type: array
   items:
     $ref: '#/DocumentPropertyString'
+  minItems: 0
+  maxItems: 100
 
 DocumentProperty:
   description: |

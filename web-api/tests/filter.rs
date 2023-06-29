@@ -87,7 +87,7 @@ fn test_filter_string() {
             index(
                 &client,
                 &ingestion_url,
-                json!({ "p": { "type": "keyword" }, "q": { "type": "keyword" } }),
+                json!({ "p1": { "type": "keyword" }, "p2": { "type": "keyword" } }),
             )
             .await?;
             ingest(
@@ -95,8 +95,8 @@ fn test_filter_string() {
                 &ingestion_url,
                 json!([
                     { "id": "d1", "snippet": "one" },
-                    { "id": "d2", "snippet": "two", "properties": { "p": "this" } },
-                    { "id": "d3", "snippet": "three", "properties": { "p": "that" } }
+                    { "id": "d2", "snippet": "two", "properties": { "p1": "this" } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": "that" } }
                 ]),
             )
             .await?;
@@ -118,7 +118,7 @@ fn test_filter_string() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$eq": "this" } }
+                        "filter": { "p1": { "$eq": "this" } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -132,7 +132,7 @@ fn test_filter_string() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$eq": "other" } }
+                        "filter": { "p1": { "$eq": "other" } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -146,7 +146,7 @@ fn test_filter_string() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "q": { "$eq": "this" } }
+                        "filter": { "p2": { "$eq": "this" } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -168,7 +168,7 @@ fn test_filter_array_string_single() {
             index(
                 &client,
                 &ingestion_url,
-                json!({ "p": { "type": "keyword" }, "q": { "type": "keyword" } }),
+                json!({ "p1": { "type": "keyword" }, "p2": { "type": "keyword" } }),
             )
             .await?;
             ingest(
@@ -176,8 +176,8 @@ fn test_filter_array_string_single() {
                 &ingestion_url,
                 json!([
                     { "id": "d1", "snippet": "one" },
-                    { "id": "d2", "snippet": "two", "properties": { "p": "this" } },
-                    { "id": "d3", "snippet": "three", "properties": { "p": "that" } }
+                    { "id": "d2", "snippet": "two", "properties": { "p1": "this" } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": "that" } }
                 ]),
             )
             .await?;
@@ -199,7 +199,7 @@ fn test_filter_array_string_single() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": ["this"] } }
+                        "filter": { "p1": { "$in": ["this"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -213,7 +213,7 @@ fn test_filter_array_string_single() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": ["this", "that", "other"] } }
+                        "filter": { "p1": { "$in": ["this", "that", "other"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -227,7 +227,7 @@ fn test_filter_array_string_single() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": [] } }
+                        "filter": { "p1": { "$in": [] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -241,7 +241,7 @@ fn test_filter_array_string_single() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": ["other"] } }
+                        "filter": { "p1": { "$in": ["other"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -255,7 +255,7 @@ fn test_filter_array_string_single() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "q": { "$in": ["this", "that", "other"] } }
+                        "filter": { "p2": { "$in": ["this", "that", "other"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -277,7 +277,7 @@ fn test_filter_array_string_multiple() {
             index(
                 &client,
                 &ingestion_url,
-                json!({ "p": { "type": "keyword[]" }, "q": { "type": "keyword[]" } }),
+                json!({ "p1": { "type": "keyword[]" }, "p2": { "type": "keyword[]" } }),
             )
             .await?;
             ingest(
@@ -285,9 +285,9 @@ fn test_filter_array_string_multiple() {
                 &ingestion_url,
                 json!([
                     { "id": "d1", "snippet": "one" },
-                    { "id": "d2", "snippet": "two", "properties": { "p": ["this", "word"] } },
-                    { "id": "d3", "snippet": "three", "properties": { "p": ["that", "word"] } },
-                    { "id": "d4", "snippet": "four", "properties": { "p": ["other", "words"] } }
+                    { "id": "d2", "snippet": "two", "properties": { "p1": ["this", "word"] } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": ["that", "word"] } },
+                    { "id": "d4", "snippet": "four", "properties": { "p1": ["other", "words"] } }
                 ]),
             )
             .await?;
@@ -309,7 +309,7 @@ fn test_filter_array_string_multiple() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": ["the", "word"] } }
+                        "filter": { "p1": { "$in": ["the", "word"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -323,7 +323,7 @@ fn test_filter_array_string_multiple() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": ["some", "other", "words"] } }
+                        "filter": { "p1": { "$in": ["some", "other", "words"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -337,7 +337,7 @@ fn test_filter_array_string_multiple() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": ["this", "that", "other"] } }
+                        "filter": { "p1": { "$in": ["this", "that", "other"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -351,7 +351,7 @@ fn test_filter_array_string_multiple() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": [] } }
+                        "filter": { "p1": { "$in": [] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -365,7 +365,7 @@ fn test_filter_array_string_multiple() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$in": ["some", "thing"] } }
+                        "filter": { "p1": { "$in": ["some", "thing"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -379,7 +379,7 @@ fn test_filter_array_string_multiple() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "q": { "$in": ["this", "that", "other"] } }
+                        "filter": { "p2": { "$in": ["this", "that", "other"] } }
                     }))
                     .build()?,
                 StatusCode::OK,
