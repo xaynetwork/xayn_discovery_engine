@@ -10,7 +10,7 @@ info:
     All the request bodies in this API are JSON encoded and their `Content-Type` headers should be set to `application/json`.
 
     ## Auth
-    The API requires to set the `authenticationToken` when used with the provided token.
+    The API requires to set the `authorizationToken` when used with the provided token.
 
     ## Document
     By document, we refer to a cohesive text, for example a complete news article.
