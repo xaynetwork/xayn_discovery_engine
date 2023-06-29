@@ -125,13 +125,13 @@ fn is_valid_property_id(value: &str) -> bool {
 fn is_valid_string(value: &str, len: usize) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]+$").unwrap());
 
-    (1..=len).contains(&value.len()) && RE.is_match(value)
+    RE.is_match(value)
 }
 
 fn is_valid_string_empty_ok(value: &str, len: usize) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]*$").unwrap());
 
-    (0..=len).contains(&value.len()) && RE.is_match(value)
+    RE.is_match(value)
 }
 
 string_wrapper! {
