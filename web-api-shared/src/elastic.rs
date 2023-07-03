@@ -21,7 +21,9 @@ use std::{
     time::Duration,
 };
 
+use bytes::Bytes;
 use derive_more::From;
+use futures_retry_policies::tokio::retry;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
     Body,
@@ -36,11 +38,9 @@ use serde_json::{json, Value};
 use thiserror::Error;
 use tracing::error;
 
-use crate::serde::{
-    serde_duration_as_seconds,
-    serialize_redacted,
-    serialize_to_ndjson,
-    JsonObject,
+use crate::{
+    net::{ExponentialJitterRetryPolicy, ExponentialJitterRetryPolicyConfig},
+    serde::{serde_duration_as_seconds, serialize_redacted, serialize_to_ndjson, JsonObject},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -86,6 +86,7 @@ pub struct Client {
     auth: Arc<Auth>,
     url_to_index: Arc<SegmentableUrl>,
     client: reqwest::Client,
+    retry_policy: ExponentialJitterRetryPolicyConfig,
 }
 
 impl Client {
@@ -104,6 +105,11 @@ impl Client {
                 .with_segments([&index_name])
                 .into(),
             client: reqwest::ClientBuilder::new().timeout(timeout).build()?,
+            retry_policy: ExponentialJitterRetryPolicyConfig {
+                max_retries: 2,
+                step_size: Duration::from_millis(150),
+                max_backoff: Duration::from_millis(1000),
+            },
         })
     }
 
@@ -118,6 +124,7 @@ impl Client {
                 .with_replaced_last_segment(index.as_ref())
                 .into(),
             client: self.client.clone(),
+            retry_policy: self.retry_policy.clone(),
         }
     }
 
@@ -270,7 +277,7 @@ impl Client {
 
         let body = serialize_to_ndjson(requests)?;
 
-        self.query_with_bytes::<_, BulkResponse<I>>(Method::POST, url, Some((headers, body)))
+        self.query_with_bytes::<BulkResponse<I>>(Method::POST, url, Some((headers, body.into())))
             .await?
             .ok_or_else(|| Error::EndpointNotFound("_bulk"))
     }
@@ -304,7 +311,29 @@ impl Client {
         })
     }
 
-    pub async fn query_with_bytes<B, T>(
+    pub async fn query_with_bytes<T>(
+        &self,
+        method: Method,
+        url: Url,
+        post_data: Option<(HeaderMap<HeaderValue>, Bytes)>,
+    ) -> Result<Option<T>, Error>
+    where
+        T: DeserializeOwned,
+    {
+        let policy = ExponentialJitterRetryPolicy::new(self.retry_policy.clone())
+            .with_retry_filter(|err| matches!(err, Error::Transport(_)));
+
+        retry(policy, || async {
+            let method = method.clone();
+            let url = url.clone();
+            let post_data = post_data.clone();
+            self.query_with_bytes_without_retrying(method, url, post_data)
+                .await
+        })
+        .await
+    }
+
+    async fn query_with_bytes_without_retrying<B, T>(
         &self,
         method: Method,
         url: Url,
@@ -349,7 +378,7 @@ impl Client {
                 let mut headers = HeaderMap::new();
                 headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
                 let body = serde_json::to_vec(&json)?;
-                Ok((headers, body))
+                Ok((headers, body.into()))
             })
             .transpose()?;
 
