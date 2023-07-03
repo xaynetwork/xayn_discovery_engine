@@ -60,7 +60,7 @@ impl Tokenize for Tokenizer {
     fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
         let tokens = self.hf_tokenizer.encode(sequence.as_ref(), true)?;
         let token_ids: Vec<u32> = tokens.get_ids().to_vec();
-        let attention_mask = vec![1; token_ids.len()];
+        let attention_mask = tokens.get_attention_mask().to_vec();
         let array_from =
             |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
 
