@@ -14,7 +14,7 @@
 
 use std::fmt::Debug;
 
-use anyhow::bail;
+use anyhow::{anyhow, bail};
 use once_cell::sync::Lazy;
 use reqwest::{Method, StatusCode};
 use serde_json::{json, Value};
@@ -78,16 +78,34 @@ pub(crate) async fn migrate_tenant_index(
     tenant_id: &TenantId,
     embedding_size: usize,
 ) -> Result<(), Error> {
-    if !does_tenant_index_exist(elastic, tenant_id).await? {
+    if let Some(existing_mapping) = get_opt_tenant_mapping(elastic, tenant_id).await? {
+        let expected_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
+        let existing_embedding_mapping = &existing_mapping["mappings"]["properties"]["embedding"];
+        let expected_embedding_mapping = &expected_mapping["mappings"]["properties"]["embedding"];
+        if existing_embedding_mapping != expected_embedding_mapping {
+            error!({ %existing_embedding_mapping, %expected_embedding_mapping }, "mappings in ES have incompatible embedding definition");
+            bail!("incompatible existing elasticsearch index");
+        }
+        //FIXME add support for schema migrations
+        // - check compatibility for all properties
+        // - add new mapping (e.g. `tags`)
+        // - handle settings which can be updated
+        //  - e.g. ignore_malformed
+        //FIXME
+        // - cross check document.properties with indexed property schema
+        //   - update ES if needed/possible
+        //   - maybe move ES indexed property creation outside of pg commit time,
+        //     which with this update step could be more robust wrt. some failures
+        //      (mainly network timeout), but more problematic with other failure
+        //      (bugs leading to things being in the ES schema but not in PG).
+    } else {
         error!(
             {%tenant_id},
             "index for tenant doesn't exist, creating a new index"
         );
         create_tenant_index(elastic, tenant_id, embedding_size).await?;
     }
-    //FIXME code to check if the index is a super-set of the expected index
-    //FIXME code for allowing updates to the ES schema, at least if
-    //      incremental application of the change is possible
+
     Ok(())
 }
 
@@ -108,6 +126,30 @@ async fn does_tenant_index_exist(
     } else {
         response.error_for_status()?;
         Ok(true)
+    }
+}
+
+#[instrument(skip(elastic))]
+async fn get_opt_tenant_mapping(
+    elastic: &Client,
+    tenant_id: impl AsRef<str> + Debug,
+) -> Result<Option<Value>, Error> {
+    let response = elastic
+        .with_index(&tenant_id)
+        .request(Method::GET, ["_mapping"], [])
+        .send()
+        .await?;
+
+    let status = response.status();
+    if status == StatusCode::NOT_FOUND {
+        Ok(None)
+    } else {
+        let mut response: Value = response.error_for_status()?.json().await?;
+        let mapping = response
+            .as_object_mut()
+            .and_then(|obj| obj.remove(tenant_id.as_ref()))
+            .ok_or_else(|| anyhow!("unexpected index/_mapping response: {response}"))?;
+        Ok(Some(mapping))
     }
 }
 
