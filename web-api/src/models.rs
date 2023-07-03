@@ -313,7 +313,7 @@ pub(crate) struct IngestedDocument {
     /// Snippet used to calculate embeddings for a document.
     pub(crate) snippet: DocumentSnippet,
 
-    /// Indicates weather the embedding was created using a summarizer.
+    /// Whether the embedding was computed on the summarized snippet.
     pub(crate) was_summarized: bool,
 
     /// Contents of the document properties.
