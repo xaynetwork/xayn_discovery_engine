@@ -14,7 +14,7 @@
 
 use std::fmt::Debug;
 
-use anyhow::{anyhow, bail};
+use anyhow::bail;
 use once_cell::sync::Lazy;
 use reqwest::{Method, StatusCode};
 use serde_json::{json, Value};
@@ -151,12 +151,12 @@ async fn get_opt_tenant_mapping(
     if status == StatusCode::NOT_FOUND {
         Ok(None)
     } else {
-        let mut response: Value = response.error_for_status()?.json().await?;
-        let mapping = response
-            .as_object_mut()
-            .and_then(|obj| obj.remove(tenant_id.as_ref()))
-            .ok_or_else(|| anyhow!("unexpected index/_mapping response: {response}"))?;
-        Ok(Some(mapping))
+        match response.error_for_status()?.json().await? {
+            Value::Object(obj) if obj.len() == 1 => {
+                Ok(obj.into_iter().next().map(|(_, mapping)| mapping))
+            }
+            response => bail!("unexpected index/_mapping response: {response}"),
+        }
     }
 }
 
