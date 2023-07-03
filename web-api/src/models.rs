@@ -314,7 +314,7 @@ pub(crate) struct IngestedDocument {
     pub(crate) snippet: DocumentSnippet,
 
     /// Whether the embedding was computed on the summarized snippet.
-    pub(crate) was_summarized: bool,
+    pub(crate) is_summarized: bool,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
@@ -333,7 +333,7 @@ pub(crate) struct IngestedDocument {
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
     pub(crate) snippet: DocumentSnippet,
-    pub(crate) was_summarized: Option<bool>,
+    pub(crate) is_summarized: bool,
     pub(crate) properties: DocumentProperties,
     pub(crate) tags: DocumentTags,
     pub(crate) is_candidate: bool,

@@ -316,7 +316,7 @@ async fn upsert_documents(
                     document.id,
                     (
                         document.snippet,
-                        document.was_summarized,
+                        document.is_summarized,
                         document.properties,
                         document.tags,
                         document.is_candidate,
@@ -331,19 +331,13 @@ async fn upsert_documents(
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
-                .map(
-                    |(snippet, was_summarized, properties, tags, is_candidate)| {
-                        ((snippet, was_summarized, properties, tags), *is_candidate)
-                    },
-                )
+                .map(|(snippet, is_summarized, properties, tags, is_candidate)| {
+                    ((snippet, is_summarized, properties, tags), *is_candidate)
+                })
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(snippet, was_summarized, _, _)| {
-                snippet != &document.snippet || {
-                    // as we previously stored the summary any document for which we don't
-                    // know if it was summarized and has the same snippet was not summarized
-                    was_summarized.unwrap_or_default() != document.summary.is_some()
-                }
+            let new_snippet = data.map_or(true, |(snippet, is_summarized, _, _)| {
+                snippet != &document.snippet || *is_summarized != document.summary.is_some()
             });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
 
@@ -400,7 +394,7 @@ async fn upsert_documents(
                 Ok(embedding) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
-                    was_summarized: document.summary.is_some(),
+                    is_summarized: document.summary.is_some(),
                     properties: document.properties,
                     tags: document.tags,
                     embedding,

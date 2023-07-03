@@ -60,7 +60,7 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
     snippet: DocumentSnippet,
-    was_summarized: bool,
+    is_summarized: bool,
     properties: DocumentProperties,
     tags: DocumentTags,
     is_candidate: bool,
@@ -297,7 +297,7 @@ impl storage::Document for Storage {
                 documents.0.get(id).map(|document| ExcerptedDocument {
                     id: id.clone(),
                     snippet: document.snippet.clone(),
-                    was_summarized: Some(document.was_summarized),
+                    is_summarized: document.is_summarized,
                     properties: document.properties.clone(),
                     tags: document.tags.clone(),
                     is_candidate: document.is_candidate,
@@ -365,7 +365,7 @@ impl storage::Document for Storage {
                 document.id.clone(),
                 Document {
                     snippet: document.snippet,
-                    was_summarized: document.was_summarized,
+                    is_summarized: document.is_summarized,
                     properties: document.properties,
                     tags: document.tags,
                     is_candidate: document.is_candidate,
@@ -723,7 +723,7 @@ mod tests {
             .map(|(id, embedding)| IngestedDocument {
                 id: id.clone(),
                 snippet: "snippet".try_into().unwrap(),
-                was_summarized: false,
+                is_summarized: false,
                 properties: DocumentProperties::default(),
                 tags: DocumentTags::default(),
                 embedding,
@@ -787,7 +787,7 @@ mod tests {
             vec![IngestedDocument {
                 id: doc_id.clone(),
                 snippet: snippet.clone(),
-                was_summarized: false,
+                is_summarized: false,
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
                 embedding: embedding.clone(),

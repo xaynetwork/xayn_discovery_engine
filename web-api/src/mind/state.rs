@@ -74,7 +74,7 @@ impl State {
                 Ok(IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
-                    was_summarized: false,
+                    is_summarized: false,
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory].try_into()?,
                     embedding,
@@ -109,7 +109,7 @@ impl State {
                 IngestedDocument {
                     id,
                     snippet: snippet.clone(),
-                    was_summarized: false,
+                    is_summarized: false,
                     properties: document.properties,
                     tags: document.tags,
                     embedding,

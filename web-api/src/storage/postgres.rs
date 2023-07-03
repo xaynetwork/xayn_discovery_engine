@@ -107,7 +107,7 @@ impl Database {
             "INSERT INTO document (
                 document_id,
                 snippet,
-                was_summarized,
+                is_summarized,
                 properties,
                 tags,
                 embedding,
@@ -124,7 +124,7 @@ impl Database {
                         builder
                             .push_bind(&document.id)
                             .push_bind(&document.snippet)
-                            .push_bind(document.was_summarized)
+                            .push_bind(document.is_summarized)
                             .push_bind(Json(&document.properties))
                             .push_bind(&document.tags)
                             .push_bind(&document.embedding)
@@ -308,7 +308,7 @@ impl Database {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<ExcerptedDocument>, Error> {
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, snippet, was_summarized, properties, tags, is_candidate
+            "SELECT document_id, snippet, is_summarized, properties, tags, is_candidate
             FROM document
             WHERE document_id IN ",
         );
@@ -321,12 +321,12 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, was_summarized, Json(properties), tags, is_candidate) =
+                        let (id, snippet, is_summarized, Json(properties), tags, is_candidate) =
                             FromRow::from_row(&row)?;
                         Ok(ExcerptedDocument {
                             id,
                             snippet,
-                            was_summarized,
+                            is_summarized,
                             properties,
                             tags,
                             is_candidate,
@@ -394,15 +394,15 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, snippet, was_summarized, properties, tags, embedding;")
+                    .push(" RETURNING document_id, snippet, is_summarized, properties, tags, embedding;")
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, was_summarized, Json(properties), tags, embedding) =
+                        let (id, snippet, is_summarized, Json(properties), tags, embedding) =
                             FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
                             id,
                             snippet,
-                            was_summarized,
+                            is_summarized,
                             properties,
                             tags,
                             embedding,
@@ -469,15 +469,15 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, snippet, was_summarized, properties, tags, embedding;")
+                    .push(" RETURNING document_id, snippet, is_summarized, properties, tags, embedding;")
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, was_summarized, Json(properties), tags, embedding) =
+                        let (id, snippet, is_summarized, Json(properties), tags, embedding) =
                             FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
                             id,
                             snippet,
-                            was_summarized,
+                            is_summarized,
                             properties,
                             tags,
                             embedding,

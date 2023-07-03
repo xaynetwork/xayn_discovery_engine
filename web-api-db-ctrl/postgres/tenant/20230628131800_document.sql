@@ -13,4 +13,4 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 ALTER TABLE document
-    ADD COLUMN was_summarized BOOLEAN NULL;
+    ADD COLUMN is_summarized BOOLEAN NOT NULL DEFAULT false;
