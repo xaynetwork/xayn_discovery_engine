@@ -79,25 +79,8 @@ pub(crate) async fn migrate_tenant_index(
     embedding_size: usize,
 ) -> Result<(), Error> {
     if let Some(existing_mapping) = get_opt_tenant_mapping(elastic, tenant_id).await? {
-        let expected_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
-        let existing_embedding_mapping = &existing_mapping["mappings"]["properties"]["embedding"];
-        let expected_embedding_mapping = &expected_mapping["mappings"]["properties"]["embedding"];
-        if existing_embedding_mapping != expected_embedding_mapping {
-            error!({ %existing_embedding_mapping, %expected_embedding_mapping }, "mappings in ES have incompatible embedding definition");
-            bail!("incompatible existing elasticsearch index");
-        }
-        //FIXME add support for schema migrations
-        // - check compatibility for all properties
-        // - add new mapping (e.g. `tags`)
-        // - handle settings which can be updated
-        //  - e.g. ignore_malformed
-        //FIXME
-        // - cross check document.properties with indexed property schema
-        //   - update ES if needed/possible
-        //   - maybe move ES indexed property creation outside of pg commit time,
-        //     which with this update step could be more robust wrt. some failures
-        //      (mainly network timeout), but more problematic with other failure
-        //      (bugs leading to things being in the ES schema but not in PG).
+        let base_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
+        check_mapping_compatibility(&existing_mapping, &base_mapping)?;
     } else {
         error!(
             {%tenant_id},
@@ -105,7 +88,31 @@ pub(crate) async fn migrate_tenant_index(
         );
         create_tenant_index(elastic, tenant_id, embedding_size).await?;
     }
+    Ok(())
+}
 
+fn check_mapping_compatibility(
+    existing_mapping: &Value,
+    base_mapping: &Value,
+) -> Result<(), Error> {
+    let existing_embeddings = &existing_mapping["mappings"]["properties"]["embedding"];
+    let expected_embeddings = &base_mapping["mappings"]["properties"]["embedding"];
+    if existing_embeddings != expected_embeddings {
+        error!({ %existing_embeddings, %expected_embeddings }, "mappings in ES have incompatible embedding definition");
+        bail!("incompatible existing elasticsearch index");
+    }
+    //FIXME add support for schema migrations
+    // - check compatibility for all properties, not just embedding
+    // - add new mapping (e.g. `tags`)
+    // - handle settings which can be updated
+    //   - e.g. ignore_malformed
+    //FIXME
+    // - cross check document.properties with indexed property schema
+    //   - update ES if needed/possible
+    //   - maybe move ES indexed property creation outside of pg commit time,
+    //     which with this update step could be more robust wrt. some failures
+    //      (mainly network timeout), but more problematic with other failure
+    //      (bugs leading to things being in the ES schema but not in PG).
     Ok(())
 }
 
