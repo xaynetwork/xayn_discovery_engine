@@ -270,6 +270,7 @@ components:
             $ref: '#/components/schemas/Filter/description'
           oneOf:
             - $ref: '#/components/schemas/FilterCompare'
+            - $ref: '#/components/schemas/FilterCombine'
     SemanticSearchResponse:
       type: object
       required: [documents]
