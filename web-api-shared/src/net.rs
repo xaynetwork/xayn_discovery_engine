@@ -22,11 +22,16 @@ use std::{
 use derive_more::Deref;
 use futures_retry_policies::RetryPolicy;
 use rand::random;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+use crate::serde::serde_duration_in_config;
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ExponentialJitterRetryPolicyConfig {
     pub max_retries: u8,
+    #[serde(with = "serde_duration_in_config")]
     pub step_size: Duration,
+    #[serde(with = "serde_duration_in_config")]
     pub max_backoff: Duration,
 }
 

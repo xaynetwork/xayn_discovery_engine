@@ -55,6 +55,9 @@ pub struct Config {
     /// Request timeout in seconds.
     #[serde(with = "serde_duration_as_seconds")]
     pub timeout: Duration,
+
+    /// The retry policy for internal requests to elastic search.
+    pub retry_policy: ExponentialJitterRetryPolicyConfig,
 }
 
 impl Default for Config {
@@ -65,6 +68,11 @@ impl Default for Config {
             password: String::from("changeme").into(),
             index_name: "test_index".into(),
             timeout: Duration::from_secs(2),
+            retry_policy: ExponentialJitterRetryPolicyConfig {
+                max_retries: 2,
+                step_size: Duration::from_millis(150),
+                max_backoff: Duration::from_millis(1000),
+            },
         }
     }
 }
@@ -97,6 +105,7 @@ impl Client {
             password,
             index_name,
             timeout,
+            retry_policy,
         } = config;
         Ok(Self {
             auth: Auth { user, password }.into(),
@@ -105,11 +114,7 @@ impl Client {
                 .with_segments([&index_name])
                 .into(),
             client: reqwest::ClientBuilder::new().timeout(timeout).build()?,
-            retry_policy: ExponentialJitterRetryPolicyConfig {
-                max_retries: 2,
-                step_size: Duration::from_millis(150),
-                max_backoff: Duration::from_millis(1000),
-            },
+            retry_policy,
         })
     }
 
