@@ -46,14 +46,9 @@ pub fn smbert_mocked() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "smbert_mocked_v0003"])
 }
 
-/// Resolves the path to the sjbert.
-pub fn sjbert() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "sjbert_v0003"])
-}
-
-/// Resolves the path to the smroberta.
-pub fn smroberta() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smroberta_tokenizer_v0000"])
+/// Resolves the path to the e5 like model.
+pub fn e5_mocked() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "e5_mocked"])
 }
 
 #[cfg(test)]
@@ -72,6 +67,6 @@ mod tests {
 
     #[test]
     fn test_sjbert() {
-        assert!(sjbert().is_ok());
+        assert!(e5_mocked().is_ok());
     }
 }

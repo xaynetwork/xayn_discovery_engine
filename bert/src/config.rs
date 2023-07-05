@@ -25,7 +25,7 @@ use crate::{
     model::Model,
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
-    tokenizer::{bert::Tokenizer, Tokenize},
+    tokenizer::{Tokenize, huggingface},
 };
 
 /// A pipeline configuration.
@@ -37,27 +37,16 @@ use crate::{
 /// ```toml
 /// # the config file is always named `config.toml`
 ///
-/// # optional, eg to enable the japanese pre-tokenizer
-/// [pre-tokenizer]
-/// path = "mecab"
-///
-/// # the path is always `vocab.txt`
+/// # the path is always `tokenizer.json`
 /// [tokenizer]
-/// cleanse-accents = true
-/// cleanse-text = true
-/// lower-case = false
-/// max-chars = 100
-///
+/// add_special_tokens = true
+/// 
 /// # tokens-related configs of the tokenizer, may differ between tokenizers
 /// [tokenizer.tokens]
 /// # the `token size` must be in the inclusive range, but is passed as an argument
 /// size.min = 2
 /// size.max = 512
-/// class = "[CLS]"
-/// separation = "[SEP]"
 /// padding = "[PAD]"
-/// unknown = "[UNK]"
-/// continuation = "##"
 ///
 /// # the [model] path is always `model.onnx`
 ///
@@ -98,7 +87,8 @@ pub struct Config<T, P> {
     pooler: PhantomData<P>,
 }
 
-impl Config<Tokenizer, NonePooler> {
+
+impl Config<huggingface::Tokenizer, NonePooler> {
     /// Creates a pipeline configuration.
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         let dir = dir.into();
@@ -116,6 +106,7 @@ impl Config<Tokenizer, NonePooler> {
         })
     }
 }
+
 
 impl<T, P> Config<T, P> {
     const MIN_TOKEN_SIZE: &str = "tokenizer.tokens.size.min";

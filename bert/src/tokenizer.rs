@@ -12,8 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod bert;
-pub mod roberta;
+pub mod huggingface;
 
 use derive_more::{Deref, From};
 use ndarray::Array2;

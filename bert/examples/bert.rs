@@ -14,7 +14,7 @@
 
 //! Run as `cargo run --example bert
 
-use xayn_ai_bert::{tokenizer::bert::Tokenizer, Config, FirstPooler};
+use xayn_ai_bert::{tokenizer::huggingface::Tokenizer, Config, FirstPooler};
 use xayn_test_utils::asset::smbert;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
