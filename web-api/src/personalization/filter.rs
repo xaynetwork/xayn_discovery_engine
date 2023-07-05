@@ -84,6 +84,10 @@ impl<'de> Deserialize<'de> for CompareWith {
                                 &Self,
                             ));
                         }
+                        let len = value.as_array().unwrap(/* value is array */).len();
+                        if len > 10 {
+                            return Err(A::Error::invalid_length(len, &Self));
+                        }
                     }
                 }
 
@@ -216,6 +220,14 @@ mod tests {
                 .unwrap_err()
                 .to_string(),
             "invalid type: no array of strings property, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 17",
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(
+                r#"{ "$in": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"] }"#
+            )
+            .unwrap_err()
+            .to_string(),
+            "invalid length 11, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 68",
         );
     }
 

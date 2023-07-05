@@ -93,6 +93,8 @@ pub(crate) enum InvalidDocumentPropertyReason {
     IncompatibleType { expected: IndexedPropertyType },
     /// string too long or contains invalid characters
     InvalidString,
+    /// array too long
+    InvalidArray,
 }
 
 impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);

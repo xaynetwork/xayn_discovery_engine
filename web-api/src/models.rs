@@ -170,6 +170,14 @@ impl DocumentProperty {
                 }
             }
             Value::Array(array) => {
+                if array.len() > 100 {
+                    return Err(InvalidDocumentProperty {
+                        document: document_id.clone(),
+                        property: property_id.clone(),
+                        invalid_value: value.clone(),
+                        invalid_reason: InvalidDocumentPropertyReason::InvalidArray,
+                    });
+                }
                 for value in array {
                     let Value::String(ref mut string) = value else {
                         return Err(InvalidDocumentProperty {
