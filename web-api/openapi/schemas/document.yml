@@ -51,6 +51,7 @@ DocumentProperties:
       $ref: './time.yml#/PublicationDate'
   additionalProperties:
     $ref: '#/DocumentProperty'
+    x-additionalPropertiesName: document property id
   example:
     title: "News title"
     image_url: "http://example.com/news_image.jpg"
@@ -123,6 +124,7 @@ IndexedPropertiesSchema:
     Be aware that the keys of the object must be valid `DocumentPropertyId`.
   additionalProperties:
     $ref: '#/IndexedPropertyDefinition'
+    x-additionalPropertiesName: document property id
 
 IndexedPropertyDefinition:
   type: object

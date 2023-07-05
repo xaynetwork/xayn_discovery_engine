@@ -1,4 +1,5 @@
 openapi: 3.1.0
+
 info:
   title: Front Office API
   version: 2.3.0
@@ -23,9 +24,24 @@ info:
     In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
     For example, it could contain an image url, a full article url, the publication date, the author or much more.
     The properties that were added when the document was submitted to us, are just mirrored here.
+  x-logo:
+    url: https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/637f7edd68c1ae2f12d4689e_Xayn%20Logo%202022%20-%20Footer.svg
+    altText: Xayn
 tags:
   - name: front office
     description: Handles interactions between users and documents and allows to fetch personalized documents per user.
+    x-traitTag: true
+  - name: interaction
+    x-displayName: Interaction
+  - name: search
+    x-displayName: Search
+x-tagGroups:
+  - name: Interaction
+    tags:
+      - interaction
+  - name: Search
+    tags:
+      - search
 
 security:
   - ApiKeyAuth: []
@@ -35,6 +51,7 @@ paths:
     get:
       tags:
         - front office
+        - search
       summary: Gets personalized documents for the user.
       description: |-
         Returns a list of documents personalized for the given `user_id`.
@@ -93,6 +110,7 @@ paths:
     patch:
       tags:
         - front office
+        - interaction
       summary: Adds an interaction between the user and the document.
       description: |-
         Use this method to register an interaction between a user and a document.
@@ -121,6 +139,7 @@ paths:
     post:
       tags:
         - front office
+        - search
       summary: Search through documents.
       description: |-
         This endpoint allows you to search through the documents in different ways.
@@ -181,6 +200,9 @@ components:
             $ref: ./schemas/time.yml#/Timestamp
           $lte:
             $ref: ./schemas/time.yml#/Timestamp
+        minProperties: 1
+        maxProperties: 1
+        x-additionalPropertiesName: document property id
       minProperties: 1
       maxProperties: 1
     FilterCombine:

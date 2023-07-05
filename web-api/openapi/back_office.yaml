@@ -1,4 +1,5 @@
 openapi: 3.1.0
+
 info:
   title: Back Office API
   version: 2.3.0
@@ -32,9 +33,35 @@ info:
     Properties are optional data for documents, which are usually needed to properly show the document back to the user, when it returns as a personalized document.
     If for example, you'd wish to integrate a type of carousel view, listing a total of 10 personalized documents in a "for you"-section, then you might choose to display each document as an image and title, with a url to link the user to when pressed.
     For this, you would need three document properties: `image`, `link` and `title`.
+  x-logo:
+    url: https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/637f7edd68c1ae2f12d4689e_Xayn%20Logo%202022%20-%20Footer.svg
+    altText: Xayn
 tags:
   - name: back office
     description: System management, including documents and properties.
+    x-traitTag: true
+  - name: documents
+    x-displayName: Documents
+  - name: candidates
+    x-displayName: Document candidates
+  - name: properties
+    x-displayName: Document properties
+  - name: property
+    x-displayName: Document property
+  - name: property indexing
+    x-displayName: Document property indexing
+x-tagGroups:
+  - name: Documents
+    tags:
+      - documents
+  - name: Document candidates
+    tags:
+      - candidates
+  - name: Document properties
+    tags:
+      - properties
+      - property
+      - property indexing
 
 security:
   - ApiKeyAuth: []
@@ -44,6 +71,7 @@ paths:
     post:
       tags:
         - back office
+        - documents
       summary: Add documents to the system.
       description: |
         Add documents to the system.
@@ -75,6 +103,7 @@ paths:
     delete:
       tags:
         - back office
+        - documents
       summary: Delete all listed documents.
       description: Delete all documents listed in the request body.
       operationId: deleteDocuments
@@ -94,6 +123,7 @@ paths:
     get:
       tags:
         - back office
+        - candidates
       summary: Get the documents considered for recommendations.
       description: Get the documents considered for recommendations.
       operationId: listDocumentCandidates
@@ -109,6 +139,7 @@ paths:
     put:
       tags:
         - back office
+        - candidates
       summary: Set the documents considered for recommendations.
       description: Set the documents considered for recommendations.
       operationId: replaceDocumentCandidates
@@ -128,6 +159,7 @@ paths:
     get:
       tags:
         - back office
+        - property indexing
       summary: Get the schema of all indexed properties.
       description: Get the schema of all indexed properties.
       operationId: getIndexedPropertiesSchema
@@ -141,6 +173,7 @@ paths:
     post:
       tags:
         - back office
+        - property indexing
       summary: Add additional indexed properties to the schema.
       description: |-
         Add additional indexed properties to the schema.
@@ -192,6 +225,7 @@ paths:
     delete:
       tags:
         - back office
+        - documents
       summary: Delete the document from the system.
       description: |-
         Permanently deletes the document from the system.
@@ -208,6 +242,7 @@ paths:
     get:
       tags:
         - back office
+        - properties
       summary: Get all document properties
       description: Gets all the properties of the document.
       operationId: listDocumentProperties
@@ -223,6 +258,7 @@ paths:
     put:
       tags:
         - back office
+        - properties
       summary: Set all document properties
       description: Sets or replaces all the properties of the document.
       operationId: replaceDocumentProperties
@@ -240,6 +276,7 @@ paths:
     delete:
       tags:
         - back office
+        - properties
       summary: Delete all document properties
       description: Deletes all the properties of the document.
       operationId: deleteDocumentProperties
@@ -261,6 +298,7 @@ paths:
     get:
       tags:
         - back office
+        - property
       summary: Get a document property
       description: Gets the property of the document.
       operationId: getDocumentProperty
@@ -276,6 +314,7 @@ paths:
     put:
       tags:
         - back office
+        - property
       summary: Set a document property
       description: Sets or replaces the property of the document.
       operationId: replaceDocumentProperty
@@ -293,6 +332,7 @@ paths:
     delete:
       tags:
         - back office
+        - property
       summary: Delete a document property
       description: Deletes the property of the document.
       operationId: deleteDocumentProperty
