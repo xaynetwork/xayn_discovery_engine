@@ -166,9 +166,9 @@ pub(crate) struct Filters(Vec<Filter>);
 impl Filters {
     const MAX_LEN: usize = 10;
 
-    fn is_below_level(&self, max: usize) -> bool {
+    fn is_below_depth(&self, max: usize) -> bool {
         (max > 0)
-            .then(|| self.iter().all(|filter| filter.is_below_level(max - 1)))
+            .then(|| self.iter().all(|filter| filter.is_below_depth(max - 1)))
             .unwrap_or_default()
     }
 }
@@ -223,7 +223,7 @@ pub(crate) struct Combine {
 }
 
 impl Combine {
-    const MAX_LEVEL: usize = 2;
+    const MAX_DEPTH: usize = 2;
 }
 
 impl<'de> Deserialize<'de> for Combine {
@@ -239,7 +239,7 @@ impl<'de> Deserialize<'de> for Combine {
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str(&format!(
                     "a json object with exactly one combination operator and at most {} times nested combinations",
-                    Self::Value::MAX_LEVEL,
+                    Self::Value::MAX_DEPTH,
                 ))
             }
 
@@ -256,11 +256,11 @@ impl<'de> Deserialize<'de> for Combine {
                         &Self,
                     ));
                 }
-                if !filters.is_below_level(Self::Value::MAX_LEVEL) {
+                if !filters.is_below_depth(Self::Value::MAX_DEPTH) {
                     return Err(A::Error::invalid_value(
                         Unexpected::Other(&format!(
                             "more than {} times nested combinations",
-                            Self::Value::MAX_LEVEL,
+                            Self::Value::MAX_DEPTH,
                         )),
                         &Self,
                     ));
@@ -282,10 +282,10 @@ pub(crate) enum Filter {
 }
 
 impl Filter {
-    fn is_below_level(&self, max: usize) -> bool {
+    fn is_below_depth(&self, max: usize) -> bool {
         match self {
             Self::Compare(_) => true,
-            Self::Combine(combine) => combine.filters.is_below_level(max),
+            Self::Combine(combine) => combine.filters.is_below_depth(max),
         }
     }
 }
@@ -399,53 +399,53 @@ mod tests {
     }
 
     #[test]
-    fn test_is_below_level() {
+    fn test_is_below_depth() {
         let compare = Filter::Compare(Compare {
             operation: CompareOp::Eq,
             field: "prop".try_into().unwrap(),
             value: json!("test").try_into().unwrap(),
         });
-        assert!(compare.is_below_level(0));
+        assert!(compare.is_below_depth(0));
 
         let filters = Filters(Vec::new());
-        assert!(!filters.is_below_level(0));
-        assert!(filters.is_below_level(1));
+        assert!(!filters.is_below_depth(0));
+        assert!(filters.is_below_depth(1));
         let combine_0 = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
         });
-        assert!(!combine_0.is_below_level(0));
-        assert!(combine_0.is_below_level(1));
+        assert!(!combine_0.is_below_depth(0));
+        assert!(combine_0.is_below_depth(1));
 
         let filters = Filters(vec![compare.clone()]);
-        assert!(!filters.is_below_level(0));
-        assert!(filters.is_below_level(1));
+        assert!(!filters.is_below_depth(0));
+        assert!(filters.is_below_depth(1));
         let combine_1 = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
         });
-        assert!(!combine_1.is_below_level(0));
-        assert!(combine_1.is_below_level(1));
+        assert!(!combine_1.is_below_depth(0));
+        assert!(combine_1.is_below_depth(1));
 
         let filters = Filters(vec![compare.clone(), combine_0]);
-        assert!(!filters.is_below_level(1));
-        assert!(filters.is_below_level(2));
+        assert!(!filters.is_below_depth(1));
+        assert!(filters.is_below_depth(2));
         let combine = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
         });
-        assert!(!combine.is_below_level(1));
-        assert!(combine.is_below_level(2));
+        assert!(!combine.is_below_depth(1));
+        assert!(combine.is_below_depth(2));
 
         let filters = Filters(vec![compare, combine_1]);
-        assert!(!filters.is_below_level(1));
-        assert!(filters.is_below_level(2));
+        assert!(!filters.is_below_depth(1));
+        assert!(filters.is_below_depth(2));
         let combine = Filter::Combine(Combine {
             operation: CombineOp::And,
             filters,
         });
-        assert!(!combine.is_below_level(1));
-        assert!(combine.is_below_level(2));
+        assert!(!combine.is_below_depth(1));
+        assert!(combine.is_below_depth(2));
     }
 
     #[test]

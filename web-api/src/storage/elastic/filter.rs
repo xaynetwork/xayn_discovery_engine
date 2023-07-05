@@ -21,91 +21,86 @@ use crate::{
     storage::KnnSearchParams,
 };
 
-fn extend_value(filter: &mut JsonObject, occurence: &'static str, mut clause: Value) {
+const FILTER: &str = "filter";
+const MINIMUM_SHOULD_MATCH: &str = "minimum_should_match";
+const SHOULD: &str = "should";
+const TERM: &str = "term";
+const TERMS: &str = "terms";
+
+fn extend_value(filter: &mut JsonObject, occurence: &'static str, clause: Value) {
     if let Some(filter) = filter.get_mut(occurence) {
-        match (&mut *filter, &mut clause) {
-            (Value::Array(filter), Value::Array(clause)) => filter.append(clause),
-            (Value::Array(filter), Value::Object(_)) => filter.push(clause),
-            (Value::Object(_), Value::Array(clauses)) => {
-                clauses.insert(0, filter.take());
-                *filter = clause;
-            }
-            (Value::Object(_), Value::Object(_)) => {
-                *filter = json!([filter.take(), clause]);
-            }
-            _ => unreachable!(/* filter and clause are array or object */),
-        }
+        let (Value::Array(filter), Value::Array(clause)) = (&mut *filter, clause) else {
+            unreachable!(/* filter[occurence] and clause are arrays */);
+        };
+        filter.extend(clause);
     } else {
         filter.insert(occurence.to_string(), clause);
     }
 }
 
 fn extend_filter(filter: &mut JsonObject, clause: &Filter, is_not_root: Option<&'static str>) {
-    const FILTER: &str = "filter";
-    const SHOULD: &str = "should";
-    const MINIMUM_SHOULD_MATCH: &str = "minimum_should_match";
-
     match clause {
         Filter::Compare(compare) => {
-            let compare_with = json!({ format!("properties.{}", compare.field): compare.value });
-            let compare = match compare.operation {
-                CompareOp::Eq => "term",
-                CompareOp::In => "terms",
+            let clause = json!({ format!("properties.{}", compare.field): compare.value });
+            let clause = match compare.operation {
+                CompareOp::Eq => json!([{ TERM: clause }]),
+                CompareOp::In => json!([{ TERMS: clause }]),
             };
-            extend_value(
-                filter,
-                is_not_root.unwrap_or(FILTER),
-                json!({ compare: compare_with }),
-            );
+            extend_value(filter, is_not_root.unwrap_or(FILTER), clause);
         }
         Filter::Combine(combine) => {
-            let (occurence, clauses) = match (combine.operation, is_not_root) {
+            let (occurence, clause) = match (combine.operation, is_not_root) {
                 (CombineOp::And, _) => (FILTER, JsonObject::with_capacity(combine.filters.len())),
                 (CombineOp::Or, Some(_)) => {
-                    let mut clauses = JsonObject::with_capacity(combine.filters.len() + 1);
-                    clauses.insert(MINIMUM_SHOULD_MATCH.to_string(), json!(1));
-                    (SHOULD, clauses)
+                    let mut clause = JsonObject::with_capacity(combine.filters.len() + 1);
+                    clause.insert(MINIMUM_SHOULD_MATCH.to_string(), json!(1));
+                    (SHOULD, clause)
                 }
                 (CombineOp::Or, None) => {
                     filter.insert(MINIMUM_SHOULD_MATCH.to_string(), json!(1));
                     (SHOULD, JsonObject::with_capacity(combine.filters.len()))
                 }
             };
-            let clauses = combine.filters.iter().fold(clauses, |mut filter, clause| {
+            let clause = combine.filters.iter().fold(clause, |mut filter, clause| {
                 extend_filter(&mut filter, clause, Some(occurence));
                 filter
             });
-            if is_not_root.is_some() {
-                extend_value(filter, occurence, json!({ "bool": clauses }));
+            let clause = if is_not_root.is_some() {
+                json!([{ "bool": clause }])
             } else {
-                let mut clauses = clauses.into_iter().map(|(_, clause)| clause).collect_vec();
-                match clauses.len() {
-                    0 => {}
-                    1 => extend_value(filter, occurence, clauses.remove(0)),
-                    _ => extend_value(filter, occurence, json!(clauses)),
-                }
-            }
+                json!(clause
+                    .into_iter()
+                    .flat_map(|(_, clause)| {
+                        let Value::Array(clause) = clause else {
+                            unreachable!(/* clause is array */);
+                        };
+                        clause
+                    })
+                    .collect_vec())
+            };
+            extend_value(filter, occurence, clause);
         }
-    };
+    }
 }
 
 impl KnnSearchParams<'_> {
     pub(super) fn create_search_filter(&self) -> JsonObject {
+        // filter clauses must be arrays to not break the assumptions of extend_filter()
         let mut filter = JsonObject::new();
         if !self.excluded.is_empty() {
             // existing documents are not filtered in the query to avoid too much work for a cold
             // path, filtering them afterwards can occasionally lead to less than k results though
             filter.insert(
                 "must_not".to_string(),
-                json!({ "ids": { "values": self.excluded } }),
+                json!([{ "ids": { "values": self.excluded } }]),
             );
         }
         if let Some(published_after) = self.published_after {
             // published_after != null && published_after <= publication_date
             let published_after = published_after.to_rfc3339();
             filter.insert(
-                "filter".to_string(),
-                json!({ "range": { "properties.publication_date": { "gte": published_after } } }),
+                FILTER.to_string(),
+                json!([{ "range": { "properties.publication_date": { "gte": published_after } } }]),
             );
         }
         if let Some(opt_filter) = self.filter {
@@ -125,24 +120,20 @@ mod tests {
     #[test]
     fn test_extend_value() {
         let mut filter = JsonObject::new();
-        extend_value(&mut filter, "test", json!([{}, {}]));
-        assert_eq!(filter, json_object!({ "test": [{}, {}] }));
-        extend_value(&mut filter, "test", json!([{}]));
-        assert_eq!(filter, json_object!({ "test": [{}, {}, {}] }));
-
-        let mut filter = json_object!({ "test": [{}] });
-        extend_value(&mut filter, "test", json!([{}, {}]));
-        assert_eq!(filter, json_object!({ "test": [{}, {}, {}] }));
+        extend_value(&mut filter, FILTER, json!([]));
+        assert_eq!(filter, json_object!({ FILTER: [] }));
+        extend_value(&mut filter, FILTER, json!([{}]));
+        assert_eq!(filter, json_object!({ FILTER: [{}] }));
 
         let mut filter = JsonObject::new();
-        extend_value(&mut filter, "test", json!({}));
-        assert_eq!(filter, json_object!({ "test": {} }));
-        extend_value(&mut filter, "test", json!({}));
-        assert_eq!(filter, json_object!({ "test": [{}, {}] }));
+        extend_value(&mut filter, FILTER, json!([{}]));
+        assert_eq!(filter, json_object!({ FILTER: [{}] }));
+        extend_value(&mut filter, FILTER, json!([{}, {}]));
+        assert_eq!(filter, json_object!({ FILTER: [{}, {}, {}] }));
 
-        let mut filter = json_object!({ "test": [{}] });
-        extend_value(&mut filter, "test", json!({}));
-        assert_eq!(filter, json_object!({ "test": [{}, {}] }));
+        let mut filter = json_object!({ SHOULD: [] });
+        extend_value(&mut filter, FILTER, json!([{}]));
+        assert_eq!(filter, json_object!({ SHOULD: [], FILTER: [{}] }));
     }
 
     #[test]
@@ -150,24 +141,28 @@ mod tests {
         for (clause, term) in [
             (
                 &serde_json::from_str(r#"{ "a": { "$eq": "b" } }"#).unwrap(),
-                json_object!({ "term": { "properties.a": "b" } }),
+                json!({ TERM: { "properties.a": "b" } }),
             ),
             (
                 &serde_json::from_str(r#"{ "a": { "$in": ["b", "c"] } }"#).unwrap(),
-                json_object!({ "terms": { "properties.a": ["b", "c"] } }),
+                json!({ TERMS: { "properties.a": ["b", "c"] } }),
             ),
         ] {
             let mut filter = JsonObject::new();
             extend_filter(&mut filter, clause, None);
-            assert_eq!(filter, json_object!({ "filter": term }));
+            assert_eq!(filter, json_object!({ FILTER: [term] }));
 
-            let mut filter = json_object!({ "filter": {} });
+            let mut filter = json_object!({ FILTER: [] });
             extend_filter(&mut filter, clause, None);
-            assert_eq!(filter, json_object!({ "filter": [{}, term] }));
+            assert_eq!(filter, json_object!({ FILTER: [term] }));
 
-            let mut filter = json_object!({ "filter": [{}, {}] });
+            let mut filter = json_object!({ FILTER: [{}] });
             extend_filter(&mut filter, clause, None);
-            assert_eq!(filter, json_object!({ "filter": [{}, {}, term] }));
+            assert_eq!(filter, json_object!({ FILTER: [{}, term] }));
+
+            let mut filter = json_object!({ SHOULD: [] });
+            extend_filter(&mut filter, clause, None);
+            assert_eq!(filter, json_object!({ SHOULD: [], FILTER: [term] }));
         }
     }
 
@@ -177,19 +172,23 @@ mod tests {
             r#"{ "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }"#,
         )
         .unwrap();
-        let term = json_object!({ "term": { "properties.a": "b" } });
+        let term = json!({ TERM: { "properties.a": "b" } });
 
         let mut filter = JsonObject::new();
         extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ "filter": [term, term] }));
+        assert_eq!(filter, json_object!({ FILTER: [term, term] }));
 
-        let mut filter = json_object!({ "filter": {} });
+        let mut filter = json_object!({ FILTER: [] });
         extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ "filter": [{}, term, term] }));
+        assert_eq!(filter, json_object!({ FILTER: [term, term] }));
 
-        let mut filter = json_object!({ "filter": [{}, {}] });
+        let mut filter = json_object!({ FILTER: [{}] });
         extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ "filter": [{}, {}, term, term] }));
+        assert_eq!(filter, json_object!({ FILTER: [{}, term, term] }));
+
+        let mut filter = json_object!({ SHOULD: [] });
+        extend_filter(&mut filter, clause, None);
+        assert_eq!(filter, json_object!({ SHOULD: [], FILTER: [term, term] }),);
     }
 
     #[test]
@@ -198,20 +197,34 @@ mod tests {
             r#"{ "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }"#,
         )
         .unwrap();
-        let term = json_object!({ "term": { "properties.a": "b" } });
+        let term = json_object!({ TERM: { "properties.a": "b" } });
 
         let mut filter = JsonObject::new();
         extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
-            json_object!({ "should": [term, term], "minimum_should_match": 1 }),
+            json_object!({ SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 }),
         );
 
-        let mut filter = json_object!({ "filter": {} });
+        let mut filter = json_object!({ SHOULD: [] });
         extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
-            json_object!({ "filter": {}, "should": [term, term], "minimum_should_match": 1 }),
+            json_object!({ SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 }),
+        );
+
+        let mut filter = json_object!({ SHOULD: [{}] });
+        extend_filter(&mut filter, clause, None);
+        assert_eq!(
+            filter,
+            json_object!({ SHOULD: [{}, term, term], MINIMUM_SHOULD_MATCH: 1 }),
+        );
+
+        let mut filter = json_object!({ FILTER: [] });
+        extend_filter(&mut filter, clause, None);
+        assert_eq!(
+            filter,
+            json_object!({ FILTER: [], SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 }),
         );
     }
 
@@ -220,24 +233,27 @@ mod tests {
         let clause = &serde_json::from_str(
             r#"{ "$and": [
                 { "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
-                { "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }
+                { "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
+                { "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }
             ] }"#,
         )
         .unwrap();
-        let term = json_object!({ "term": { "properties.a": "b" } });
+        let term = json_object!({ TERM: { "properties.a": "b" } });
 
         let mut filter = JsonObject::new();
         extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
-            json_object!({ "filter": [
-                { "bool": { "filter": [term, term] } },
-                { "bool": { "should": [term, term], "minimum_should_match": 1 } }
+            json_object!({ FILTER: [
+                { "bool": { FILTER: [term, term] } },
+                { "bool": { FILTER: [term, term] } },
+                { "bool": { SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 } }
             ] }),
         );
 
         let clause = &serde_json::from_str(
             r#"{ "$or": [
+                { "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
                 { "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
                 { "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }
             ] }"#,
@@ -248,11 +264,12 @@ mod tests {
         assert_eq!(
             filter,
             json_object!({
-                "should": [
-                    { "bool": { "filter": [term, term] } },
-                    { "bool": { "should": [term, term], "minimum_should_match": 1 } }
-                ],
-                "minimum_should_match": 1
+                MINIMUM_SHOULD_MATCH: 1,
+                SHOULD: [
+                    { "bool": { FILTER: [term, term] } },
+                    { "bool": { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, term] } },
+                    { "bool": { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, term] } }
+                ]
             }),
         );
     }
