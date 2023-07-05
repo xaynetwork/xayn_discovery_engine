@@ -51,20 +51,9 @@ use crate::{
         DocumentTags,
     },
     storage::{self, property_filter::IndexedPropertiesSchemaUpdate},
+    utils::deprecate,
     Error,
 };
-
-// https://datatracker.ietf.org/doc/html/draft-dalal-deprecation-header-00
-macro_rules! deprecate {
-    ($fn:ident($($args:tt)*)) => {
-        |$($args)*| async {
-            $fn($($args)*).await.customize().append_header((
-                ::actix_web::http::header::HeaderName::from_static("deprecation"),
-                ::actix_web::http::header::HeaderValue::from_static("version=\"current\""),
-            ))
-        }
-    };
-}
 
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     config

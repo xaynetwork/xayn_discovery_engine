@@ -3,6 +3,7 @@
 - Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` endpoints:
     - string equality
     - array of strings containment
+    - date range
     - logical combinators
 
 # 2.3.0 - 2023-06-28

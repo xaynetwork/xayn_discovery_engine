@@ -54,8 +54,6 @@ paths:
         please split up the total amount of documents in separate calls.
 
         **Important note:** If a document id appears multiple times, only the last document with that id is retained.
-
-        **Important note:** Documents which have no `publication_date` are not included when using the `published_after` filter.
       operationId: createDocuments
       requestBody:
         required: true

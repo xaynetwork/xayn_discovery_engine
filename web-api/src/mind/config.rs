@@ -137,7 +137,6 @@ impl PersonalizeBy<'_> {
     pub(super) fn knn_search(count: usize) -> Self {
         Self::KnnSearch {
             count,
-            published_after: None,
             filter: None,
         }
     }
