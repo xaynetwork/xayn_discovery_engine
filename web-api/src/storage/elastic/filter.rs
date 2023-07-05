@@ -14,7 +14,7 @@
 
 use itertools::Itertools;
 use serde_json::{json, Value};
-use xayn_web_api_shared::serde::{JsonObject, json_array};
+use xayn_web_api_shared::serde::{json_array, JsonObject};
 
 use crate::{
     personalization::filter::{CombineOp, CompareOp, Filter},
@@ -34,13 +34,14 @@ fn merge_range(clause: &mut Vec<Value>) {
         clause
             .as_object()
             .and_then(|clause| clause.get(RANGE))
-            .and_then(|range| range
+            .and_then(|range| {
+                range
                 .as_object()
                 .unwrap(/* clause[RANGE] is object */)
                 .keys()
                 .next(/* clause[RANGE] contains exactly one key */)
                 .map(String::as_str)
-            )
+            })
     }
 
     let mut i = 0;
@@ -60,7 +61,7 @@ fn merge_range(clause: &mut Vec<Value>) {
                     };
                     let Value::Object(range) = range
                         .remove(&field)
-                        .unwrap(/* clause[j][RANGE] contains field */) 
+                        .unwrap(/* clause[j][RANGE] contains field */)
                     else {
                         unreachable!(/* clause[j][RANGE][field] is object */);
                     };
@@ -180,8 +181,12 @@ mod tests {
         merge_range(&mut filter);
         assert_eq!(filter, expected);
 
-        let mut filter =
-            vec![json!({}), json!({}), json!({ RANGE: { "a": { "gt": "b" } } }), json!({})];
+        let mut filter = vec![
+            json!({}),
+            json!({}),
+            json!({ RANGE: { "a": { "gt": "b" } } }),
+            json!({}),
+        ];
         let expected = filter.clone();
         merge_range(&mut filter);
         assert_eq!(filter, expected);
@@ -291,8 +296,6 @@ mod tests {
         }
     }
 
-    
-
     #[test]
     fn test_filter_compare_date() {
         const FIELD: &str = "properties.a";
@@ -345,11 +348,13 @@ mod tests {
 
     #[test]
     fn test_extend_filter_combine_and() {
-        let clause = &serde_json::from_str(r#"{ "$and": [
-            { "a": { "$eq": "b" } },
-            { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-            { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-        ] }"#)
+        let clause = &serde_json::from_str(
+            r#"{ "$and": [
+                { "a": { "$eq": "b" } },
+                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+            ] }"#,
+        )
         .unwrap();
         let term = json!({ TERM: { "properties.a": "b" } });
         let range = json_object!({ RANGE: { "properties.c": { "gt": DATE, "lt": DATE } } });
@@ -374,11 +379,13 @@ mod tests {
     #[test]
     #[allow(clippy::similar_names)]
     fn test_extend_filter_combine_or() {
-        let clause = &serde_json::from_str(r#"{ "$or": [
-            { "a": { "$eq": "b" } },
-            { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-            { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-        ] }"#)
+        let clause = &serde_json::from_str(
+            r#"{ "$or": [
+                { "a": { "$eq": "b" } },
+                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+            ] }"#,
+        )
         .unwrap();
         let term = json_object!({ TERM: { "properties.a": "b" } });
         let range_gt = json_object!({ RANGE: { "properties.c": { "gt": DATE } } });
@@ -416,23 +423,25 @@ mod tests {
     #[test]
     #[allow(clippy::similar_names)]
     fn test_extend_filter_nested() {
-        let clause = &serde_json::from_str(r#"{ "$and": [
-            { "$and": [
-                { "a": { "$eq": "b" } },
-                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-            ] },
-            { "$or": [
-                { "a": { "$eq": "b" } },
-                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-            ] },
-            { "$and": [
-                { "a": { "$eq": "b" } },
-                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-            ] }
-        ] }"#)
+        let clause = &serde_json::from_str(
+            r#"{ "$and": [
+                { "$and": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$or": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$and": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] }
+            ] }"#,
+        )
         .unwrap();
         let term = json_object!({ TERM: { "properties.a": "b" } });
         let range = json_object!({ RANGE: { "properties.c": { "gt": DATE, "lt": DATE } } });
@@ -450,23 +459,25 @@ mod tests {
             ] }),
         );
 
-        let clause = &serde_json::from_str(r#"{ "$or": [
-            { "$or": [
-                { "a": { "$eq": "b" } },
-                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-            ] },
-            { "$and": [
-                { "a": { "$eq": "b" } },
-                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-            ] },
-            { "$or": [
-                { "a": { "$eq": "b" } },
-                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
-                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
-            ] }
-        ] }"#)
+        let clause = &serde_json::from_str(
+            r#"{ "$or": [
+                { "$or": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$and": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$or": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] }
+            ] }"#,
+        )
         .unwrap();
         let mut filter = JsonObject::new();
         extend_filter(&mut filter, clause, None);
