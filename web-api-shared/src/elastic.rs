@@ -15,6 +15,7 @@
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
+    future::Future,
     hash::Hash,
     str::FromStr,
     sync::Arc,
@@ -116,6 +117,20 @@ impl Client {
             client: reqwest::ClientBuilder::new().timeout(timeout).build()?,
             retry_policy,
         })
+    }
+
+    pub async fn retry<T, E, F>(
+        &self,
+        error_filter: impl Fn(&E) -> bool,
+        code: impl FnMut() -> F,
+    ) -> Result<T, E>
+    where
+        F: Future<Output = Result<T, E>>,
+    {
+        let policy = ExponentialJitterRetryPolicy::new(self.retry_policy.clone())
+            .with_retry_filter(error_filter);
+
+        retry(policy, code).await
     }
 
     /// Sets a different index.
@@ -252,9 +267,9 @@ struct SearchResponse<I, T> {
 }
 
 #[derive(Debug)]
-struct NoSource;
+pub struct DiscardResponse;
 
-impl<'de> Deserialize<'de> for NoSource {
+impl<'de> Deserialize<'de> for DiscardResponse {
     fn deserialize<D>(_: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
@@ -283,8 +298,7 @@ impl Client {
         let body = serialize_to_ndjson(requests)?;
 
         self.query_with_bytes::<BulkResponse<I>>(Method::POST, url, Some((headers, body.into())))
-            .await?
-            .ok_or_else(|| Error::EndpointNotFound("_bulk"))
+            .await
     }
 
     pub async fn search_request<I>(&self, mut body: JsonObject) -> Result<HashMap<I, f32>, Error>
@@ -296,7 +310,7 @@ impl Client {
         }
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
-        self.query_with_json::<_, SearchResponse<I, NoSource>>(
+        self.query_with_json::<_, SearchResponse<I, DiscardResponse>>(
             Method::POST,
             self.create_url(["_search"], None),
             Some(body),
@@ -321,20 +335,20 @@ impl Client {
         method: Method,
         url: Url,
         post_data: Option<(HeaderMap<HeaderValue>, Bytes)>,
-    ) -> Result<Option<T>, Error>
+    ) -> Result<T, Error>
     where
         T: DeserializeOwned,
     {
-        let policy = ExponentialJitterRetryPolicy::new(self.retry_policy.clone())
-            .with_retry_filter(|err| matches!(err, Error::Transport(_)));
-
-        retry(policy, || async {
-            let method = method.clone();
-            let url = url.clone();
-            let post_data = post_data.clone();
-            self.query_with_bytes_without_retrying(method, url, post_data)
-                .await
-        })
+        self.retry(
+            |err| matches!(err, Error::Transport(_)),
+            || async {
+                let method = method.clone();
+                let url = url.clone();
+                let post_data = post_data.clone();
+                self.query_with_bytes_without_retrying(method, url, post_data)
+                    .await
+            },
+        )
         .await
     }
 
@@ -343,11 +357,12 @@ impl Client {
         method: Method,
         url: Url,
         post_data: Option<(HeaderMap<HeaderValue>, B)>,
-    ) -> Result<Option<T>, Error>
+    ) -> Result<T, Error>
     where
         B: Into<Body>,
         T: DeserializeOwned,
     {
+        let path = url.path().to_owned();
         let mut request_builder = self.client.request(method, url);
         if let Some((headers, body)) = post_data {
             request_builder = request_builder.headers(headers).body(body)
@@ -357,14 +372,14 @@ impl Client {
 
         let status = response.status();
         if status == StatusCode::NOT_FOUND {
-            Ok(None)
+            Err(Error::EndpointNotFound(path))
         } else if !status.is_success() {
             let url = response.url().clone();
             let body = response.bytes().await?;
             let error = String::from_utf8_lossy(&body).into_owned();
             Err(Error::Status { status, url, error })
         } else {
-            Ok(Some(response.json().await?))
+            Ok(response.json().await?)
         }
     }
 
@@ -404,7 +419,21 @@ pub enum Error {
     /// Failed to serialize a requests or deserialize a response.
     Serialization(serde_json::Error),
     /// Given endpoint was not found: {0}
-    EndpointNotFound(&'static str),
+    EndpointNotFound(String),
+}
+
+pub trait NotFoundAsOptionExt<T> {
+    fn not_found_as_option(self) -> Result<Option<T>, Error>;
+}
+
+impl<T> NotFoundAsOptionExt<T> for Result<T, Error> {
+    fn not_found_as_option(self) -> Result<Option<T>, Error> {
+        match self {
+            Err(Error::EndpointNotFound(_)) => Ok(None),
+            Ok(value) => Ok(Some(value)),
+            Err(error) => Err(error),
+        }
+    }
 }
 
 #[derive(derive_more::Into, Clone, Debug)]

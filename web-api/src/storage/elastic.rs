@@ -25,7 +25,10 @@ use serde_json::json;
 use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
-use xayn_web_api_shared::serde::{json_object, merge_json_objects, JsonObject};
+use xayn_web_api_shared::{
+    elastic::{DiscardResponse, NotFoundAsOptionExt},
+    serde::{json_object, merge_json_objects, JsonObject},
+};
 
 use super::{
     property_filter::IndexedPropertiesSchemaUpdate,
@@ -46,13 +49,6 @@ use crate::{
     storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
 };
-
-/// Deserializes from any map/struct dropping all fields.
-///
-/// This will not work with non self describing non schema
-/// formats like bincode.
-#[derive(Debug, Deserialize)]
-struct IgnoredResponse {/* Note: The {} is needed for it to work correctly. */}
 
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
@@ -247,7 +243,7 @@ impl Client {
                 }
             }
         });
-        self.query_with_json::<_, IgnoredResponse>(Method::POST, url, Some(body))
+        self.query_with_json::<_, DiscardResponse>(Method::POST, url, Some(body))
             .await?;
 
         Ok(())
@@ -271,8 +267,9 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
-            .await?
+            .query_with_json::<_, DiscardResponse>(Method::POST, url, body)
+            .await
+            .not_found_as_option()?
             .map(|_| ()))
     }
 
@@ -293,8 +290,9 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
-            .await?
+            .query_with_json::<_, DiscardResponse>(Method::POST, url, body)
+            .await
+            .not_found_as_option()?
             .map(|_| ()))
     }
 
@@ -318,8 +316,9 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
-            .await?
+            .query_with_json::<_, DiscardResponse>(Method::POST, url, body)
+            .await
+            .not_found_as_option()?
             .map(|_| ()))
     }
 
@@ -341,8 +340,9 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
-            .await?
+            .query_with_json::<_, DiscardResponse>(Method::POST, url, body)
+            .await
+            .not_found_as_option()?
             .map(|_| Some(())))
     }
 
@@ -364,8 +364,9 @@ impl Client {
         }));
 
         Ok(self
-            .query_with_json::<_, IgnoredResponse>(Method::POST, url, body)
-            .await?
+            .query_with_json::<_, DiscardResponse>(Method::POST, url, body)
+            .await
+            .not_found_as_option()?
             .map(|_| ()))
     }
 
@@ -412,7 +413,7 @@ impl Client {
         });
 
         let url = self.create_url(["_mapping"], []);
-        self.query_with_json::<_, IgnoredResponse>(Method::PUT, url, Some(body))
+        self.query_with_json::<_, DiscardResponse>(Method::PUT, url, Some(body))
             .await?;
 
         info!("extended ES _mapping");
@@ -445,7 +446,7 @@ impl Client {
                 ),
             ],
         );
-        self.query_with_json::<(), IgnoredResponse>(Method::POST, url, None)
+        self.query_with_json::<(), DiscardResponse>(Method::POST, url, None)
             .await?;
 
         info!("started index update process");
