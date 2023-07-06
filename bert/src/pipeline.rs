@@ -21,7 +21,9 @@ use crate::{
     model::Model,
     pooler::{Embedding1, Embedding2},
     tokenizer::Tokenize,
-    AveragePooler, FirstPooler, NonePooler,
+    AveragePooler,
+    FirstPooler,
+    NonePooler,
 };
 
 /// A pipeline can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.

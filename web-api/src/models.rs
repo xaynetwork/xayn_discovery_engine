@@ -184,7 +184,9 @@ impl DocumentProperty {
                             document: document_id.clone(),
                             property: property_id.clone(),
                             invalid_value: value.clone(),
-                            invalid_reason: InvalidDocumentPropertyReason::IncompatibleType { expected: IndexedPropertyType::Keyword },
+                            invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
+                                expected: IndexedPropertyType::Keyword,
+                            },
                         });
                     };
                     trim(string);
