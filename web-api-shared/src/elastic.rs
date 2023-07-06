@@ -379,7 +379,8 @@ impl Client {
             let error = String::from_utf8_lossy(&body).into_owned();
             Err(Error::Status { status, url, error })
         } else {
-            Ok(response.json().await?)
+            let body = response.bytes().await?;
+            Ok(serde_json::from_slice(&body)?)
         }
     }
 
