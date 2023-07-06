@@ -78,16 +78,45 @@ pub(crate) async fn migrate_tenant_index(
     tenant_id: &TenantId,
     embedding_size: usize,
 ) -> Result<(), Error> {
-    if !does_tenant_index_exist(elastic, tenant_id).await? {
+    if let Some(existing_mapping) = get_opt_tenant_mapping(elastic, tenant_id).await? {
+        let base_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
+        check_mapping_compatibility(&existing_mapping, &base_mapping)?;
+    } else {
         error!(
             {%tenant_id},
             "index for tenant doesn't exist, creating a new index"
         );
         create_tenant_index(elastic, tenant_id, embedding_size).await?;
     }
-    //FIXME code to check if the index is a super-set of the expected index
-    //FIXME code for allowing updates to the ES schema, at least if
-    //      incremental application of the change is possible
+    Ok(())
+}
+
+const MAPPINGS: &str = "mappings";
+const PROPERTIES: &str = "properties";
+const EMBEDDING: &str = "embedding";
+
+fn check_mapping_compatibility(
+    existing_mapping: &Value,
+    base_mapping: &Value,
+) -> Result<(), Error> {
+    let existing_embeddings = &existing_mapping[MAPPINGS][PROPERTIES][EMBEDDING];
+    let expected_embeddings = &base_mapping[MAPPINGS][PROPERTIES][EMBEDDING];
+    if existing_embeddings != expected_embeddings {
+        error!({ %existing_embeddings, %expected_embeddings }, "mappings in ES have incompatible embedding definition");
+        bail!("incompatible existing elasticsearch index");
+    }
+    //FIXME add support for schema migrations
+    // - check compatibility for all properties, not just embedding
+    // - add new mapping (e.g. `tags`)
+    // - handle settings which can be updated
+    //   - e.g. ignore_malformed
+    //FIXME
+    // - cross check document.properties with indexed property schema
+    //   - update ES if needed/possible
+    //   - maybe move ES indexed property creation outside of pg commit time,
+    //     which with this update step could be more robust wrt. some failures
+    //      (mainly network timeout), but more problematic with other failure
+    //      (bugs leading to things being in the ES schema but not in PG).
     Ok(())
 }
 
@@ -108,6 +137,30 @@ async fn does_tenant_index_exist(
     } else {
         response.error_for_status()?;
         Ok(true)
+    }
+}
+
+#[instrument(skip(elastic))]
+async fn get_opt_tenant_mapping(
+    elastic: &Client,
+    tenant_id: impl AsRef<str> + Debug,
+) -> Result<Option<Value>, Error> {
+    let response = elastic
+        .with_index(&tenant_id)
+        .request(Method::GET, ["_mapping"], [])
+        .send()
+        .await?;
+
+    let status = response.status();
+    if status == StatusCode::NOT_FOUND {
+        Ok(None)
+    } else {
+        match response.error_for_status()?.json().await? {
+            Value::Object(obj) if obj.len() == 1 => {
+                Ok(obj.into_iter().next().map(|(_, mapping)| mapping))
+            }
+            response => bail!("unexpected index/_mapping response: {response}"),
+        }
     }
 }
 
