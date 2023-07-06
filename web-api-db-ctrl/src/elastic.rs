@@ -129,8 +129,9 @@ async fn does_tenant_index_exist(
 ) -> Result<bool, Error> {
     let elastic = elastic.with_index(tenant_id);
     let response = elastic
-        //TODO this doesn't work as the response isn't json
-        .query_with_bytes::<DiscardResponse>(Method::HEAD, elastic.create_url([], []), None)
+        // Hint: Using HEAD here will fall over as HEAD requests still have
+        //       a Content-Type/Size but no content.
+        .query_with_bytes::<DiscardResponse>(Method::GET, elastic.create_url([], []), None)
         .await
         .not_found_as_option()?;
     Ok(response.is_some())
