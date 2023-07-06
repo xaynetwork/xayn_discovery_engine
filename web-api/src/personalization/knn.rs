@@ -23,6 +23,7 @@ use xayn_ai_coi::{compute_coi_weights, Coi};
 use crate::{
     error::common::InternalError,
     models::{DocumentId, PersonalizedDocument},
+    personalization::filter::Filter,
     storage::{self, KnnSearchParams, SearchStrategy},
     Error,
 };
@@ -37,6 +38,7 @@ pub(super) struct CoiSearch<'a, I> {
     pub(super) published_after: Option<DateTime<Utc>>,
     pub(super) time: DateTime<Utc>,
     pub(super) include_properties: bool,
+    pub(super) filter: Option<&'a Filter>,
 }
 
 impl<'a, I> CoiSearch<'a, I>
@@ -84,6 +86,7 @@ where
                         published_after: self.published_after,
                         strategy: SearchStrategy::Knn,
                         include_properties: self.include_properties,
+                        filter: self.filter,
                     },
                 )
                 .await
@@ -149,6 +152,7 @@ mod tests {
             published_after: None,
             time: Utc::now(),
             include_properties: false,
+            filter: None,
         }
         .run_on(&storage)
         .await

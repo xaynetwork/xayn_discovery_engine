@@ -65,5 +65,13 @@ module.exports = {
         "ibm-array-attributes": "off",
       },
     },
+    {
+      files: [
+        "web-api/openapi/front_office.yaml#/components/schemas/FilterCompare/additionalProperties/properties",
+      ],
+      rules: {
+        "ibm-property-casing-convention": "off",
+      },
+    },
   ],
 };

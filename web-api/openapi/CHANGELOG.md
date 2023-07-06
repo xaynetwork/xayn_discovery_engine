@@ -1,13 +1,20 @@
+# 2.4.0 - 2023-06-29
+
+- Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` endpoints:
+    - string equality
+
 # 2.3.0 - 2023-06-28
 
 - added endpoints for retrieving and extending the
   indexed property schema
 
 # 2.2.0 - 2023-06-26
+
 - Allow empty string for properties
 - Do not trim string properties
 
 # 2.1.0 - 2023-06-22
+
 - Allow empty array and null value for properties
 
 # 2.0.0 - 2023-06-19

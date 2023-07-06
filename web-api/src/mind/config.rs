@@ -138,6 +138,7 @@ impl PersonalizeBy<'_> {
         Self::KnnSearch {
             count,
             published_after: None,
+            filter: None,
         }
     }
 }
