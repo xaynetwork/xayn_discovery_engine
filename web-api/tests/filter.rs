@@ -29,11 +29,24 @@ struct IngestedDocument {
     properties: Option<serde_json::Value>,
 }
 
-async fn ingest(client: &Client, base_url: &Url, documents: &Value) -> Result<(), Error> {
+async fn index(client: &Client, url: &Url, properties: Value) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .post(base_url.join("/documents")?)
+            .post(url.join("/documents/_indexed_properties")?)
+            .json(&json!({ "properties": properties }))
+            .build()?,
+        StatusCode::ACCEPTED,
+    )
+    .await;
+    Ok(())
+}
+
+async fn ingest(client: &Client, url: &Url, documents: Value) -> Result<(), Error> {
+    send_assert(
+        client,
+        client
+            .post(url.join("/documents")?)
             .json(&json!({ "documents": documents }))
             .build()?,
         StatusCode::CREATED,
@@ -71,25 +84,19 @@ fn test_filter_string() {
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
-            send_assert(
+            index(
                 &client,
-                client
-                    .post(ingestion_url.join("/documents/_indexed_properties")?)
-                    .json(&json!({
-                        "properties": { "p": { "type": "keyword" }, "q": { "type": "keyword" } }
-                    }))
-                    .build()?,
-                StatusCode::ACCEPTED,
+                &ingestion_url,
+                json!({ "p1": { "type": "keyword" }, "p2": { "type": "keyword" } }),
             )
-            .await;
-
+            .await?;
             ingest(
                 &client,
                 &ingestion_url,
-                &json!([
+                json!([
                     { "id": "d1", "snippet": "one" },
-                    { "id": "d2", "snippet": "two", "properties": { "p": "this" } },
-                    { "id": "d3", "snippet": "three", "properties": { "p": "that" } }
+                    { "id": "d2", "snippet": "two", "properties": { "p1": "this" } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": "that" } }
                 ]),
             )
             .await?;
@@ -111,7 +118,7 @@ fn test_filter_string() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$eq": "this" } }
+                        "filter": { "p1": { "$eq": "this" } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -125,7 +132,7 @@ fn test_filter_string() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "p": { "$eq": "other" } }
+                        "filter": { "p1": { "$eq": "other" } }
                     }))
                     .build()?,
                 StatusCode::OK,
@@ -139,7 +146,240 @@ fn test_filter_string() {
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "query": "zero" },
-                        "filter": { "q": { "$eq": "this" } }
+                        "filter": { "p2": { "$eq": "this" } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_filter_array_string_single() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            index(
+                &client,
+                &ingestion_url,
+                json!({ "p1": { "type": "keyword" }, "p2": { "type": "keyword" } }),
+            )
+            .await?;
+            ingest(
+                &client,
+                &ingestion_url,
+                json!([
+                    { "id": "d1", "snippet": "one" },
+                    { "id": "d2", "snippet": "two", "properties": { "p1": "this" } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": "that" } }
+                ]),
+            )
+            .await?;
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["this"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["this", "that", "other"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": [] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["other"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p2": { "$in": ["this", "that", "other"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_filter_array_string_multiple() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            index(
+                &client,
+                &ingestion_url,
+                json!({ "p1": { "type": "keyword[]" }, "p2": { "type": "keyword[]" } }),
+            )
+            .await?;
+            ingest(
+                &client,
+                &ingestion_url,
+                json!([
+                    { "id": "d1", "snippet": "one" },
+                    { "id": "d2", "snippet": "two", "properties": { "p1": ["this", "word"] } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": ["that", "word"] } },
+                    { "id": "d4", "snippet": "four", "properties": { "p1": ["other", "words"] } }
+                ]),
+            )
+            .await?;
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3", "d4"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["the", "word"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["some", "other", "words"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d4"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["this", "that", "other"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2", "d3", "d4"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": [] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["some", "thing"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p2": { "$in": ["this", "that", "other"] } }
                     }))
                     .build()?,
                 StatusCode::OK,

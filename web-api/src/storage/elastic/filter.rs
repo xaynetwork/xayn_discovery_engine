@@ -22,11 +22,14 @@ use crate::{
 
 fn extend_filter(filter: &mut JsonObject, clause: &Filter) {
     let clause = match clause {
-        Filter::Compare(compare) => match compare.operation {
-            CompareOp::Eq => {
-                json!({ "term": { format!("properties.{}", compare.field): compare.value } })
-            }
-        },
+        Filter::Compare(compare) => {
+            let compare_with = json!({ format!("properties.{}", compare.field): compare.value });
+            let compare = match compare.operation {
+                CompareOp::Eq => "term",
+                CompareOp::In => "terms",
+            };
+            json!({ compare: compare_with })
+        }
     };
     if let Some(filter) = filter.get_mut("filter") {
         match filter {
@@ -76,19 +79,27 @@ mod tests {
 
     #[test]
     fn test_extend_filter_compare() {
-        let clause = &serde_json::from_str(r#"{ "a": { "$eq": "b" } }"#).unwrap();
-        let term = json_object!({ "term": { "properties.a": "b" } });
+        for (clause, term) in [
+            (
+                &serde_json::from_str(r#"{ "a": { "$eq": "b" } }"#).unwrap(),
+                json_object!({ "term": { "properties.a": "b" } }),
+            ),
+            (
+                &serde_json::from_str(r#"{ "a": { "$in": ["b", "c"] } }"#).unwrap(),
+                json_object!({ "terms": { "properties.a": ["b", "c"] } }),
+            ),
+        ] {
+            let mut filter = JsonObject::new();
+            extend_filter(&mut filter, clause);
+            assert_eq!(filter, json_object!({ "filter": term }));
 
-        let mut filter = JsonObject::new();
-        extend_filter(&mut filter, clause);
-        assert_eq!(filter, json_object!({ "filter": term }));
+            let mut filter = json_object!({ "filter": {} });
+            extend_filter(&mut filter, clause);
+            assert_eq!(filter, json_object!({ "filter": [{}, term] }));
 
-        let mut filter = json_object!({ "filter": {} });
-        extend_filter(&mut filter, clause);
-        assert_eq!(filter, json_object!({ "filter": [{}, term] }));
-
-        let mut filter = json_object!({ "filter": [{}, {}] });
-        extend_filter(&mut filter, clause);
-        assert_eq!(filter, json_object!({ "filter": [{}, {}, term] }));
+            let mut filter = json_object!({ "filter": [{}, {}] });
+            extend_filter(&mut filter, clause);
+            assert_eq!(filter, json_object!({ "filter": [{}, {}, term] }));
+        }
     }
 }
