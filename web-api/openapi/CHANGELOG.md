@@ -1,14 +1,11 @@
-# 2.4.0 - 2023-06-29
+# 2.3.0 - 2023-07-06
 
-- Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` endpoints:
+- Add back-office endpoints for retrieving and extending the indexed property schema
+- Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` front-office endpoints:
     - string equality
     - array of strings containment
     - date range
     - logical combinators
-
-# 2.3.0 - 2023-06-28
-
-- added endpoints for retrieving and extending the indexed property schema
 
 # 2.2.0 - 2023-06-26
 
