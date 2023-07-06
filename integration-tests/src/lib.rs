@@ -520,13 +520,13 @@ pub fn test_two_apps<A1, A2, F>(
     A2: Application + 'static,
 {
     run_async_test(|test_id| async move {
-        let (configure_first, first_wit_legacy) =
+        let (configure_first, first_with_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
         let (configure_second, second_with_legacy) =
             configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
-        assert_eq!(first_wit_legacy, second_with_legacy);
+        assert_eq!(first_with_legacy, second_with_legacy);
 
-        let services = setup_web_dev_services(&test_id, first_wit_legacy).await?;
+        let services = setup_web_dev_services(&test_id, first_with_legacy).await?;
         let first_handle = start_test_application::<A1>(&services, configure_first).await;
         let second_handle = start_test_application::<A2>(&services, configure_second).await;
 

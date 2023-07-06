@@ -339,6 +339,18 @@ pub(crate) struct ExcerptedDocument {
 mod tests {
     use super::*;
 
+    impl TryFrom<Value> for DocumentProperty {
+        type Error = InvalidDocumentProperty;
+
+        fn try_from(value: Value) -> Result<Self, Self::Error> {
+            DocumentProperty::try_from_value(
+                &"d".try_into().unwrap(),
+                &"p".try_into().unwrap(),
+                value,
+            )
+        }
+    }
+
     #[test]
     fn test_is_valid_id() {
         assert!(is_valid_id("abcdefghijklmnopqrstruvwxyz"));

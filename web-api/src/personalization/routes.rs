@@ -27,6 +27,7 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use super::{
+    filter::Filter,
     knn,
     rerank::rerank_by_scores,
     stateless::{
@@ -142,6 +143,7 @@ struct PersonalizedDocumentsQuery {
     published_after: Option<DateTime<Utc>>,
     #[serde(default = "default_include_properties")]
     include_properties: bool,
+    filter: Option<Filter>,
 }
 
 impl PersonalizedDocumentsQuery {
@@ -154,11 +156,11 @@ impl PersonalizedDocumentsQuery {
             config.max_number_documents,
             config.default_number_documents,
         )?;
-        let published_after = self.published_after;
 
         Ok(PersonalizeBy::KnnSearch {
             count,
-            published_after,
+            published_after: self.published_after,
+            filter: self.filter.as_ref(),
         })
     }
 }
@@ -228,8 +230,9 @@ pub(crate) enum PersonalizeBy<'a> {
     KnnSearch {
         count: usize,
         published_after: Option<DateTime<Utc>>,
+        filter: Option<&'a Filter>,
     },
-    #[cfg_attr(not(test), allow(dead_code))]
+    #[cfg(test)]
     Documents(&'a [&'a DocumentId]),
 }
 
@@ -260,6 +263,7 @@ pub(crate) async fn personalize_documents_by(
         PersonalizeBy::KnnSearch {
             count,
             published_after,
+            filter,
         } => {
             knn::CoiSearch {
                 interests: &interests,
@@ -270,10 +274,12 @@ pub(crate) async fn personalize_documents_by(
                 published_after,
                 time,
                 include_properties,
+                filter,
             }
             .run_on(storage)
             .await?
         }
+        #[cfg(test)]
         PersonalizeBy::Documents(documents) => {
             storage::Document::get_personalized(
                 storage,
@@ -295,6 +301,7 @@ pub(crate) async fn personalize_documents_by(
         time,
     );
 
+    #[cfg_attr(not(test), allow(irrefutable_let_patterns))]
     if let PersonalizeBy::KnnSearch { count, .. } = by {
         // due to ceiling the number of documents we fetch per COI
         // we might end up with more documents than we want
@@ -348,6 +355,7 @@ struct UnvalidatedSemanticSearchQuery {
     dev: Option<DevOptions>,
     #[serde(default = "default_include_properties")]
     include_properties: bool,
+    filter: Option<Filter>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -416,6 +424,7 @@ impl UnvalidatedSemanticSearchQuery {
             enable_hybrid_search,
             dev,
             include_properties,
+            filter,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
 
@@ -433,6 +442,7 @@ impl UnvalidatedSemanticSearchQuery {
             enable_hybrid_search,
             dev,
             include_properties,
+            filter,
         })
     }
 }
@@ -491,6 +501,7 @@ struct SemanticSearchQuery {
     enable_hybrid_search: bool,
     dev: Option<DevOptions>,
     include_properties: bool,
+    filter: Option<Filter>,
 }
 
 enum InputDocument {
@@ -537,6 +548,7 @@ async fn semantic_search(
         enable_hybrid_search,
         dev,
         include_properties,
+        filter,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -574,6 +586,7 @@ async fn semantic_search(
             published_after,
             strategy,
             include_properties,
+            filter: filter.as_ref(),
         },
     )
     .await?;

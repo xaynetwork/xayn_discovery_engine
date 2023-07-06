@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Front Office API
-  version: 2.3.0
+  version: 2.4.0
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -66,6 +66,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/IncludeProperties'
+        - name: filter
+          in: query
+          description:
+            $ref: '#/components/schemas/Filter/description'
+          required: false
+          schema:
+            $ref: '#/components/schemas/Filter'
       responses:
         '200':
           description: successful operation
@@ -156,6 +163,22 @@ components:
       description: Include the properties of each document in the response
       type: boolean
       default: true
+    FilterCompare:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          $eq:
+            $ref: ./schemas/document.yml#/DocumentPropertyString
+        minProperties: 1
+        maxProperties: 1
+    Filter:
+      description: |
+        Filter the documents wrt their properties.
+        A key must be a valid `DocumentPropertyId`.
+        The `DocumentProperty` type corresponding to the `DocumentPropertyId` must support the filter operation.
+      oneOf:
+        - $ref: '#/components/schemas/FilterCompare'
     PersonalizedDocumentData:
       type: object
       required: [id, score]
@@ -216,6 +239,8 @@ components:
           description: Enable the hybrid search mode.
           type: boolean
           default: false
+        filter:
+          $ref: '#/components/schemas/Filter'
     SemanticSearchResponse:
       type: object
       required: [documents]
