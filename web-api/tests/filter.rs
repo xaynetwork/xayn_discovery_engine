@@ -550,3 +550,152 @@ fn test_filter_combine() {
         },
     );
 }
+
+#[test]
+fn test_filter_date() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            index(
+                &client,
+                &ingestion_url,
+                json!({ "p1": { "type": "date" }, "p2": { "type": "date" } }),
+            )
+            .await?;
+            ingest(
+                &client,
+                &ingestion_url,
+                json!([
+                    { "id": "d1", "snippet": "one" },
+                    {
+                        "id": "d2",
+                        "snippet": "two",
+                        "properties": { "p1": "1234-05-06T07:08:09Z" }
+                    },
+                    {
+                        "id": "d3",
+                        "snippet": "three",
+                        "properties": { "p1": "9876-05-04T03:02:01Z" }
+                    }
+                ]),
+            )
+            .await?;
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$gt": "2000-01-01T00:00:00Z" } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "$and": [
+                            { "p1": { "$gte": "0000-01-01T00:00:00Z" } },
+                            { "p1": { "$lte": "2000-01-01T00:00:00Z" } }
+                        ] }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "$or": [
+                            { "p1": { "$lt": "2000-01-01T00:00:00Z" } },
+                            { "p1": { "$gt": "9000-01-01T00:00:00Z" } }
+                        ] }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p2": { "$gt": "0000-01-01T00:00:00Z" } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_deprecated_published_after() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(
+                &client,
+                &ingestion_url,
+                json!([{
+                    "id": "d1",
+                    "snippet": "one",
+                    "properties": { "publication_date": "1234-05-06T07:08:09Z" }
+                }]),
+            )
+            .await?;
+
+            let response = send_assert(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "published_after": "0000-01-01T00:00:00Z"
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(response.headers().contains_key("deprecation"));
+            let documents =
+                serde_json::from_slice::<SemanticSearchResponse>(&response.bytes().await.unwrap())
+                    .unwrap();
+            assert_eq!(documents.ids(), ["d1"].into());
+
+            Ok(())
+        },
+    );
+}

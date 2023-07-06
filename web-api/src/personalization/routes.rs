@@ -50,6 +50,7 @@ use crate::{
     },
     models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
     storage::{self, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
+    utils::deprecate,
     Error,
 };
 
@@ -138,29 +139,51 @@ const fn default_include_properties() -> bool {
 
 /// Represents personalized documents query params.
 #[derive(Debug, Deserialize)]
-struct PersonalizedDocumentsQuery {
+struct UnvalidatedPersonalizedDocumentsQuery {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
+    filter: Option<String>,
     #[serde(default = "default_include_properties")]
     include_properties: bool,
-    filter: Option<Filter>,
 }
 
-impl PersonalizedDocumentsQuery {
-    fn to_personalize_by_knn(
-        &self,
-        config: &PersonalizationConfig,
-    ) -> Result<PersonalizeBy<'_>, Error> {
+#[derive(Debug)]
+struct PersonalizedDocumentsQuery {
+    count: usize,
+    filter: Option<Filter>,
+    include_properties: bool,
+    is_deprecated: bool,
+}
+
+impl UnvalidatedPersonalizedDocumentsQuery {
+    fn validate_and_resolve_defaults(
+        self,
+        config: &impl AsRef<PersonalizationConfig>,
+    ) -> Result<PersonalizedDocumentsQuery, Error> {
+        let Self {
+            count,
+            published_after,
+            filter,
+            include_properties,
+        } = self;
+        let config = config.as_ref();
+
         let count = validate_count(
-            self.count,
+            count,
             config.max_number_documents,
             config.default_number_documents,
         )?;
+        let filter = filter
+            .map(|filter| serde_json::from_str(&filter))
+            .transpose()?;
+        let filter = Filter::insert_published_after(filter, published_after);
+        let is_deprecated = published_after.is_some();
 
-        Ok(PersonalizeBy::KnnSearch {
+        Ok(PersonalizedDocumentsQuery {
             count,
-            published_after: self.published_after,
-            filter: self.filter.as_ref(),
+            filter,
+            include_properties,
+            is_deprecated,
         })
     }
 }
@@ -168,31 +191,44 @@ impl PersonalizedDocumentsQuery {
 async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<String>,
-    params: Query<PersonalizedDocumentsQuery>,
+    Query(params): Query<UnvalidatedPersonalizedDocumentsQuery>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
-    personalize_documents_by(
+    let user_id = user_id.into_inner().try_into()?;
+    let PersonalizedDocumentsQuery {
+        count,
+        filter,
+        include_properties,
+        is_deprecated,
+    } = params.validate_and_resolve_defaults(&state.config)?;
+
+    let documents = if let Some(documents) = personalize_documents_by(
         &storage,
         &state.coi,
-        &user_id.into_inner().try_into()?,
+        &user_id,
         &state.config.personalization,
-        params.to_personalize_by_knn(state.config.as_ref())?,
+        PersonalizeBy::KnnSearch {
+            count,
+            filter: filter.as_ref(),
+        },
         Utc::now(),
-        params.include_properties,
+        include_properties,
     )
-    .await
-    .map(|documents| {
-        if let Some(documents) = documents {
-            Either::Left(Json(PersonalizedDocumentsResponse {
-                documents: documents.into_iter().map_into().collect(),
-            }))
-        } else {
-            Either::Right((
-                Json(PersonalizedDocumentsError::NotEnoughInteractions),
-                StatusCode::CONFLICT,
-            ))
-        }
-    })
+    .await?
+    {
+        Either::Left(Json(PersonalizedDocumentsResponse {
+            documents: documents.into_iter().map_into().collect(),
+        }))
+    } else {
+        Either::Right((
+            Json(PersonalizedDocumentsError::NotEnoughInteractions),
+            StatusCode::CONFLICT,
+        ))
+    };
+
+    Ok(deprecate!(if is_deprecated {
+        documents
+    }))
 }
 
 #[derive(Debug, Serialize)]
@@ -229,7 +265,6 @@ enum PersonalizedDocumentsError {
 pub(crate) enum PersonalizeBy<'a> {
     KnnSearch {
         count: usize,
-        published_after: Option<DateTime<Utc>>,
         filter: Option<&'a Filter>,
     },
     #[cfg(test)]
@@ -260,18 +295,13 @@ pub(crate) async fn personalize_documents_by(
     };
 
     let mut documents = match by {
-        PersonalizeBy::KnnSearch {
-            count,
-            published_after,
-            filter,
-        } => {
+        PersonalizeBy::KnnSearch { count, filter } => {
             knn::CoiSearch {
                 interests: &interests,
                 excluded: &excluded,
                 horizon: coi_system.config().horizon(),
                 max_cois: personalization.max_cois_for_knn,
                 count,
-                published_after,
                 time,
                 include_properties,
                 filter,
@@ -427,10 +457,11 @@ impl UnvalidatedSemanticSearchQuery {
             filter,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
+        let filter = Filter::insert_published_after(filter, published_after);
+        let is_deprecated = published_after.is_some();
 
         Ok(SemanticSearchQuery {
             document: document.validate()?,
-            published_after,
             count: validate_count(
                 count,
                 semantic_search_config.max_number_documents,
@@ -443,6 +474,7 @@ impl UnvalidatedSemanticSearchQuery {
             dev,
             include_properties,
             filter,
+            is_deprecated,
         })
     }
 }
@@ -496,12 +528,12 @@ impl UnvalidatedPersonalize {
 struct SemanticSearchQuery {
     document: InputDocument,
     count: usize,
-    published_after: Option<DateTime<Utc>>,
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
     dev: Option<DevOptions>,
     include_properties: bool,
     filter: Option<Filter>,
+    is_deprecated: bool,
 }
 
 enum InputDocument {
@@ -544,11 +576,11 @@ async fn semantic_search(
         document,
         count,
         personalize,
-        published_after,
         enable_hybrid_search,
         dev,
         include_properties,
         filter,
+        is_deprecated,
     } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
@@ -583,7 +615,6 @@ async fn semantic_search(
             embedding: &embedding,
             count,
             num_candidates: count,
-            published_after,
             strategy,
             include_properties,
             filter: filter.as_ref(),
@@ -602,8 +633,10 @@ async fn semantic_search(
         .await?;
     }
 
-    Ok(Json(SemanticSearchResponse {
-        documents: documents.into_iter().map_into().collect(),
+    Ok(deprecate!(if is_deprecated {
+        Json(SemanticSearchResponse {
+            documents: documents.into_iter().map_into().collect(),
+        })
     }))
 }
 

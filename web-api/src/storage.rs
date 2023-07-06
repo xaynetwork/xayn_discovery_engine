@@ -59,7 +59,6 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) count: usize,
     // must be >= count
     pub(crate) num_candidates: usize,
-    pub(crate) published_after: Option<DateTime<Utc>>,
     pub(super) strategy: SearchStrategy,
     pub(super) include_properties: bool,
     pub(super) filter: Option<&'a Filter>,

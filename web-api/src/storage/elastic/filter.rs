@@ -14,37 +14,40 @@
 
 use itertools::Itertools;
 use serde_json::{json, Value};
-use xayn_web_api_shared::serde::JsonObject;
+use xayn_web_api_shared::serde::{json_array, JsonObject};
 
 use crate::{
     personalization::filter::{CombineOp, CompareOp, Filter},
     storage::KnnSearchParams,
 };
 
+const BOOL: &str = "bool";
 const FILTER: &str = "filter";
 const MINIMUM_SHOULD_MATCH: &str = "minimum_should_match";
+const RANGE: &str = "range";
 const SHOULD: &str = "should";
 const TERM: &str = "term";
 const TERMS: &str = "terms";
 
-fn extend_value(filter: &mut JsonObject, occurence: &'static str, clause: Value) {
+fn extend_value(filter: &mut JsonObject, occurence: &'static str, clause: Vec<Value>) {
     if let Some(filter) = filter.get_mut(occurence) {
-        let (Value::Array(filter), Value::Array(clause)) = (&mut *filter, clause) else {
-            unreachable!(/* filter[occurence] and clause are arrays */);
-        };
-        filter.extend(clause);
+        filter.as_array_mut().unwrap(/* filter[occurence] is array */).extend(clause);
     } else {
-        filter.insert(occurence.to_string(), clause);
+        filter.insert(occurence.to_string(), clause.into());
     }
 }
 
 fn extend_filter(filter: &mut JsonObject, clause: &Filter, is_not_root: Option<&'static str>) {
     match clause {
         Filter::Compare(compare) => {
-            let clause = json!({ format!("properties.{}", compare.field): compare.value });
+            let field = format!("properties.{}", compare.field);
             let clause = match compare.operation {
-                CompareOp::Eq => json!([{ TERM: clause }]),
-                CompareOp::In => json!([{ TERMS: clause }]),
+                CompareOp::Eq => json_array!([{ TERM: { field: compare.value } }]),
+                CompareOp::In => json_array!([{ TERMS: { field: compare.value } }]),
+                CompareOp::Gt => json_array!([{ RANGE: { field: { "gt": compare.value } } }]),
+                CompareOp::Gte => json_array!([{ RANGE: { field: { "gte": compare.value } } }]),
+                CompareOp::Lt => json_array!([{ RANGE: { field: { "lt": compare.value } } }]),
+                CompareOp::Lte => json_array!([{ RANGE: { field: { "lte": compare.value } } }]),
             };
             extend_value(filter, is_not_root.unwrap_or(FILTER), clause);
         }
@@ -66,9 +69,9 @@ fn extend_filter(filter: &mut JsonObject, clause: &Filter, is_not_root: Option<&
                 filter
             });
             let clause = if is_not_root.is_some() {
-                json!([{ "bool": clause }])
+                json_array!([{ BOOL: clause }])
             } else {
-                json!(clause
+                clause
                     .into_iter()
                     .flat_map(|(_, clause)| {
                         let Value::Array(clause) = clause else {
@@ -76,7 +79,7 @@ fn extend_filter(filter: &mut JsonObject, clause: &Filter, is_not_root: Option<&
                         };
                         clause
                     })
-                    .collect_vec())
+                    .collect_vec()
             };
             extend_value(filter, occurence, clause);
         }
@@ -88,19 +91,11 @@ impl KnnSearchParams<'_> {
         // filter clauses must be arrays to not break the assumptions of extend_filter()
         let mut filter = JsonObject::new();
         if !self.excluded.is_empty() {
-            // existing documents are not filtered in the query to avoid too much work for a cold
+            // existing pg documents are not filtered in the query to avoid too much work for a cold
             // path, filtering them afterwards can occasionally lead to less than k results though
             filter.insert(
                 "must_not".to_string(),
                 json!([{ "ids": { "values": self.excluded } }]),
-            );
-        }
-        if let Some(published_after) = self.published_after {
-            // published_after != null && published_after <= publication_date
-            let published_after = published_after.to_rfc3339();
-            filter.insert(
-                FILTER.to_string(),
-                json!([{ "range": { "properties.publication_date": { "gte": published_after } } }]),
             );
         }
         if let Some(opt_filter) = self.filter {
@@ -117,27 +112,29 @@ mod tests {
 
     use super::*;
 
+    const DATE: &str = "1234-05-06T07:08:09Z";
+
     #[test]
     fn test_extend_value() {
         let mut filter = JsonObject::new();
-        extend_value(&mut filter, FILTER, json!([]));
+        extend_value(&mut filter, FILTER, json_array!([]));
         assert_eq!(filter, json_object!({ FILTER: [] }));
-        extend_value(&mut filter, FILTER, json!([{}]));
+        extend_value(&mut filter, FILTER, json_array!([{}]));
         assert_eq!(filter, json_object!({ FILTER: [{}] }));
 
         let mut filter = JsonObject::new();
-        extend_value(&mut filter, FILTER, json!([{}]));
+        extend_value(&mut filter, FILTER, json_array!([{}]));
         assert_eq!(filter, json_object!({ FILTER: [{}] }));
-        extend_value(&mut filter, FILTER, json!([{}, {}]));
+        extend_value(&mut filter, FILTER, json_array!([{}, {}]));
         assert_eq!(filter, json_object!({ FILTER: [{}, {}, {}] }));
 
         let mut filter = json_object!({ SHOULD: [] });
-        extend_value(&mut filter, FILTER, json!([{}]));
+        extend_value(&mut filter, FILTER, json_array!([{}]));
         assert_eq!(filter, json_object!({ SHOULD: [], FILTER: [{}] }));
     }
 
     #[test]
-    fn test_extend_filter_compare() {
+    fn test_extend_filter_compare_string() {
         for (clause, term) in [
             (
                 &serde_json::from_str(r#"{ "a": { "$eq": "b" } }"#).unwrap(),
@@ -167,95 +164,195 @@ mod tests {
     }
 
     #[test]
-    fn test_extend_filter_combine_and() {
-        let clause = &serde_json::from_str(
-            r#"{ "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }"#,
-        )
-        .unwrap();
-        let term = json!({ TERM: { "properties.a": "b" } });
+    fn test_filter_compare_date() {
+        const FIELD: &str = "properties.a";
+        for (clause, term) in [
+            (
+                &serde_json::from_str(r#"{ "a": { "$gt": "1234-05-06T07:08:09Z" } }"#).unwrap(),
+                json_object!({ RANGE: { FIELD: { "gt": DATE } } }),
+            ),
+            (
+                &serde_json::from_str(r#"{ "a": { "$gte": "1234-05-06T07:08:09Z" } }"#).unwrap(),
+                json_object!({ RANGE: { FIELD: { "gte": DATE } } }),
+            ),
+            (
+                &serde_json::from_str(r#"{ "a": { "$lt": "1234-05-06T07:08:09Z" } }"#).unwrap(),
+                json_object!({ RANGE: { FIELD: { "lt": DATE } } }),
+            ),
+            (
+                &serde_json::from_str(r#"{ "a": { "$lte": "1234-05-06T07:08:09Z" } }"#).unwrap(),
+                json_object!({ RANGE: { FIELD: { "lte": DATE } } }),
+            ),
+        ] {
+            let mut filter = JsonObject::new();
+            extend_filter(&mut filter, clause, None);
+            assert_eq!(filter, json_object!({ FILTER: [term] }));
 
-        let mut filter = JsonObject::new();
-        extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ FILTER: [term, term] }));
+            let mut filter = json_object!({ FILTER: [] });
+            extend_filter(&mut filter, clause, None);
+            assert_eq!(filter, json_object!({ FILTER: [term] }));
 
-        let mut filter = json_object!({ FILTER: [] });
-        extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ FILTER: [term, term] }));
+            let mut filter = json_object!({ FILTER: [{}] });
+            extend_filter(&mut filter, clause, None);
+            assert_eq!(filter, json_object!({ FILTER: [{}, term] }));
 
-        let mut filter = json_object!({ FILTER: [{}] });
-        extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ FILTER: [{}, term, term] }));
+            let mut filter = json_object!({ SHOULD: [] });
+            extend_filter(&mut filter, clause, None);
+            assert_eq!(filter, json_object!({ SHOULD: [], FILTER: [term] }));
+        }
 
-        let mut filter = json_object!({ SHOULD: [] });
-        extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ SHOULD: [], FILTER: [term, term] }),);
+        let mut filter = json_object!({ FILTER: [{ RANGE: { FIELD: { "gt": DATE } } }] });
+        extend_filter(
+            &mut filter,
+            &serde_json::from_str(r#"{ "a": { "$lt": "1234-05-06T07:08:09Z" } }"#).unwrap(),
+            None,
+        );
+        assert_eq!(
+            filter,
+            json_object!({ FILTER: [
+                { RANGE: { FIELD: { "gt": DATE } } },
+                { RANGE: { FIELD: { "lt": DATE } } }
+            ] }),
+        );
     }
 
     #[test]
-    fn test_extend_filter_combine_or() {
+    #[allow(clippy::similar_names)]
+    fn test_extend_filter_combine_and() {
         let clause = &serde_json::from_str(
-            r#"{ "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }"#,
+            r#"{ "$and": [
+                { "a": { "$eq": "b" } },
+                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+            ] }"#,
         )
         .unwrap();
-        let term = json_object!({ TERM: { "properties.a": "b" } });
+        let term = json!({ TERM: { "properties.a": "b" } });
+        let range_gt = json_object!({ RANGE: { "properties.c": { "gt": DATE } } });
+        let range_lt = json_object!({ RANGE: { "properties.c": { "lt": DATE } } });
 
         let mut filter = JsonObject::new();
         extend_filter(&mut filter, clause, None);
+        assert_eq!(filter, json_object!({ FILTER: [term, range_gt, range_lt] }));
+
+        let mut filter = json_object!({ FILTER: [] });
+        extend_filter(&mut filter, clause, None);
+        assert_eq!(filter, json_object!({ FILTER: [term, range_gt, range_lt] }));
+
+        let mut filter = json_object!({ FILTER: [{}] });
+        extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
-            json_object!({ SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 }),
+            json_object!({ FILTER: [{}, term, range_gt, range_lt] }),
         );
 
         let mut filter = json_object!({ SHOULD: [] });
         extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
-            json_object!({ SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 }),
+            json_object!({ SHOULD: [], FILTER: [term, range_gt, range_lt] }),
+        );
+    }
+
+    #[test]
+    #[allow(clippy::similar_names)]
+    fn test_extend_filter_combine_or() {
+        let clause = &serde_json::from_str(
+            r#"{ "$or": [
+                { "a": { "$eq": "b" } },
+                { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+            ] }"#,
+        )
+        .unwrap();
+        let term = json_object!({ TERM: { "properties.a": "b" } });
+        let range_gt = json_object!({ RANGE: { "properties.c": { "gt": DATE } } });
+        let range_lt = json_object!({ RANGE: { "properties.c": { "lt": DATE } } });
+
+        let mut filter = JsonObject::new();
+        extend_filter(&mut filter, clause, None);
+        assert_eq!(
+            filter,
+            json_object!({ SHOULD: [term, range_gt, range_lt], MINIMUM_SHOULD_MATCH: 1 }),
+        );
+
+        let mut filter = json_object!({ SHOULD: [] });
+        extend_filter(&mut filter, clause, None);
+        assert_eq!(
+            filter,
+            json_object!({ SHOULD: [term, range_gt, range_lt], MINIMUM_SHOULD_MATCH: 1 }),
         );
 
         let mut filter = json_object!({ SHOULD: [{}] });
         extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
-            json_object!({ SHOULD: [{}, term, term], MINIMUM_SHOULD_MATCH: 1 }),
+            json_object!({ SHOULD: [{}, term, range_gt, range_lt], MINIMUM_SHOULD_MATCH: 1 }),
         );
 
         let mut filter = json_object!({ FILTER: [] });
         extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
-            json_object!({ FILTER: [], SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 }),
+            json_object!({ FILTER: [], SHOULD: [term, range_gt, range_lt], MINIMUM_SHOULD_MATCH: 1 }),
         );
     }
 
     #[test]
+    #[allow(clippy::similar_names)]
     fn test_extend_filter_nested() {
         let clause = &serde_json::from_str(
             r#"{ "$and": [
-                { "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
-                { "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
-                { "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }
+                { "$and": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$or": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$and": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] }
             ] }"#,
         )
         .unwrap();
         let term = json_object!({ TERM: { "properties.a": "b" } });
+        let range_gt = json_object!({ RANGE: { "properties.c": { "gt": DATE } } });
+        let range_lt = json_object!({ RANGE: { "properties.c": { "lt": DATE } } });
 
         let mut filter = JsonObject::new();
         extend_filter(&mut filter, clause, None);
         assert_eq!(
             filter,
             json_object!({ FILTER: [
-                { "bool": { FILTER: [term, term] } },
-                { "bool": { FILTER: [term, term] } },
-                { "bool": { SHOULD: [term, term], MINIMUM_SHOULD_MATCH: 1 } }
+                { BOOL: { FILTER: [term, range_gt, range_lt] } },
+                { BOOL: { FILTER: [term, range_gt, range_lt] } },
+                { BOOL: { SHOULD: [term, range_gt, range_lt], MINIMUM_SHOULD_MATCH: 1 } }
             ] }),
         );
 
         let clause = &serde_json::from_str(
             r#"{ "$or": [
-                { "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
-                { "$and": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] },
-                { "$or": [{ "a": { "$eq": "b" } }, { "a": { "$eq": "b" } }] }
+                { "$or": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$and": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] },
+                { "$or": [
+                    { "a": { "$eq": "b" } },
+                    { "c": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "c": { "$lt": "1234-05-06T07:08:09Z" } }
+                ] }
             ] }"#,
         )
         .unwrap();
@@ -266,9 +363,9 @@ mod tests {
             json_object!({
                 MINIMUM_SHOULD_MATCH: 1,
                 SHOULD: [
-                    { "bool": { FILTER: [term, term] } },
-                    { "bool": { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, term] } },
-                    { "bool": { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, term] } }
+                    { BOOL: { FILTER: [term, range_gt, range_lt] } },
+                    { BOOL: { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, range_gt, range_lt] } },
+                    { BOOL: { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, range_gt, range_lt] } }
                 ]
             }),
         );

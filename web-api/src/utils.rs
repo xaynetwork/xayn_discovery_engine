@@ -29,3 +29,30 @@ impl From<&str> for RelativePathBuf {
         }
     }
 }
+
+/// Appends a deprecation header.
+// https://datatracker.ietf.org/doc/html/draft-dalal-deprecation-header-00
+macro_rules! deprecate {
+    // Appends deprecation header.
+    (@header $customize:expr) => {
+        $customize.append_header((
+            ::actix_web::http::header::HeaderName::from_static("deprecation"),
+            ::actix_web::http::header::HeaderValue::from_static("version=\"current\""),
+        ))
+    };
+    // Marks a route as deprecated.
+    ($fn:ident($($args:tt)*)) => {
+        |$($args)*| async {
+            deprecate!(@header $fn($($args)*).await.customize())
+        }
+    };
+    // Conditionally marks a response as deprecated.
+    (if $is_deprecated:ident $response:block) => {{
+        let mut response = $response.customize();
+        if $is_deprecated {
+            response = deprecate!(@header response);
+        }
+        response
+    }}
+}
+pub(crate) use deprecate;

@@ -58,14 +58,26 @@ pub mod serde_duration_as_seconds {
 #[macro_export]
 macro_rules! json_object {
     ({ $($tt:tt)* }) => ({
-        let ::serde_json::Value::Object(obj) = json!({ $($tt)* }) else {
+        let ::serde_json::Value::Object(object) = json!({ $($tt)* }) else {
             ::std::unreachable!(/* the {} enforces it's always an object */);
         };
-        obj
+        object
     });
 }
 
 pub use json_object;
+
+#[macro_export]
+macro_rules! json_array {
+    ([$($tt:tt)*]) => ({
+        let ::serde_json::Value::Array(array) = json!([$($tt)*]) else {
+            ::std::unreachable!(/* the [] enforces it's always an array */);
+        };
+        array
+    });
+}
+
+pub use json_array;
 
 pub type JsonObject = serde_json::Map<String, Value>;
 
