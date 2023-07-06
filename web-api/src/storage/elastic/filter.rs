@@ -29,67 +29,11 @@ const SHOULD: &str = "should";
 const TERM: &str = "term";
 const TERMS: &str = "terms";
 
-fn merge_range(clause: &mut Vec<Value>) {
-    fn is_range(clause: &Value) -> Option<&str> {
-        clause
-            .as_object()
-            .and_then(|clause| clause.get(RANGE))
-            .and_then(|range| {
-                range
-                .as_object()
-                .unwrap(/* clause[RANGE] is object */)
-                .keys()
-                .next(/* clause[RANGE] contains exactly one key */)
-                .map(String::as_str)
-            })
-    }
-
-    let mut i = 0;
-    while i < clause.len() {
-        if let Some(field) = is_range(&clause[i]).map(ToString::to_string) {
-            let mut j = i + 1;
-            while j < clause.len() {
-                if is_range(&clause[j]).map_or(false, |f| f == field) {
-                    let Value::Object(mut range) = clause.swap_remove(j) else {
-                        unreachable!(/* clause[j] is object */);
-                    };
-                    let Value::Object(mut range) = range
-                        .remove(RANGE)
-                        .unwrap(/* clause[j] contains RANGE */)
-                    else {
-                        unreachable!(/* clause[j][RANGE] is object */);
-                    };
-                    let Value::Object(range) = range
-                        .remove(&field)
-                        .unwrap(/* clause[j][RANGE] contains field */)
-                    else {
-                        unreachable!(/* clause[j][RANGE][field] is object */);
-                    };
-                    clause[i]
-                        .as_object_mut()
-                        .unwrap(/* clause[i] is object */)[RANGE]
-                        .as_object_mut()
-                        .unwrap(/* clause[i][RANGE] is object */)[&field]
-                        .as_object_mut()
-                        .unwrap(/* clause[i][RANGE][field] is object */)
-                        .extend(range);
-                } else {
-                    j += 1;
-                }
-            }
-        }
-        i += 1;
-    }
-}
-
 fn extend_value(filter: &mut JsonObject, occurence: &'static str, clause: Vec<Value>) {
     if let Some(filter) = filter.get_mut(occurence) {
         filter.as_array_mut().unwrap(/* filter[occurence] is array */).extend(clause);
     } else {
         filter.insert(occurence.to_string(), clause.into());
-    }
-    if occurence == FILTER {
-        merge_range(filter[occurence].as_array_mut().unwrap(/* filter[occurence] is array */));
     }
 }
 
@@ -169,83 +113,6 @@ mod tests {
     use super::*;
 
     const DATE: &str = "1234-05-06T07:08:09Z";
-
-    #[test]
-    fn test_merge_range() {
-        let mut filter = Vec::new();
-        merge_range(&mut filter);
-        assert!(filter.is_empty());
-
-        let mut filter = vec![json!({})];
-        let expected = filter.clone();
-        merge_range(&mut filter);
-        assert_eq!(filter, expected);
-
-        let mut filter = vec![
-            json!({}),
-            json!({}),
-            json!({ RANGE: { "a": { "gt": "b" } } }),
-            json!({}),
-        ];
-        let expected = filter.clone();
-        merge_range(&mut filter);
-        assert_eq!(filter, expected);
-
-        let mut filter = vec![
-            json!({ RANGE: { "a": { "gt": "b" } } }),
-            json!({ RANGE: { "a": { "lt": "c" } } }),
-            json!({ RANGE: { "a": { "gt": "d" } } }),
-        ];
-        merge_range(&mut filter);
-        assert_eq!(
-            filter,
-            vec![json!({ RANGE: { "a": { "gt": "d", "lt": "c" } } })],
-        );
-
-        let mut filter = vec![
-            json!({}),
-            json!({ RANGE: { "a": { "gt": "b" } } }),
-            json!({ RANGE: { "a": { "lt": "c" } } }),
-            json!({}),
-            json!({}),
-            json!({ RANGE: { "a": { "gt": "d" } } }),
-            json!({}),
-        ];
-        merge_range(&mut filter);
-        assert_eq!(
-            filter,
-            vec![
-                json!({}),
-                json!({ RANGE: { "a": { "gt": "d", "lt": "c" } } }),
-                json!({}),
-                json!({}),
-                json!({}),
-            ],
-        );
-
-        let mut filter = vec![
-            json!({ RANGE: { "a": { "gte": "b" } } }),
-            json!({}),
-            json!({ RANGE: { "c": { "lt": "d" } } }),
-            json!({}),
-            json!({}),
-            json!({ RANGE: { "a": { "lte": "e" } } }),
-            json!({ RANGE: { "c": { "gt": "f" } } }),
-            json!({}),
-        ];
-        merge_range(&mut filter);
-        assert_eq!(
-            filter,
-            vec![
-                json!({ RANGE: { "a": { "gte": "b", "lte": "e" } } }),
-                json!({}),
-                json!({ RANGE: { "c": { "lt": "d", "gt": "f" } } }),
-                json!({}),
-                json!({}),
-                json!({}),
-            ],
-        );
-    }
 
     #[test]
     fn test_extend_value() {
@@ -342,11 +209,15 @@ mod tests {
         );
         assert_eq!(
             filter,
-            json_object!({ FILTER: [{ RANGE: { FIELD: { "gt": DATE, "lt": DATE } } }] }),
+            json_object!({ FILTER: [
+                { RANGE: { FIELD: { "gt": DATE } } },
+                { RANGE: { FIELD: { "lt": DATE } } }
+            ] }),
         );
     }
 
     #[test]
+    #[allow(clippy::similar_names)]
     fn test_extend_filter_combine_and() {
         let clause = &serde_json::from_str(
             r#"{ "$and": [
@@ -357,23 +228,30 @@ mod tests {
         )
         .unwrap();
         let term = json!({ TERM: { "properties.a": "b" } });
-        let range = json_object!({ RANGE: { "properties.c": { "gt": DATE, "lt": DATE } } });
+        let range_gt = json_object!({ RANGE: { "properties.c": { "gt": DATE } } });
+        let range_lt = json_object!({ RANGE: { "properties.c": { "lt": DATE } } });
 
         let mut filter = JsonObject::new();
         extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ FILTER: [term, range] }));
+        assert_eq!(filter, json_object!({ FILTER: [term, range_gt, range_lt] }));
 
         let mut filter = json_object!({ FILTER: [] });
         extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ FILTER: [term, range] }));
+        assert_eq!(filter, json_object!({ FILTER: [term, range_gt, range_lt] }));
 
         let mut filter = json_object!({ FILTER: [{}] });
         extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ FILTER: [{}, term, range] }));
+        assert_eq!(
+            filter,
+            json_object!({ FILTER: [{}, term, range_gt, range_lt] }),
+        );
 
         let mut filter = json_object!({ SHOULD: [] });
         extend_filter(&mut filter, clause, None);
-        assert_eq!(filter, json_object!({ SHOULD: [], FILTER: [term, range] }));
+        assert_eq!(
+            filter,
+            json_object!({ SHOULD: [], FILTER: [term, range_gt, range_lt] }),
+        );
     }
 
     #[test]
@@ -444,7 +322,6 @@ mod tests {
         )
         .unwrap();
         let term = json_object!({ TERM: { "properties.a": "b" } });
-        let range = json_object!({ RANGE: { "properties.c": { "gt": DATE, "lt": DATE } } });
         let range_gt = json_object!({ RANGE: { "properties.c": { "gt": DATE } } });
         let range_lt = json_object!({ RANGE: { "properties.c": { "lt": DATE } } });
 
@@ -453,8 +330,8 @@ mod tests {
         assert_eq!(
             filter,
             json_object!({ FILTER: [
-                { BOOL: { FILTER: [term, range] } },
-                { BOOL: { FILTER: [term, range] } },
+                { BOOL: { FILTER: [term, range_gt, range_lt] } },
+                { BOOL: { FILTER: [term, range_gt, range_lt] } },
                 { BOOL: { SHOULD: [term, range_gt, range_lt], MINIMUM_SHOULD_MATCH: 1 } }
             ] }),
         );
@@ -486,7 +363,7 @@ mod tests {
             json_object!({
                 MINIMUM_SHOULD_MATCH: 1,
                 SHOULD: [
-                    { BOOL: { FILTER: [term, range] } },
+                    { BOOL: { FILTER: [term, range_gt, range_lt] } },
                     { BOOL: { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, range_gt, range_lt] } },
                     { BOOL: { MINIMUM_SHOULD_MATCH: 1, SHOULD: [term, range_gt, range_lt] } }
                 ]
