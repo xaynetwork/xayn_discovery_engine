@@ -15,6 +15,7 @@
 //! Networking related utilities.
 
 use std::{
+    fmt::{Debug, Display},
     ops::{ControlFlow, Mul},
     time::Duration,
 };
@@ -23,6 +24,7 @@ use derive_more::Deref;
 use futures_retry_policies::RetryPolicy;
 use rand::random;
 use serde::{Deserialize, Serialize};
+use tracing::warn;
 
 use crate::serde::serde_duration_in_config;
 
@@ -65,10 +67,12 @@ impl<F> ExponentialJitterRetryPolicy<F> {
         }
     }
 
-    fn register_pending_retry(&mut self) -> Option<Duration> {
+    fn register_pending_retry(&mut self, error: &dyn Display) -> Option<Duration> {
         if self.retry_count >= self.max_retries {
             return None;
         }
+
+        warn!({error=%error}, "retrying request");
 
         let duration = self
             .step_size
@@ -79,6 +83,7 @@ impl<F> ExponentialJitterRetryPolicy<F> {
             // jitter
             .mul_f32(random());
         self.retry_count += 1;
+
         Some(duration)
     }
 }
@@ -86,11 +91,14 @@ impl<F> ExponentialJitterRetryPolicy<F> {
 impl<F, T, E> RetryPolicy<Result<T, E>> for ExponentialJitterRetryPolicy<F>
 where
     F: FnMut(&E) -> bool,
+    E: Display,
 {
     fn should_retry(&mut self, result: Result<T, E>) -> ControlFlow<Result<T, E>, Duration> {
-        if matches!(&result, Err(err) if (self.retry_filter)(err)) {
-            if let Some(backoff) = self.register_pending_retry() {
-                return ControlFlow::Continue(backoff);
+        if let Err(error) = &result {
+            if (self.retry_filter)(error) {
+                if let Some(backoff) = self.register_pending_retry(error) {
+                    return ControlFlow::Continue(backoff);
+                }
             }
         }
         ControlFlow::Break(result)

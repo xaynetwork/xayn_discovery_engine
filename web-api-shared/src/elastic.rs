@@ -126,6 +126,7 @@ impl Client {
     ) -> Result<T, E>
     where
         F: Future<Output = Result<T, E>>,
+        E: Display,
     {
         let policy = ExponentialJitterRetryPolicy::new(self.retry_policy.clone())
             .with_retry_filter(error_filter);
