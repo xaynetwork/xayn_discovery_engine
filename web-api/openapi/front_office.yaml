@@ -175,13 +175,36 @@ components:
             maxItems: 10
         minProperties: 1
         maxProperties: 1
+    FilterCombine:
+      type: object
+      properties:
+        $and:
+          type: array
+          minItems: 0
+          maxItems: 10
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/FilterCompare'
+              - $ref: '#/components/schemas/FilterCombine'
+        $or:
+          type: array
+          minItems: 0
+          maxItems: 10
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/FilterCompare'
+              - $ref: '#/components/schemas/FilterCombine'
+      minProperties: 1
+      maxProperties: 1
     Filter:
       description: |
         Filter the documents wrt their properties.
         A key must be a valid `DocumentPropertyId`.
         The `DocumentProperty` type corresponding to the `DocumentPropertyId` must support the filter operation.
+        Combinators may only be nested two times.
       oneOf:
         - $ref: '#/components/schemas/FilterCompare'
+        - $ref: '#/components/schemas/FilterCombine'
     PersonalizedDocumentData:
       type: object
       required: [id, score]
@@ -247,6 +270,7 @@ components:
             $ref: '#/components/schemas/Filter/description'
           oneOf:
             - $ref: '#/components/schemas/FilterCompare'
+            - $ref: '#/components/schemas/FilterCombine'
     SemanticSearchResponse:
       type: object
       required: [documents]

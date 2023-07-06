@@ -69,9 +69,18 @@ module.exports = {
     {
       files: [
         "web-api/openapi/front_office.yaml#/components/schemas/FilterCompare/additionalProperties/properties",
+        "web-api/openapi/front_office.yaml#/components/schemas/FilterCombine/properties",
       ],
       rules: {
         "ibm-property-casing-convention": "off",
+      },
+    },
+    {
+      files: [
+        "web-api/openapi/front_office.yaml#/components/schemas/FilterCombine/properties",
+      ],
+      rules: {
+        "ibm-no-circular-refs": "off",
       },
     },
   ],

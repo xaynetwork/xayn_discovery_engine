@@ -3,11 +3,11 @@
 - Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` endpoints:
     - string equality
     - array of strings containment
+    - logical combinators
 
 # 2.3.0 - 2023-06-28
 
-- added endpoints for retrieving and extending the
-  indexed property schema
+- added endpoints for retrieving and extending the indexed property schema
 
 # 2.2.0 - 2023-06-26
 
