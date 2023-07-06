@@ -59,7 +59,7 @@ runs:
         cp "$BIN_PATH" ./$ARCHIVE_NAME/server.bin
         cp "$DOCKERFILE_PATH" ./$ARCHIVE_NAME/Dockerfile
         cp "$MODEL_PATH/config.toml" ./$ARCHIVE_NAME/assets/config.toml
-        cp "$MODEL_PATH/vocab.txt" ./$ARCHIVE_NAME/assets/vocab.txt
+        cp "$MODEL_PATH/tokenizer.json" ./$ARCHIVE_NAME/assets/tokenizer.json
         cp "$MODEL_PATH/model.onnx" ./$ARCHIVE_NAME/assets/model.onnx
         tar -cvf "$ARCHIVE_NAME.tar" ./$ARCHIVE_NAME
 
