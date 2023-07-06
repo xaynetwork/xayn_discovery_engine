@@ -391,3 +391,162 @@ fn test_filter_array_string_multiple() {
         },
     );
 }
+
+#[test]
+fn test_filter_combine() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            index(
+                &client,
+                &ingestion_url,
+                json!({ "p1": { "type": "keyword" }, "p2": { "type": "keyword" } }),
+            )
+            .await?;
+            ingest(
+                &client,
+                &ingestion_url,
+                json!([
+                    { "id": "d1", "snippet": "one" },
+                    { "id": "d2", "snippet": "two", "properties": { "p1": "this", "p2": "word" } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": "that", "p2": "too" } }
+                ]),
+            )
+            .await?;
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": {
+                            "$and": [{ "p1": { "$eq": "this" } }, { "p2": { "$eq": "word" } }]
+                        }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": {
+                            "$and": [{ "p1": { "$eq": "this" } }, { "p2": { "$eq": "too" } }]
+                        }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": {
+                            "$or": [{ "p1": { "$eq": "that" } }, { "p2": { "$eq": "word" } }]
+                        }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": {
+                            "$or": [{ "p1": { "$eq": "foo" } }, { "p2": { "$eq": "bar" } }]
+                        }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" }, "filter": { "$and": [] } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" }, "filter": { "$or": [] } }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "$and": [
+                            { "$or": [{ "p1": { "$eq": "this" } }, { "p1": { "$eq": "that" } }] },
+                            { "$or": [{ "p2": { "$eq": "too" } }, { "p2": { "$eq": "foo" } }] }
+                        ] }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "$or": [
+                            { "$and": [{ "p1": { "$eq": "this" } }, { "p2": { "$eq": "word" } }] },
+                            { "$and": [{ "p1": { "$eq": "that" } }, { "p2": { "$eq": "too" } }] }
+                        ] }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2", "d3"].into());
+
+            Ok(())
+        },
+    );
+}
