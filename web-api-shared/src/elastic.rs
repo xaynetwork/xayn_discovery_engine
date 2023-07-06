@@ -372,7 +372,7 @@ impl Client {
 
         let status = response.status();
         if status == StatusCode::NOT_FOUND {
-            Err(Error::EndpointNotFound(path))
+            Err(Error::ResourceNotFound(path))
         } else if !status.is_success() {
             let url = response.url().clone();
             let body = response.bytes().await?;
@@ -420,7 +420,7 @@ pub enum Error {
     /// Failed to serialize a requests or deserialize a response.
     Serialization(serde_json::Error),
     /// Given endpoint was not found: {0}
-    EndpointNotFound(String),
+    ResourceNotFound(String),
 }
 
 pub trait NotFoundAsOptionExt<T> {
@@ -430,7 +430,7 @@ pub trait NotFoundAsOptionExt<T> {
 impl<T> NotFoundAsOptionExt<T> for Result<T, Error> {
     fn not_found_as_option(self) -> Result<Option<T>, Error> {
         match self {
-            Err(Error::EndpointNotFound(_)) => Ok(None),
+            Err(Error::ResourceNotFound(_)) => Ok(None),
             Ok(value) => Ok(Some(value)),
             Err(error) => Err(error),
         }
