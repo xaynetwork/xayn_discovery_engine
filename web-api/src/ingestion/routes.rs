@@ -122,6 +122,7 @@ struct UnvalidatedIngestedDocument {
 struct IngestedDocument {
     id: DocumentId,
     snippet: DocumentSnippet,
+    summary: Option<String>,
     properties: DocumentProperties,
     tags: DocumentTags,
     is_candidate_op: IsCandidateOp,
@@ -199,16 +200,17 @@ impl UnvalidatedIngestedDocument {
         storage: &(impl storage::Size + storage::IndexedProperties),
     ) -> Result<IngestedDocument, Error> {
         let id = self.id.as_str().try_into()?;
-        let snippet = if self.summarize {
+        let snippet = DocumentSnippet::try_from(self.snippet)?;
+        let summary = self.summarize.then(|| {
             summarize(
                 &Summarizer::Naive,
-                &Source::PlainText { text: self.snippet },
+                &Source::PlainText {
+                    text: snippet.as_str().to_owned(),
+                },
                 &Config::default(),
             )
-        } else {
-            self.snippet
-        }
-        .try_into()?;
+        });
+
         let properties = validate_document_properties(&id, self.properties, storage).await?;
         let tags = self
             .tags
@@ -232,6 +234,7 @@ impl UnvalidatedIngestedDocument {
         Ok(IngestedDocument {
             id,
             snippet,
+            summary,
             properties,
             tags,
             is_candidate_op,
@@ -284,6 +287,7 @@ async fn upsert_documents(
             ids
         },
     );
+    // Hint: detects duplicate ids
     if ids.len() != documents.len() {
         documents = documents
             .into_iter()
@@ -301,6 +305,7 @@ async fn upsert_documents(
                     document.id,
                     (
                         document.snippet,
+                        document.is_summarized,
                         document.properties,
                         document.tags,
                         document.is_candidate,
@@ -315,21 +320,23 @@ async fn upsert_documents(
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
-                .map(|(snippet, properties, tags, is_candidate)| {
-                    ((snippet, properties, tags), *is_candidate)
+                .map(|(snippet, is_summarized, properties, tags, is_candidate)| {
+                    ((snippet, is_summarized, properties, tags), *is_candidate)
                 })
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(snippet, _, _)| snippet != &document.snippet);
+            let new_snippet = data.map_or(true, |(snippet, is_summarized, _, _)| {
+                snippet != &document.snippet || *is_summarized != document.summary.is_some()
+            });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
 
             if new_snippet {
                 Either::Left((document, new_is_candidate))
             } else {
-                let new_properties = data.map_or(true, |(_, properties, _)| {
+                let new_properties = data.map_or(true, |(_, _, properties, _)| {
                     properties != &document.properties
                 });
-                let new_tags = data.map_or(true, |(_, _, tags)| tags != &document.tags);
+                let new_tags = data.map_or(true, |(_, _, _, tags)| tags != &document.tags);
                 Either::Right((document, new_properties, new_tags, new_is_candidate))
             }
         });
@@ -371,10 +378,12 @@ async fn upsert_documents(
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
-            match state.embedder.run(&document.snippet) {
+            let short_text = document.summary.as_deref().unwrap_or(&document.snippet);
+            match state.embedder.run(short_text) {
                 Ok(embedding) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
+                    is_summarized: document.summary.is_some(),
                     properties: document.properties,
                     tags: document.tags,
                     embedding,
