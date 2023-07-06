@@ -20,7 +20,7 @@ use reqwest::Method;
 use serde_json::{json, Value};
 use tracing::{error, info, instrument};
 use xayn_web_api_shared::{
-    elastic::{Client, DiscardResponse, NotFoundAsOptionExt},
+    elastic::{Client, NotFoundAsOptionExt, SerdeDiscard},
     request::TenantId,
 };
 
@@ -38,11 +38,7 @@ pub async fn create_tenant_index(
     let elastic = elastic.with_index(new_id);
     let mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
     elastic
-        .query_with_json::<_, DiscardResponse>(
-            Method::PUT,
-            elastic.create_url([], []),
-            Some(&mapping),
-        )
+        .query_with_json::<_, SerdeDiscard>(Method::PUT, elastic.create_url([], []), Some(&mapping))
         .await?;
     info!({tenant_id = %new_id}, "created ES index");
     Ok(())
@@ -52,7 +48,7 @@ pub async fn create_tenant_index(
 pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Result<(), Error> {
     let elastic = elastic.with_index(tenant_id);
     elastic
-        .query_with_bytes::<DiscardResponse>(Method::DELETE, elastic.create_url([], []), None)
+        .query_with_bytes::<SerdeDiscard>(Method::DELETE, elastic.create_url([], []), None)
         .await?;
     info!({%tenant_id}, "deleted ES index");
     Ok(())
@@ -131,7 +127,7 @@ async fn does_tenant_index_exist(
     let response = elastic
         // Hint: Using HEAD here will fall over as HEAD requests still have
         //       a Content-Type/Size but no content.
-        .query_with_bytes::<DiscardResponse>(Method::GET, elastic.create_url([], []), None)
+        .query_with_bytes::<SerdeDiscard>(Method::GET, elastic.create_url([], []), None)
         .await
         .not_found_as_option()?;
     Ok(response.is_some())
@@ -170,7 +166,7 @@ async fn create_index_alias(
     let elastic = elastic.with_index("_aliases");
     let alias = alias.as_ref();
     elastic
-        .query_with_json::<_, DiscardResponse>(
+        .query_with_json::<_, SerdeDiscard>(
             Method::POST,
             elastic.create_url([], []),
             Some(&json!({

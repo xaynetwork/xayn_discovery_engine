@@ -267,15 +267,113 @@ struct SearchResponse<I, T> {
     hits: Hits<I, T>,
 }
 
+/// Deserializes from anything discarding any response.
+///
+/// Requires the `Deserializer` implementation to support `deserialize_any` and
+/// might not work for cases where `visitor.visit_enum` is called.
+///
+/// This means it does work without restrictions for formats like `json`.
 #[derive(Debug)]
-pub struct DiscardResponse;
+pub struct SerdeDiscard;
 
-impl<'de> Deserialize<'de> for DiscardResponse {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+impl<'de> Deserialize<'de> for SerdeDiscard {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(Self)
+        use serde::de;
+        // Hint: We can't just return Ok(Self) this will trigger some checks
+        //       making sure the whole body is parsed for some deserializers
+        //       in some contexts.
+        struct DiscardingVisitor;
+
+        macro_rules! impl_simpl_sink {
+            ($($name:ident: $ty:ty),* $(,)?) => ($(
+                fn $name<E>(self, _: $ty) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(DiscardResponse)
+                }
+            )*);
+        }
+
+        impl<'de> de::Visitor<'de> for DiscardingVisitor {
+            type Value = SerdeDiscard;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(formatter, "nothing, anything should be fine")
+            }
+
+            impl_simpl_sink! {
+                visit_bool: bool,
+                visit_i64: i64,
+                visit_i128: i128,
+                visit_u64: u64,
+                visit_u128: u128,
+                visit_f64: f64,
+                visit_char: char,
+                visit_str: &str,
+                visit_string: String,
+                visit_bytes: &[u8],
+                visit_byte_buf: Vec<u8>,
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                deserializer.deserialize_any(Self)
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                deserializer.deserialize_any(Self)
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                while seq.next_element::<SerdeDiscard>()?.is_some() {}
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                while map.next_entry::<SerdeDiscard, SerdeDiscard>()?.is_some() {}
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_enum<A>(self, _: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::EnumAccess<'de>,
+            {
+                //Hint: This can have the same issues as a deserialize `Ok(DiscardResponse)`,
+                //      but we can't really do anything about it there is no `EnumAccess.variant_any`.
+                Ok(SerdeDiscard)
+            }
+        }
+
+        deserializer.deserialize_any(DiscardingVisitor)
     }
 }
 
@@ -311,7 +409,7 @@ impl Client {
         }
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
-        self.query_with_json::<_, SearchResponse<I, DiscardResponse>>(
+        self.query_with_json::<_, SearchResponse<I, SerdeDiscard>>(
             Method::POST,
             self.create_url(["_search"], None),
             Some(body),
