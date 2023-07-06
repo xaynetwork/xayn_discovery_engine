@@ -91,12 +91,16 @@ pub(crate) async fn migrate_tenant_index(
     Ok(())
 }
 
+const MAPPINGS: &str = "mappings";
+const PROPERTIES: &str = "properties";
+const EMBEDDING: &str = "embedding";
+
 fn check_mapping_compatibility(
     existing_mapping: &Value,
     base_mapping: &Value,
 ) -> Result<(), Error> {
-    let existing_embeddings = &existing_mapping["mappings"]["properties"]["embedding"];
-    let expected_embeddings = &base_mapping["mappings"]["properties"]["embedding"];
+    let existing_embeddings = &existing_mapping[MAPPINGS][PROPERTIES][EMBEDDING];
+    let expected_embeddings = &base_mapping[MAPPINGS][PROPERTIES][EMBEDDING];
     if existing_embeddings != expected_embeddings {
         error!({ %existing_embeddings, %expected_embeddings }, "mappings in ES have incompatible embedding definition");
         bail!("incompatible existing elasticsearch index");
