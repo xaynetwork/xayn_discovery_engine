@@ -38,7 +38,7 @@ DocumentProperty:
     - type: number
     - $ref: '#/DocumentPropertyString'
     - $ref: '#/DocumentPropertyArrayString'
-
+    - $ref: './time.yml#/Timestamp'
   example: "News title"
 
 DocumentProperties:

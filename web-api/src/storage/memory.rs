@@ -314,7 +314,7 @@ impl storage::Document for Storage {
         &self,
         params: KnnSearchParams<'a>,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        if params.published_after.is_some() {
+        if params.filter.is_some() {
             unimplemented!(/* we don't need it for memory.rs */);
         }
 
@@ -739,7 +739,6 @@ mod tests {
                 embedding,
                 count: 2,
                 num_candidates: 2,
-                published_after: None,
                 strategy: SearchStrategy::Knn,
                 include_properties: false,
                 filter: None,
@@ -759,7 +758,6 @@ mod tests {
                 embedding,
                 count: 3,
                 num_candidates: 3,
-                published_after: None,
                 strategy: SearchStrategy::Knn,
                 include_properties: false,
                 filter: None,

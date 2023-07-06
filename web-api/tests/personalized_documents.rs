@@ -116,7 +116,10 @@ async fn personalize(
         .get(personalization_url.join("/users/u1/personalized_documents")?)
         .query(&[("count", "5")]);
     if let Some(published_after) = published_after {
-        request = request.query(&[("published_after", published_after)]);
+        request = request.query(&[(
+            "filter",
+            json!({ "publication_date": { "$gte": published_after } }).to_string(),
+        )]);
     }
     if let Some(include_properties) = include_properties {
         request = request.query(&[("include_properties", &include_properties.to_string())]);

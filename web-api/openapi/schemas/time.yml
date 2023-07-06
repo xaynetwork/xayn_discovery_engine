@@ -1,20 +1,15 @@
 PublicationDate:
+  deprecated: true
   type: string
   format: date-time
   minLength: 10
   # 35 should be enough (20 normally + up to 10 for subsec + up to 5 for offset),
   # but to avoid any accidents we go with 40
   maxLength: 40
-  example: "2000-05-14T20:22:50Z"
-  description: |
-    A RFC3339 compatible date-time:
-    - can be in the future
-    - will be converted to and then stored as UTC
-    - sub-second resolution is not guaranteed
-
-    The length constraints are in bytes, not characters.
+  description: Deprecated. Document property dates can have any name.
 
 PublishedAfter:
+  deprecated: true
   type:
     $ref: '#/PublicationDate/type'
   format:
@@ -23,18 +18,7 @@ PublishedAfter:
     $ref: '#/PublicationDate/minLength'
   maxLength:
     $ref: '#/PublicationDate/maxLength'
-  example:
-    $ref: '#/PublicationDate/example'
-  description: |
-    Only include documents which have been published after given datetime.
-    If used documents without a `properties.publication_date` will be ignored.
-
-    A RFC3339 compatible date-time:
-    - can be in the future
-    - will be converted to and then stored as UTC
-    - sub-second resolution is not guaranteed
-
-    The length constraints are in bytes, not characters.
+  description: Deprecated. Use a `filter` on the document property instead.
 
 Timestamp:
   type: string
