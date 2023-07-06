@@ -21,9 +21,7 @@ use crate::{
     model::Model,
     pooler::{Embedding1, Embedding2},
     tokenizer::Tokenize,
-    AveragePooler,
-    FirstPooler,
-    NonePooler,
+    AveragePooler, FirstPooler, NonePooler,
 };
 
 /// A pipeline can be built from a [`Config`] and consists of a tokenizer, a model and a pooler.
@@ -98,7 +96,7 @@ impl<T, P> Pipeline<T, P> {
 
 #[cfg(test)]
 mod tests {
-    use xayn_test_utils::asset::{e5_mocked, smbert};
+    use xayn_test_utils::asset::{e5_mocked, smbert_mocked};
 
     use super::*;
     use crate::{
@@ -108,7 +106,7 @@ mod tests {
     };
 
     fn pipeline<P>() -> Pipeline<Tokenizer, P> {
-        Config::new(smbert().unwrap())
+        Config::new(smbert_mocked().unwrap())
             .unwrap()
             .with_pooler()
             .build()
