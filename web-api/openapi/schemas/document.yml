@@ -19,11 +19,13 @@ DocumentPropertyString:
 
 DocumentPropertyArrayString:
   description: |
-    Array of non-null string.
+    Arbitrary array of strings property that can be attached to a document.
+    The item length constraints are in bytes, not characters.
   type: array
-  minItems: 0
   items:
     $ref: '#/DocumentPropertyString'
+  minItems: 0
+  maxItems: 100
 
 DocumentProperty:
   description: |

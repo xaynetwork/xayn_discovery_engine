@@ -81,7 +81,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PersonalizedDocumentsResponse'
         '400':
-           $ref: './responses/generic.yml#/BadRequest'
+          $ref: './responses/generic.yml#/BadRequest'
         '409':
           description: impossible to create a personalized list for the user.
           content:
@@ -145,7 +145,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SemanticSearchResponse'
         '400':
-            $ref: './responses/generic.yml#/BadRequest'
+          $ref: './responses/generic.yml#/BadRequest'
 
 components:
   securitySchemes:
@@ -170,6 +170,9 @@ components:
         properties:
           $eq:
             $ref: ./schemas/document.yml#/DocumentPropertyString
+          $in:
+            $ref: ./schemas/document.yml#/DocumentPropertyArrayString
+            maxItems: 10
         minProperties: 1
         maxProperties: 1
     Filter:
@@ -240,7 +243,10 @@ components:
           type: boolean
           default: false
         filter:
-          $ref: '#/components/schemas/Filter'
+          description:
+            $ref: '#/components/schemas/Filter/description'
+          oneOf:
+            - $ref: '#/components/schemas/FilterCompare'
     SemanticSearchResponse:
       type: object
       required: [documents]
