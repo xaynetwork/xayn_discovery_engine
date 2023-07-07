@@ -123,14 +123,7 @@ async fn does_tenant_index_exist(
     elastic: &Client,
     tenant_id: impl AsRef<str> + Debug,
 ) -> Result<bool, Error> {
-    let elastic = elastic.with_index(tenant_id);
-    let response = elastic
-        // Hint: Using HEAD here will fall over as HEAD requests still have
-        //       a Content-Type/Size but no content.
-        .query_with_bytes::<SerdeDiscard>(Method::GET, elastic.create_url([], []), None)
-        .await
-        .not_found_as_option()?;
-    Ok(response.is_some())
+    Ok(get_opt_tenant_mapping(elastic, tenant_id).await?.is_some())
 }
 
 #[instrument(skip(elastic))]
@@ -138,22 +131,17 @@ async fn get_opt_tenant_mapping(
     elastic: &Client,
     tenant_id: impl AsRef<str> + Debug,
 ) -> Result<Option<Value>, Error> {
+    let elastic = elastic.with_index(&tenant_id);
     let response = elastic
-        .with_index(&tenant_id)
-        .request(Method::GET, ["_mapping"], [])
-        .send()
-        .await?;
-
-    let status = response.status();
-    if status == StatusCode::NOT_FOUND {
-        Ok(None)
-    } else {
-        match response.error_for_status()?.json().await? {
-            Value::Object(obj) if obj.len() == 1 => {
-                Ok(obj.into_iter().next().map(|(_, mapping)| mapping))
-            }
-            response => bail!("unexpected index/_mapping response: {response}"),
+        .query_with_bytes::<Value>(Method::GET, elastic.create_url(["_mapping"], []), None)
+        .await
+        .not_found_as_option()?;
+    match response {
+        None => Ok(None),
+        Some(Value::Object(obj)) if obj.len() == 1 => {
+            Ok(obj.into_iter().next().map(|(_, mapping)| mapping))
         }
+        Some(unexpected) => bail!("unexpected index/_mapping response: {unexpected}"),
     }
 }
 
