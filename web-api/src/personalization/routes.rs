@@ -24,6 +24,7 @@ use actix_web::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use super::{
@@ -568,6 +569,7 @@ struct SemanticSearchResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
+#[instrument(skip(state, storage))]
 async fn semantic_search(
     state: Data<AppState>,
     Json(query): Json<UnvalidatedSemanticSearchQuery>,

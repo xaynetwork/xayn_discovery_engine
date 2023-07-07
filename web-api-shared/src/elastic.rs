@@ -247,24 +247,21 @@ impl<I> BulkResponse<I> {
 }
 
 #[derive(Debug, Deserialize)]
-struct Hit<I, T> {
+struct Hit<I> {
     #[serde(rename = "_id")]
     id: I,
-    #[allow(dead_code)]
-    #[serde(rename = "_source")]
-    source: T,
     #[serde(rename = "_score")]
     score: f32,
 }
 
 #[derive(Debug, Deserialize)]
-struct Hits<I, T> {
-    hits: Vec<Hit<I, T>>,
+struct Hits<I> {
+    hits: Vec<Hit<I>>,
 }
 
 #[derive(Debug, Deserialize)]
-struct SearchResponse<I, T> {
-    hits: Hits<I, T>,
+struct SearchResponse<I> {
+    hits: Hits<I>,
 }
 
 /// Deserializes from anything discarding any response.
@@ -282,9 +279,23 @@ impl<'de> Deserialize<'de> for SerdeDiscard {
         D: Deserializer<'de>,
     {
         use serde::de;
-        // Hint: We can't just return Ok(Self) this will trigger some checks
-        //       making sure the whole body is parsed for some deserializers
-        //       in some contexts.
+        // Hint: a "discarding" serde type is more tricky then it might seem
+        // 1. just returning `Ok(SerdeDiscard)` without calling the deserializer can fail
+        //    in some edge cases due to the input which is supposed to be parsed not being
+        //    parsed at all. Instead of being parsed and discarded.
+        //    - this also can lead to a bunch of other unexpected behavior, e.g. we parsed a
+        //      `_source` field even after we disabled `_source` inclusion and blindly returning
+        //      `Ok(SerdeDiscard)` as a value in a map deserialized form json somehow didn't raise
+        //      and error (even through it should have as only the value is discarded, which still means
+        //      the fields itself is required if you don't also use `serde(default)`)
+        // 2. not parsing the input can lead to two errors 1st the deserializer raising an
+        //    error because something is wrong, 2nd we don't realize if the server has some
+        //    major issues and send us partial bodies or similar
+        // 3. to parse and then discard `deserialize_any` is required, or else the deserializer can't proceed at all
+        // 4. if a derserializer is used which might call `visit_enum` (i.e. not json) it might still
+        //    fail as there is no equivalent of deserialize_any for the enum variant
+        // 5. Just using the serde derive on a empty `struct Foo { }` will only work with json object
+        //    responses, but not arrays, string, etc.
         struct DiscardingVisitor;
 
         macro_rules! impl_simpl_sink {
@@ -293,7 +304,7 @@ impl<'de> Deserialize<'de> for SerdeDiscard {
                 where
                     E: de::Error,
                 {
-                    Ok(DiscardResponse)
+                    Ok(SerdeDiscard)
                 }
             )*);
         }
@@ -409,7 +420,7 @@ impl Client {
         }
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
-        self.query_with_json::<_, SearchResponse<I, SerdeDiscard>>(
+        self.query_with_json::<_, SearchResponse<I>>(
             Method::POST,
             self.create_url(["_search"], None),
             Some(body),
@@ -516,7 +527,7 @@ pub enum Error {
         url: Url,
         error: String,
     },
-    /// Failed to serialize a requests or deserialize a response.
+    /// Failed to serialize a requests or deserialize a response: {0}
     Serialization(serde_json::Error),
     /// Given endpoint was not found: {0}
     ResourceNotFound(String),
