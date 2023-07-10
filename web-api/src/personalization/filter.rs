@@ -41,6 +41,10 @@ pub(crate) enum CompareOp {
     Lte,
 }
 
+impl CompareOp {
+    const MAX_VALUES_PER_IN: usize = 500;
+}
+
 #[derive(Clone, Debug, PartialEq)]
 struct CompareWith {
     operation: CompareOp,
@@ -96,7 +100,7 @@ impl<'de> Deserialize<'de> for CompareWith {
                             ));
                         }
                         let len = value.as_array().unwrap(/* value is array */).len();
-                        if len > 10 {
+                        if len > CompareOp::MAX_VALUES_PER_IN {
                             return Err(A::Error::invalid_length(len, &Self));
                         }
                     }
@@ -185,7 +189,7 @@ pub(crate) enum CombineOp {
 pub(crate) struct Filters(Vec<Filter>);
 
 impl Filters {
-    const MAX_LEN: usize = 500;
+    const MAX_FILTERS_PER_COMBINATION: usize = 10;
 
     fn is_below_depth(&self, max: usize) -> bool {
         (max > 0)
@@ -207,7 +211,7 @@ impl<'de> Deserialize<'de> for Filters {
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
                 formatter.write_str(&format!(
                     "a json array with at most {} combination arguments",
-                    Self::Value::MAX_LEN,
+                    Self::Value::MAX_FILTERS_PER_COMBINATION,
                 ))
             }
 
@@ -216,13 +220,13 @@ impl<'de> Deserialize<'de> for Filters {
                 A: SeqAccess<'de>,
             {
                 let size = seq.size_hint().unwrap_or_default();
-                if size > Self::Value::MAX_LEN {
+                if size > Self::Value::MAX_FILTERS_PER_COMBINATION {
                     return Err(A::Error::invalid_length(size, &Self));
                 }
 
                 let mut filters = Vec::with_capacity(size);
                 while let Some(filter) = seq.next_element()? {
-                    if filters.len() < Self::Value::MAX_LEN {
+                    if filters.len() < Self::Value::MAX_FILTERS_PER_COMBINATION {
                         filters.push(filter);
                     } else {
                         return Err(A::Error::invalid_length(filters.len() + 1, &Self));
@@ -380,6 +384,7 @@ impl<'de> Deserialize<'de> for Filter {
 
 #[cfg(test)]
 mod tests {
+    use itertools::Itertools;
     use serde_json::json;
 
     use super::*;
@@ -442,13 +447,27 @@ mod tests {
                 .to_string(),
             "invalid type: no array of strings property, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 17",
         );
+
+        let num_ids = CompareOp::MAX_VALUES_PER_IN + 1;
+        let many_ids = std::iter::from_fn({
+            let mut c = 0;
+            move || {
+                c += 1;
+                Some(c.to_string())
+            }
+        })
+        .take(num_ids)
+        .collect_vec();
+
         assert_eq!(
             serde_json::from_str::<CompareWith>(
-                r#"{ "$in": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"] }"#
+                &serde_json::to_string(&json!({
+                    "$in": many_ids
+                })).unwrap()
             )
             .unwrap_err()
             .to_string(),
-            "invalid length 11, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 68",
+            "invalid length 501, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 2907",
         );
     }
 
