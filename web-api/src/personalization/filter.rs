@@ -185,7 +185,7 @@ pub(crate) enum CombineOp {
 pub(crate) struct Filters(Vec<Filter>);
 
 impl Filters {
-    const MAX_LEN: usize = 10;
+    const MAX_LEN: usize = 500;
 
     fn is_below_depth(&self, max: usize) -> bool {
         (max > 0)
