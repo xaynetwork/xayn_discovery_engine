@@ -16,14 +16,9 @@ help:
 .PHONY: help Makefile build
 
 build:
-	# redocly bundle --dereferenced --output dist ../web-api/openapi/front_office.yaml ../web-api/openapi/back_office.yaml 
-	# redocly join dist/*.yaml -o combined.yaml
-	# redocly build-docs combined.yaml -o combined.html $(REDOC_OPT)
-	# redocly build-docs ../web-api/openapi/front_office.yaml -o front_office.html $(REDOC_OPT)
-	# redocly build-docs ../web-api/openapi/back_office.yaml -o back_office.html $(REDOC_OPT)
-	# redocly build-docs -o docs.html $(REDOC_OPT)
-	# redocly build-docs ./common.yaml -o docs.html $(REDOC_OPT)
-	@$(MAKE) singlehtml
+	@$(MAKE) html
+	redocly build-docs ../web-api/openapi/front_office.yaml -o build/html/front_office.html $(REDOC_OPT)
+	redocly build-docs ../web-api/openapi/back_office.yaml -o build/html/back_office.html $(REDOC_OPT)
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
