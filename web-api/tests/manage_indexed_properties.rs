@@ -285,13 +285,13 @@ fn test_check_new_property_values_against_schema() {
             )
             .await;
 
-            for (property, bad_value) in [
-                ("p1", Value::String("bad".into())),
-                ("p2", "bad".into()),
-                ("p3", 123.into()),
-                ("p4", 32.into()),
-                ("p4", "bad".into()),
-                ("p5", false.into()),
+            for (property, bad_value, expected_type) in [
+                ("p1", Value::String("bad".into()), "boolean"),
+                ("p2", "bad".into(), "number"),
+                ("p3", 123.into(), "keyword"),
+                ("p4", 32.into(), "keyword[]"),
+                ("p4", "bad".into(), "keyword[]"),
+                ("p5", false.into(), "date"),
             ] {
                 let id = make_id();
                 let res = send_assert_json::<Value>(
@@ -311,8 +311,23 @@ fn test_check_new_property_values_against_schema() {
                 )
                 .await;
 
-                //FIXME current ingestion code eats error details
-                assert_eq!(&res["details"]["documents"], &json!([{ "id": id }]));
+                assert_eq!(
+                    &res["details"]["documents"],
+                    &json!([{
+                        "id": id,
+                        "kind": "InvalidDocumentProperty",
+                        "details": {
+                            "document": id,
+                            "invalid_reason": {
+                                "IncompatibleType": {
+                                    "expected": expected_type,
+                                }
+                            },
+                            "invalid_value": bad_value,
+                            "property": property,
+                        }
+                    }])
+                );
             }
 
             for (property, bad_value, expected_type) in [

@@ -163,15 +163,31 @@ impl_application_error!(FailedToDeleteSomeDocuments => BAD_REQUEST, INFO);
 /// The validation of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct FailedToValidateDocuments {
-    pub(crate) documents: Vec<DocumentIdAsObject>,
+    pub(crate) documents: Vec<DocumentInBatchError>,
 }
 
 impl_application_error!(FailedToValidateDocuments => BAD_REQUEST, INFO);
 
+#[derive(Serialize, Debug, From)]
+pub(crate) struct DocumentInBatchError {
+    pub(crate) id: String,
+    pub(crate) kind: String,
+    pub(crate) details: Value,
+}
+
+impl DocumentInBatchError {
+    pub(crate) fn new(id: impl Into<String>, error: &dyn ApplicationError) -> Self {
+        Self {
+            id: id.into(),
+            kind: error.kind().into(),
+            details: error.encode_details(),
+        }
+    }
+}
 /// The ingestion of some documents failed.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct FailedToIngestDocuments {
-    pub(crate) documents: Vec<DocumentIdAsObject>,
+    pub(crate) documents: Vec<DocumentInBatchError>,
 }
 
 impl_application_error!(FailedToIngestDocuments => INTERNAL_SERVER_ERROR, ERROR);

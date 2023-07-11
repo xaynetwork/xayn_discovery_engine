@@ -34,6 +34,7 @@ use crate::{
     app::TenantState,
     error::common::{
         BadRequest,
+        DocumentInBatchError,
         DocumentNotFound,
         DocumentPropertyNotFound,
         FailedToDeleteSomeDocuments,
@@ -283,7 +284,7 @@ async fn upsert_documents(
             Ok(document) => documents.push(document),
             Err(error) => {
                 info!("Invalid document '{id}': {error:#?}");
-                invalid_documents.push(id.into());
+                invalid_documents.push(DocumentInBatchError::new(id, &*error));
             }
         }
     }
@@ -399,7 +400,7 @@ async fn upsert_documents(
                 }),
                 Err(error) => {
                     error!("Failed to embed document '{}': {:#?}", document.id, error);
-                    Either::Right(document.id.into())
+                    Either::Right(DocumentInBatchError::new(document.id, &error))
                 }
             }
         });
@@ -414,7 +415,11 @@ async fn upsert_documents(
         storage::Document::insert(&storage, new_documents)
             .await?
             .into_iter()
-            .map(Into::into),
+            .map(|id| DocumentInBatchError {
+                id: id.into(),
+                kind: "InternalServerError".into(),
+                details: Value::Null,
+            }),
     );
 
     if !failed_documents.is_empty() {

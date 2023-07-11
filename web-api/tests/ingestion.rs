@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
@@ -56,7 +56,7 @@ enum Kind {
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 enum Details {
     #[serde(rename = "documents")]
-    Ingest(Value),
+    Ingest(Vec<Value>),
     #[serde(rename = "errors")]
     Delete(Value),
 }
@@ -101,6 +101,7 @@ fn test_ingestion_created() {
 #[test]
 fn test_ingestion_bad_request() {
     test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        let long_snippet = vec!["a"; 2049].join("");
         let error = send_assert_json::<Error>(
             &client,
             client
@@ -108,7 +109,8 @@ fn test_ingestion_bad_request() {
                 .json(&json!({
                     "documents": [
                         { "id": "d!", "snippet": "once in a spring there was a fall" },
-                        { "id": "d2", "snippet": "fall in a once" }
+                        { "id": "d2", "snippet": "fall in a once" },
+                        { "id": "d3", "snippet":  long_snippet },
                     ]
                 }))
                 .build()?,
@@ -117,10 +119,46 @@ fn test_ingestion_bad_request() {
         )
         .await;
         assert_eq!(error.kind, Kind::FailedToValidateDocuments);
+        let failed_documents = match error.details {
+            Some(Details::Ingest(documents)) => documents
+                .into_iter()
+                .map(|mut value| {
+                    let id = value
+                        .as_object_mut()
+                        .and_then(|obj| obj.remove("id"))
+                        .and_then(|id| {
+                            if let Value::String(id) = id {
+                                Some(id)
+                            } else {
+                                None
+                            }
+                        })
+                        .expect("unexpected error format");
+                    (id, value)
+                })
+                .collect::<HashMap<_, _>>(),
+            other => panic!("Unexpected error details {:?}", other),
+        };
+
         assert_eq!(
-            error.details.unwrap(),
-            Details::Ingest(json!([{ "id": "d!" }])),
+            failed_documents["d!"],
+            json!({
+                "kind": "InvalidDocumentId",
+                "details": {
+                    "value": "d!"
+                }
+            })
         );
+        assert_eq!(
+            failed_documents["d3"],
+            json!({
+                "kind": "InvalidDocumentSnippet" ,
+                "details": {
+                    "value": long_snippet
+                }
+            })
+        );
+
         send_assert(
             &client,
             client.get(url.join("/documents/d2/properties")?).build()?,
