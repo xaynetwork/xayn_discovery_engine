@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'Discovery Engine'
+project = 'Documentation'
 copyright = '2023, Xayn'
 author = 'Xayn'
 
@@ -25,6 +25,8 @@ exclude_patterns = []
 html_theme = 'furo'
 
 html_theme_options = {
+    "light_logo": "logo.svg",
+    "dark_logo": "logo_dark.svg",
     "sidebar_hide_name": True,
     "top_of_page_button": "edit",
     "light_css_variables": {
@@ -56,7 +58,7 @@ html_theme_options = {
 }
 
 html_static_path = ['_static']
-html_logo = "logo.svg"
+# html_logo = "logo.svg"
 pygments_style = "bw"
 # pygments_dark_style = "bw"
 openapi_default_renderer = 'httpdomain'
