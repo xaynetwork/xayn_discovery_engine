@@ -1,0 +1,7 @@
+sphinx==7.0.1
+furo==2023.05.20
+sphinxcontrib-httpdomain==1.8.1
+# sphinxcontrib-openapi==0.8.1
+sphinxcontrib-openapi @ git+https://github.com/david-i-berry/sphinxcontrib-openapi@0cb4f46
+sphinx-toolbox==3.4.0
+myst_parser
