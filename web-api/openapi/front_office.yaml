@@ -6,16 +6,16 @@ info:
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
-    With this API, you can handle interactions with documents and request a list of personalized documents.
+    With this API, you can handle interactions with documents and search for personalized documents.
 
     ## Format
-    All the request bodies in this API are JSON encoded and their `Content-Type` headers should be set to `application/json`.
+    All the request bodies in this API are JSON encoded and their `content-type` header should be set to `application/json`.
 
     ## Auth
     The API requires to set the `authorizationToken` header when used with the provided token.
 
     ## User
-    Each method requires a `user_id`.
+    Most methods require a `user_id`.
     From our perspective, a `user_id` is simply required to group interactions together. We don't need to know who that user is, so it is preferred to create this `user_id` in a privacy-preserving way.
     For example, create a hash method which transforms your user into an ID hash.
 
@@ -52,16 +52,16 @@ paths:
       tags:
         - front office
         - search
-      summary: Gets personalized documents for the user.
+      summary: Get personalized documents for the user
       description: |-
-        Returns a list of documents personalized for the given `user_id`.
+        Get a list of documents personalized for the given `user_id`.
         Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
         The documents also contain their properties if this is requested and the properties are not empty.
         Documents that have been interacted with by the user are filtered out from the result.
         Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
       operationId: getPersonalizedDocuments
       parameters:
-        - $ref: './parameters/path/user_id.yml'
+        - $ref: './parameters/path/id.yml#/UserId'
         - name: count
           in: query
           description:
@@ -92,7 +92,7 @@ paths:
             $ref: '#/components/schemas/Filter'
       responses:
         '200':
-          description: successful operation
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -100,7 +100,7 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
         '409':
-          description: impossible to create a personalized list for the user.
+          description: Impossible to create a personalized documents for the user.
           content:
             application/json:
               schema:
@@ -111,14 +111,14 @@ paths:
       tags:
         - front office
         - interaction
-      summary: Adds an interaction between the user and the document.
+      summary: Add a document interaction for the user
       description: |-
-        Use this method to register an interaction between a user and a document.
+        Register an interaction between a user and a document.
         For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
-        For apps, consider implementing a "like" button, where the on click then triggers this method.
+        For apps, consider implementing a "like" button, where the on-click triggers this method.
       operationId: updateUserInteractions
       parameters:
-        - $ref: './parameters/path/user_id.yml'
+        - $ref: './parameters/path/id.yml#/UserId'
       requestBody:
         required: true
         content:
@@ -127,9 +127,9 @@ paths:
               $ref: '#/components/schemas/UserInteractionRequest'
       responses:
         '204':
-          description: successful operation
+          description: Successful operation.
         '400':
-          description: invalid request. User or document id is invalid
+          description: User or document id is invalid.
           content:
             application/json:
               schema:
@@ -140,15 +140,15 @@ paths:
       tags:
         - front office
         - search
-      summary: Search through documents.
+      summary: Semantic search in documents
       description: |-
-        This endpoint allows you to search through the documents in different ways.
-        When a document id is used, the system will return documents that are similar to the one in input.
-        When a query is provided, the system will return documents that are similar to the query.
+        Semantically search through the documents in different ways.
+        When a document `id` is used, the system will return documents that are similar to the one in input.
+        When a `query` is provided, the system will return documents that are similar to the query.
         If `enable_hybrid_search` is passed, then the system will also perform keyword matching between the query and the documents.
         It is possible to personalize the result by passing a user id or history. In this case, the system will consider the user's interests to rank the documents.
-        Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document is more similar to the one in input.
-        The documents also contain their properties if this is requested and the properties are not empty.
+        Each document contains the `id` and the `score`, which is a value between 0 and 1 where a higher value means that the document is more similar to the input.
+        The documents also contain their `properties` if this is requested and the properties are not empty.
       operationId: getSimilarDocuments
       requestBody:
         required: true
@@ -158,7 +158,7 @@ paths:
               $ref: '#/components/schemas/SemanticSearchRequest'
       responses:
         '200':
-          description: successful operation
+          description: Successful operation.
           content:
             application/json:
               schema:
@@ -172,14 +172,14 @@ components:
       $ref: './securitySchemes/auth.yml#/ApiKeyAuth'
   schemas:
     Count:
-      description: Maximum number of personalized documents to return
+      description: Maximum number of documents to return.
       type: integer
       format: int32
       minimum: 1
       maximum: 100
       default: 10
     IncludeProperties:
-      description: Include the properties of each document in the response
+      description: Include the properties of each document in the response.
       type: boolean
       default: true
     FilterCompare:
@@ -188,18 +188,19 @@ components:
         type: object
         properties:
           $eq:
-            $ref: ./schemas/document.yml#/DocumentPropertyString
+            $ref: './schemas/document.yml#/DocumentPropertyString'
           $in:
-            $ref: ./schemas/document.yml#/DocumentPropertyArrayString
-            maxItems: 500
+            allOf:
+              - $ref: './schemas/document.yml#/DocumentPropertyArrayString'
+              - maxItems: 500
           $gt:
-            $ref: ./schemas/time.yml#/Timestamp
+            $ref: './schemas/time.yml#/Timestamp'
           $gte:
-            $ref: ./schemas/time.yml#/Timestamp
+            $ref: './schemas/time.yml#/Timestamp'
           $lt:
-            $ref: ./schemas/time.yml#/Timestamp
+            $ref: './schemas/time.yml#/Timestamp'
           $lte:
-            $ref: ./schemas/time.yml#/Timestamp
+            $ref: './schemas/time.yml#/Timestamp'
         minProperties: 1
         maxProperties: 1
         x-additionalPropertiesName: document property id
@@ -227,10 +228,14 @@ components:
       minProperties: 1
       maxProperties: 1
     Filter:
-      description: |
+      description: |-
         Filter the documents wrt their properties.
+
+        *Comparison:*
         A key must be a valid `DocumentPropertyId`.
         The `DocumentProperty` type corresponding to the `DocumentPropertyId` must support the filter operation.
+
+        *Combination:*
         Combinators may only be nested two times.
       oneOf:
         - $ref: '#/components/schemas/FilterCompare'
@@ -242,6 +247,7 @@ components:
         id:
           $ref: './schemas/document.yml#/DocumentId'
         score:
+          description: A number in the interval `[0, 1]` where higher means better.
           type: number
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
@@ -283,7 +289,7 @@ components:
             exclude_seen:
               type: boolean
               default: true
-              description: |
+              description: |-
                 If true do not include documents the user has already seen as search candidate.
 
                 A trimmed version of the users history might be used for this filter.

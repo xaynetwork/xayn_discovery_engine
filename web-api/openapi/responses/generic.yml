@@ -1,5 +1,5 @@
 Created:
-  description: Successful operation
+  description: Successful operation.
   content:
     application/json:
       schema:

@@ -7,7 +7,7 @@ Id:
   pattern: '^[a-zA-Z0-9\-:@.][a-zA-Z0-9\-:@._]*$'
   minLength: 1
   maxLength: 256
-  example: "valid_id1"
+  example: "id1"
 
 IdNoDot:
   description: |-
@@ -18,4 +18,4 @@ IdNoDot:
   pattern: '^[a-zA-Z0-9\-:@][a-zA-Z0-9\-:@_]*$'
   minLength: 1
   maxLength: 256
-  example: "valid_id1"
+  example: "id1"
