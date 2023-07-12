@@ -173,12 +173,19 @@
   <ul class="current">
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#getting-started">Getting started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#ingest">Ingest</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#recommendations-personalised-documents">Recommendations: Personalised documents</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#search">Search</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#candidates-and-filters">Candidates and Filters</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Api Reference</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference external" href="https://docs.xayn.com/front_office.html">Front Office:</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://docs.xayn.com/back_office.html">Back Office :</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Links</span></p>
+<ul>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/xaynetwork/xayn_discovery_engine">GitHub</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://xaynetwork.github.io/xayn_discovery_engine/front_office.html">Front Office: /users</a></li>
-<li class="toctree-l1"><a class="reference external" href="https://xaynetwork.github.io/xayn_discovery_engine/back_office.html">Back Office : /documents</a></li>
 </ul>
 
 </div>
@@ -228,10 +235,11 @@ With the front office, it is also possible to implement other use cases such as 
 We have two authentication tokens, one to connect to the back office and one to connect to the front office.<br />
 To authenticate, we need to set the <code class="docutils literal notranslate"><span class="pre">authenticationToken</span></code> header to one of them, depending on what we need to do.
 As our API expects all request bodies to be JSON encoded, we also need to set the <code class="docutils literal notranslate"><span class="pre">Content-Type</span></code> header to <code class="docutils literal notranslate"><span class="pre">application/json</span></code>.</p>
+</section>
 <section id="ingest">
-<h2>Ingest<a class="headerlink" href="#ingest" title="Permalink to this heading">#</a></h2>
-<p>We can use the back office endpoint  <a class="reference internal" href="#%60/documents%60"><span class="xref myst">https://xaynetwork.github.io/xayn_discovery_engine/back_office.html#operation/createDocuments</span></a> to ingest documents.</p>
-<p>We will ingest a document that represents this article: [https://xayn.com/blog/the-initial-challenge] (https://xayn.com/blog/the-initial-challenge).</p>
+<h1>Ingest<a class="headerlink" href="#ingest" title="Permalink to this heading">#</a></h1>
+<p>We can use the back office endpoint  <a class="reference external" href="https:/docs.xayn.com/back_office.html#operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">/documents</span></code></a> to ingest documents.</p>
+<p>We will ingest a document that represents this article: <a class="reference external" href="https://xayn.com/blog/the-initial-challenge">https://xayn.com/blog/the-initial-challenge</a>.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/documents<span class="w"> </span>
 <span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;back_office_token&gt;&quot;</span><span class="w"> </span>
 <span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
@@ -253,15 +261,15 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 </div>
 <p>The endpoint takes a list of documents to ingest.</p>
 <p>Each document has a unique identifier that can be used to refer to it in the system.</p>
-<p>The field ‘snippet’ field is used to inform the system about the content of the document; it is  used as input to Xaynia to generate a mathematical representation of the model that we can use to match similar documents.</p>
+<p>The field <code class="docutils literal notranslate"><span class="pre">snippet</span></code> field is used to inform the system about the content of the document; it is  used as input to Xaynia to generate a mathematical representation of the model that we can use to match similar documents.</p>
 <p>For this reason, it is essential that the snippet clearly represents the content of the article. In this case, we took a few representative sentences from the article and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per document option ‘summarise’ option per document; when enabled, the system will try to summarise the content of the snippet and use it as the input for the model.</p>
 <p>The ‘properties’ field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.</p>
 <p>The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see <link> for more information on properties.</p>
 <p>This example assumes that we will eventually display the returned documents as a ‘for-you’ section, where we want to display an article’s image, title, text preview, and a link (for click-through), so we have included these specific properties during ingestion.</p>
 </section>
-<section id="personalised-documents">
-<h2>Personalised documents<a class="headerlink" href="#personalised-documents" title="Permalink to this heading">#</a></h2>
-<p>After ingestion, we can use the front office to retrieve personalised documents for our users and implement a ‘for you’ section.</p>
+<section id="recommendations-personalised-documents">
+<h1>Recommendations: Personalised documents<a class="headerlink" href="#recommendations-personalised-documents" title="Permalink to this heading">#</a></h1>
+<p>After ingestion, we can use the front office to retrieve recommendations, which we call personalised documents, and implement a ‘for you’ section.</p>
 <p>From a system perspective, a user is represented by an ID that is needed to group their interactions. We don’t need to know who this user is, so it is preferable to create this ID in a privacy-protecting way. For example, create a hash method that converts your user into an ID hash. Ensure you don’t use any sensitive or personally identifiable information (PII).</p>
 <p>Let’s use <code class="docutils literal notranslate"><span class="pre">u1234</span></code> as the user ID for our example.</p>
 <p>We ask the system for personalised documents for this user.</p>
@@ -324,24 +332,86 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <p>We also have a ‘score’ field which represents how well the documents match the user’s interests. The higher the number, the better the documents match.</p>
 </section>
 <section id="search">
-<h2>Search<a class="headerlink" href="#search" title="Permalink to this heading">#</a></h2>
+<h1>Search<a class="headerlink" href="#search" title="Permalink to this heading">#</a></h1>
+<p>Depending on the use-case searching for documents can be achieved as a search for documents <em>similar</em> to a given document or as a <em>free-text search</em>. Both variants can then be run as a anonymous search or a search that is personalized. Personalization comes in two fashions, with a <em>user-id</em> or by providing a interaction <em>history</em>.</p>
 <section id="similar-documents">
-<h3>Similar documents<a class="headerlink" href="#similar-documents" title="Permalink to this heading">#</a></h3>
-<p>More like this</p>
+<h2>Similar documents<a class="headerlink" href="#similar-documents" title="Permalink to this heading">#</a></h2>
+<p>In this search variant only a <em>document id</em> must be provided to the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code></a> endpoint.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
+<span class="s1">        &quot;document&quot;: { &quot;id&quot;: &quot;xayn_cd5604c&quot; }       </span>
+<span class="s1">    }&#39;</span><span class="w"> </span>
+</pre></div>
+</div>
+<p>The result contains a list of documents that are similar to the <code class="docutils literal notranslate"><span class="pre">snippet</span></code> of the provided <em>document id</em>.</p>
 </section>
-<section id="text-search">
-<h3>Text search<a class="headerlink" href="#text-search" title="Permalink to this heading">#</a></h3>
-<p>text search and hybrid search</p>
-</section>
+<section id="free-text-search">
+<h2>Free Text search<a class="headerlink" href="#free-text-search" title="Permalink to this heading">#</a></h2>
+<p>Just like <a class="reference internal" href="#similar-documents"><span class="xref myst">Similar documents</span></a> it is also possible to run a free text search.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
+<span class="s1">        &quot;document&quot;: { &quot;query&quot;: &quot;Privacy and security&quot; }       </span>
+<span class="s1">    }&#39;</span><span class="w"> </span>
+</pre></div>
+</div>
+<p>The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments">hybrid search option</a> enabled, that combines semantic and bm25 search:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="w">    </span><span class="p">{</span><span class="w"> </span>
+<span class="w">        </span><span class="nt">&quot;document&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Privacy and security&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">        </span><span class="nt">&quot;enable_hybrid_search&quot;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span>
+</pre></div>
+</div>
 </section>
 <section id="personalised-search">
 <h2>Personalised search<a class="headerlink" href="#personalised-search" title="Permalink to this heading">#</a></h2>
-<p>with id or history</p>
+<p>Any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user history, that is a list of <code class="docutils literal notranslate"><span class="pre">interactions</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
+<span class="s1">        &quot;document&quot;: { &quot;query&quot;: &quot;Privacy and security&quot; },</span>
+<span class="s1">        &quot;personalize&quot;: {</span>
+<span class="s1">            &quot;exclude_seen&quot;: true,</span>
+<span class="s1">            &quot;user&quot;: {</span>
+<span class="s1">                &quot;id&quot;: &quot;u1234&quot;,</span>
+<span class="s1">            }</span>
+<span class="s1">        }</span>
+<span class="s1">    }&#39;</span><span class="w"> </span>
+</pre></div>
+</div>
+<p>The result, again is a list of documents, but this time adjusted to the weights of the provided <a class="reference internal" href="#recommendations-personalised-documents"><span class="xref myst">user</span></a>.
+Alternately a <code class="docutils literal notranslate"><span class="pre">history</span></code> can be used:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;personalize&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;exclude_seen&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">       </span><span class="nt">&quot;history&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id1&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-14T20:22:50Z&quot;</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="p">{</span>
+<span class="w">                </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id2&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-15T20:22:50Z&quot;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Note: <code class="docutils literal notranslate"><span class="pre">&quot;exclude_seen&quot;:</span> <span class="pre">true</span></code> (default true) would filter documents out, that were interacted with or have been provided by the history.</p>
 </section>
-<section id="candidate-api">
-<h2>Candidate api<a class="headerlink" href="#candidate-api" title="Permalink to this heading">#</a></h2>
-<p>some documents can be used only to learn user interests, and they will not be returned to the user</p>
 </section>
+<section id="candidates-and-filters">
+<h1>Candidates and Filters<a class="headerlink" href="#candidates-and-filters" title="Permalink to this heading">#</a></h1>
+<p>For more advanced scenarios, in which just a portion of the documents should be returned there are apis on the front and on the back office:</p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://docs.xayn.com/back_office.html#tag/back-office/operation/replaceDocumentCandidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a>: is a back-office api that allows to filter documents for all apis. Those documents are not deleted (and so they can still influence personalization).</p></li>
+<li><p><a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span> <span class="pre">filter</span> <span class="pre">property</span></code></a>: is a front-office api, that allows to define complex filter scenarios for any user facing request.</p></li>
+</ul>
 </section>
 
         </article>
