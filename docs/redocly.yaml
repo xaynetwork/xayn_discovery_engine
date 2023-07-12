@@ -1,7 +1,6 @@
-
 theme:
   openapi:
-    disableSearch: true
+    disableSearch: false
     disableGoogleFont: "true"
     schemaExpansionLevel: 3
     disableSidebar: true
@@ -9,12 +8,18 @@ theme:
       languages:
         - lang: curl
         - lang: Python
-    # theme:
-    #   sidebar:
-    #     width: "0px"
-    #   rightPanel:
-    #     textColor: "ivory"
-    #     backgroundColor: "#001036"
-    #   typography:
-    #     links:
-    #       color: "#0090cc"
+    theme:
+      sidebar:
+        backgroundColor: '#F7F8FA'
+      # rightPanel:
+      #   textColor: "#515151"
+      #   backgroundColor: "white"
+      typography:
+        fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji'
+        fontSize: 1.1em
+        headings:
+          fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif, Apple Color Emoji, Segoe UI Emoji'
+        code:
+          fontFamily: 'SFMono-Regular, Menlo, Consolas, Monaco, Liberation Mono, Lucida Console, monospace'
+        links:
+          color: "#544998"
