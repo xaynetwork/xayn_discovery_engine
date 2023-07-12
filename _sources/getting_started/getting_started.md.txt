@@ -68,7 +68,7 @@ From a system perspective, a user is represented by an ID that is needed to grou
 
 Let's use `u1234` as the user ID for our example. 
 
-We ask the system for personalised documents for this user. 
+We ask the system for [personalised documents](https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments) for this user. 
 
   
 ```bash
@@ -86,7 +86,7 @@ When there is an error, the system uses the 'kind' field to specify what kind of
 
 In this case, we have 'NotEnoughInteractions'. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time. 
 
-We can add an interaction between our user `u1234` and the document `xayn_cd5604c`: 
+We can add an [interaction](https://docs.xayn.com/front_office.html#tag/interaction) between our user `u1234` and the document `xayn_cd5604c`: 
 
 ```bash
 curl -X POST https://<url>/users/u1234/interactions 
@@ -231,5 +231,5 @@ Note: `"exclude_seen": true` (default true) would filter documents out, that wer
 
 For more advanced scenarios, in which just a portion of the documents should be returned there are apis on the front and on the back office:
 
- - [`/candidates`](https://docs.xayn.com/back_office.html#tag/back-office/operation/replaceDocumentCandidates): is a back-office api that allows to filter documents for all apis. Those documents are not deleted (and so they can still influence personalization).
+ - [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates): is a back-office api that allows to filter documents for all apis. Those documents are not deleted (and so they can still influence personalization).
  - [`/semantic_search filter property`](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments): is a front-office api, that allows to define complex filter scenarios for any user facing request.

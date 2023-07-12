@@ -272,7 +272,7 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <p>After ingestion, we can use the front office to retrieve recommendations, which we call personalised documents, and implement a ‘for you’ section.</p>
 <p>From a system perspective, a user is represented by an ID that is needed to group their interactions. We don’t need to know who this user is, so it is preferable to create this ID in a privacy-protecting way. For example, create a hash method that converts your user into an ID hash. Ensure you don’t use any sensitive or personally identifiable information (PII).</p>
 <p>Let’s use <code class="docutils literal notranslate"><span class="pre">u1234</span></code> as the user ID for our example.</p>
-<p>We ask the system for personalised documents for this user.</p>
+<p>We ask the system for <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments">personalised documents</a> for this user.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents<span class="w"> </span>
 <span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
 </pre></div>
@@ -283,7 +283,7 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 </div>
 <p>When there is an error, the system uses the ‘kind’ field to specify what kind of error has occurred. There may also be a <code class="docutils literal notranslate"><span class="pre">details</span></code> field.</p>
 <p>In this case, we have ‘NotEnoughInteractions’. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.</p>
-<p>We can add an interaction between our user <code class="docutils literal notranslate"><span class="pre">u1234</span></code> and the document <code class="docutils literal notranslate"><span class="pre">xayn_cd5604c</span></code>:</p>
+<p>We can add an <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/interaction">interaction</a> between our user <code class="docutils literal notranslate"><span class="pre">u1234</span></code> and the document <code class="docutils literal notranslate"><span class="pre">xayn_cd5604c</span></code>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/users/u1234/interactions<span class="w"> </span>
 <span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
 <span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
@@ -409,7 +409,7 @@ Alternately a <code class="docutils literal notranslate"><span class="pre">histo
 <h1>Candidates and Filters<a class="headerlink" href="#candidates-and-filters" title="Permalink to this heading">#</a></h1>
 <p>For more advanced scenarios, in which just a portion of the documents should be returned there are apis on the front and on the back office:</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://docs.xayn.com/back_office.html#tag/back-office/operation/replaceDocumentCandidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a>: is a back-office api that allows to filter documents for all apis. Those documents are not deleted (and so they can still influence personalization).</p></li>
+<li><p><a class="reference external" href="https://docs.xayn.com/back_office.html#tag/candidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a>: is a back-office api that allows to filter documents for all apis. Those documents are not deleted (and so they can still influence personalization).</p></li>
 <li><p><a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span> <span class="pre">filter</span> <span class="pre">property</span></code></a>: is a front-office api, that allows to define complex filter scenarios for any user facing request.</p></li>
 </ul>
 </section>
