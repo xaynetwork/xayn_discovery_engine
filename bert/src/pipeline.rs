@@ -98,17 +98,25 @@ impl<T, P> Pipeline<T, P> {
 
 #[cfg(test)]
 mod tests {
-    use xayn_test_utils::asset::smbert_mocked;
+    use xayn_test_utils::asset::{e5_mocked, smbert_mocked};
 
     use super::*;
     use crate::{
         config::Config,
         pooler::{AveragePooler, FirstPooler, NonePooler},
-        tokenizer::bert::Tokenizer,
+        tokenizer::Tokenizer,
     };
 
     fn pipeline<P>() -> Pipeline<Tokenizer, P> {
         Config::new(smbert_mocked().unwrap())
+            .unwrap()
+            .with_pooler()
+            .build()
+            .unwrap()
+    }
+
+    fn e5_pipeline<P>() -> Pipeline<Tokenizer, P> {
+        Config::new(e5_mocked().unwrap())
             .unwrap()
             .with_pooler()
             .build()
@@ -142,6 +150,18 @@ mod tests {
     #[test]
     fn test_pipeline_average() {
         let pipeline = pipeline::<AveragePooler>();
+        let shape = [pipeline.embedding_size()];
+
+        let embeddings = pipeline.run("This is a sequence.").unwrap();
+        assert_eq!(embeddings.shape(), shape);
+
+        let embeddings = pipeline.run("").unwrap();
+        assert_eq!(embeddings.shape(), shape);
+    }
+
+    #[test]
+    fn test_e5_pipeline() {
+        let pipeline = e5_pipeline::<AveragePooler>();
         let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();

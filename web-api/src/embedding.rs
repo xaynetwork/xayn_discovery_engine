@@ -14,13 +14,7 @@
 
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
-use xayn_ai_bert::{
-    tokenizer::bert,
-    AveragePooler,
-    AvgBert,
-    Config as BertConfig,
-    NormalizedEmbedding,
-};
+use xayn_ai_bert::{AvgEmbedder, Config as BertConfig, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
@@ -41,7 +35,7 @@ impl Default for Config {
 }
 
 pub(crate) struct Embedder {
-    bert: AvgBert,
+    bert: AvgEmbedder,
 }
 
 impl Embedder {
@@ -65,14 +59,10 @@ impl Embedder {
         if !config_file.exists() {
             bail!(
                 "Fail to load Embedder: <assets>/config.toml doesn't exist: {}",
-                config_file.display()
+                config_file.display(),
             );
         }
-        let bert = BertConfig::new(path)?
-            .with_tokenizer::<bert::Tokenizer>()
-            .with_pooler::<AveragePooler>()
-            .with_token_size(config.token_size)?
-            .build()?;
+        let bert = BertConfig::new(path)?.with_pooler().build()?;
 
         Ok(Embedder { bert })
     }

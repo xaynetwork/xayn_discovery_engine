@@ -418,7 +418,10 @@ fn create_search_strategy(
     let Some(query) = query else {
         return SearchStrategy::Knn;
     };
-    let Some(DevOptions { hybrid: Some(hybrid) }) = dev else {
+    let Some(DevOptions {
+        hybrid: Some(hybrid),
+    }) = dev
+    else {
         return SearchStrategy::Hybrid { query };
     };
 

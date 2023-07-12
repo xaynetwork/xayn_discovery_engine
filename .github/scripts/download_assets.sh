@@ -49,9 +49,10 @@ if [ $# -gt 0 ]; then
         shift 2
     done
 else
-    download xaynia v0002
+    download qasmbert v0002
     download smbert v0003
-    download smbert_mocked v0003
-    download sjbert v0003
-    download smroberta_tokenizer v0000
+    download smbert v0004
+    download smbert_mocked v0004
+    download e5_mocked v0000
+    download xaynia v0002
 fi

@@ -12,12 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pub mod bert;
-pub mod roberta;
-
 use derive_more::{Deref, From};
+use figment::value::Dict;
 use ndarray::Array2;
-use tokenizers::Error;
+use tokenizers::{
+    tokenizer::Tokenizer as HfTokenizer,
+    utils::{
+        padding::{PaddingDirection, PaddingParams, PaddingStrategy},
+        truncation::{TruncationDirection, TruncationParams, TruncationStrategy},
+    },
+    Error,
+};
 use tract_onnx::prelude::{tvec, IntoArcTensor, TValue, TVec};
 
 use crate::config::Config;
@@ -75,4 +80,131 @@ pub trait Tokenize {
 
     /// Encodes the sequence.
     fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error>;
+}
+
+/// A pre-configured huggingface tokenizer.
+pub struct Tokenizer {
+    tokenizer: HfTokenizer,
+    add_special_tokens: bool,
+    use_type_ids: bool,
+}
+
+impl Tokenize for Tokenizer {
+    fn new<P>(config: &Config<Self, P>) -> Result<Self, Error> {
+        let mut tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json"))?;
+        let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
+        let padding = PaddingParams {
+            strategy: PaddingStrategy::Fixed(config.token_size),
+            direction: PaddingDirection::Right,
+            pad_to_multiple_of: None,
+            pad_id: tokenizer
+                .token_to_id(&padding_token)
+                .ok_or("missing padding token")?,
+            pad_type_id: 0,
+            pad_token: padding_token,
+        };
+        let truncation = TruncationParams {
+            direction: TruncationDirection::Right,
+            max_length: config.token_size,
+            strategy: TruncationStrategy::LongestFirst,
+            stride: 0,
+        };
+        tokenizer.with_padding(Some(padding));
+        tokenizer.with_truncation(Some(truncation));
+        let use_type_ids = config.extract::<Dict>("model.input")?.len() > 2;
+        let add_special_tokens = config.extract::<bool>("tokenizer.add-special-tokens")?;
+
+        Ok(Tokenizer {
+            tokenizer,
+            add_special_tokens,
+            use_type_ids,
+        })
+    }
+
+    fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
+        let encoding = self
+            .tokenizer
+            .encode(sequence.as_ref(), self.add_special_tokens)?;
+        let array_from =
+            |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
+
+        Ok(Encoding {
+            token_ids: array_from(encoding.get_ids()),
+            attention_mask: array_from(encoding.get_attention_mask()),
+            type_ids: self
+                .use_type_ids
+                .then(|| array_from(encoding.get_type_ids())),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ndarray::{arr1, s};
+    use xayn_test_utils::asset::{e5_mocked, smbert_mocked};
+
+    use super::*;
+
+    #[test]
+    fn test_smbert() {
+        let config = Config::new(smbert_mocked().unwrap()).unwrap();
+        let tokenizer = Tokenizer::new(&config).unwrap();
+        let encoding = tokenizer
+            .encode("These are normal, common EMBEDDINGS.")
+            .unwrap();
+        assert_eq!(encoding.token_ids.shape(), [1, 257]);
+        assert_eq!(
+            encoding.token_ids.slice(s![0, ..20]),
+            arr1(&[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
+        assert_eq!(
+            encoding.attention_mask.slice(s![0, ..20]),
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
+        assert_eq!(
+            encoding.type_ids.unwrap().slice(s![0, ..20]),
+            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
+    }
+
+    #[test]
+    fn test_smbert_troublemakers() {
+        let config = Config::new(smbert_mocked().unwrap()).unwrap();
+        let tokenizer = Tokenizer::new(&config).unwrap();
+        let encoding = tokenizer
+            .encode("for “life-threatening storm surge” according")
+            .unwrap();
+        assert_eq!(encoding.token_ids.shape(), [1, 257]);
+        assert_eq!(
+            encoding.token_ids.slice(s![0, ..15]),
+            arr1(&[2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0])
+        );
+        assert_eq!(
+            encoding.attention_mask.slice(s![0, ..15]),
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0])
+        );
+        assert_eq!(
+            encoding.type_ids.unwrap().slice(s![0, ..15]),
+            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
+    }
+
+    #[test]
+    fn test_e5() {
+        let config = Config::new(e5_mocked().unwrap()).unwrap();
+        let tokenizer = Tokenizer::new(&config).unwrap();
+        let encoding = tokenizer
+            .encode("These are normal, common EMBEDDINGS.")
+            .unwrap();
+        assert_eq!(encoding.token_ids.shape(), [1, 258]);
+        assert_eq!(
+            encoding.token_ids.slice(s![0, ..15]),
+            arr1(&[0, 32255, 621, 3638, 4, 39210, 19515, 20090, 24057, 142_766, 5, 2, 1, 1, 1])
+        );
+        assert_eq!(
+            encoding.attention_mask.slice(s![0, ..15]),
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+        );
+        assert!(encoding.type_ids.is_none());
+    }
 }

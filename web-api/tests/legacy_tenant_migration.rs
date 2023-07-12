@@ -282,6 +282,20 @@ fn test_full_migration() {
             .await?;
         conn.close().await?;
 
+        let config = build_test_config_from_parts_and_model(
+            &pg_config,
+            &es_config,
+            Table::new(),
+            "smbert_v0004",
+        );
+        let args = &[
+            "integration-test",
+            "--bind-to",
+            "127.0.0.1:0",
+            "--config",
+            &format!("inline:{config}"),
+        ];
+
         let config = config::load_with_args([""; 0], args);
         let ingestion = start::<Ingestion>(config).await?;
         info!("started new ingestion");

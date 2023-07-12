@@ -36,24 +36,24 @@ fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
         .canonicalize()
 }
 
+/// Resolves the path to the qasmbert.
+pub fn qasmbert() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "qasmbert_v0002"])
+}
+
 /// Resolves the path to the smbert.
 pub fn smbert() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "xaynia_v0002"])
+    resolve_path(&[DATA_DIR, "smbert_v0004"])
 }
 
 /// Resolves the path to the mocked smbert.
 pub fn smbert_mocked() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smbert_mocked_v0003"])
+    resolve_path(&[DATA_DIR, "smbert_mocked_v0004"])
 }
 
-/// Resolves the path to the sjbert.
-pub fn sjbert() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "sjbert_v0003"])
-}
-
-/// Resolves the path to the smroberta.
-pub fn smroberta() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smroberta_tokenizer_v0000"])
+/// Resolves the path to the e5 like model.
+pub fn e5_mocked() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "e5_mocked_v0000"])
 }
 
 #[cfg(test)]
@@ -71,7 +71,12 @@ mod tests {
     }
 
     #[test]
-    fn test_sjbert() {
-        assert!(sjbert().is_ok());
+    fn test_qasmbert() {
+        assert!(qasmbert().is_ok());
+    }
+
+    #[test]
+    fn test_e5_mocked() {
+        assert!(e5_mocked().is_ok());
     }
 }
