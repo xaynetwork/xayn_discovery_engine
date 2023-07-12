@@ -59,14 +59,10 @@ impl Embedder {
         if !config_file.exists() {
             bail!(
                 "Fail to load Embedder: <assets>/config.toml doesn't exist: {}",
-                config_file.display()
+                config_file.display(),
             );
         }
-        let bert = BertConfig::new(path)
-            .unwrap()
-            .with_pooler()
-            .build()
-            .unwrap();
+        let bert = BertConfig::new(path)?.with_pooler().build()?;
 
         Ok(Embedder { bert })
     }
