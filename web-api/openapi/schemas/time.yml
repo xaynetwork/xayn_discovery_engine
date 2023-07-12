@@ -18,7 +18,7 @@ PublishedAfter:
     $ref: '#/PublicationDate/minLength'
   maxLength:
     $ref: '#/PublicationDate/maxLength'
-  description: Deprecated. Use a `filter` on the document property instead.
+  description: Deprecated. Use a `filter` on the document property instead, for example on `publication_date`.
 
 Timestamp:
   type: string
@@ -28,7 +28,7 @@ Timestamp:
   # but to avoid any accidents we go with 40
   maxLength: 40
   example: "2000-05-14T20:22:50Z"
-  description: |
+  description: |-
     A RFC3339 compatible date-time
 
     - can be in the future
