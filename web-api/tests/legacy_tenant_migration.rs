@@ -185,7 +185,7 @@ fn test_full_migration() {
             &pg_config,
             &es_config,
             Table::new(),
-            "smbert_v0003",
+            "smbert_v0004",
         );
 
         info!("test setup done");

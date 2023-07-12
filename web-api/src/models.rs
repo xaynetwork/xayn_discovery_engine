@@ -131,7 +131,7 @@ fn is_valid_string(value: &str, len: usize) -> bool {
 fn is_valid_string_empty_ok(value: &str, len: usize) -> bool {
     static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]*$").unwrap());
 
-    RE.is_match(value)
+    (0..=len).contains(&value.len()) && RE.is_match(value)
 }
 
 string_wrapper! {
