@@ -1,0 +1,28 @@
+{
+    "mappings": {
+        "dynamic": "strict",
+        "properties": {
+            "snippet": {
+                "type": "text"
+            },
+            "embedding": {
+                "type": "dense_vector",
+                "dims": 384,
+                "index": true,
+                "similarity": "dot_product"
+            },
+            "tags": {
+                "type": "keyword"
+            },
+            "properties": {
+                "dynamic": false,
+                "properties": {
+                    "publication_date": {
+                        "type": "date",
+                        "ignore_malformed": true
+                    }
+                }
+            }
+        }
+    }
+}

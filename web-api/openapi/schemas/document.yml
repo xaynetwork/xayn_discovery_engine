@@ -1,0 +1,139 @@
+DocumentId:
+  description:
+    $ref: './id.yml#/Id/description'
+  $ref: './id.yml#/Id'
+
+DocumentPropertyId:
+  description:
+    $ref: './id.yml#/IdNoDot/description'
+  $ref: './id.yml#/IdNoDot'
+
+DocumentPropertyString:
+  description: |-
+    Arbitrary string property that can be attached to a document.
+    The length constraints are in bytes, not characters.
+  type: string
+  pattern: '^[^\x00]+$'
+  minLength: 0
+  maxLength: 2048
+
+DocumentPropertyArrayString:
+  description: |-
+    Arbitrary array of strings property that can be attached to a document.
+    The item length constraints are in bytes, not characters.
+  type: array
+  items:
+    $ref: '#/DocumentPropertyString'
+  minItems: 0
+  maxItems: 100
+
+DocumentProperty:
+  description: |-
+    Mostly arbitrary data that can be attached to a document. A subset of JSON is supported.
+    When a property is set to null or an empty array, it is treated as if that property had no values.
+    This means that they won't appear in searches with filters on these properties.
+  oneOf:
+    - type: 'null'
+    - type: boolean
+    - type: number
+    - $ref: '#/DocumentPropertyString'
+    - $ref: '#/DocumentPropertyArrayString'
+    - $ref: './time.yml#/Timestamp'
+
+DocumentProperties:
+  description: |-
+    Mostly arbitrary properties that can be attached to a document, up to 2.5KB in size.
+    A key must be a valid `DocumentPropertyId`.
+  type: object
+  properties:
+    publication_date:
+      $ref: './time.yml#/PublicationDate'
+  additionalProperties:
+    $ref: '#/DocumentProperty'
+    x-additionalPropertiesName: document property id
+
+DocumentTag:
+  description: |-
+    A tag of a document can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
+    Enclosing whitespace will be trimmed.
+    The length constraints are in bytes, not characters.
+  type: string
+  pattern: '^[^\x00]+$'
+  minLength: 1
+  maxLength: 256
+
+DocumentSearchQuery:
+  description: |-
+    A search query can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
+    The length constraints are in bytes, not characters.
+  type: string
+  pattern: ".+"
+  minLength: 1
+  maxLength: 512
+  example: "inflation is causing world-wide price hikes, especially for energy and food consumption"
+
+History:
+  type: array
+  minItems: 1
+  maxItems: 100
+  description: |-
+    The history is an sequence of entries representing
+    documents visited by the user.
+
+    It is ordered from the  "oldest" interaction at index 0 to the "newest" interaction
+    at the highest index.
+
+    History entries do not need to have a timestamp, if no timestamp is given it is
+    approximated in some way based on timestamps of neighboring documents and if non
+    have a timestamp they are all assumed to have happened "just now" for simplicity.
+  items:
+    $ref: '#/HistoryEntry'
+
+HistoryEntry:
+  type: object
+  required: [id]
+  properties:
+    id:
+      $ref: '#/DocumentId'
+    timestamp:
+      $ref: './time.yml#/Timestamp'
+
+InputDocument:
+  description: |-
+    Information about a document provided as input for an search.
+
+    You can either include an existing document `id`, or use `query` which can hold arbitrary free text.
+  type: object
+  properties:
+    id:
+      $ref: '#/DocumentId'
+    query:
+      $ref: '#/DocumentSearchQuery'
+  minProperties: 1
+  maxProperties: 1
+
+IndexedPropertiesSchema:
+  type: object
+  description: |-
+    A mapping of document property ids to indexed property definitions.
+
+    Be aware that the keys of the object must be valid `DocumentPropertyId`.
+  additionalProperties:
+    $ref: '#/IndexedPropertyDefinition'
+    x-additionalPropertiesName: document property id
+
+IndexedPropertyDefinition:
+  type: object
+  required: [type]
+  properties:
+    type:
+      $ref: '#/IndexedPropertyType'
+
+IndexedPropertyType:
+  type: string
+  enum:
+    - boolean
+    - number
+    - keyword
+    - keyword[]
+    - date

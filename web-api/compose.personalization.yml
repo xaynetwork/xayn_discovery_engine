@@ -1,0 +1,20 @@
+services:
+  personalization:
+    image: xayn-web-api-personalization:latest
+    command: "--bind-to=0.0.0.0:3031"
+    restart: "no"
+    environment:
+      XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL:  "postgres://user:pw@postgres:5432/xayn"
+      XAYN_WEB_API__STORAGE__ELASTIC__URL: "http://elasticsearch:9200/"
+    ports:
+      - "${HOST_PORT_SCOPE:-30}31:3031"
+    depends_on:
+      db_ready:
+        condition: service_completed_successfully
+    networks:
+      - internal
+      - public
+
+networks:
+  internal:
+  public:

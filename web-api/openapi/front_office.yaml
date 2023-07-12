@@ -1,0 +1,354 @@
+openapi: 3.1.0
+
+info:
+  title: Front Office API
+  version: 2.3.0
+  description: |-
+    # Front Office
+    The front office is typically used within front-end apps, for example a website or a mobile application.
+    With this API, you can handle interactions with documents and search for personalized documents.
+
+    ## Format
+    All the request bodies in this API are JSON encoded and their `content-type` header should be set to `application/json`.
+
+    ## Auth
+    The API requires to set the `authorizationToken` header when used with the provided token.
+
+    ## User
+    Most methods require a `user_id`.
+    From our perspective, a `user_id` is simply required to group interactions together. We don't need to know who that user is, so it is preferred to create this `user_id` in a privacy-preserving way.
+    For example, create a hash method which transforms your user into an ID hash.
+
+    ## Document
+    A document here is represented by its `id` and optional `properties`.
+    In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
+    For example, it could contain an image url, a full article url, the publication date, the author or much more.
+    The properties that were added when the document was submitted to us, are just mirrored here.
+  x-logo:
+    url: https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/637f7edd68c1ae2f12d4689e_Xayn%20Logo%202022%20-%20Footer.svg
+    altText: Xayn
+tags:
+  - name: front office
+    description: Handles interactions between users and documents and allows to fetch personalized documents per user.
+    x-traitTag: true
+  - name: interaction
+    x-displayName: Interaction
+  - name: search
+    x-displayName: Search
+x-tagGroups:
+  - name: Interaction
+    tags:
+      - interaction
+  - name: Search
+    tags:
+      - search
+
+security:
+  - ApiKeyAuth: []
+
+paths:
+  /users/{user_id}/personalized_documents:
+    get:
+      tags:
+        - front office
+        - search
+      summary: Get personalized documents for the user
+      description: |-
+        Get a list of documents personalized for the given `user_id`.
+        Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+        The documents also contain their properties if this is requested and the properties are not empty.
+        Documents that have been interacted with by the user are filtered out from the result.
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
+      operationId: getPersonalizedDocuments
+      parameters:
+        - $ref: './parameters/path/id.yml#/UserId'
+        - name: count
+          in: query
+          description:
+            $ref: '#/components/schemas/Count/description'
+          required: false
+          schema:
+            $ref: '#/components/schemas/Count'
+        - name: published_after
+          in: query
+          description:
+            $ref: './schemas/time.yml#/PublishedAfter/description'
+          required: false
+          schema:
+            $ref: './schemas/time.yml#/PublishedAfter'
+        - name: include_properties
+          in: query
+          description:
+            $ref: '#/components/schemas/IncludeProperties/description'
+          required: false
+          schema:
+            $ref: '#/components/schemas/IncludeProperties'
+        - name: filter
+          in: query
+          description:
+            $ref: '#/components/schemas/Filter/description'
+          required: false
+          schema:
+            $ref: '#/components/schemas/Filter'
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: Impossible to create a personalized documents for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
+
+  /users/{user_id}/interactions:
+    patch:
+      tags:
+        - front office
+        - interaction
+      summary: Add a document interaction for the user
+      description: |-
+        Register an interaction between a user and a document.
+        For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
+        For apps, consider implementing a "like" button, where the on-click triggers this method.
+      operationId: updateUserInteractions
+      parameters:
+        - $ref: './parameters/path/id.yml#/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInteractionRequest'
+      responses:
+        '204':
+          description: Successful operation.
+        '400':
+          description: User or document id is invalid.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserInteractionError'
+
+  /semantic_search:
+    post:
+      tags:
+        - front office
+        - search
+      summary: Semantic search in documents
+      description: |-
+        Semantically search through the documents in different ways.
+        When a document `id` is used, the system will return documents that are similar to the one in input.
+        When a `query` is provided, the system will return documents that are similar to the query.
+        If `enable_hybrid_search` is passed, then the system will also perform keyword matching between the query and the documents.
+        It is possible to personalize the result by passing a user id or history. In this case, the system will consider the user's interests to rank the documents.
+        Each document contains the `id` and the `score`, which is a value between 0 and 1 where a higher value means that the document is more similar to the input.
+        The documents also contain their `properties` if this is requested and the properties are not empty.
+      operationId: getSimilarDocuments
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SemanticSearchRequest'
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SemanticSearchResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      $ref: './securitySchemes/auth.yml#/ApiKeyAuth'
+  schemas:
+    Count:
+      description: Maximum number of documents to return.
+      type: integer
+      format: int32
+      minimum: 1
+      maximum: 100
+      default: 10
+    IncludeProperties:
+      description: Include the properties of each document in the response.
+      type: boolean
+      default: true
+    FilterCompare:
+      type: object
+      additionalProperties:
+        type: object
+        properties:
+          $eq:
+            $ref: './schemas/document.yml#/DocumentPropertyString'
+          $in:
+            allOf:
+              - $ref: './schemas/document.yml#/DocumentPropertyArrayString'
+              - maxItems: 500
+          $gt:
+            $ref: './schemas/time.yml#/Timestamp'
+          $gte:
+            $ref: './schemas/time.yml#/Timestamp'
+          $lt:
+            $ref: './schemas/time.yml#/Timestamp'
+          $lte:
+            $ref: './schemas/time.yml#/Timestamp'
+        minProperties: 1
+        maxProperties: 1
+        x-additionalPropertiesName: document property id
+      minProperties: 1
+      maxProperties: 1
+    FilterCombine:
+      type: object
+      properties:
+        $and:
+          type: array
+          minItems: 0
+          maxItems: 10
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/FilterCompare'
+              - $ref: '#/components/schemas/FilterCombine'
+        $or:
+          type: array
+          minItems: 0
+          maxItems: 10
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/FilterCompare'
+              - $ref: '#/components/schemas/FilterCombine'
+      minProperties: 1
+      maxProperties: 1
+    Filter:
+      description: |-
+        Filter the documents wrt their properties.
+
+        *Comparison:*
+        A key must be a valid `DocumentPropertyId`.
+        The `DocumentProperty` type corresponding to the `DocumentPropertyId` must support the filter operation.
+
+        *Combination:*
+        Combinators may only be nested two times.
+      oneOf:
+        - $ref: '#/components/schemas/FilterCompare'
+        - $ref: '#/components/schemas/FilterCombine'
+    PersonalizedDocumentData:
+      type: object
+      required: [id, score]
+      properties:
+        id:
+          $ref: './schemas/document.yml#/DocumentId'
+        score:
+          description: A number in the interval `[0, 1]` where higher means better.
+          type: number
+        properties:
+          $ref: './schemas/document.yml#/DocumentProperties'
+    PersonalizedDocuments:
+      type: array
+      minItems: 0
+      maxItems: 100
+      items:
+        $ref: '#/components/schemas/PersonalizedDocumentData'
+    PersonalizedDocumentsResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          $ref: '#/components/schemas/PersonalizedDocuments'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
+    SemanticSearchRequest:
+      type: object
+      required: [document]
+      properties:
+        document:
+          $ref: './schemas/document.yml#/InputDocument'
+        count:
+          $ref: '#/components/schemas/Count'
+        published_after:
+          $ref: './schemas/time.yml#/PublishedAfter'
+        include_properties:
+          $ref: '#/components/schemas/IncludeProperties'
+        personalize:
+          description: Personalize the ranking of candidates based on a users preferences.
+          type: object
+          required: [user]
+          properties:
+            exclude_seen:
+              type: boolean
+              default: true
+              description: |-
+                If true do not include documents the user has already seen as search candidate.
+
+                A trimmed version of the users history might be used for this filter.
+
+                This option is incompatible with not specifying a user.
+            user:
+              $ref: './schemas/user.yml#/InputUser'
+        enable_hybrid_search:
+          description: Enable the hybrid search mode.
+          type: boolean
+          default: false
+        filter:
+          description:
+            $ref: '#/components/schemas/Filter/description'
+          oneOf:
+            - $ref: '#/components/schemas/FilterCompare'
+            - $ref: '#/components/schemas/FilterCombine'
+    SemanticSearchResponse:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          $ref: '#/components/schemas/PersonalizedDocuments'
+      example:
+        documents:
+          - id: 'document_id0'
+            score: 0.87
+            properties:
+              title: "News title"
+    PersonalizedDocumentsError:
+      allOf:
+        - $ref: './schemas/error.yml#/GenericError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [NotEnoughInteractions]
+    UserInteractionData:
+      type: object
+      properties:
+        id:
+          $ref: './schemas/document.yml#/DocumentId'
+    UserInteractionRequest:
+      type: object
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          minItems: 1
+          maxItems: 1000
+          items:
+            $ref: '#/components/schemas/UserInteractionData'
+    UserInteractionError:
+      allOf:
+        - $ref: './schemas/error.yml#/GenericError'
+        - type: object
+          required: [kind]
+          properties:
+            kind:
+              type: string
+              enum: [InvalidUserId, InvalidDocumentId]
