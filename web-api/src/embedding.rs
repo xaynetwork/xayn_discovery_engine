@@ -14,7 +14,7 @@
 
 use anyhow::bail;
 use serde::{Deserialize, Serialize};
-use xayn_ai_bert::{AvgE5, Config as BertConfig, NormalizedEmbedding};
+use xayn_ai_bert::{AvgEmbedder, Config as BertConfig, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
@@ -35,7 +35,7 @@ impl Default for Config {
 }
 
 pub(crate) struct Embedder {
-    bert: AvgE5,
+    bert: AvgEmbedder,
 }
 
 impl Embedder {

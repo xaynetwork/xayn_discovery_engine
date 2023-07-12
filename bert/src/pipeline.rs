@@ -104,7 +104,7 @@ mod tests {
     use crate::{
         config::Config,
         pooler::{AveragePooler, FirstPooler, NonePooler},
-        tokenizer::huggingface::Tokenizer,
+        tokenizer::Tokenizer,
     };
 
     fn pipeline<P>() -> Pipeline<Tokenizer, P> {

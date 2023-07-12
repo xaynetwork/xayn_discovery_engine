@@ -58,4 +58,4 @@ pub use crate::{
 };
 
 /// A Transformer pipeline with an average pooler.
-pub type AvgE5 = Pipeline<crate::tokenizer::huggingface::Tokenizer, AveragePooler>;
+pub type AvgEmbedder = Pipeline<crate::tokenizer::Tokenizer, AveragePooler>;

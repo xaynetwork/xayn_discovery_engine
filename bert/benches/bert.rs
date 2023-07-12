@@ -15,7 +15,7 @@
 use std::{hint::black_box, path::Path};
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use xayn_ai_bert::{tokenizer::huggingface::Tokenizer, Config, NonePooler};
+use xayn_ai_bert::{tokenizer::Tokenizer, Config, NonePooler};
 use xayn_test_utils::asset::smbert;
 
 const TOKEN_SIZE: usize = 64;

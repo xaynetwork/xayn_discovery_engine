@@ -25,7 +25,7 @@ use crate::{
     model::Model,
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
-    tokenizer::{huggingface, Tokenize},
+    tokenizer::{Tokenize, Tokenizer},
 };
 
 /// A pipeline configuration.
@@ -39,7 +39,8 @@ use crate::{
 ///
 /// # the path is always `tokenizer.json`
 /// [tokenizer]
-/// add_special_tokens = true
+/// add-special-tokens = true
+/// use-type-ids = true
 ///
 /// # tokens-related configs of the tokenizer, may differ between tokenizers
 /// [tokenizer.tokens]
@@ -87,7 +88,7 @@ pub struct Config<T, P> {
     pooler: PhantomData<P>,
 }
 
-impl Config<huggingface::Tokenizer, NonePooler> {
+impl Config<Tokenizer, NonePooler> {
     /// Creates a pipeline configuration.
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         let dir = dir.into();
