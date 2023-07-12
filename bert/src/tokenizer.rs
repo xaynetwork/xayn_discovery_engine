@@ -140,6 +140,7 @@ impl Tokenize for Tokenizer {
 
 #[cfg(test)]
 mod tests {
+    use ndarray::{arr1, s};
     use xayn_test_utils::asset::{e5_mocked, smbert_mocked};
 
     use super::*;
@@ -151,37 +152,19 @@ mod tests {
         let encoding = tokenizer
             .encode("These are normal, common EMBEDDINGS.")
             .unwrap();
-        assert!(encoding.token_ids.shape() == [1, 257]);
-        let first_ids = encoding
-            .token_ids
-            .iter()
-            .take(20)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(
-            first_ids
-                == vec![
-                    2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-                ]
+        assert_eq!(encoding.token_ids.shape(), [1, 257]);
+        assert_eq!(
+            encoding.token_ids.slice(s![0, ..20]),
+            arr1(&[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         );
-        let first_attention_mask = encoding
-            .attention_mask
-            .iter()
-            .take(20)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(
-            first_attention_mask
-                == vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        assert_eq!(
+            encoding.attention_mask.slice(s![0, ..20]),
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
         );
-        let first_type_ids = encoding
-            .type_ids
-            .unwrap()
-            .iter()
-            .take(20)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(first_type_ids == vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            encoding.type_ids.unwrap().slice(s![0, ..20]),
+            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
     }
 
     #[test]
@@ -191,31 +174,19 @@ mod tests {
         let encoding = tokenizer
             .encode("for “life-threatening storm surge” according")
             .unwrap();
-        assert!(encoding.token_ids.shape() == [1, 257]);
-        let first_ids = encoding
-            .token_ids
-            .iter()
-            .take(15)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(
-            first_ids == vec![2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0]
+        assert_eq!(encoding.token_ids.shape(), [1, 257]);
+        assert_eq!(
+            encoding.token_ids.slice(s![0, ..15]),
+            arr1(&[2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0])
         );
-        let first_attention_mask = encoding
-            .attention_mask
-            .iter()
-            .take(15)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(first_attention_mask == vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]);
-        let first_type_ids = encoding
-            .type_ids
-            .unwrap()
-            .iter()
-            .take(15)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(first_type_ids == vec![0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            encoding.attention_mask.slice(s![0, ..15]),
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0])
+        );
+        assert_eq!(
+            encoding.type_ids.unwrap().slice(s![0, ..15]),
+            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        );
     }
 
     #[test]
@@ -225,24 +196,15 @@ mod tests {
         let encoding = tokenizer
             .encode("These are normal, common EMBEDDINGS.")
             .unwrap();
-        assert!(encoding.token_ids.shape() == [1, 258]);
-        let first_ids = encoding
-            .token_ids
-            .iter()
-            .take(15)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(
-            first_ids
-                == vec![0, 32255, 621, 3638, 4, 39210, 19515, 20090, 24057, 142_766, 5, 2, 1, 1, 1]
+        assert_eq!(encoding.token_ids.shape(), [1, 258]);
+        assert_eq!(
+            encoding.token_ids.slice(s![0, ..15]),
+            arr1(&[0, 32255, 621, 3638, 4, 39210, 19515, 20090, 24057, 142_766, 5, 2, 1, 1, 1])
         );
-        let first_attention_mask = encoding
-            .attention_mask
-            .iter()
-            .take(15)
-            .copied()
-            .collect::<Vec<_>>();
-        assert!(first_attention_mask == vec![1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]);
+        assert_eq!(
+            encoding.attention_mask.slice(s![0, ..15]),
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+        );
         assert!(encoding.type_ids.is_none());
     }
 }
