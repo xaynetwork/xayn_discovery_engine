@@ -142,7 +142,7 @@ string_wrapper! {
     /// A unique user identifier.
     pub(crate) UserId, InvalidUserId, is_valid_id;
     /// A document snippet.
-    pub(crate) DocumentSnippet, InvalidDocumentSnippet, |value| is_valid_string(value, 2_048);
+    pub(crate) DocumentSnippet, InvalidDocumentSnippet, |value| is_valid_string(value, 4_096);
     /// A document tag.
     pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
 }
@@ -225,7 +225,7 @@ impl DocumentProperties {
         properties: HashMap<DocumentPropertyId, DocumentProperty>,
         size: usize,
     ) -> Result<Self, InvalidDocumentProperties> {
-        if size > 2_560 {
+        if size > 4096 {
             return Err(InvalidDocumentProperties { size });
         }
 
