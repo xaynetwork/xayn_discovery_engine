@@ -141,10 +141,35 @@ string_wrapper! {
     pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_property_id;
     /// A unique user identifier.
     pub(crate) UserId, InvalidUserId, is_valid_id;
-    /// A document snippet.
-    pub(crate) DocumentSnippet, InvalidDocumentSnippet, |value| is_valid_string(value, 4_096);
     /// A document tag.
     pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
+}
+
+/// A document snippet.
+#[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize, Type)]
+#[serde(transparent)]
+#[sqlx(transparent)]
+pub(crate) struct DocumentSnippet(String);
+
+impl DocumentSnippet {
+    pub(crate) fn new(
+        value: impl Into<String>,
+        max_size: usize,
+    ) -> Result<Self, InvalidDocumentSnippet> {
+        let mut value = value.into();
+        trim(&mut value);
+
+        if is_valid_string(&value, max_size) {
+            Ok(Self(value))
+        } else {
+            let size = value.len();
+            if size > max_size {
+                Err(InvalidDocumentSnippet::Size { size, max_size })
+            } else {
+                Err(InvalidDocumentSnippet::Value { value })
+            }
+        }
+    }
 }
 
 #[derive(Clone, Debug, Deref, Deserialize, Into, PartialEq, Serialize)]
@@ -224,9 +249,10 @@ impl DocumentProperties {
     pub(crate) fn new(
         properties: HashMap<DocumentPropertyId, DocumentProperty>,
         size: usize,
+        max_size: usize,
     ) -> Result<Self, InvalidDocumentProperties> {
-        if size > 4096 {
-            return Err(InvalidDocumentProperties { size });
+        if size > max_size {
+            return Err(InvalidDocumentProperties { size, max_size });
         }
 
         Ok(Self(properties))

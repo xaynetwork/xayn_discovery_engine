@@ -17,6 +17,7 @@ use std::collections::HashSet;
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use toml::toml;
 use xayn_integration_tests::{
     send_assert,
     send_assert_json,
@@ -113,7 +114,7 @@ fn test_ingestion_bad_request() {
         assert_eq!(error.kind, Kind::FailedToValidateDocuments);
         assert_eq!(
             error.details.unwrap(),
-            Details::Ingest(json!([ { "id": "d!" } ])),
+            Details::Ingest(json!([{ "id": "d!" }])),
         );
         send_assert(
             &client,
@@ -147,7 +148,7 @@ fn test_deletion() {
         assert_eq!(error.kind, Kind::FailedToDeleteSomeDocuments);
         assert_eq!(
             error.details.unwrap(),
-            Details::Delete(json!([ { "id": "d1" } ])),
+            Details::Delete(json!([{ "id": "d1" }])),
         );
         Ok(())
     });
@@ -332,4 +333,75 @@ fn test_ingestion_same_id() {
         assert_eq!(property, 2);
         Ok(())
     });
+}
+
+#[test]
+fn test_ingestion_validation() {
+    test_app::<Ingestion, _>(
+        Some(toml! {
+            [ingestion]
+            max_snippet_size = 10
+            max_properties_size = 10
+        }),
+        |client, url, _| async move {
+            let error = send_assert_json::<Error>(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "snippet": "abc\x00" },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+            )
+            .await;
+            assert_eq!(error.kind, Kind::FailedToValidateDocuments);
+            assert_eq!(
+                error.details.unwrap(),
+                Details::Ingest(json!([{ "id": "d1" }])),
+            );
+
+            let error = send_assert_json::<Error>(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "snippet": "abcdefghijk" },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+            )
+            .await;
+            assert_eq!(error.kind, Kind::FailedToValidateDocuments);
+            assert_eq!(
+                error.details.unwrap(),
+                Details::Ingest(json!([{ "id": "d1" }])),
+            );
+
+            let error = send_assert_json::<Error>(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "snippet": "abc", "properties": { "p": "defghijklm" } },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+            )
+            .await;
+            assert_eq!(error.kind, Kind::FailedToValidateDocuments);
+            assert_eq!(
+                error.details.unwrap(),
+                Details::Ingest(json!([{ "id": "d1" }])),
+            );
+
+            Ok(())
+        },
+    );
 }
