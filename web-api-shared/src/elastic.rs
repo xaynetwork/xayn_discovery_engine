@@ -70,8 +70,8 @@ impl Default for Config {
             index_name: "test_index".into(),
             timeout: Duration::from_secs(2),
             retry_policy: ExponentialJitterRetryPolicyConfig {
-                max_retries: 2,
-                step_size: Duration::from_millis(150),
+                max_retries: 3,
+                step_size: Duration::from_millis(300),
                 max_backoff: Duration::from_millis(1000),
             },
         }
