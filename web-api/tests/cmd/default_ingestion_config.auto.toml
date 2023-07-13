@@ -22,8 +22,8 @@ stdout = """
       "index_name": "test_index",
       "timeout": 2,
       "retry_policy": {
-        "max_retries": 2,
-        "step_size": "150ms",
+        "max_retries": 3,
+        "step_size": "300ms",
         "max_backoff": "1s"
       }
     },
