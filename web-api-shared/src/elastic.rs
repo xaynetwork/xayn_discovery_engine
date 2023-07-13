@@ -34,7 +34,12 @@ use reqwest::{
     Url,
 };
 use secrecy::{ExposeSecret, Secret};
-use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
+use serde::{
+    de::{self, DeserializeOwned},
+    Deserialize,
+    Deserializer,
+    Serialize,
+};
 use serde_json::{json, Value};
 use thiserror::Error;
 use tracing::error;
@@ -278,8 +283,7 @@ impl<'de> Deserialize<'de> for SerdeDiscard {
     where
         D: Deserializer<'de>,
     {
-        use serde::de;
-        // Hint: a "discarding" serde type is more tricky then it might seem
+        // Hint: a "discarding" serde type is more tricky than it might seem
         // 1. just returning `Ok(SerdeDiscard)` without calling the deserializer can fail
         //    in some edge cases due to the input which is supposed to be parsed not being
         //    parsed at all. Instead of being parsed and discarded.
@@ -298,7 +302,7 @@ impl<'de> Deserialize<'de> for SerdeDiscard {
         //    responses, but not arrays, string, etc.
         struct DiscardingVisitor;
 
-        macro_rules! impl_simpl_sink {
+        macro_rules! impl_simple_sink {
             ($($name:ident: $ty:ty),* $(,)?) => ($(
                 fn $name<E>(self, _: $ty) -> Result<Self::Value, E>
                 where
@@ -316,7 +320,7 @@ impl<'de> Deserialize<'de> for SerdeDiscard {
                 write!(formatter, "nothing, anything should be fine")
             }
 
-            impl_simpl_sink! {
+            impl_simple_sink! {
                 visit_bool: bool,
                 visit_i64: i64,
                 visit_i128: i128,
@@ -529,7 +533,7 @@ pub enum Error {
     },
     /// Failed to serialize a requests or deserialize a response: {0}
     Serialization(serde_json::Error),
-    /// Given endpoint was not found: {0}
+    /// Given resource was not found: {0}
     ResourceNotFound(String),
 }
 
@@ -540,8 +544,8 @@ pub trait NotFoundAsOptionExt<T> {
 impl<T> NotFoundAsOptionExt<T> for Result<T, Error> {
     fn not_found_as_option(self) -> Result<Option<T>, Error> {
         match self {
-            Err(Error::ResourceNotFound(_)) => Ok(None),
             Ok(value) => Ok(Some(value)),
+            Err(Error::ResourceNotFound(_)) => Ok(None),
             Err(error) => Err(error),
         }
     }
