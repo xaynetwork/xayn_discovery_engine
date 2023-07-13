@@ -722,7 +722,7 @@ mod tests {
             .zip(embeddings)
             .map(|(id, embedding)| IngestedDocument {
                 id: id.clone(),
-                snippet: "snippet".try_into().unwrap(),
+                snippet: DocumentSnippet::new("snippet", 100).unwrap(),
                 is_summarized: false,
                 properties: DocumentProperties::default(),
                 tags: DocumentTags::default(),
@@ -779,7 +779,7 @@ mod tests {
     async fn test_serde() {
         let storage = Storage::default();
         let doc_id = DocumentId::try_from("42").unwrap();
-        let snippet = DocumentSnippet::try_from("snippet").unwrap();
+        let snippet = DocumentSnippet::new("snippet", 100).unwrap();
         let tags = DocumentTags::try_from(vec!["tag".try_into().unwrap()]).unwrap();
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(

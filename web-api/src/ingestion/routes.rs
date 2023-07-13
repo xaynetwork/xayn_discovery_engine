@@ -41,6 +41,7 @@ use crate::{
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
     },
+    ingestion::IngestionConfig,
     models::{
         self,
         DocumentId,
@@ -175,6 +176,7 @@ async fn validate_document_properties(
     document_id: &DocumentId,
     properties: impl IntoIterator<Item = (String, Value)>,
     storage: &(impl storage::Size + storage::IndexedProperties),
+    max_size: usize,
 ) -> Result<DocumentProperties, Error> {
     let properties = properties
         .into_iter()
@@ -191,16 +193,19 @@ async fn validate_document_properties(
     }
 
     let size = storage::Size::json(storage, &serde_json::to_value(&properties)?).await?;
-    DocumentProperties::new(properties, size).map_err(Into::into)
+    DocumentProperties::new(properties, size, max_size).map_err(Into::into)
 }
 
 impl UnvalidatedIngestedDocument {
     async fn validate(
         self,
+        config: &impl AsRef<IngestionConfig>,
         storage: &(impl storage::Size + storage::IndexedProperties),
     ) -> Result<IngestedDocument, Error> {
+        let config = config.as_ref();
+
         let id = self.id.as_str().try_into()?;
-        let snippet = DocumentSnippet::try_from(self.snippet)?;
+        let snippet = DocumentSnippet::new(self.snippet, config.max_snippet_size)?;
         let summary = self.summarize.then(|| {
             summarize(
                 &Summarizer::Naive,
@@ -211,7 +216,9 @@ impl UnvalidatedIngestedDocument {
             )
         });
 
-        let properties = validate_document_properties(&id, self.properties, storage).await?;
+        let properties =
+            validate_document_properties(&id, self.properties, storage, config.max_properties_size)
+                .await?;
         let tags = self
             .tags
             .into_iter()
@@ -271,7 +278,7 @@ async fn upsert_documents(
     let mut invalid_documents = Vec::new();
     for document in body.documents {
         let id = document.id.clone();
-        match UnvalidatedIngestedDocument::validate(document, &storage).await {
+        match document.validate(&state.config, &storage).await {
             Ok(document) => documents.push(document),
             Err(error) => {
                 info!("Invalid document '{id}': {error:#?}");
@@ -530,15 +537,21 @@ struct DocumentPropertiesRequest {
     properties: HashMap<String, Value>,
 }
 
-#[instrument(skip(properties, storage))]
+#[instrument(skip(state, properties, storage))]
 async fn put_document_properties(
+    state: Data<AppState>,
     document_id: Path<String>,
     Json(properties): Json<DocumentPropertiesRequest>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
-    let properties =
-        validate_document_properties(&document_id, properties.properties, &storage).await?;
+    let properties = validate_document_properties(
+        &document_id,
+        properties.properties,
+        &storage,
+        state.config.ingestion.max_properties_size,
+    )
+    .await?;
     storage::DocumentProperties::put(&storage, &document_id, &properties)
         .await?
         .ok_or(DocumentNotFound)?;
@@ -585,8 +598,9 @@ struct DocumentPropertyRequest {
     property: Value,
 }
 
-#[instrument(skip(storage))]
+#[instrument(skip(state, storage))]
 async fn put_document_property(
+    state: Data<AppState>,
     ids: Path<(String, String)>,
     Json(body): Json<DocumentPropertyRequest>,
     TenantState(storage): TenantState,
@@ -603,7 +617,13 @@ async fn put_document_property(
         .chain([(property_id.clone(), property.clone())])
         .map(|(property_id, property)| (property_id.into(), property.into()));
 
-    validate_document_properties(&document_id, properties, &storage).await?;
+    validate_document_properties(
+        &document_id,
+        properties,
+        &storage,
+        state.config.ingestion.max_properties_size,
+    )
+    .await?;
 
     storage::DocumentProperty::put(&storage, &document_id, &property_id, &property)
         .await?

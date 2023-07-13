@@ -101,7 +101,7 @@ impl State {
         .into_iter()
         .map(|document| (document.id.clone(), document))
         .collect::<HashMap<_, _>>();
-        let snippet = DocumentSnippet::try_from("snippet" /* unused for in-memory db */)?;
+        let snippet = DocumentSnippet::new("snippet" /* unused for in-memory db */, 100)?;
         let documents = embeddings
             .into_iter()
             .map(|(id, embedding)| {

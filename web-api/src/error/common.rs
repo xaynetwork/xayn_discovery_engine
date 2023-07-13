@@ -103,6 +103,7 @@ impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentProperties {
     pub(crate) size: usize,
+    pub(crate) max_size: usize,
 }
 
 impl_application_error!(InvalidDocumentProperties => BAD_REQUEST, INFO);
@@ -123,10 +124,12 @@ pub(crate) struct InvalidDocumentTags {
 
 impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
 
-/// Malformed document snippet.
 #[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct InvalidDocumentSnippet {
-    pub(crate) value: String,
+pub(crate) enum InvalidDocumentSnippet {
+    /// Malformed document snippet.
+    Value { value: String },
+    /// Malsized document snippet.
+    Size { size: usize, max_size: usize },
 }
 
 impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
