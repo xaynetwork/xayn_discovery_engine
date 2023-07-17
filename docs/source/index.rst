@@ -1,12 +1,10 @@
 Xayn Api 
 ========
 
-
-
-
 The API allows you to integrate Xayn's Personalised Semantic Search and Recommendations service into your systems. 
-It is divided into two parts: the back office and the front office. The back office manages everything related to documents. 
-The front office interacts with the service to manage the users' interactions with the documents, requests personalized documents, or performs searches. 
+
+The API is divided into two parts: the back office and the front office. The back office allows you to manage everything related to your content. In the Xayn service, every piece of content is managed as _document_'s. 
+The front office allows you to interact with the service to manage the users' interactions (clicks, reading, viewing) with your content, request recommendations, or perform searches.
 
 |Overview|
 
