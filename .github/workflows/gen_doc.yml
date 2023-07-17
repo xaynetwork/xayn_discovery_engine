@@ -17,6 +17,9 @@ jobs:
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
+      - name: Setup just
+        run: sudo snap install --edge just --classic
+
       - name: Setup redocly
         run: npm i -g @redocly/cli@latest
 
@@ -25,8 +28,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name:  Generate all documentation
-        working-directory: ./docs
-        run: make build
+        run: just generate-docs
 
       - name: Deploy generated docs to GitHub Pages
         uses: peaceiris/actions-gh-pages@373f7f263a76c20808c831209c920827a82a2847 # v3.9.3

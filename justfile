@@ -227,6 +227,14 @@ install-openapi-doc-generator:
     npm install -g \
       @redocly/cli@${REDOCLY_CLI_VERSION}
 
+generate-docs:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    cd docs/
+    sphinx-build -M html source/ build/
+    redocly build-docs ../web-api/openapi/front_office.yaml -o build/html/front_office.html
+    redocly build-docs ../web-api/openapi/back_office.yaml -o build/html/back_office.html
+    echo "docs.xayn.com" > build/html/CNAME
+
 generate-openapi-doc api:
     #!/usr/bin/env -S bash -eux -o pipefail
     redocly preview-docs web-api/openapi/{{api}}.yaml
