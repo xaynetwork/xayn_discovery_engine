@@ -222,10 +222,10 @@
         <article role="main">
           <section id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">#</a></h1>
-<p>Here we take a high-level look at how the system works.</p>
-<p>The back office system can be used to ingest documents into the system.</p>
-<p>Documents are the items that the service uses to provide its functionality. During ingestion, the system creates a mathematical representation of the document which is used to match the document to the user’s interests and searches.</p>
-<p>Once we have the documents in the system, we can use the front office to implement different use cases. For example, to have a ‘for you’ section, we need to add user interactions with documents. With each interaction, the system creates or updates a model that represents the user’s interests each time we add an interaction. Each user has a unique model that is used to return personalised documents.</p>
+<p>Here we take a high-level look at how the system works. The API is divided into two parts: the back office and the front office.</p>
+<p>The back office system can be used to ingest your content into the system. Every piece of content you ingest is managed as one document within the Xayn system.</p>
+<p>During ingestion, the system creates a mathematical representation of the document which is used to match the document to the user’s interests and searches.</p>
+<p>Once we have the documents in the system, we can use the front office to implement different use cases. For example, to have a ‘for you’ section, we need to add user interactions (clicks, reading, viewing) with documents. With each interaction, the system creates or updates a model that represents the user’s interests each time we add an interaction. Each user has a unique model that is used to return individually personalised search results and recommendations, which we are called personalised documents within the Xayn system.</p>
 <p>Later, we will discuss other ways to get personalised documents without adding interactions.
 With the front office, it is also possible to implement other use cases such as ‘more like this’, semantic and hybrid search.</p>
 </section>
@@ -238,94 +238,85 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 </section>
 <section id="ingest">
 <h1>Ingest<a class="headerlink" href="#ingest" title="Permalink to this heading">#</a></h1>
-<p>We can use the back office endpoint  <a class="reference external" href="https:/docs.xayn.com/back_office.html#operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">/documents</span></code></a> to ingest documents.</p>
+<p>We can use the back office endpoint <a class="reference external" href="https:/docs.xayn.com/back_office.html#operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">/documents</span></code></a> to ingest documents.</p>
 <p>We will ingest a document that represents this article: <a class="reference external" href="https://xayn.com/blog/the-initial-challenge">https://xayn.com/blog/the-initial-challenge</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/documents<span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;back_office_token&gt;&quot;</span><span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
-<span class="s1">        &quot;documents&quot;: [ </span>
-<span class="s1">            { </span>
-<span class="s1">                &quot;id&quot;: &quot;xayn_cd5604c&quot;, </span>
-<span class="s1">                &quot;snippet&quot;: &quot;The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there&#39;</span>s<span class="w"> </span>a<span class="w"> </span>backlash<span class="w"> </span>towards<span class="w"> </span>these<span class="w"> </span>practices.<span class="w"> </span>At<span class="w"> </span>Xayn,<span class="w"> </span>our<span class="w"> </span>mission<span class="w"> </span>is<span class="w"> </span>to<span class="w"> </span>provide<span class="w"> </span>personalisation<span class="w"> </span>without<span class="w"> </span>user<span class="w"> </span>data<span class="w"> </span>leaving<span class="w"> </span>the<span class="w"> </span>device,<span class="w"> </span>maintaining<span class="w"> </span>absolute<span class="w"> </span>privacy.<span class="w"> </span>We<span class="w"> </span>use<span class="w"> </span>semantic<span class="w"> </span>similarity<span class="w"> </span>and<span class="w"> </span>centers<span class="w"> </span>of<span class="w"> </span>interest<span class="w"> </span>to<span class="w"> </span>understand<span class="w"> </span>user<span class="w"> </span>preferences<span class="w"> </span>and<span class="w"> </span>present<span class="w"> </span>better<span class="w"> </span>matching<span class="w"> </span>articles.<span class="w"> </span>With<span class="w"> </span>our<span class="w"> </span>model<span class="w"> </span>Xaynia,<span class="w"> </span>we<span class="w"> </span>offer<span class="w"> </span>semantic<span class="w"> </span>similarity<span class="w"> </span>and<span class="w"> </span>search<span class="w"> </span>with<span class="w"> </span>minimal<span class="w"> </span>energy<span class="w"> </span>consumption<span class="w"> </span>and<span class="w"> </span>at<span class="w"> </span>a<span class="w"> </span>low<span class="w"> </span>price,<span class="w"> </span>making<span class="w"> </span>it<span class="w"> </span>highly<span class="w"> </span>energy-efficient<span class="w"> </span>compared<span class="w"> </span>to<span class="w"> </span>other<span class="w"> </span>transformer<span class="w"> </span>models.<span class="s2">&quot;, </span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/documents
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;back_office_token&gt;&quot;</span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;documents&quot;: [</span>
+<span class="s1">            {</span>
+<span class="s1">                &quot;id&quot;: &quot;xayn_cd5604c&quot;,</span>
+<span class="s1">                &quot;snippet&quot;: &quot;The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there&#39;</span>s<span class="w"> </span>a<span class="w"> </span>backlash<span class="w"> </span>towards<span class="w"> </span>these<span class="w"> </span>practices.<span class="w"> </span>At<span class="w"> </span>Xayn,<span class="w"> </span>our<span class="w"> </span>mission<span class="w"> </span>is<span class="w"> </span>to<span class="w"> </span>provide<span class="w"> </span>personalisation<span class="w"> </span>without<span class="w"> </span>user<span class="w"> </span>data<span class="w"> </span>leaving<span class="w"> </span>the<span class="w"> </span>device,<span class="w"> </span>maintaining<span class="w"> </span>absolute<span class="w"> </span>privacy.<span class="w"> </span>We<span class="w"> </span>use<span class="w"> </span>semantic<span class="w"> </span>similarity<span class="w"> </span>and<span class="w"> </span>centers<span class="w"> </span>of<span class="w"> </span>interest<span class="w"> </span>to<span class="w"> </span>understand<span class="w"> </span>user<span class="w"> </span>preferences<span class="w"> </span>and<span class="w"> </span>present<span class="w"> </span>better<span class="w"> </span>matching<span class="w"> </span>articles.<span class="w"> </span>With<span class="w"> </span>our<span class="w"> </span>model<span class="w"> </span>Xaynia,<span class="w"> </span>we<span class="w"> </span>offer<span class="w"> </span>semantic<span class="w"> </span>similarity<span class="w"> </span>and<span class="w"> </span>search<span class="w"> </span>with<span class="w"> </span>minimal<span class="w"> </span>energy<span class="w"> </span>consumption<span class="w"> </span>and<span class="w"> </span>at<span class="w"> </span>a<span class="w"> </span>low<span class="w"> </span>price,<span class="w"> </span>making<span class="w"> </span>it<span class="w"> </span>highly<span class="w"> </span>energy-efficient<span class="w"> </span>compared<span class="w"> </span>to<span class="w"> </span>other<span class="w"> </span>transformer<span class="w"> </span>models.<span class="s2">&quot;,</span>
+<span class="s2">                summarize: false,</span>
 
-<span class="s2">                &quot;</span>properties<span class="s2">&quot;: { </span>
-<span class="s2">                    &quot;</span>title<span class="s2">&quot;: &quot;</span>The<span class="w"> </span>initial<span class="w"> </span>challange<span class="s2">&quot;, </span>
-<span class="s2">                    &quot;</span>link<span class="s2">&quot;: &quot;</span>https://xayn.com/blog/the-initial-challenge<span class="s2">&quot;, </span>
-<span class="s2">                    &quot;</span>image<span class="s2">&quot;: &quot;</span>https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png<span class="s2">&quot; </span>
-<span class="s2">                } </span>
+<span class="s2">                &quot;</span>properties<span class="s2">&quot;: {</span>
+<span class="s2">                    &quot;</span>title<span class="s2">&quot;: &quot;</span>The<span class="w"> </span>initial<span class="w"> </span>challange<span class="s2">&quot;,</span>
+<span class="s2">                    &quot;</span>link<span class="s2">&quot;: &quot;</span>https://xayn.com/blog/the-initial-challenge<span class="s2">&quot;,</span>
+<span class="s2">                    &quot;</span>image<span class="s2">&quot;: &quot;</span>https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png<span class="s2">&quot;,</span>
+
+<span class="s2">                }</span>
 <span class="s2">            }</span>
-<span class="s2">        ] </span>
-<span class="s2">    }&#39; </span>
+<span class="s2">        ]</span>
+<span class="s2">    }&#39;</span>
 </pre></div>
 </div>
 <p>The endpoint takes a list of documents to ingest.</p>
 <p>Each document has a unique identifier that can be used to refer to it in the system.</p>
-<p>The field <code class="docutils literal notranslate"><span class="pre">snippet</span></code> field is used to inform the system about the content of the document; it is  used as input to Xaynia to generate a mathematical representation of the model that we can use to match similar documents.</p>
-<p>For this reason, it is essential that the snippet clearly represents the content of the article. In this case, we took a few representative sentences from the article and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per document option ‘summarise’ option per document; when enabled, the system will try to summarise the content of the snippet and use it as the input for the model.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">snippet</span></code> field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.</p>
+<p>For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per-document option ‘summarise’; when enabled, the system will summarise the content of the document to create a snippet.</p>
 <p>The ‘properties’ field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.</p>
-<p>The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see <link> for more information on properties.</p>
+<p>The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments">createDocuments</a> for more information on properties.</p>
 <p>This example assumes that we will eventually display the returned documents as a ‘for-you’ section, where we want to display an article’s image, title, text preview, and a link (for click-through), so we have included these specific properties during ingestion.</p>
 </section>
 <section id="recommendations-personalised-documents">
 <h1>Recommendations: Personalised documents<a class="headerlink" href="#recommendations-personalised-documents" title="Permalink to this heading">#</a></h1>
 <p>After ingestion, we can use the front office to retrieve recommendations, which we call personalised documents, and implement a ‘for you’ section.</p>
-<p>From a system perspective, a user is represented by an ID that is needed to group their interactions. We don’t need to know who this user is, so it is preferable to create this ID in a privacy-protecting way. For example, create a hash method that converts your user into an ID hash. Ensure you don’t use any sensitive or personally identifiable information (PII).</p>
+<p>From a system perspective, a user is represented by an ID that is needed to group their interactions. We don’t need to know who this user is, so it is preferable to create this ID in a privacy-protecting way. For example, create a hash method that converts your user into an ID hash. Please ensure you don’t use any sensitive or personally identifiable information (PII).</p>
 <p>Let’s use <code class="docutils literal notranslate"><span class="pre">u1234</span></code> as the user ID for our example.</p>
 <p>We ask the system for <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments">personalised documents</a> for this user.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents<span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
 </pre></div>
 </div>
 <p>As we can see, this returns with <code class="docutils literal notranslate"><span class="pre">409</span></code> status code and the following body:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="s2">&quot;NotEnoughInteractions&quot;</span><span class="p">}</span><span class="w"> </span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;NotEnoughInteractions&quot;</span><span class="w"> </span><span class="p">}</span>
 </pre></div>
 </div>
 <p>When there is an error, the system uses the ‘kind’ field to specify what kind of error has occurred. There may also be a <code class="docutils literal notranslate"><span class="pre">details</span></code> field.</p>
 <p>In this case, we have ‘NotEnoughInteractions’. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.</p>
 <p>We can add an <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/interaction">interaction</a> between our user <code class="docutils literal notranslate"><span class="pre">u1234</span></code> and the document <code class="docutils literal notranslate"><span class="pre">xayn_cd5604c</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/users/u1234/interactions<span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
-<span class="s1">        &quot;documents&quot;: [ </span>
-<span class="s1">           { &quot;id&quot;: &quot;xayn_cd5604c&quot; } </span>
-<span class="s1">        ]      </span>
-<span class="s1">    }&#39;</span><span class="w"> </span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/users/u1234/interactions
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;documents&quot;: [</span>
+<span class="s1">           { &quot;id&quot;: &quot;xayn_cd5604c&quot; }</span>
+<span class="s1">        ]</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
-<p>Note that if an interaction between a user and a document is added, the document will <strong>not</strong> be part of the documents returned for future calls to the personalised endpoint.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/users/u1234/interactions<span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
-<span class="s1">        &quot;documents&quot;: [ </span>
-<span class="s1">           { &quot;id&quot;: &quot;xayn_cd5604c&quot; } </span>
-<span class="s1">        ]      </span>
-<span class="s1">    }&#39;</span><span class="w"> </span>
-</pre></div>
-</div>
+<p>Please note that if an interaction between a user and a document is added, the document will <strong>not</strong> be part of the documents returned for future calls to the personalised endpoint.</p>
 <p>Let’s ask for personalised documents again now:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents?include_properties<span class="o">=</span><span class="nb">true</span><span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents?include_properties<span class="o">=</span><span class="nb">true</span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
 </pre></div>
 </div>
 <p>As a result, we will get something like:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span>
-<span class="w">    </span><span class="nt">&quot;documents&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w"> </span>
-<span class="w">        </span><span class="p">{</span><span class="w"> </span>
-<span class="w">           </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;xayn_5283ef3&quot;</span><span class="p">,</span><span class="w"> </span>
-<span class="w">           </span><span class="nt">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8736</span><span class="p">,</span><span class="w"> </span>
-<span class="w">           </span><span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span>
-<span class="w">               </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Why every bit matters&quot;</span><span class="p">,</span><span class="w"> </span>
-<span class="w">               </span><span class="nt">&quot;link&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://www.xayn.com/blog/why-every-bit-matters&quot;</span><span class="p">,</span><span class="w"> </span>
-<span class="w">               </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg&quot;</span><span class="w"> </span>
-<span class="w">                </span><span class="p">}</span><span class="w"> </span>
-<span class="w">        </span><span class="p">},</span>
-<span class="w">        </span><span class="p">{</span><span class="w"> </span>
-<span class="w">        </span><span class="p">}</span>
-<span class="w">    </span><span class="p">]</span>
-<span class="p">}</span><span class="w"> </span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;documents&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;xayn_5283ef3&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8736</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Why every bit matters&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;link&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://www.xayn.com/blog/why-every-bit-matters&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg&quot;</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">},</span>
+<span class="w">    </span><span class="p">{}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>In the request, we ask the system to include the properties of the returned documents. We can use this data to implement a ‘more like this’ section.</p>
@@ -338,11 +329,11 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <h2>Similar documents<a class="headerlink" href="#similar-documents" title="Permalink to this heading">#</a></h2>
 <p>In this search variant only a <em>document id</em> must be provided to the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code></a> endpoint.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
-<span class="s1">        &quot;document&quot;: { &quot;id&quot;: &quot;xayn_cd5604c&quot; }       </span>
-<span class="s1">    }&#39;</span><span class="w"> </span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;document&quot;: { &quot;id&quot;: &quot;xayn_cd5604c&quot; }</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 <p>The result contains a list of documents that are similar to the <code class="docutils literal notranslate"><span class="pre">snippet</span></code> of the provided <em>document id</em>.</p>
@@ -351,28 +342,30 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <h2>Free Text search<a class="headerlink" href="#free-text-search" title="Permalink to this heading">#</a></h2>
 <p>Just like <a class="reference internal" href="#similar-documents"><span class="xref myst">Similar documents</span></a> it is also possible to run a free text search.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
-<span class="s1">        &quot;document&quot;: { &quot;query&quot;: &quot;Privacy and security&quot; }       </span>
-<span class="s1">    }&#39;</span><span class="w"> </span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;document&quot;: { &quot;query&quot;: &quot;Privacy and security&quot; }</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 <p>The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments">hybrid search option</a> enabled, that combines semantic and bm25 search:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="w">    </span><span class="p">{</span><span class="w"> </span>
-<span class="w">        </span><span class="nt">&quot;document&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Privacy and security&quot;</span><span class="w"> </span><span class="p">},</span>
-<span class="w">        </span><span class="nt">&quot;enable_hybrid_search&quot;</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
-<span class="w">    </span><span class="p">}</span><span class="w"> </span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;document&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Privacy and security&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;enable_hybrid_search&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 </section>
 <section id="personalised-search">
 <h2>Personalised search<a class="headerlink" href="#personalised-search" title="Permalink to this heading">#</a></h2>
-<p>Any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user history, that is a list of <code class="docutils literal notranslate"><span class="pre">interactions</span></code>.</p>
+<p>Any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user history, which is a list of <code class="docutils literal notranslate"><span class="pre">interactions</span></code>.
+To personalise search results for a specific user, any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user <code class="docutils literal notranslate"><span class="pre">history</span></code>, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.</p>
+<p>This is how we ask the system for a personalised search result for a <a class="reference internal" href="#recommendations-personalised-documents"><span class="xref myst">user</span></a>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span><span class="w"> </span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{ </span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
+<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
+<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
 <span class="s1">        &quot;document&quot;: { &quot;query&quot;: &quot;Privacy and security&quot; },</span>
 <span class="s1">        &quot;personalize&quot;: {</span>
 <span class="s1">            &quot;exclude_seen&quot;: true,</span>
@@ -380,11 +373,11 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <span class="s1">                &quot;id&quot;: &quot;u1234&quot;,</span>
 <span class="s1">            }</span>
 <span class="s1">        }</span>
-<span class="s1">    }&#39;</span><span class="w"> </span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
-<p>The result, again is a list of documents, but this time adjusted to the weights of the provided <a class="reference internal" href="#recommendations-personalised-documents"><span class="xref myst">user</span></a>.
-Alternately a <code class="docutils literal notranslate"><span class="pre">history</span></code> can be used:</p>
+<p>The result is a list of documents that match the search query, which are additionally sorted by relevance to the user’s interests based on their content interactions.</p>
+<p>Alternatively a history of interactions can be used instead of a user id to ask for personalised documents:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;personalize&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;exclude_seen&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -402,14 +395,14 @@ Alternately a <code class="docutils literal notranslate"><span class="pre">histo
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>Note: <code class="docutils literal notranslate"><span class="pre">&quot;exclude_seen&quot;:</span> <span class="pre">true</span></code> (default true) would filter documents out, that were interacted with or have been provided by the history.</p>
+<p>Please note: <code class="docutils literal notranslate"><span class="pre">&quot;exclude_seen&quot;:</span> <span class="pre">true</span></code> (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.</p>
 </section>
 </section>
 <section id="candidates-and-filters">
 <h1>Candidates and Filters<a class="headerlink" href="#candidates-and-filters" title="Permalink to this heading">#</a></h1>
 <p>For more advanced scenarios, in which just a portion of the documents should be returned there are apis on the front and on the back office:</p>
 <ul class="simple">
-<li><p><a class="reference external" href="https://docs.xayn.com/back_office.html#tag/candidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a>: is a back-office api that allows to filter documents for all apis. Those documents are not deleted (and so they can still influence personalization).</p></li>
+<li><p><a class="reference external" href="https://docs.xayn.com/back_office.html#tag/candidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a>: is a back-office api that allows to globally define the documents that all apis can recommend or generate search results from. Documents that are not part of the candidates group will not be included in search results or recommendations, but interactions with these documents can still be recorded to use for personalisation.</p></li>
 <li><p><a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span> <span class="pre">filter</span> <span class="pre">property</span></code></a>: is a front-office api, that allows to define complex filter scenarios for any user facing request.</p></li>
 </ul>
 </section>
