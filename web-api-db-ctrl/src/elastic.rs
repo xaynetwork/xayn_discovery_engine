@@ -16,10 +16,13 @@ use std::fmt::Debug;
 
 use anyhow::bail;
 use once_cell::sync::Lazy;
-use reqwest::{Method, StatusCode};
+use reqwest::Method;
 use serde_json::{json, Value};
 use tracing::{error, info, instrument};
-use xayn_web_api_shared::{elastic::Client, request::TenantId};
+use xayn_web_api_shared::{
+    elastic::{Client, NotFoundAsOptionExt, SerdeDiscard},
+    request::TenantId,
+};
 
 use crate::Error;
 
@@ -32,26 +35,21 @@ pub async fn create_tenant_index(
     new_id: &TenantId,
     embedding_size: usize,
 ) -> Result<(), Error> {
+    let elastic = elastic.with_index(new_id);
     let mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
     elastic
-        .with_index(new_id)
-        .request(Method::PUT, [], [])
-        .json(&mapping)
-        .send()
-        .await?
-        .error_for_status()?;
+        .query_with_json::<_, SerdeDiscard>(Method::PUT, elastic.create_url([], []), Some(&mapping))
+        .await?;
     info!({tenant_id = %new_id}, "created ES index");
     Ok(())
 }
 
 #[instrument(skip(elastic))]
 pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Result<(), Error> {
+    let elastic = elastic.with_index(tenant_id);
     elastic
-        .with_index(tenant_id)
-        .request(Method::DELETE, [], [])
-        .send()
-        .await?
-        .error_for_status()?;
+        .query_with_bytes::<SerdeDiscard>(Method::DELETE, elastic.create_url([], []), None)
+        .await?;
     info!({%tenant_id}, "deleted ES index");
     Ok(())
 }
@@ -125,19 +123,7 @@ async fn does_tenant_index_exist(
     elastic: &Client,
     tenant_id: impl AsRef<str> + Debug,
 ) -> Result<bool, Error> {
-    let response = elastic
-        .with_index(tenant_id)
-        .request(Method::HEAD, [], [])
-        .send()
-        .await?;
-
-    let status = response.status();
-    if status == StatusCode::NOT_FOUND {
-        Ok(false)
-    } else {
-        response.error_for_status()?;
-        Ok(true)
-    }
+    Ok(get_opt_tenant_mapping(elastic, tenant_id).await?.is_some())
 }
 
 #[instrument(skip(elastic))]
@@ -145,22 +131,17 @@ async fn get_opt_tenant_mapping(
     elastic: &Client,
     tenant_id: impl AsRef<str> + Debug,
 ) -> Result<Option<Value>, Error> {
+    let elastic = elastic.with_index(&tenant_id);
     let response = elastic
-        .with_index(&tenant_id)
-        .request(Method::GET, ["_mapping"], [])
-        .send()
-        .await?;
-
-    let status = response.status();
-    if status == StatusCode::NOT_FOUND {
-        Ok(None)
-    } else {
-        match response.error_for_status()?.json().await? {
-            Value::Object(obj) if obj.len() == 1 => {
-                Ok(obj.into_iter().next().map(|(_, mapping)| mapping))
-            }
-            response => bail!("unexpected index/_mapping response: {response}"),
+        .query_with_bytes::<Value>(Method::GET, elastic.create_url(["_mapping"], []), None)
+        .await
+        .not_found_as_option()?;
+    match response {
+        None => Ok(None),
+        Some(Value::Object(obj)) if obj.len() == 1 => {
+            Ok(obj.into_iter().next().map(|(_, mapping)| mapping))
         }
+        Some(unexpected) => bail!("unexpected index/_mapping response: {unexpected}"),
     }
 }
 
@@ -170,23 +151,24 @@ async fn create_index_alias(
     index: &str,
     alias: impl AsRef<str> + Debug,
 ) -> Result<(), Error> {
+    let elastic = elastic.with_index("_aliases");
     let alias = alias.as_ref();
     elastic
-        .with_index("_aliases")
-        .request(Method::POST, [], [])
-        .json(&json!({
-            "actions": [
-            {
-                "add": {
-                "index": index,
-                "alias": alias,
+        .query_with_json::<_, SerdeDiscard>(
+            Method::POST,
+            elastic.create_url([], []),
+            Some(&json!({
+                "actions": [
+                {
+                    "add": {
+                    "index": index,
+                    "alias": alias,
+                    }
                 }
-            }
-            ]
-        }))
-        .send()
-        .await?
-        .error_for_status()?;
+                ]
+            })),
+        )
+        .await?;
     info!({%index, %alias}, "created ES alias");
     Ok(())
 }

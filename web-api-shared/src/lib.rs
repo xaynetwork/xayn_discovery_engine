@@ -19,6 +19,7 @@
 //! a per-schema db lock.
 
 pub mod elastic;
+pub mod net;
 pub mod postgres;
 pub mod request;
 pub mod serde;

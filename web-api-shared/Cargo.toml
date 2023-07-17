@@ -8,8 +8,10 @@ license = "AGPL-3.0-only"
 
 [dependencies]
 anyhow = { workspace = true }
+bytes = "1.4.0"
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
+futures-retry-policies = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }

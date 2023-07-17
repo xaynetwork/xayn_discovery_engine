@@ -1212,6 +1212,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "futures-retry-policies"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "43b016aa1fb364e3e0753a28bf65d59cbe377f49473fdfcac98aa870982cd100"
+dependencies = [
+ "chrono",
+ "pin-project",
+ "retry-policies",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "futures-sink"
 version = "0.3.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2933,6 +2946,17 @@ dependencies = [
  "web-sys",
  "webpki-roots",
  "winreg",
+]
+
+[[package]]
+name = "retry-policies"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e09bbcb5003282bcb688f0bae741b278e9c7e8f378f561522c9806c58e075d9b"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "rand",
 ]
 
 [[package]]
@@ -4840,8 +4864,10 @@ name = "xayn-web-api-shared"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "bytes",
  "derive_more",
  "displaydoc",
+ "futures-retry-policies",
  "once_cell",
  "rand",
  "regex",

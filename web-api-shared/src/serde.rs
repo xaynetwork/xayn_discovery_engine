@@ -55,6 +55,48 @@ pub mod serde_duration_as_seconds {
     }
 }
 
+pub mod serde_duration_in_config {
+    use std::time::Duration;
+
+    use serde::{
+        de::{Error, Unexpected},
+        Deserialize,
+        Deserializer,
+        Serialize,
+        Serializer,
+    };
+
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let ms = duration.as_millis();
+        if ms % 1000 == 0 {
+            let s = ms / 1000;
+            format!("{s}s").serialize(serializer)
+        } else {
+            format!("{ms}ms").serialize(serializer)
+        }
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let raw = String::deserialize(deserializer)?;
+        raw.strip_suffix("ms")
+            .map(|s| (s, Duration::from_millis as fn(_) -> _))
+            .or_else(|| raw.strip_suffix('s').map(|s| (s, Duration::from_secs as _)))
+            .and_then(|(s, from_fn)| s.parse::<u64>().ok().map(from_fn))
+            .ok_or_else(|| {
+                Error::invalid_value(
+                    Unexpected::Str(&raw),
+                    &"expected integer as string with supported suffix (`s`,`ms`)",
+                )
+            })
+    }
+}
+
 #[macro_export]
 macro_rules! json_object {
     ({ $($tt:tt)* }) => ({

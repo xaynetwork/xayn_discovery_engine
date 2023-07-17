@@ -36,7 +36,7 @@ use sqlx::{
     QueryBuilder,
     Transaction,
 };
-use tracing::info;
+use tracing::{info, instrument};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiId, CoiStats};
 
@@ -790,6 +790,7 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
+    #[instrument(skip(self))]
     async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
         let mut tx = self.postgres.begin().await?;
         let embedding = Database::get_embedding(&mut tx, id).await?;

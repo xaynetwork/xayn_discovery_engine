@@ -15,13 +15,16 @@
 use std::{
     collections::HashMap,
     fmt::{Debug, Display},
+    future::Future,
     hash::Hash,
     str::FromStr,
     sync::Arc,
     time::Duration,
 };
 
+use bytes::Bytes;
 use derive_more::From;
+use futures_retry_policies::tokio::retry;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
     Body,
@@ -31,16 +34,19 @@ use reqwest::{
     Url,
 };
 use secrecy::{ExposeSecret, Secret};
-use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize};
+use serde::{
+    de::{self, DeserializeOwned},
+    Deserialize,
+    Deserializer,
+    Serialize,
+};
 use serde_json::{json, Value};
 use thiserror::Error;
 use tracing::error;
 
-use crate::serde::{
-    serde_duration_as_seconds,
-    serialize_redacted,
-    serialize_to_ndjson,
-    JsonObject,
+use crate::{
+    net::{ExponentialJitterRetryPolicy, ExponentialJitterRetryPolicyConfig},
+    serde::{serde_duration_as_seconds, serialize_redacted, serialize_to_ndjson, JsonObject},
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -55,6 +61,9 @@ pub struct Config {
     /// Request timeout in seconds.
     #[serde(with = "serde_duration_as_seconds")]
     pub timeout: Duration,
+
+    /// The retry policy for internal requests to elastic search.
+    pub retry_policy: ExponentialJitterRetryPolicyConfig,
 }
 
 impl Default for Config {
@@ -65,6 +74,11 @@ impl Default for Config {
             password: String::from("changeme").into(),
             index_name: "test_index".into(),
             timeout: Duration::from_secs(2),
+            retry_policy: ExponentialJitterRetryPolicyConfig {
+                max_retries: 3,
+                step_size: Duration::from_millis(300),
+                max_backoff: Duration::from_millis(1000),
+            },
         }
     }
 }
@@ -86,6 +100,7 @@ pub struct Client {
     auth: Arc<Auth>,
     url_to_index: Arc<SegmentableUrl>,
     client: reqwest::Client,
+    retry_policy: ExponentialJitterRetryPolicyConfig,
 }
 
 impl Client {
@@ -96,6 +111,7 @@ impl Client {
             password,
             index_name,
             timeout,
+            retry_policy,
         } = config;
         Ok(Self {
             auth: Auth { user, password }.into(),
@@ -104,7 +120,23 @@ impl Client {
                 .with_segments([&index_name])
                 .into(),
             client: reqwest::ClientBuilder::new().timeout(timeout).build()?,
+            retry_policy,
         })
+    }
+
+    pub async fn retry<T, E, F>(
+        &self,
+        error_filter: impl Fn(&E) -> bool,
+        code: impl FnMut() -> F,
+    ) -> Result<T, E>
+    where
+        F: Future<Output = Result<T, E>>,
+        E: Display,
+    {
+        let policy = ExponentialJitterRetryPolicy::new(self.retry_policy.clone())
+            .with_retry_filter(error_filter);
+
+        retry(policy, code).await
     }
 
     /// Sets a different index.
@@ -118,6 +150,7 @@ impl Client {
                 .with_replaced_last_segment(index.as_ref())
                 .into(),
             client: self.client.clone(),
+            retry_policy: self.retry_policy.clone(),
         }
     }
 
@@ -219,35 +252,143 @@ impl<I> BulkResponse<I> {
 }
 
 #[derive(Debug, Deserialize)]
-struct Hit<I, T> {
+struct Hit<I> {
     #[serde(rename = "_id")]
     id: I,
-    #[allow(dead_code)]
-    #[serde(rename = "_source")]
-    source: T,
     #[serde(rename = "_score")]
     score: f32,
 }
 
 #[derive(Debug, Deserialize)]
-struct Hits<I, T> {
-    hits: Vec<Hit<I, T>>,
+struct Hits<I> {
+    hits: Vec<Hit<I>>,
 }
 
 #[derive(Debug, Deserialize)]
-struct SearchResponse<I, T> {
-    hits: Hits<I, T>,
+struct SearchResponse<I> {
+    hits: Hits<I>,
 }
 
+/// Deserializes from anything discarding any response.
+///
+/// Requires the `Deserializer` implementation to support `deserialize_any` and
+/// might not work for cases where `visitor.visit_enum` is called.
+///
+/// This means it does work without restrictions for formats like `json`.
 #[derive(Debug)]
-struct NoSource;
+pub struct SerdeDiscard;
 
-impl<'de> Deserialize<'de> for NoSource {
-    fn deserialize<D>(_: D) -> Result<Self, D::Error>
+impl<'de> Deserialize<'de> for SerdeDiscard {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        Ok(Self)
+        // Hint: a "discarding" serde type is more tricky than it might seem
+        // 1. just returning `Ok(SerdeDiscard)` without calling the deserializer can fail
+        //    in some edge cases due to the input which is supposed to be parsed not being
+        //    parsed at all. Instead of being parsed and discarded.
+        //    - this also can lead to a bunch of other unexpected behavior, e.g. we parsed a
+        //      `_source` field even after we disabled `_source` inclusion and blindly returning
+        //      `Ok(SerdeDiscard)` as a value in a map deserialized form json somehow didn't raise
+        //      and error (even through it should have as only the value is discarded, which still means
+        //      the fields itself is required if you don't also use `serde(default)`)
+        // 2. not parsing the input can lead to two errors 1st the deserializer raising an
+        //    error because something is wrong, 2nd we don't realize if the server has some
+        //    major issues and send us partial bodies or similar
+        // 3. to parse and then discard `deserialize_any` is required, or else the deserializer can't proceed at all
+        // 4. if a derserializer is used which might call `visit_enum` (i.e. not json) it might still
+        //    fail as there is no equivalent of deserialize_any for the enum variant
+        // 5. Just using the serde derive on a empty `struct Foo { }` will only work with json object
+        //    responses, but not arrays, string, etc.
+        struct DiscardingVisitor;
+
+        macro_rules! impl_simple_sink {
+            ($($name:ident: $ty:ty),* $(,)?) => ($(
+                fn $name<E>(self, _: $ty) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+                {
+                    Ok(SerdeDiscard)
+                }
+            )*);
+        }
+
+        impl<'de> de::Visitor<'de> for DiscardingVisitor {
+            type Value = SerdeDiscard;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                write!(formatter, "nothing, anything should be fine")
+            }
+
+            impl_simple_sink! {
+                visit_bool: bool,
+                visit_i64: i64,
+                visit_i128: i128,
+                visit_u64: u64,
+                visit_u128: u128,
+                visit_f64: f64,
+                visit_char: char,
+                visit_str: &str,
+                visit_string: String,
+                visit_bytes: &[u8],
+                visit_byte_buf: Vec<u8>,
+            }
+
+            fn visit_none<E>(self) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                deserializer.deserialize_any(Self)
+            }
+
+            fn visit_unit<E>(self) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_newtype_struct<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+            where
+                D: Deserializer<'de>,
+            {
+                deserializer.deserialize_any(Self)
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::SeqAccess<'de>,
+            {
+                while seq.next_element::<SerdeDiscard>()?.is_some() {}
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                while map.next_entry::<SerdeDiscard, SerdeDiscard>()?.is_some() {}
+                Ok(SerdeDiscard)
+            }
+
+            fn visit_enum<A>(self, _: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::EnumAccess<'de>,
+            {
+                //Hint: This can have the same issues as a deserialize `Ok(DiscardResponse)`,
+                //      but we can't really do anything about it there is no `EnumAccess.variant_any`.
+                Ok(SerdeDiscard)
+            }
+        }
+
+        deserializer.deserialize_any(DiscardingVisitor)
     }
 }
 
@@ -270,9 +411,8 @@ impl Client {
 
         let body = serialize_to_ndjson(requests)?;
 
-        self.query_with_bytes::<_, BulkResponse<I>>(Method::POST, url, Some((headers, body)))
-            .await?
-            .ok_or_else(|| Error::EndpointNotFound("_bulk"))
+        self.query_with_bytes::<BulkResponse<I>>(Method::POST, url, Some((headers, body.into())))
+            .await
     }
 
     pub async fn search_request<I>(&self, mut body: JsonObject) -> Result<HashMap<I, f32>, Error>
@@ -284,7 +424,7 @@ impl Client {
         }
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
-        self.query_with_json::<_, SearchResponse<I, NoSource>>(
+        self.query_with_json::<_, SearchResponse<I>>(
             Method::POST,
             self.create_url(["_search"], None),
             Some(body),
@@ -304,16 +444,39 @@ impl Client {
         })
     }
 
-    pub async fn query_with_bytes<B, T>(
+    pub async fn query_with_bytes<T>(
+        &self,
+        method: Method,
+        url: Url,
+        post_data: Option<(HeaderMap<HeaderValue>, Bytes)>,
+    ) -> Result<T, Error>
+    where
+        T: DeserializeOwned,
+    {
+        self.retry(
+            |err| matches!(err, Error::Transport(_)),
+            || async {
+                let method = method.clone();
+                let url = url.clone();
+                let post_data = post_data.clone();
+                self.query_with_bytes_without_retrying(method, url, post_data)
+                    .await
+            },
+        )
+        .await
+    }
+
+    async fn query_with_bytes_without_retrying<B, T>(
         &self,
         method: Method,
         url: Url,
         post_data: Option<(HeaderMap<HeaderValue>, B)>,
-    ) -> Result<Option<T>, Error>
+    ) -> Result<T, Error>
     where
         B: Into<Body>,
         T: DeserializeOwned,
     {
+        let path = url.path().to_owned();
         let mut request_builder = self.client.request(method, url);
         if let Some((headers, body)) = post_data {
             request_builder = request_builder.headers(headers).body(body)
@@ -323,14 +486,15 @@ impl Client {
 
         let status = response.status();
         if status == StatusCode::NOT_FOUND {
-            Ok(None)
+            Err(Error::ResourceNotFound(path))
         } else if !status.is_success() {
             let url = response.url().clone();
             let body = response.bytes().await?;
             let error = String::from_utf8_lossy(&body).into_owned();
             Err(Error::Status { status, url, error })
         } else {
-            Ok(Some(response.json().await?))
+            let body = response.bytes().await?;
+            Ok(serde_json::from_slice(&body)?)
         }
     }
 
@@ -349,7 +513,7 @@ impl Client {
                 let mut headers = HeaderMap::new();
                 headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
                 let body = serde_json::to_vec(&json)?;
-                Ok((headers, body))
+                Ok((headers, body.into()))
             })
             .transpose()?;
 
@@ -367,10 +531,24 @@ pub enum Error {
         url: Url,
         error: String,
     },
-    /// Failed to serialize a requests or deserialize a response.
+    /// Failed to serialize a requests or deserialize a response: {0}
     Serialization(serde_json::Error),
-    /// Given endpoint was not found: {0}
-    EndpointNotFound(&'static str),
+    /// Given resource was not found: {0}
+    ResourceNotFound(String),
+}
+
+pub trait NotFoundAsOptionExt<T> {
+    fn not_found_as_option(self) -> Result<Option<T>, Error>;
+}
+
+impl<T> NotFoundAsOptionExt<T> for Result<T, Error> {
+    fn not_found_as_option(self) -> Result<Option<T>, Error> {
+        match self {
+            Ok(value) => Ok(Some(value)),
+            Err(Error::ResourceNotFound(_)) => Ok(None),
+            Err(error) => Err(error),
+        }
+    }
 }
 
 #[derive(derive_more::Into, Clone, Debug)]
