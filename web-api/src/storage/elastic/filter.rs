@@ -151,7 +151,8 @@ impl Serialize for Filter<'_> {
 
         #[derive(Serialize)]
         struct SubFilter<'a> {
-            bool: Filter<'a>,
+            #[serde(rename = "bool")]
+            filter: Filter<'a>,
         }
 
         let filter = Filter {
@@ -161,7 +162,7 @@ impl Serialize for Filter<'_> {
         if self.is_root {
             filter.serialize(serializer)
         } else {
-            SubFilter { bool: filter }.serialize(serializer)
+            SubFilter { filter }.serialize(serializer)
         }
     }
 }
@@ -185,7 +186,8 @@ impl Serialize for Should<'_> {
 
         #[derive(Serialize)]
         struct SubShould<'a> {
-            bool: Should<'a>,
+            #[serde(rename = "bool")]
+            should: Should<'a>,
         }
 
         let should = Should {
@@ -196,7 +198,7 @@ impl Serialize for Should<'_> {
         if self.is_root {
             should.serialize(serializer)
         } else {
-            SubShould { bool: should }.serialize(serializer)
+            SubShould { should }.serialize(serializer)
         }
     }
 }
@@ -219,7 +221,8 @@ impl Serialize for MustNot<'_> {
 
         #[derive(Serialize)]
         struct SubMustNot<'a> {
-            bool: MustNot<'a>,
+            #[serde(rename = "bool")]
+            must_not: MustNot<'a>,
         }
 
         let must_not = MustNot {
@@ -229,7 +232,7 @@ impl Serialize for MustNot<'_> {
         if self.is_root {
             must_not.serialize(serializer)
         } else {
-            SubMustNot { bool: must_not }.serialize(serializer)
+            SubMustNot { must_not }.serialize(serializer)
         }
     }
 }
