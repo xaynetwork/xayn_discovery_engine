@@ -25,7 +25,14 @@ use xayn_test_utils::error::Panic;
 use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
-    models::{DocumentId, DocumentProperties, DocumentSnippet, IngestedDocument, UserId},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentSnippet,
+        IngestedDocument,
+        PreprocessingStep,
+        UserId,
+    },
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -74,10 +81,10 @@ impl State {
                 Ok(IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
-                    is_summarized: false,
+                    preprocessing_step: PreprocessingStep::None,
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory].try_into()?,
-                    embedding,
+                    embeddings: vec![embedding],
                     is_candidate: true,
                 })
             })
@@ -109,10 +116,10 @@ impl State {
                 IngestedDocument {
                     id,
                     snippet: snippet.clone(),
-                    is_summarized: false,
+                    preprocessing_step: PreprocessingStep::None,
                     properties: document.properties,
                     tags: document.tags,
-                    embedding,
+                    embeddings: vec![embedding],
                     is_candidate: true,
                 }
             })

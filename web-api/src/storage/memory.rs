@@ -52,6 +52,7 @@ use crate::{
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
+        PreprocessingStep,
         UserId,
     },
     storage::{self, KnnSearchParams, Warning},
@@ -60,7 +61,7 @@ use crate::{
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct Document {
     snippet: DocumentSnippet,
-    is_summarized: bool,
+    preprocessing_step: PreprocessingStep,
     properties: DocumentProperties,
     tags: DocumentTags,
     is_candidate: bool,
@@ -297,7 +298,7 @@ impl storage::Document for Storage {
                 documents.0.get(id).map(|document| ExcerptedDocument {
                     id: id.clone(),
                     snippet: document.snippet.clone(),
-                    is_summarized: document.is_summarized,
+                    preprocessing_step: document.preprocessing_step,
                     properties: document.properties.clone(),
                     tags: document.tags.clone(),
                     is_candidate: document.is_candidate,
@@ -360,18 +361,18 @@ impl storage::Document for Storage {
         let mut documents = self.documents.write().await;
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         documents.0.reserve(new_documents.len());
-        for document in new_documents {
+        for mut document in new_documents {
             documents.0.insert(
                 document.id.clone(),
                 Document {
                     snippet: document.snippet,
-                    is_summarized: document.is_summarized,
+                    preprocessing_step: document.preprocessing_step,
                     properties: document.properties,
                     tags: document.tags,
                     is_candidate: document.is_candidate,
                 },
             );
-            embeddings.insert(document.id, document.embedding);
+            embeddings.insert(document.id, document.embeddings.pop().unwrap());
         }
         documents.1 = Embeddings::borrowed(embeddings);
 
@@ -723,10 +724,10 @@ mod tests {
             .map(|(id, embedding)| IngestedDocument {
                 id: id.clone(),
                 snippet: DocumentSnippet::new("snippet", 100).unwrap(),
-                is_summarized: false,
+                preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: DocumentTags::default(),
-                embedding,
+                embeddings: vec![embedding],
                 is_candidate: true,
             })
             .collect_vec();
@@ -787,10 +788,10 @@ mod tests {
             vec![IngestedDocument {
                 id: doc_id.clone(),
                 snippet: snippet.clone(),
-                is_summarized: false,
+                preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
-                embedding: embedding.clone(),
+                embeddings: vec![embedding.clone()],
                 is_candidate: true,
             }],
         )

@@ -203,7 +203,8 @@ impl Client {
                     serde_json::to_value(IngestedDocument {
                         snippet: &document.snippet,
                         properties: &document.properties,
-                        embedding: &document.embedding,
+                        // TODO[pmk/now] fix
+                        embedding: document.embeddings.first().unwrap(),
                         tags: &document.tags,
                     })
                     .map_err(Into::into),

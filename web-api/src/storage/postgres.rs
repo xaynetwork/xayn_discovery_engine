@@ -107,7 +107,7 @@ impl Database {
             "INSERT INTO document (
                 document_id,
                 snippet,
-                is_summarized,
+                preprocessing_step,
                 properties,
                 tags,
                 embedding,
@@ -124,10 +124,11 @@ impl Database {
                         builder
                             .push_bind(&document.id)
                             .push_bind(&document.snippet)
-                            .push_bind(document.is_summarized)
+                            .push_bind(document.preprocessing_step)
                             .push_bind(Json(&document.properties))
                             .push_bind(&document.tags)
-                            .push_bind(&document.embedding)
+                            // TODO[pmk/now] fix
+                            .push_bind(document.embeddings.first().unwrap())
                             .push_bind(document.is_candidate);
                     },
                 )
@@ -308,7 +309,7 @@ impl Database {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<ExcerptedDocument>, Error> {
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, snippet, is_summarized, properties, tags, is_candidate
+            "SELECT document_id, snippet, preprocessing_step, properties, tags, is_candidate
             FROM document
             WHERE document_id IN ",
         );
@@ -321,12 +322,12 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, is_summarized, Json(properties), tags, is_candidate) =
+                        let (id, snippet, preprocessing_step, Json(properties), tags, is_candidate) =
                             FromRow::from_row(&row)?;
                         Ok(ExcerptedDocument {
                             id,
                             snippet,
-                            is_summarized,
+                            preprocessing_step,
                             properties,
                             tags,
                             is_candidate,
@@ -394,18 +395,19 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, snippet, is_summarized, properties, tags, embedding;")
+                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embedding;")
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, is_summarized, Json(properties), tags, embedding) =
+                        let (id, snippet, preprocessing_step, Json(properties), tags, embedding) =
                             FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
                             id,
                             snippet,
-                            is_summarized,
+                            preprocessing_step,
                             properties,
                             tags,
-                            embedding,
+                            // TODO[pmk/now] fix
+                            embeddings: vec![embedding],
                             is_candidate: true,
                         })
                     })
@@ -469,18 +471,19 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, snippet, is_summarized, properties, tags, embedding;")
+                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embedding;")
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, is_summarized, Json(properties), tags, embedding) =
+                        let (id, snippet, preprocessing_step, Json(properties), tags, embedding) =
                             FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
                             id,
                             snippet,
-                            is_summarized,
+                            preprocessing_step,
                             properties,
                             tags,
-                            embedding,
+                            // TODO[pmk/now] fix
+                            embeddings: vec![embedding],
                             is_candidate: true,
                         })
                     })

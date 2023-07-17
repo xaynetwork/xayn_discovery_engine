@@ -26,12 +26,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
+use xayn_ai_bert::NormalizedEmbedding;
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 use xayn_web_api_db_ctrl::{Operation, Silo};
 
 use super::AppState;
 use crate::{
     app::TenantState,
+    embedding::Embedder,
     error::common::{
         BadRequest,
         DocumentNotFound,
@@ -50,6 +52,7 @@ use crate::{
         DocumentPropertyId,
         DocumentSnippet,
         DocumentTags,
+        PreprocessingStep,
     },
     storage::{self, property_filter::IndexedPropertiesSchemaUpdate},
     utils::deprecate,
@@ -118,13 +121,15 @@ struct UnvalidatedIngestedDocument {
     default_is_candidate: Option<bool>,
     #[serde(default)]
     summarize: bool,
+    #[serde(default)]
+    split: bool,
 }
 
 #[derive(Debug)]
-struct IngestedDocument {
+struct DocumentForIngestion {
     id: DocumentId,
     snippet: DocumentSnippet,
-    summary: Option<String>,
+    preprocessing_step: PreprocessingStep,
     properties: DocumentProperties,
     tags: DocumentTags,
     is_candidate_op: IsCandidateOp,
@@ -202,20 +207,24 @@ impl UnvalidatedIngestedDocument {
         self,
         config: &impl AsRef<IngestionConfig>,
         storage: &(impl storage::Size + storage::IndexedProperties),
-    ) -> Result<IngestedDocument, Error> {
+    ) -> Result<DocumentForIngestion, Error> {
         let config = config.as_ref();
 
         let id = self.id.as_str().try_into()?;
         let snippet = DocumentSnippet::new(self.snippet, config.max_snippet_size)?;
-        let summary = self.summarize.then(|| {
-            summarize(
-                &Summarizer::Naive,
-                &Source::PlainText {
-                    text: snippet.as_str().to_owned(),
-                },
-                &Config::default(),
+
+        //FIXME this should be done post-validation
+        let preprocessing_step = match (self.split, self.summarize) {
+            (true, true) => {
+                return Err(anyhow!(
+                "You can only use either the pre-ingestion-option summarize or split but not both."
             )
-        });
+                .into())
+            }
+            (true, false) => PreprocessingStep::Split,
+            (false, true) => PreprocessingStep::Summarize,
+            (false, false) => PreprocessingStep::None,
+        };
 
         let properties =
             validate_document_properties(&id, self.properties, storage, config.max_properties_size)
@@ -239,10 +248,10 @@ impl UnvalidatedIngestedDocument {
             }
         };
 
-        Ok(IngestedDocument {
+        Ok(DocumentForIngestion {
             id,
             snippet,
-            summary,
+            preprocessing_step,
             properties,
             tags,
             is_candidate_op,
@@ -313,7 +322,7 @@ async fn upsert_documents(
                     document.id,
                     (
                         document.snippet,
-                        document.is_summarized,
+                        document.preprocessing_step,
                         document.properties,
                         document.tags,
                         document.is_candidate,
@@ -328,13 +337,18 @@ async fn upsert_documents(
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
-                .map(|(snippet, is_summarized, properties, tags, is_candidate)| {
-                    ((snippet, is_summarized, properties, tags), *is_candidate)
-                })
+                .map(
+                    |(snippet, preprocessing_step, properties, tags, is_candidate)| {
+                        (
+                            (snippet, preprocessing_step, properties, tags),
+                            *is_candidate,
+                        )
+                    },
+                )
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(snippet, is_summarized, _, _)| {
-                snippet != &document.snippet || *is_summarized != document.summary.is_some()
+            let new_snippet = data.map_or(true, |(snippet, preprocessing_step, _, _)| {
+                snippet != &document.snippet || *preprocessing_step != document.preprocessing_step
             });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
 
@@ -386,15 +400,14 @@ async fn upsert_documents(
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
-            let short_text = document.summary.as_deref().unwrap_or(&document.snippet);
-            match state.embedder.run(short_text) {
-                Ok(embedding) => Either::Left(models::IngestedDocument {
+            match calculate_embeddings(&state.embedder, &document) {
+                Ok(embeddings) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
-                    is_summarized: document.summary.is_some(),
+                    preprocessing_step: document.preprocessing_step,
                     properties: document.properties,
                     tags: document.tags,
-                    embedding,
+                    embeddings,
                     is_candidate: new_is_candidate.value,
                 }),
                 Err(error) => {
@@ -431,6 +444,24 @@ async fn upsert_documents(
     } else {
         Ok(HttpResponse::Created())
     }
+}
+
+fn calculate_embeddings(
+    embedder: &Embedder,
+    document: &DocumentForIngestion,
+) -> Result<Vec<NormalizedEmbedding>, Error> {
+    let embed = |text| embedder.run(text);
+    Ok(match document.preprocessing_step {
+        PreprocessingStep::None => vec![embed(document.snippet.as_str())?],
+        PreprocessingStep::Split => document.snippet.split('.').map(embed).try_collect()?,
+        PreprocessingStep::Summarize => vec![embed(&summarize(
+            &Summarizer::Naive,
+            &Source::PlainText {
+                text: document.snippet.as_str().to_owned(),
+            },
+            &Config::default(),
+        ))?],
+    })
 }
 
 async fn delete_document(id: Path<String>, state: TenantState) -> Result<impl Responder, Error> {
