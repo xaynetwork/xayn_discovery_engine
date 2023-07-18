@@ -52,9 +52,9 @@ Each document has a unique identifier that can be used to refer to it in the sys
 
 The `snippet` field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.
 
-For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per-document option 'summarise'; when enabled, the system will summarise the content of the document to create a snippet.
+For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per-document option `summarize`; when enabled, the system will summarise the content of the document to create a snippet.
 
-The 'properties' field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.
+The `properties` field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.
 
 The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see [createDocuments](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) for more information on properties.
 
@@ -148,7 +148,7 @@ curl -X POST https://<url>/semantic_search
     }'
 ```
 
-The result contains a list of documents that are similar to the `snippet` of the provided _document id_.
+The result contains a list of documents that are similar to the provided document (identified by its _document id_).
 
 ## Free Text search
 
@@ -174,7 +174,6 @@ The quality of the results can vary on the length of the provided query. Short q
 
 ## Personalised search
 
-Any search can also be combined with an `user id` or a user history, which is a list of `interactions`.
 To personalise search results for a specific user, any search can also be combined with an `user id` or a user `history`, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.
 
 This is how we ask the system for a personalised search result for a [user](#recommendations-personalised-documents):
