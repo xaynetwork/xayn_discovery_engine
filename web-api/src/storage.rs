@@ -95,11 +95,14 @@ pub(crate) enum NormalizationFn {
 #[serde(rename_all = "snake_case")]
 pub(crate) enum MergeFn {
     Sum {
+        #[serde(default)]
         knn_weight: Option<f32>,
+        #[serde(default)]
         bm25_weight: Option<f32>,
     },
     AverageDuplicatesOnly {},
     Rrf {
+        #[serde(default)]
         rank_constant: Option<f32>,
     },
 }
