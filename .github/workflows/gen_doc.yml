@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - ET-3610_better_documentation
     paths:
       - 'web-api/openapi/**'
       - 'docs/**'
