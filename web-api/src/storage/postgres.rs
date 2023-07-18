@@ -196,7 +196,7 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, is_candidate, array_length(embeddings, 1) as embedding_count;")
+                    .push(" RETURNING document_id, is_candidate, coalesce(array_length(embeddings, 1), 0) as embedding_count;")
                     .build()
                     .persistent(false)
                     .try_map(|row| QueriedDeletedDocumentWithCandidateInfo::from_row(&row))
@@ -420,7 +420,7 @@ impl Database {
             let hints = builder
                 .reset()
                 .push_tuple(ids)
-                .push(" RETURNING document_id, array_length(embeddings, 1) as embedding_count")
+                .push(" RETURNING document_id, coalesce(array_length(embeddings, 1), 0) as embedding_count")
                 .build()
                 .try_map(|row| QueriedDeletedDocument::from_row(&row).map(Into::into))
                 .fetch_all(&mut tx)
@@ -590,7 +590,7 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, array_length(embeddings, 1) as embedding_count;")
+                    .push(" RETURNING document_id, coalesce(array_length(embeddings, 1), 0) as embedding_count;")
                     .build()
                     .try_map(|row| {
                         QueriedDeletedDocument::from_row(&row).map(DocumentDeletionHint::from)
@@ -977,7 +977,7 @@ impl storage::DocumentProperties for Storage {
                 WHERE document_id = $2
                 FOR UPDATE
             )
-            RETURNING is_candidate, array_length(embeddings, 1);",
+            RETURNING is_candidate, coalesce(array_length(embeddings, 1), 0);",
         )
         .bind(Json(properties))
         .bind(id)
@@ -1015,7 +1015,7 @@ impl storage::DocumentProperties for Storage {
                 WHERE document_id = $1
                 FOR UPDATE
             )
-            RETURNING is_candidate, array_length(embeddings, 1);",
+            RETURNING is_candidate, coalesce(array_length(embeddings, 1), 0);",
         )
         .bind(id)
         .fetch_optional(&mut tx)
@@ -1090,7 +1090,7 @@ impl storage::DocumentProperty for Storage {
                 WHERE document_id = $3
                 FOR UPDATE
             )
-            RETURNING is_candidate, array_length(embeddings, 1);",
+            RETURNING is_candidate, coalesce(array_length(embeddings, 1), 0);",
         )
         .bind(slice::from_ref(property_id))
         .bind(Json(property))
@@ -1134,7 +1134,7 @@ impl storage::DocumentProperty for Storage {
                 WHERE document_id = $2
                 FOR UPDATE
             ) AND properties ? $1
-            RETURNING is_candidate, array_length(embeddings, 1);",
+            RETURNING is_candidate, coalesce(array_length(embeddings, 1), 0);",
         )
         .bind(property_id)
         .bind(document_id)
@@ -1317,7 +1317,7 @@ impl storage::Tag for Storage {
                 WHERE document_id = $2
                 FOR UPDATE
             )
-            RETURNING is_candidate, array_length(embeddings, 1);",
+            RETURNING is_candidate, coalesce(array_length(embeddings, 1), 0);",
         )
         .bind(tags)
         .bind(document_id)
