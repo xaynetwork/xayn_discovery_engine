@@ -104,6 +104,10 @@ pub(crate) enum MergeFn {
     Rrf {
         #[serde(default)]
         rank_constant: Option<f32>,
+        #[serde(default)]
+        knn_weight: Option<f32>,
+        #[serde(default)]
+        bm25_weight: Option<f32>,
     },
 }
 
