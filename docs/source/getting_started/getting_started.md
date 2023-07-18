@@ -39,7 +39,7 @@ curl -X POST https://<url>/documents
                     "title": "The initial challange",
                     "link": "https://xayn.com/blog/the-initial-challenge",
                     "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
-
+                    "tags" : ["privacy", "energy", "conference"],
                 }
             }
         ]
@@ -99,7 +99,9 @@ curl -X POST https://<url>/users/u1234/interactions
 
 ```
 
+```{note}
 Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the personalised endpoint.
+```
 
 Let's ask for personalised documents again now:
 
@@ -215,11 +217,98 @@ Alternatively a history of interactions can be used instead of a user id to ask 
 }
 ```
 
+```{note}
 Please note: `"exclude_seen": true` (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.
+```
 
-# Candidates and Filters
+# Filters
 
-For more advanced scenarios, in which just a portion of the documents should be returned there are apis on the front and on the back office:
+Finding specific documents in large datasets based on a key-phrase or their relation to other documents can often be challenging. To address this issue, we can employ a structured filter on one or more of the `properties` fields to narrow down the search scope.
 
-- [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates): is a back-office api that allows to globally define the documents that all apis can recommend or generate search results from. Documents that are not part of the candidates group will not be included in search results or recommendations, but interactions with these documents can still be recorded to use for personalisation.
-- [`/semantic_search filter property`](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments): is a front-office api, that allows to define complex filter scenarios for any user facing request.
+The `filter` functionality is available in the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/search/operation/getSimilarDocuments) and [`/users/{user_id}/personalized_documents`](https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments) endpoints, and it involves a two-step process:
+
+1. Indexing the desired property field for the filter to operate on.
+2. Applying the `filter` in the request to `/semantic_search` or `/users/{user_id}/personalized_documents`.
+
+```{note}
+Please note that the __first step__ is necessary to leverage the filtering at all.
+```
+
+## Indexing a filter property
+
+First lets check which properties are already indexed: 
+
+```bash
+curl --location 'https://<url>/documents/_indexed_properties' \
+--header 'authorizationToken: <back_office_token>>'
+```
+
+This returns just the `publication_date`, which is indexed by default (__Deprecated__).
+
+```json
+{
+    "properties": {
+        "publication_date": {
+            "type": "date"
+        }
+    }
+}
+```
+
+Next, we can proceed to include our desired property, specifically the `tags` field, in the index. To accomplish this, we need to provide the name and type of the property. The available types for indexing are [`keyword, keyword[], boolean, date, number`](https://docs.xayn.com/back_office.html#tag/property-indexing/operation/createIndexedProperties).
+
+```bash
+curl --location 'https://<url>/documents/_indexed_properties' \
+--header 'Content-Type: application/json' \
+--header 'authorizationToken: <back_office_token>' \
+--data '{
+    "properties": {
+        "tags": {
+            "type": "keyword[]"
+        }
+    }
+}'
+
+```
+
+After a short indexing period we can apply filters to our requests.
+
+## Applying a Filter
+
+Applying a filter then just requires to use the `filter` property in the `/semantic_search` or `/users/{user_id}/personalized_documents` query parameter. In the following two examples we simply filter for the tag `conference`.
+
+```{code-block} bash
+:caption: /semantic_search
+
+curl --location 'https://<url>/semantic_search' \
+--header 'Content-Type: application/json' \
+--header 'authorizationToken: <front_office_token>' \
+--data '{
+    "filter": {
+        "tags": {
+            "$in": [
+                "conference"
+            ]
+        }
+    },
+    "document": {
+        "query": "Privacy and security"
+    }
+}'
+```
+
+In `personalized_documents` the filter is used as a url param, and because of that it needs to be URI encoded. 
+
+The value `filter=%7B%22tags%22%3A%20%7B%20%22%24in%22%3A%20%5B%22conference%22%5D%20%7D%7D` decodes to `{"tags": { "$in": ["conference"] }}` :
+
+```{code-block} bash
+:caption: /users/{user_id}/personalized_documents
+
+curl --location 'https://<url>/users/<user_id>/personalized_documents?filter=%7B%22tags%22%3A%20%7B%20%22%24in%22%3A%20%5B%22conference%22%5D%20%7D%7D' \
+--header 'authorizationToken: <front_office_token>'
+```
+
+# Candidates
+
+[`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates) is a back-office api that allows to globally define the documents that all apis can recommend or generate search results from. Documents that are not part of the candidates group will not be included in search results or recommendations, but interactions with these documents can still be recorded to use for personalisation.
+

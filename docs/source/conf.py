@@ -14,7 +14,7 @@ author = 'Xayn'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = ['sphinxcontrib.httpdomain', 'sphinxcontrib.openapi',
-              'sphinx_toolbox.sidebar_links', 'myst_parser', 'sphinx_toolbox.github']
+              'sphinx_toolbox.sidebar_links', 'myst_parser', 'sphinx_toolbox.github', 'sphinx_copybutton']
 
 templates_path = ['_templates']
 exclude_patterns = []
@@ -59,8 +59,12 @@ html_theme_options = {
 
 html_static_path = ['_static']
 # html_logo = "logo.svg"
-pygments_style = "bw"
+# pygments_style = "bw"
 # pygments_dark_style = "bw"
+# https://pygments.org/styles/
+pygments_style = "default"
+pygments_dark_style = "monokai"
+
 openapi_default_renderer = 'httpdomain'
 github_repository = "xayn_discovery_engine"
 github_username = "xaynetwork"

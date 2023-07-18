@@ -5,3 +5,4 @@ sphinxcontrib-httpdomain==1.8.1
 sphinxcontrib-openapi @ git+https://github.com/david-i-berry/sphinxcontrib-openapi@0cb4f46
 sphinx-toolbox==3.4.0
 myst_parser
+sphinx-copybutton
