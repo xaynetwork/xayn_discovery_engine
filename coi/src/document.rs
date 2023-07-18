@@ -22,7 +22,7 @@ pub trait Document {
     fn id(&self) -> &Self::Id;
 
     /// Gets the embedding of the document.
-    fn embedding(&self) -> &NormalizedEmbedding;
+    fn embeddings<'a>(&'a self) -> Box<dyn Iterator<Item = &'a NormalizedEmbedding> + 'a>;
 }
 
 #[cfg(test)]
@@ -46,14 +46,14 @@ pub(crate) mod tests {
 
     pub(crate) struct TestDocument {
         pub(crate) id: DocumentId,
-        pub(crate) embedding: NormalizedEmbedding,
+        pub(crate) embeddings: Vec<NormalizedEmbedding>,
     }
 
     impl TestDocument {
         pub(crate) fn new(id: usize, embedding: NormalizedEmbedding) -> Self {
             Self {
                 id: DocumentId::mocked(id),
-                embedding,
+                embeddings: vec![embedding],
             }
         }
     }
@@ -65,8 +65,8 @@ pub(crate) mod tests {
             &self.id
         }
 
-        fn embedding(&self) -> &NormalizedEmbedding {
-            &self.embedding
+        fn embeddings<'a>(&'a self) -> Box<dyn Iterator<Item = &'a NormalizedEmbedding> + 'a> {
+            Box::new(self.embeddings.iter())
         }
     }
 }

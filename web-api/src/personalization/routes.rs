@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::AddAssign};
 
 use actix_web::{
     http::StatusCode,
@@ -46,7 +46,7 @@ use super::{
 use crate::{
     app::TenantState,
     error::{
-        common::{BadRequest, DocumentNotFound, InvalidDocumentCount},
+        common::{BadRequest, DocumentNotFound, InternalError, InvalidDocumentCount},
         warning::Warning,
     },
     models::{DocumentId, DocumentProperties, DocumentQuery, PersonalizedDocument, UserId},
@@ -129,8 +129,23 @@ pub(crate) async fn update_interactions(
                     .get_mut(tag)
                     .unwrap(/* update_interactions assures all tags are given */) += 1;
             }
-            coi.log_user_reaction(context.interests, &context.document.embedding, context.time)
-                .clone()
+            // TODO[pmk/soon] decide what to do with multiple embeddings in case of an user reaction
+            // Hint: Following is only ad-hoc code to make it work as before for users not using split
+            //       and not completely fall over for users using split. But otherwise not mut thought
+            //       went into it.
+            let mut updates = HashMap::new();
+            for embedding in &context.document.embeddings {
+                let updated_index =
+                    coi.log_user_reaction(context.interests, embedding, context.time);
+                updates.entry(updated_index).or_insert(0).add_assign(1);
+            }
+            let (index, _) = updates
+                .into_iter()
+                .max_by_key(|(_, count)| *count)
+                .ok_or_else(|| {
+                    InternalError::from_message("reaction to document with no embeddings")
+                })?;
+            Ok(context.interests[index].clone())
         },
     )
     .await?;
@@ -649,12 +664,13 @@ async fn semantic_search(
     };
     let (embedding, strategy) = match document {
         InputDocument::Ref(id) => {
-            let embedding = storage::Document::get_embedding(&storage, &id)
+            let mut embeddings = storage::Document::get_embeddings(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
             excluded.push(id);
             (
-                embedding,
+                // TODO[pmk/soon] how to handle by document search with split documents
+                embeddings.pop().unwrap().embedding,
                 create_search_strategy(enable_hybrid_search, dev.hybrid, None),
             )
         }

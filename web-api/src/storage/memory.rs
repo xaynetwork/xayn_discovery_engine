@@ -41,6 +41,7 @@ use crate::{
         common::{DocumentNotFound, DocumentPropertyNotFound},
     },
     models::{
+        DocumentEmbedding,
         DocumentId,
         DocumentProperties,
         DocumentProperty,
@@ -80,14 +81,14 @@ impl Point for CowEmbedding<'_> {
 
 #[self_referencing]
 struct Embeddings {
-    map: HashMap<DocumentId, NormalizedEmbedding>,
+    map: HashMap<DocumentId, DocumentEmbedding>,
     #[borrows(map)]
     #[covariant]
     index: HnswMap<CowEmbedding<'this>, Cow<'this, DocumentId>>,
 }
 
 impl Embeddings {
-    fn borrowed(map: HashMap<DocumentId, NormalizedEmbedding>) -> Self {
+    fn borrowed(map: HashMap<DocumentId, DocumentEmbedding>) -> Self {
         EmbeddingsBuilder {
             map,
             index_builder: |map| {
@@ -104,7 +105,7 @@ impl Embeddings {
     }
 
     fn owned(
-        map: HashMap<DocumentId, NormalizedEmbedding>,
+        map: HashMap<DocumentId, DocumentEmbedding>,
         index: HnswMap<CowEmbedding<'static>, Cow<'static, DocumentId>>,
     ) -> Self {
         EmbeddingsBuilder {
@@ -247,7 +248,7 @@ impl storage::Document for Storage {
                         .get(id)
                         .map(|embedding| InteractedDocument {
                             id: id.clone(),
-                            embedding: embedding.clone(),
+                            embeddings: vec![embedding.clone()],
                             tags: document.tags.clone(),
                         })
                 })
@@ -274,7 +275,7 @@ impl storage::Document for Storage {
                         .map(|embedding| PersonalizedDocument {
                             id: id.clone(),
                             score: 1.,
-                            embedding: embedding.clone(),
+                            embeddings: vec![embedding.clone()],
                             properties: include_properties
                                 .then(|| document.properties.clone())
                                 .unwrap_or_default(),
@@ -309,8 +310,13 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        Ok(self.documents.read().await.1.borrow_map().get(id).cloned())
+    async fn get_embeddings(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<Vec<DocumentEmbedding>>, Error> {
+        let embedding = self.documents.read().await.1.borrow_map().get(id).cloned();
+
+        Ok(embedding.map(|e| vec![e]))
     }
 
     async fn get_by_embedding<'a>(
@@ -338,7 +344,9 @@ impl storage::Document for Storage {
                     documents.0.get(id).map(|document| PersonalizedDocument {
                         id: id.clone(),
                         score: item.distance,
-                        embedding: item.point.as_ref().clone(),
+                        embeddings: vec![DocumentEmbedding::whole_document(
+                            item.point.as_ref().clone(),
+                        )],
                         properties: document.properties.clone(),
                         tags: document.tags.clone(),
                     })
@@ -615,7 +623,7 @@ impl storage::Interaction for Storage {
         interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
         store_user_history: bool,
         time: DateTime<Utc>,
-        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
+        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Result<Coi, Error>,
     ) -> Result<(), Error> {
         // Note: This doesn't has the exact same concurrency semantics as the postgres version
         let documents = self.get_interacted(interactions).await?;
@@ -639,7 +647,7 @@ impl storage::Interaction for Storage {
                 tag_weight_diff: &mut tag_weight_diff,
                 interests,
                 time,
-            });
+            })?;
             if store_user_history {
                 interactions.insert((document.id.clone(), updated.stats.last_view));
             }
@@ -713,21 +721,23 @@ mod tests {
         let ids = (0..3)
             .map(|id| DocumentId::try_from(id.to_string()).unwrap())
             .collect_vec();
+        let make_embeddings =
+            |raw: [f32; 3]| vec![DocumentEmbedding::whole_document(raw.try_into().unwrap())];
         let embeddings = [
-            [1., 0., 0.].try_into().unwrap(),
-            [1., 1., 0.].try_into().unwrap(),
-            [1., 1., 1.].try_into().unwrap(),
+            make_embeddings([1., 0., 0.]),
+            make_embeddings([1., 1., 0.]),
+            make_embeddings([1., 1., 1.]),
         ];
         let documents = ids
             .iter()
             .zip(embeddings)
-            .map(|(id, embedding)| IngestedDocument {
+            .map(|(id, embeddings)| IngestedDocument {
                 id: id.clone(),
                 snippet: DocumentSnippet::new("snippet", 100).unwrap(),
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: DocumentTags::default(),
-                embeddings: vec![embedding],
+                embeddings,
                 is_candidate: true,
             })
             .collect_vec();
@@ -791,7 +801,7 @@ mod tests {
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
-                embeddings: vec![embedding.clone()],
+                embeddings: vec![DocumentEmbedding::whole_document(embedding.clone())],
                 is_candidate: true,
             }],
         )
@@ -812,7 +822,7 @@ mod tests {
                     context.time,
                 );
                 context.interests.push(coi.clone());
-                coi
+                Ok(coi)
             },
         )
         .await
@@ -830,7 +840,7 @@ mod tests {
             .unwrap();
         assert_eq!(documents.len(), 1);
         assert_eq!(documents[0].id, doc_id);
-        assert_approx_eq!(f32, documents[0].embedding, embedding);
+        assert_approx_eq!(f32, documents[0].embeddings[0].embedding, embedding);
         assert!(documents[0].properties.is_empty());
         assert_eq!(documents[0].tags, tags);
         assert_eq!(

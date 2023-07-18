@@ -26,6 +26,7 @@ use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
     models::{
+        DocumentEmbedding,
         DocumentId,
         DocumentProperties,
         DocumentSnippet,
@@ -84,7 +85,7 @@ impl State {
                     preprocessing_step: PreprocessingStep::None,
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory].try_into()?,
-                    embeddings: vec![embedding],
+                    embeddings: vec![DocumentEmbedding::whole_document(embedding)],
                     is_candidate: true,
                 })
             })
@@ -119,7 +120,7 @@ impl State {
                     preprocessing_step: PreprocessingStep::None,
                     properties: document.properties,
                     tags: document.tags,
-                    embeddings: vec![embedding],
+                    embeddings: vec![DocumentEmbedding::whole_document(embedding)],
                     is_candidate: true,
                 }
             })

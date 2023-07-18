@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Borrow, collections::HashMap};
+use std::{borrow::Borrow, collections::HashMap, ops::Range};
 
 use chrono::DateTime;
 use derive_more::{Deref, DerefMut, Display, Into};
@@ -320,8 +320,8 @@ pub(crate) struct InteractedDocument {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
 
-    /// Embedding from smbert.
-    pub(crate) embedding: NormalizedEmbedding,
+    /// Embeddings used for semantic search.
+    pub(crate) embeddings: Vec<DocumentEmbedding>,
 
     /// The tags associated to the document.
     pub(crate) tags: DocumentTags,
@@ -336,8 +336,8 @@ pub(crate) struct PersonalizedDocument {
     /// Similarity score of the personalized document.
     pub(crate) score: f32,
 
-    /// Embedding from smbert.
-    pub(crate) embedding: NormalizedEmbedding,
+    /// Embedding used for semantic similarity.
+    pub(crate) embeddings: Vec<DocumentEmbedding>,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
@@ -353,8 +353,8 @@ impl AiDocument for PersonalizedDocument {
         &self.id
     }
 
-    fn embedding(&self) -> &NormalizedEmbedding {
-        &self.embedding
+    fn embeddings<'a>(&'a self) -> Box<dyn Iterator<Item = &'a NormalizedEmbedding> + 'a> {
+        Box::new(self.embeddings.iter().map(|e| &**e))
     }
 }
 
@@ -376,13 +376,29 @@ pub(crate) struct IngestedDocument {
     /// The tags associated to the document.
     pub(crate) tags: DocumentTags,
 
-    /// Embedding from smbert.
-    pub(crate) embeddings: Vec<NormalizedEmbedding>,
+    /// Embedding used for semantic similarity.
+    pub(crate) embeddings: Vec<DocumentEmbedding>,
 
     /// Indicates if the document is considered for recommendations.
     pub(crate) is_candidate: bool,
 }
 
+#[derive(Clone, Debug, Deref, Serialize, Deserialize)]
+pub(crate) struct DocumentEmbedding {
+    #[deref]
+    pub(crate) embedding: NormalizedEmbedding,
+    #[serde(default)]
+    pub(crate) range: Option<Range<usize>>,
+}
+
+impl DocumentEmbedding {
+    pub(crate) fn whole_document(embedding: NormalizedEmbedding) -> Self {
+        DocumentEmbedding {
+            embedding,
+            range: None,
+        }
+    }
+}
 #[derive(Debug)]
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,

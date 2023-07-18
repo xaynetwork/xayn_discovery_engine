@@ -23,7 +23,7 @@ use xayn_ai_coi::{Coi, CoiSystem};
 use super::PersonalizationConfig;
 use crate::{
     error::{common::HistoryTooSmall, warning::Warning},
-    models::{DocumentId, DocumentTags},
+    models::{DocumentEmbedding, DocumentId, DocumentTags},
     storage::{self, TagWeights},
     Error,
 };
@@ -99,7 +99,7 @@ pub(super) async fn load_history(
         storage::Document::get_interacted(storage, history.iter().map(|entry| &entry.id))
             .await?
             .into_iter()
-            .map(|document| (document.id, (document.embedding, document.tags)))
+            .map(|document| (document.id, (document.embeddings, document.tags)))
             .collect::<HashMap<_, _>>();
 
     Ok(history
@@ -109,9 +109,9 @@ pub(super) async fn load_history(
         .filter_map(|HistoryEntry { id, timestamp }| {
             loaded
                 .remove(&id)
-                .map(|(embedding, tags)| LoadedHistoryEntry {
+                .map(|(embeddings, tags)| LoadedHistoryEntry {
                     timestamp,
-                    embedding,
+                    embeddings,
                     tags,
                 })
         })
@@ -120,7 +120,7 @@ pub(super) async fn load_history(
 
 pub(super) struct LoadedHistoryEntry {
     pub(super) timestamp: DateTime<Utc>,
-    pub(super) embedding: NormalizedEmbedding,
+    pub(super) embeddings: Vec<DocumentEmbedding>,
     pub(super) tags: DocumentTags,
 }
 
@@ -132,7 +132,12 @@ pub(super) fn derive_interests_and_tag_weights<'a>(
     let mut interests = Vec::new();
     let mut tag_weights = TagWeights::new();
     for entry in history {
-        coi_system.log_user_reaction(&mut interests, &entry.embedding, entry.timestamp);
+        // TODO[pmk/soon]   This will work as before for use-cases not using split
+        //                  but with split this probably isn't good enough as it
+        //                  strongly "favors" documents with many splits.
+        for embedding in &entry.embeddings {
+            coi_system.log_user_reaction(&mut interests, embedding, entry.timestamp);
+        }
         for tag in &entry.tags {
             *tag_weights.entry(tag.clone()).or_default() += 1;
         }
@@ -150,7 +155,7 @@ pub fn bench_derive_interests(
         .into_iter()
         .map(|(timestamp, embedding)| LoadedHistoryEntry {
             timestamp,
-            embedding,
+            embeddings: vec![DocumentEmbedding::whole_document(embedding)],
             tags: DocumentTags::default(),
         })
         .collect_vec();
@@ -329,32 +334,37 @@ mod tests {
     fn test_derive_interests_and_tag_weights() -> Result<(), Panic> {
         let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
         let coi_system = CoiConfig::default().build();
+        let make_embedding = |raw| {
+            Embedding1::from(raw)
+                .normalize()
+                .map(|embedding| vec![DocumentEmbedding::whole_document(embedding)])
+        };
         let (interests, tag_weights) = derive_interests_and_tag_weights(
             &coi_system,
             &vec![
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(4),
-                    embedding: Embedding1::from([1., 1.]).normalize()?,
+                    embeddings: make_embedding([1., 1.])?,
                     tags: vec!["tag-1".try_into()?].try_into()?,
                 },
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(3),
-                    embedding: Embedding1::from([0., 1.]).normalize()?,
+                    embeddings: make_embedding([0., 1.])?,
                     tags: DocumentTags::default(),
                 },
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(2),
-                    embedding: Embedding1::from([0.1, 0.5]).normalize()?,
+                    embeddings: make_embedding([0.1, 0.5])?,
                     tags: vec!["tag-1".try_into()?, "tag-2".try_into()?].try_into()?,
                 },
                 LoadedHistoryEntry {
                     timestamp: now - Duration::days(1),
-                    embedding: Embedding1::from([1., 0.]).normalize()?,
+                    embeddings: make_embedding([1., 0.])?,
                     tags: vec!["tag-2".try_into()?, "tag-3".try_into()?].try_into()?,
                 },
                 LoadedHistoryEntry {
                     timestamp: now,
-                    embedding: Embedding1::from([0., 0.]).normalize()?,
+                    embeddings: make_embedding([0., 0.])?,
                     tags: vec!["tag-3".try_into()?, "tag-1".try_into()?].try_into()?,
                 },
             ],

@@ -47,12 +47,14 @@ impl System {
     }
 
     /// Updates the [`Coi`] closest to the embedding or creates a new one if it's too far away.
-    pub fn log_user_reaction<'a>(
+    ///
+    /// Returns the index of the updated `Coi`.
+    pub fn log_user_reaction(
         &self,
-        cois: &'a mut Vec<Coi>,
+        cois: &mut Vec<Coi>,
         embedding: &NormalizedEmbedding,
         time: DateTime<Utc>,
-    ) -> &'a Coi {
+    ) -> usize {
         // If the given embedding's similarity to the CoI is above the threshold,
         // we adjust the position of the nearest CoI
         if let Some((index, similarity)) = find_closest_coi_index(cois, embedding) {
@@ -60,14 +62,14 @@ impl System {
                 // normalization of the shifted coi is almost always possible
                 if let Ok(coi) = cois[index].shift_point(embedding, self.config.shift_factor()) {
                     coi.log_reaction(time);
-                    return &cois[index];
+                    return index;
                 }
             }
         }
 
         // If the embedding is too dissimilar, we create a new CoI instead
         cois.push(Coi::new(Id::new(), embedding.clone(), time));
-        &cois[cois.len() - 1]
+        cois.len() - 1
     }
 
     /// Computes the scores for all [`Document`]s wrt the [`Coi`]s.
@@ -83,14 +85,22 @@ impl System {
         documents
             .iter()
             .map(|document| {
-                find_closest_coi_index(cois, document.embedding()).map(|(index, similarity)| {
-                    let horizon = self.config.horizon();
-                    let decay =
-                        compute_coi_decay_factor(horizon, time, cois[index].stats.last_view);
-                    let relevance = compute_coi_relevances(cois, horizon, time)[index];
+                document
+                    .embeddings()
+                    // TODO[pmk/soon]   This implementation for handling multiple embeddings is probably fine
+                    //                  still it's ad-hoc and needs proper consideration. E.g. maybe we don't
+                    //                  fold for the closed coi to any embedding but find for each embedding a
+                    //                  closest coi and then combine the resulting scores in some way.
+                    .filter_map(|embedding| find_closest_coi_index(cois, embedding))
+                    .max_by(|(_, s1), (_, s2)| s1.total_cmp(s2))
+                    .map(|(index, similarity)| {
+                        let horizon = self.config.horizon();
+                        let decay =
+                            compute_coi_decay_factor(horizon, time, cois[index].stats.last_view);
+                        let relevance = compute_coi_relevances(cois, horizon, time)[index];
 
-                    (similarity * decay + relevance + 1.) / 4.
-                })
+                        (similarity * decay + relevance + 1.) / 4.
+                    })
             })
             .collect()
     }

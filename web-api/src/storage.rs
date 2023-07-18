@@ -37,6 +37,7 @@ use crate::{
     ingestion::IngestionConfig,
     models::{
         self,
+        DocumentEmbedding,
         DocumentId,
         DocumentPropertyId,
         DocumentQuery,
@@ -154,7 +155,10 @@ pub(crate) trait Document {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<ExcerptedDocument>, Error>;
 
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
+    async fn get_embeddings(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<Vec<DocumentEmbedding>>, Error>;
 
     async fn get_by_embedding<'a>(
         &self,
@@ -254,7 +258,7 @@ pub(crate) trait Interaction {
         interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
         store_user_history: bool,
         time: DateTime<Utc>,
-        update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
+        update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Result<Coi, Error>,
     ) -> Result<(), Error>;
 }
 

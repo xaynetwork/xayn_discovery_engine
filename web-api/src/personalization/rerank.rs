@@ -20,7 +20,13 @@ use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiSystem};
 
 use crate::{
-    models::{DocumentId, DocumentProperties, DocumentTag, PersonalizedDocument},
+    models::{
+        DocumentEmbedding,
+        DocumentId,
+        DocumentProperties,
+        DocumentTag,
+        PersonalizedDocument,
+    },
     personalization::PersonalizationConfig,
 };
 
@@ -123,7 +129,7 @@ pub fn bench_rerank<S>(
         .map(|(id, (embedding, tags))| PersonalizedDocument {
             id: id.to_string().try_into().unwrap(),
             score: 1.,
-            embedding,
+            embeddings: vec![DocumentEmbedding::whole_document(embedding)],
             properties: DocumentProperties::default(),
             tags: tags
                 .into_iter()
@@ -181,7 +187,7 @@ mod tests {
                 PersonalizedDocument {
                     id,
                     score: 1.,
-                    embedding,
+                    embeddings: vec![DocumentEmbedding::whole_document(embedding)],
                     properties: DocumentProperties::default(),
                     tags,
                 }

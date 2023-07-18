@@ -30,11 +30,7 @@ use sqlx::{
         chrono::{DateTime, Utc},
         Json,
     },
-    Executor,
-    FromRow,
-    Postgres,
-    QueryBuilder,
-    Transaction,
+    Executor, FromRow, Postgres, QueryBuilder, Transaction,
 };
 use tracing::{info, instrument};
 use xayn_ai_bert::NormalizedEmbedding;
@@ -42,28 +38,17 @@ use xayn_ai_coi::{Coi, CoiId, CoiStats};
 
 use super::{
     property_filter::{
-        IndexedPropertiesSchema,
-        IndexedPropertiesSchemaUpdate,
-        IndexedPropertyDefinition,
+        IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate, IndexedPropertyDefinition,
         IndexedPropertyType,
     },
-    InteractionUpdateContext,
-    TagWeights,
+    InteractionUpdateContext, TagWeights,
 };
 use crate::{
     ingestion::IngestionConfig,
     models::{
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        DocumentTag,
-        DocumentTags,
-        ExcerptedDocument,
-        IngestedDocument,
-        InteractedDocument,
-        PersonalizedDocument,
-        UserId,
+        DocumentEmbedding, DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId,
+        DocumentTag, DocumentTags, ExcerptedDocument, IngestedDocument, InteractedDocument,
+        PersonalizedDocument, UserId,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
     Error,
@@ -79,7 +64,7 @@ struct QueriedDeletedDocument {
 struct QueriedInteractedDocument {
     document_id: DocumentId,
     tags: DocumentTags,
-    embedding: NormalizedEmbedding,
+    embeddings: Vec<Json<DocumentEmbedding>>,
 }
 
 #[derive(FromRow)]
@@ -110,7 +95,7 @@ impl Database {
                 preprocessing_step,
                 properties,
                 tags,
-                embedding,
+                embeddings,
                 is_candidate
             ) ",
         );
@@ -121,14 +106,15 @@ impl Database {
                 .push_values(
                     documents.by_ref().take(Self::BIND_LIMIT / 6),
                     |mut builder, document| {
+                        let embeddings: Vec<_> = document.embeddings.iter().map(Json).collect();
+
                         builder
                             .push_bind(&document.id)
                             .push_bind(&document.snippet)
                             .push_bind(document.preprocessing_step)
                             .push_bind(Json(&document.properties))
                             .push_bind(&document.tags)
-                            // TODO[pmk/now] fix
-                            .push_bind(document.embeddings.first().unwrap())
+                            .push_bind(embeddings)
                             .push_bind(document.is_candidate);
                     },
                 )
@@ -137,7 +123,7 @@ impl Database {
                         snippet = EXCLUDED.snippet,
                         properties = EXCLUDED.properties,
                         tags = EXCLUDED.tags,
-                        embedding = EXCLUDED.embedding,
+                        embeddings = EXCLUDED.embeddings,
                         is_candidate = EXCLUDED.is_candidate;",
                 )
                 .build()
@@ -216,7 +202,7 @@ impl Database {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<InteractedDocument>, Error> {
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, tags, embedding
+            "SELECT document_id, tags, embeddings
             FROM document
             WHERE document_id IN ",
         );
@@ -232,7 +218,7 @@ impl Database {
                         QueriedInteractedDocument::from_row(&row).map(|document| {
                             InteractedDocument {
                                 id: document.document_id,
-                                embedding: document.embedding,
+                                embeddings: document.embeddings.into_iter().map(|w| w.0).collect(),
                                 tags: document.tags,
                             }
                         })
@@ -252,7 +238,7 @@ impl Database {
         include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut builder = QueryBuilder::new(format!(
-            "SELECT document_id, embedding, tags {}
+            "SELECT document_id, embeddings, tags {}
             FROM document
             WHERE document_id IN ",
             include_properties
@@ -269,15 +255,20 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row| {
-                        let (id, embedding, tags, properties) = if include_properties {
+                        let (id, embeddings, tags, properties) = if include_properties {
                             FromRow::from_row(&row).map(
-                                |(id, embedding, tags, Json(properties))| {
-                                    (id, embedding, tags, properties)
+                                |(id, embeddings, tags, Json(properties))| {
+                                    (id, embeddings_from_db(embeddings), tags, properties)
                                 },
                             )
                         } else {
-                            FromRow::from_row(&row).map(|(id, embedding, tags)| {
-                                (id, embedding, tags, DocumentProperties::default())
+                            FromRow::from_row(&row).map(|(id, embeddings, tags)| {
+                                (
+                                    id,
+                                    embeddings_from_db(embeddings),
+                                    tags,
+                                    DocumentProperties::default(),
+                                )
                             })
                         }?;
                         let score = scores(&id).unwrap(/* filtered ids */);
@@ -285,7 +276,7 @@ impl Database {
                         Ok(PersonalizedDocument {
                             id,
                             score,
-                            embedding,
+                            embeddings,
                             properties,
                             tags,
                         })
@@ -341,15 +332,18 @@ impl Database {
         Ok(documents)
     }
 
-    async fn get_embedding(
+    async fn get_embeddings(
         tx: &mut Transaction<'_, Postgres>,
         id: &DocumentId,
-    ) -> Result<Option<NormalizedEmbedding>, Error> {
-        sqlx::query_as("SELECT embedding FROM document WHERE document_id = $1;")
-            .bind(id)
-            .fetch_optional(tx)
-            .await
-            .map_err(Into::into)
+    ) -> Result<Option<Vec<DocumentEmbedding>>, Error> {
+        let opt_res = sqlx::query_as::<_, (Vec<Json<DocumentEmbedding>>,)>(
+            "SELECT embeddings FROM document WHERE document_id = $1;",
+        )
+        .bind(id)
+        .fetch_optional(tx)
+        .await?;
+
+        Ok(opt_res.map(|(res,)| res.into_iter().map(|wrapped| wrapped.0).collect()))
     }
 
     async fn set_candidates(
@@ -395,10 +389,10 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embedding;")
+                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embeddings;")
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, preprocessing_step, Json(properties), tags, embedding) =
+                        let (id, snippet, preprocessing_step, Json(properties), tags, embeddings) =
                             FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
                             id,
@@ -406,8 +400,7 @@ impl Database {
                             preprocessing_step,
                             properties,
                             tags,
-                            // TODO[pmk/now] fix
-                            embeddings: vec![embedding],
+                            embeddings: embeddings_from_db(embeddings),
                             is_candidate: true,
                         })
                     })
@@ -471,10 +464,10 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embedding;")
+                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embeddings;")
                     .build()
                     .try_map(|row| {
-                        let (id, snippet, preprocessing_step, Json(properties), tags, embedding) =
+                        let (id, snippet, preprocessing_step, Json(properties), tags, embeddings) =
                             FromRow::from_row(&row)?;
                         Ok(IngestedDocument {
                             id,
@@ -482,8 +475,7 @@ impl Database {
                             preprocessing_step,
                             properties,
                             tags,
-                            // TODO[pmk/now] fix
-                            embeddings: vec![embedding],
+                            embeddings: embeddings_from_db(embeddings),
                             is_candidate: true,
                         })
                     })
@@ -756,6 +748,10 @@ impl Database {
     }
 }
 
+fn embeddings_from_db(embeddings: Vec<Json<DocumentEmbedding>>) -> Vec<DocumentEmbedding> {
+    embeddings.into_iter().map(|j| j.0).collect()
+}
+
 #[async_trait(?Send)]
 impl storage::Document for Storage {
     async fn get_interacted(
@@ -794,12 +790,15 @@ impl storage::Document for Storage {
     }
 
     #[instrument(skip(self))]
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
+    async fn get_embeddings(
+        &self,
+        id: &DocumentId,
+    ) -> Result<Option<Vec<DocumentEmbedding>>, Error> {
         let mut tx = self.postgres.begin().await?;
-        let embedding = Database::get_embedding(&mut tx, id).await?;
+        let embeddings = Database::get_embeddings(&mut tx, id).await?;
         tx.commit().await?;
 
-        Ok(embedding)
+        Ok(embeddings)
     }
 
     async fn get_by_embedding<'a>(
@@ -1155,7 +1154,7 @@ impl storage::Interaction for Storage {
         interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
         store_user_history: bool,
         time: DateTime<Utc>,
-        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
+        mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Result<Coi, Error>,
     ) -> Result<(), Error> {
         let mut tx = self.postgres.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
@@ -1181,7 +1180,7 @@ impl storage::Interaction for Storage {
                     tag_weight_diff: &mut tag_weight_diff,
                     interests: &mut interests,
                     time,
-                });
+                })?;
                 // We might update the same coi min `interests` multiple times,
                 // if we do we only want to keep the latest update.
                 updates.insert(updated_coi.id, updated_coi);

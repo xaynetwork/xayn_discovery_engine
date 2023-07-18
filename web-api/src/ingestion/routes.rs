@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::Range};
 
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
@@ -26,7 +26,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
-use xayn_ai_bert::NormalizedEmbedding;
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 use xayn_web_api_db_ctrl::{Operation, Silo};
 
@@ -42,10 +41,12 @@ use crate::{
         FailedToIngestDocuments,
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
+        InternalError,
     },
     ingestion::IngestionConfig,
     models::{
         self,
+        DocumentEmbedding,
         DocumentId,
         DocumentProperties,
         DocumentProperty,
@@ -449,19 +450,77 @@ async fn upsert_documents(
 fn calculate_embeddings(
     embedder: &Embedder,
     document: &DocumentForIngestion,
-) -> Result<Vec<NormalizedEmbedding>, Error> {
-    let embed = |text| embedder.run(text);
+) -> Result<Vec<DocumentEmbedding>, Error> {
+    let snippet = &document.snippet;
     Ok(match document.preprocessing_step {
-        PreprocessingStep::None => vec![embed(document.snippet.as_str())?],
-        PreprocessingStep::Split => document.snippet.split('.').map(embed).try_collect()?,
-        PreprocessingStep::Summarize => vec![embed(&summarize(
-            &Summarizer::Naive,
-            &Source::PlainText {
-                text: document.snippet.as_str().to_owned(),
-            },
-            &Config::default(),
-        ))?],
+        PreprocessingStep::None => embed_whole(embedder, snippet)?,
+        PreprocessingStep::Split => embed_with_splitting(embedder, snippet)?,
+        PreprocessingStep::Summarize => embed_with_summarizer(embedder, snippet)?,
     })
+}
+
+fn embed_whole(embedder: &Embedder, snippet: &str) -> Result<Vec<DocumentEmbedding>, Error> {
+    let embedding = embedder.run(snippet)?;
+    Ok(vec![DocumentEmbedding::whole_document(embedding)])
+}
+
+fn embed_with_summarizer(
+    embedder: &Embedder,
+    snippet: &str,
+) -> Result<Vec<DocumentEmbedding>, Error> {
+    let summary = summarize(
+        &Summarizer::Naive,
+        &Source::PlainText {
+            text: snippet.to_owned(),
+        },
+        &Config::default(),
+    );
+    let embedding = embedder.run(&summary)?;
+    Ok(vec![DocumentEmbedding::whole_document(embedding)])
+}
+
+fn embed_with_splitting(
+    embedder: &Embedder,
+    snippet: &str,
+) -> Result<Vec<DocumentEmbedding>, Error> {
+    // TODO[pmk/now] use better splitting algorithm
+    snippet
+        .split('.')
+        .map(|split| {
+            // FIXME use something more elegant and robust
+            let range = derive_range(snippet, split)?;
+            let embedding = embedder.run(split)?;
+            Ok(DocumentEmbedding {
+                embedding,
+                range: Some(range),
+            })
+        })
+        .try_collect()
+}
+
+fn derive_range(source: &str, part: &str) -> Result<Range<usize>, Error> {
+    let full_ptr_range = source.as_bytes().as_ptr_range();
+    let full_start = full_ptr_range.start as usize;
+    let full_end = full_ptr_range.end as usize;
+    let part_ptr_range = part.as_bytes().as_ptr_range();
+    let part_start = part_ptr_range.start as usize;
+    let part_end = part_ptr_range.end as usize;
+
+    if part_start < full_start || part_end > full_end {
+        return Err(InternalError::from_message(
+            "slice isn't part of parent slice, can't calculate offsets",
+        )
+        .into());
+    }
+
+    let range = (part_start - full_start)..(part_end - full_start);
+    if source.get(range.clone()).is_none() {
+        return Err(InternalError::from_message(
+            "slice isn't well aligned part of parent slice, can't calculate offsets",
+        )
+        .into());
+    }
+    Ok(range)
 }
 
 async fn delete_document(id: Path<String>, state: TenantState) -> Result<impl Responder, Error> {
@@ -745,6 +804,32 @@ mod tests {
                     value,
                     existing_and_has_changed
                 }
+            );
+        }
+    }
+
+    #[test]
+    fn derive_range_works_correct() {
+        let full_string = "0123456789";
+        let valid = 2..5;
+        for r2 in [0..1, 1..3, 3..6, 1..6, 6..8] {
+            assert!(
+                derive_range(&full_string[valid.clone()], &full_string[r2.clone()]).is_err(),
+                "expect {r2:?} in {valid:?} to error",
+            );
+        }
+        for (r2, expected) in [
+            (valid.clone(), 0..valid.len()),
+            (valid.start..valid.start, 0..0),
+            (valid.end..valid.end, valid.len()..valid.len()),
+            (3..4, 1..2),
+        ] {
+            let got =
+                derive_range(&full_string[valid.clone()], &full_string[r2.clone()]).map_err(|_| ());
+            assert_eq!(
+                got.clone(),
+                Ok(expected.clone()),
+                "for {r2:?} in {valid:?} we get {got:?} but expect Ok({expected:?})"
             );
         }
     }
