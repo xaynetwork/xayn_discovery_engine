@@ -12,7 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Borrow, collections::HashMap, ops::Range};
+use std::{
+    borrow::Borrow,
+    collections::{HashMap, HashSet},
+    ops::Range,
+    str::FromStr,
+};
 
 use chrono::DateTime;
 use derive_more::{Deref, DerefMut, Display, Into};
@@ -95,6 +100,14 @@ macro_rules! string_wrapper {
                 }
             }
 
+            impl FromStr for $name {
+                type Err = $error;
+
+                fn from_str(value: &str) -> Result<Self, Self::Err> {
+                    value.try_into()
+                }
+            }
+
             impl PgHasArrayType for $name {
                 fn array_type_info() -> PgTypeInfo {
                     <String as PgHasArrayType>::array_type_info()
@@ -147,6 +160,12 @@ string_wrapper! {
     pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
     /// A document query.
     pub(crate) DocumentQuery, InvalidDocumentQuery, |value| is_valid_string(value, 512);
+}
+
+impl DocumentId {
+    pub(crate) fn create_child_id(&self, idx: usize) -> String {
+        format!("_child.{idx}.{self}")
+    }
 }
 
 /// A document snippet.
@@ -338,6 +357,10 @@ pub(crate) struct PersonalizedDocument {
 
     /// Embedding used for semantic similarity.
     pub(crate) embeddings: Vec<DocumentEmbedding>,
+
+    /// Matching splits.
+    #[allow(dead_code)]
+    pub(crate) splits: HashSet<usize>,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,

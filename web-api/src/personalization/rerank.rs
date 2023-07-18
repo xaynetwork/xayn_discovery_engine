@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, hash::BuildHasher};
+use std::{
+    collections::{HashMap, HashSet},
+    hash::BuildHasher,
+};
 
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -130,6 +133,7 @@ pub fn bench_rerank<S>(
             id: id.to_string().try_into().unwrap(),
             score: 1.,
             embeddings: vec![DocumentEmbedding::whole_document(embedding)],
+            splits: HashSet::new(),
             properties: DocumentProperties::default(),
             tags: tags
                 .into_iter()
@@ -188,6 +192,7 @@ mod tests {
                     id,
                     score: 1.,
                     embeddings: vec![DocumentEmbedding::whole_document(embedding)],
+                    splits: HashSet::new(),
                     properties: DocumentProperties::default(),
                     tags,
                 }

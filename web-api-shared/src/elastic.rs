@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fmt::{Debug, Display},
     future::Future,
     hash::Hash,
@@ -22,6 +22,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::anyhow;
 use bytes::Bytes;
 use derive_more::From;
 use futures_retry_policies::tokio::retry;
@@ -186,14 +187,18 @@ impl Client {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum BulkInstruction<'a, I> {
+pub enum BulkInstruction<I> {
     Index {
         #[serde(rename = "_id")]
-        id: &'a I,
+        id: I,
     },
     Delete {
         #[serde(rename = "_id")]
-        id: &'a I,
+        id: I,
+    },
+    Update {
+        #[serde(rename = "_id")]
+        id: I,
     },
 }
 
@@ -415,33 +420,54 @@ impl Client {
             .await
     }
 
-    pub async fn search_request<I>(&self, mut body: JsonObject) -> Result<HashMap<I, f32>, Error>
+    pub async fn search_request<I>(
+        &self,
+        mut body: JsonObject,
+    ) -> Result<HashMap<I, (f32, HashSet<usize>)>, Error>
     where
-        I: DeserializeOwned + Eq + Hash,
+        I: FromStr + Eq + Hash,
     {
         if body.get("size") == Some(&json!(0)) {
             return Ok(HashMap::new());
         }
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
-        self.query_with_json::<_, SearchResponse<I>>(
-            Method::POST,
-            self.create_url(["_search"], None),
-            Some(body),
-        )
-        .await
-        .map(|response| {
-            response
-                .map(|response| {
-                    response
-                        .hits
-                        .hits
-                        .into_iter()
-                        .map(|hit| (hit.id, hit.score))
-                        .collect()
-                })
-                .unwrap_or_default()
-        })
+        let response = self
+            .query_with_json::<_, SearchResponse<String>>(
+                Method::POST,
+                self.create_url(["_search"], None),
+                Some(body),
+            )
+            .await?;
+
+        let mut map = HashMap::default();
+        for hit in response.hits.hits.into_iter() {
+            if let Some(suffix) = hit.id.strip_prefix("_child.") {
+                let (idx, parent_id) = suffix.split_once('.').ok_or_else(|| {
+                    Error::Serialization(anyhow!("failed to split child id: {suffix}"))
+                })?;
+                let idx = idx.parse().map_err(|_| {
+                    Error::Serialization(anyhow!("failed to parse child idx: {idx}"))
+                })?;
+                let parent_id = parent_id.parse().map_err(|_| {
+                    Error::Serialization(anyhow!(
+                        "failed to parse parents document id: {parent_id} "
+                    ))
+                })?;
+
+                let (score, splits) = map.entry(parent_id).or_default();
+                *score += hit.score;
+                splits.insert(idx);
+            } else {
+                let id = hit.id.parse().map_err(|_| {
+                    Error::Serialization(anyhow!("failed to parse document.id: {}", hit.id))
+                })?;
+                let (score, _) = map.entry(id).or_default();
+                *score += hit.score;
+            }
+        }
+
+        Ok(map)
     }
 
     pub async fn query_with_bytes<T>(
@@ -531,8 +557,8 @@ pub enum Error {
         url: Url,
         error: String,
     },
-    /// Failed to serialize a requests or deserialize a response: {0}
-    Serialization(serde_json::Error),
+    /// Failed to serialize a requests or deserialize/parse a response.
+    Serialization(anyhow::Error),
     /// Given resource was not found: {0}
     ResourceNotFound(String),
 }
@@ -548,6 +574,12 @@ impl<T> NotFoundAsOptionExt<T> for Result<T, Error> {
             Err(Error::ResourceNotFound(_)) => Ok(None),
             Err(error) => Err(error),
         }
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(value: serde_json::Error) -> Self {
+        Error::Serialization(value.into())
     }
 }
 

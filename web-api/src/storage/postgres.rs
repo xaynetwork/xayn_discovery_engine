@@ -30,34 +30,78 @@ use sqlx::{
         chrono::{DateTime, Utc},
         Json,
     },
-    Executor, FromRow, Postgres, QueryBuilder, Transaction,
+    Executor,
+    FromRow,
+    Postgres,
+    QueryBuilder,
+    Transaction,
 };
 use tracing::{info, instrument};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiId, CoiStats};
 
 use super::{
+    elastic::{DocumentDeletionHint, ScoreMap},
     property_filter::{
-        IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate, IndexedPropertyDefinition,
+        IndexedPropertiesSchema,
+        IndexedPropertiesSchemaUpdate,
+        IndexedPropertyDefinition,
         IndexedPropertyType,
     },
-    InteractionUpdateContext, TagWeights,
+    InteractionUpdateContext,
+    TagWeights,
 };
 use crate::{
     ingestion::IngestionConfig,
     models::{
-        DocumentEmbedding, DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId,
-        DocumentTag, DocumentTags, ExcerptedDocument, IngestedDocument, InteractedDocument,
-        PersonalizedDocument, UserId,
+        DocumentEmbedding,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentTag,
+        DocumentTags,
+        ExcerptedDocument,
+        IngestedDocument,
+        InteractedDocument,
+        PersonalizedDocument,
+        UserId,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
     Error,
 };
 
 #[derive(FromRow)]
-struct QueriedDeletedDocument {
+struct QueriedDeletedDocumentWithCandidateInfo {
     document_id: DocumentId,
     is_candidate: bool,
+    embedding_count: i32,
+}
+
+impl From<QueriedDeletedDocumentWithCandidateInfo> for DocumentDeletionHint {
+    fn from(value: QueriedDeletedDocumentWithCandidateInfo) -> Self {
+        DocumentDeletionHint {
+            id: value.document_id,
+            #[allow(clippy::cast_sign_loss)]
+            embedding_count: value.embedding_count as usize,
+        }
+    }
+}
+
+#[derive(FromRow)]
+struct QueriedDeletedDocument {
+    document_id: DocumentId,
+    embedding_count: i32,
+}
+
+impl From<QueriedDeletedDocument> for DocumentDeletionHint {
+    fn from(value: QueriedDeletedDocument) -> Self {
+        DocumentDeletionHint {
+            id: value.document_id,
+            #[allow(clippy::cast_sign_loss)]
+            embedding_count: value.embedding_count as usize,
+        }
+    }
 }
 
 #[derive(FromRow)]
@@ -140,7 +184,7 @@ impl Database {
     async fn delete_documents(
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<(Vec<DocumentId>, Warning<DocumentId>), Error> {
+    ) -> Result<(Vec<DocumentDeletionHint>, Warning<DocumentId>), Error> {
         let mut tx = self.begin().await?;
 
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
@@ -152,10 +196,10 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id, is_candidate;")
+                    .push(" RETURNING document_id, is_candidate, array_length(embeddings, 1) as embedding_count;")
                     .build()
                     .persistent(false)
-                    .try_map(|row| QueriedDeletedDocument::from_row(&row))
+                    .try_map(|row| QueriedDeletedDocumentWithCandidateInfo::from_row(&row))
                     .fetch_all(&mut tx)
                     .await?,
             );
@@ -179,7 +223,7 @@ impl Database {
             .unwrap_or_default();
         let candidates = deleted
             .into_iter()
-            .filter_map(|document| document.is_candidate.then_some(document.document_id))
+            .filter_map(|document| document.is_candidate.then(|| document.into()))
             .collect();
 
         Ok((candidates, failed))
@@ -233,8 +277,7 @@ impl Database {
 
     async fn get_personalized(
         tx: &mut Transaction<'_, Postgres>,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+        scores: ScoreMap,
         include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut builder = QueryBuilder::new(format!(
@@ -245,9 +288,9 @@ impl Database {
                 .then_some(", properties")
                 .unwrap_or_default(),
         ));
-        let ids = ids.into_iter();
-        let mut documents = Vec::with_capacity(ids.len());
-        let mut ids = ids.filter(|id| scores(id).is_some()).peekable();
+
+        let mut documents = Vec::with_capacity(scores.len());
+        let mut ids = scores.keys().peekable();
         while ids.peek().is_some() {
             documents.extend(
                 builder
@@ -271,12 +314,13 @@ impl Database {
                                 )
                             })
                         }?;
-                        let score = scores(&id).unwrap(/* filtered ids */);
+                        let (score, splits) = &scores[&id];
 
                         Ok(PersonalizedDocument {
                             id,
-                            score,
+                            score: *score,
                             embeddings,
+                            splits: splits.clone(),
                             properties,
                             tags,
                         })
@@ -285,12 +329,7 @@ impl Database {
                     .await?,
             );
         }
-        documents.sort_unstable_by(|d1, d2| {
-            scores(&d1.id)
-                .unwrap()
-                .total_cmp(&scores(&d2.id).unwrap())
-                .reverse()
-        });
+        documents.sort_unstable_by(|d1, d2| d1.score.total_cmp(&d2.score).reverse());
 
         Ok(documents)
     }
@@ -349,11 +388,18 @@ impl Database {
     async fn set_candidates(
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
-    ) -> Result<(Vec<DocumentId>, Vec<IngestedDocument>, Warning<DocumentId>), Error> {
+    ) -> Result<
+        (
+            Vec<DocumentDeletionHint>,
+            Vec<IngestedDocument>,
+            Warning<DocumentId>,
+        ),
+        Error,
+    > {
         let mut tx = self.begin().await?;
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
-        let (unchanged, removed) = sqlx::query_as::<_, DocumentId>(
+        let to_remove = sqlx::query_as::<_, DocumentId>(
             "SELECT document_id
             FROM document
             WHERE is_candidate;",
@@ -361,20 +407,25 @@ impl Database {
         .fetch_all(&mut tx)
         .await?
         .into_iter()
-        .partition::<Vec<_>, _>(|id| ingestable.remove(id));
+        .filter(|id| !ingestable.remove(id))
+        .collect_vec();
 
         let mut builder = QueryBuilder::new(
             "UPDATE document
             SET is_candidate = FALSE
             WHERE document_id IN ",
         );
-        for ids in removed.chunks(Self::BIND_LIMIT) {
-            builder
+        let mut removal_hints = Vec::with_capacity(to_remove.len());
+        for ids in to_remove.chunks(Self::BIND_LIMIT) {
+            let hints = builder
                 .reset()
                 .push_tuple(ids)
+                .push(" RETURNING document_id, array_length(embeddings, 1) as embedding_count")
                 .build()
-                .execute(&mut tx)
+                .try_map(|row| QueriedDeletedDocument::from_row(&row).map(Into::into))
+                .fetch_all(&mut tx)
                 .await?;
+            removal_hints.extend(hints);
         }
 
         let mut builder = QueryBuilder::new(
@@ -420,7 +471,7 @@ impl Database {
             })
             .unwrap_or_default();
 
-        Ok((unchanged, ingested, failed))
+        Ok((removal_hints, ingested, failed))
     }
 
     async fn add_candidates(
@@ -501,7 +552,7 @@ impl Database {
     async fn remove_candidates(
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
-    ) -> Result<(Vec<DocumentId>, Warning<DocumentId>), Error> {
+    ) -> Result<(Vec<DocumentDeletionHint>, Warning<DocumentId>), Error> {
         let mut tx = self.begin().await?;
 
         let mut removable = ids.into_iter().collect::<HashSet<_>>();
@@ -539,9 +590,11 @@ impl Database {
                 builder
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
-                    .push(" RETURNING document_id;")
+                    .push(" RETURNING document_id, array_length(embeddings, 1) as embedding_count;")
                     .build()
-                    .try_map(|row| DocumentId::from_row(&row))
+                    .try_map(|row| {
+                        QueriedDeletedDocument::from_row(&row).map(DocumentDeletionHint::from)
+                    })
                     .fetch_all(&mut tx)
                     .await?,
             );
@@ -551,8 +604,8 @@ impl Database {
 
         let failed = (removed.len() < removable.len())
             .then(|| {
-                for id in &removed {
-                    removable.remove(id);
+                for hint in &removed {
+                    removable.remove(&hint.id);
                 }
                 removable.into_iter().cloned().collect()
             })
@@ -771,8 +824,11 @@ impl storage::Document for Storage {
         include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
-        let documents =
-            Database::get_personalized(&mut tx, ids, |_| Some(1.0), include_properties).await?;
+        let scores = ids
+            .into_iter()
+            .map(|id| (id.clone(), (1.0, HashSet::new())))
+            .collect();
+        let documents = Database::get_personalized(&mut tx, scores, include_properties).await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -808,13 +864,7 @@ impl storage::Document for Storage {
         let mut tx = self.postgres.begin().await?;
         let include_properties = params.include_properties;
         let scores = self.elastic.get_by_embedding(params).await?;
-        let documents = Database::get_personalized(
-            &mut tx,
-            scores.keys(),
-            |id| scores.get(id).copied(),
-            include_properties,
-        )
-        .await?;
+        let documents = Database::get_personalized(&mut tx, scores, include_properties).await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -828,7 +878,10 @@ impl storage::Document for Storage {
                 if document.is_candidate {
                     Either::Left(document)
                 } else {
-                    Either::Right(document.id)
+                    Either::Right(DocumentDeletionHint {
+                        id: document.id,
+                        embedding_count: document.embeddings.len(),
+                    })
                 }
             });
         let mut failed_documents = self.elastic.insert_documents(&candidates).await?;
@@ -861,10 +914,9 @@ impl storage::DocumentCandidate for Storage {
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<Warning<DocumentId>, Error> {
-        let (unchanged, ingested, mut failed) = self.postgres.set_candidates(ids).await?;
-        self.elastic.retain_documents(&unchanged).await?;
+        let (removed, ingested, mut failed) = self.postgres.set_candidates(ids).await?;
+        failed.extend(self.elastic.delete_documents(&removed).await?);
         failed.extend(self.elastic.insert_documents(&ingested).await?);
-
         Ok(failed)
     }
 
@@ -916,7 +968,7 @@ impl storage::DocumentProperties for Storage {
     ) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.begin().await?;
 
-        let inserted = sqlx::query_as::<_, (bool,)>(
+        let inserted = sqlx::query_as::<_, (bool, i32)>(
             "UPDATE document
             SET properties = $1
             WHERE document_id = (
@@ -925,20 +977,23 @@ impl storage::DocumentProperties for Storage {
                 WHERE document_id = $2
                 FOR UPDATE
             )
-            RETURNING is_candidate;",
+            RETURNING is_candidate, array_length(embeddings, 1);",
         )
         .bind(Json(properties))
         .bind(id)
         .fetch_optional(&mut tx)
         .await?;
-        let inserted = if let Some((is_candidate,)) = inserted {
+        let inserted = if let Some((is_candidate, embedding_count)) = inserted {
             if is_candidate {
                 self.elastic
-                    .insert_document_properties(id, properties)
-                    .await?
-            } else {
-                Some(())
+                    .insert_document_properties(
+                        id,
+                        embedding_count_from_db(embedding_count),
+                        properties,
+                    )
+                    .await?;
             }
+            Some(())
         } else {
             None
         };
@@ -951,7 +1006,7 @@ impl storage::DocumentProperties for Storage {
     async fn delete(&self, id: &DocumentId) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.begin().await?;
 
-        let deleted = sqlx::query_as::<_, (bool,)>(
+        let deleted = sqlx::query_as::<_, (bool, i32)>(
             "UPDATE document
             SET properties = DEFAULT
             WHERE document_id = (
@@ -960,17 +1015,18 @@ impl storage::DocumentProperties for Storage {
                 WHERE document_id = $1
                 FOR UPDATE
             )
-            RETURNING is_candidate;",
+            RETURNING is_candidate, array_length(embeddings, 1);",
         )
         .bind(id)
         .fetch_optional(&mut tx)
         .await?;
-        let deleted = if let Some((is_candidate,)) = deleted {
+        let deleted = if let Some((is_candidate, embedding_count)) = deleted {
             if is_candidate {
-                self.elastic.delete_document_properties(id).await?
-            } else {
-                Some(())
+                self.elastic
+                    .delete_document_properties(id, embedding_count_from_db(embedding_count))
+                    .await?;
             }
+            Some(())
         } else {
             None
         };
@@ -979,6 +1035,11 @@ impl storage::DocumentProperties for Storage {
 
         Ok(deleted)
     }
+}
+
+fn embedding_count_from_db(count: i32) -> usize {
+    #![allow(clippy::cast_sign_loss)]
+    count as usize
 }
 
 #[async_trait]
@@ -1020,7 +1081,7 @@ impl storage::DocumentProperty for Storage {
     ) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.begin().await?;
 
-        let inserted = sqlx::query_as::<_, (bool,)>(
+        let inserted = sqlx::query_as::<_, (bool, i32)>(
             "UPDATE document
             SET properties = jsonb_set(properties, $1, $2)
             WHERE document_id = (
@@ -1029,21 +1090,25 @@ impl storage::DocumentProperty for Storage {
                 WHERE document_id = $3
                 FOR UPDATE
             )
-            RETURNING is_candidate;",
+            RETURNING is_candidate, array_length(embeddings, 1);",
         )
         .bind(slice::from_ref(property_id))
         .bind(Json(property))
         .bind(document_id)
         .fetch_optional(&mut tx)
         .await?;
-        let inserted = if let Some((is_candidate,)) = inserted {
+        let inserted = if let Some((is_candidate, embedding_count)) = inserted {
             if is_candidate {
                 self.elastic
-                    .insert_document_property(document_id, property_id, property)
-                    .await?
-            } else {
-                Some(())
+                    .insert_document_property(
+                        document_id,
+                        embedding_count_from_db(embedding_count),
+                        property_id,
+                        property,
+                    )
+                    .await?;
             }
+            Some(())
         } else {
             None
         };
@@ -1060,7 +1125,7 @@ impl storage::DocumentProperty for Storage {
     ) -> Result<Option<Option<()>>, Error> {
         let mut tx = self.postgres.begin().await?;
 
-        let deleted = sqlx::query_as::<_, (bool,)>(
+        let deleted = sqlx::query_as::<_, (bool, i32)>(
             "UPDATE document
             SET properties = properties - $1
             WHERE document_id = (
@@ -1069,20 +1134,23 @@ impl storage::DocumentProperty for Storage {
                 WHERE document_id = $2
                 FOR UPDATE
             ) AND properties ? $1
-            RETURNING is_candidate;",
+            RETURNING is_candidate, array_length(embeddings, 1);",
         )
         .bind(property_id)
         .bind(document_id)
         .fetch_optional(&mut tx)
         .await?;
-        let deleted = if let Some((is_candidate,)) = deleted {
+        let deleted = if let Some((is_candidate, embedding_count)) = deleted {
             if is_candidate {
                 self.elastic
-                    .delete_document_property(document_id, property_id)
-                    .await?
-            } else {
-                Some(Some(()))
+                    .delete_document_property(
+                        document_id,
+                        embedding_count_from_db(embedding_count),
+                        property_id,
+                    )
+                    .await?;
             }
+            Some(Some(()))
         } else {
             Database::document_exists(&mut tx, document_id)
                 .await?
@@ -1240,7 +1308,7 @@ impl storage::Tag for Storage {
     ) -> Result<Option<()>, Error> {
         let mut tx = self.postgres.begin().await?;
 
-        let inserted = sqlx::query_as::<_, (bool,)>(
+        let inserted = sqlx::query_as::<_, (bool, i32)>(
             "UPDATE document
             SET tags = $1
             WHERE document_id = (
@@ -1249,18 +1317,23 @@ impl storage::Tag for Storage {
                 WHERE document_id = $2
                 FOR UPDATE
             )
-            RETURNING is_candidate;",
+            RETURNING is_candidate, array_length(embeddings, 1);",
         )
         .bind(tags)
         .bind(document_id)
         .fetch_optional(&mut tx)
         .await?;
-        let inserted = if let Some((is_candidate,)) = inserted {
+        let inserted = if let Some((is_candidate, embedding_count)) = inserted {
             if is_candidate {
-                self.elastic.insert_document_tags(document_id, tags).await?
-            } else {
-                Some(())
+                self.elastic
+                    .insert_document_tags(
+                        document_id,
+                        embedding_count_from_db(embedding_count),
+                        tags,
+                    )
+                    .await?;
             }
+            Some(())
         } else {
             None
         };

@@ -15,9 +15,16 @@
 mod client;
 mod filter;
 
-use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
+use std::{
+    collections::{hash_map::Entry, HashMap, HashSet},
+    convert::identity,
+    hash::Hash,
+    iter,
+    mem::replace,
+};
 
 pub(crate) use client::{Client, ClientBuilder};
+use either::Either;
 use itertools::Itertools;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
@@ -56,7 +63,7 @@ impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
+    ) -> Result<ScoreMap, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::HybridEsRrf {
@@ -91,10 +98,7 @@ impl Client {
         }
     }
 
-    async fn knn_search<'a>(
-        &self,
-        params: KnnSearchParams<'a>,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
+    async fn knn_search<'a>(&self, params: KnnSearchParams<'a>) -> Result<ScoreMap, Error> {
         let KnnSearchParts {
             knn_object,
             generic_parameters,
@@ -149,7 +153,7 @@ impl Client {
         params: KnnSearchParams<'a>,
         query: &DocumentQuery,
         rank_constant: Option<u32>,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
+    ) -> Result<ScoreMap, Error> {
         let count = params.count;
 
         let KnnSearchParts {
@@ -186,40 +190,94 @@ impl Client {
 
     pub(super) async fn insert_documents(
         &self,
-        documents: impl IntoIterator<
-            IntoIter = impl ExactSizeIterator<Item = &models::IngestedDocument>,
-        >,
+        documents: &[models::IngestedDocument],
     ) -> Result<Warning<DocumentId>, Error> {
-        let documents = documents.into_iter();
-        if documents.len() == 0 {
+        if documents.is_empty() {
             return Ok(Warning::default());
         }
 
-        let response = self
-            .bulk_request(documents.flat_map(|document| {
-                [
-                    serde_json::to_value(BulkInstruction::Index { id: &document.id })
-                        .map_err(Into::into),
-                    serde_json::to_value(IngestedDocument {
+        let pre_deletions = documents
+            .iter()
+            .filter_map(|document| (document.embeddings.len() > 1).then_some(&document.id))
+            .collect_vec();
+
+        self.delete_by_parents(pre_deletions).await?;
+
+        let bulk = documents
+            .iter()
+            .flat_map(|document: &models::IngestedDocument| {
+                if document.embeddings.len() == 1 {
+                    let index = BulkInstruction::Index {
+                        id: document.id.as_str().to_owned(),
+                    };
+                    let data = EsDocument {
                         snippet: &document.snippet,
                         properties: &document.properties,
-                        // TODO[pmk/now] fix
                         embedding: document.embeddings.first().unwrap(),
                         tags: &document.tags,
-                    })
-                    .map_err(Into::into),
-                ]
-            }))
-            .await?;
+                        parent: None,
+                    };
+                    vec![
+                        serde_json::to_value(index).map_err(Into::into),
+                        serde_json::to_value(data).map_err(Into::into),
+                    ]
+                } else {
+                    document
+                        .embeddings
+                        .iter()
+                        .enumerate()
+                        .flat_map(|(idx, embedding)| {
+                            let index = BulkInstruction::Index {
+                                id: document.id.create_child_id(idx),
+                            };
+                            let data = EsDocument {
+                                snippet: &document.snippet,
+                                properties: &document.properties,
+                                embedding,
+                                tags: &document.tags,
+                                parent: Some(&document.id),
+                            };
+                            vec![
+                                serde_json::to_value(index).map_err(Into::into),
+                                serde_json::to_value(data).map_err(Into::into),
+                            ]
+                        })
+                        .collect()
+                }
+            });
+
+        let response = self.bulk_request(bulk).await?;
         Ok(response.failed_documents("index", false).into())
+    }
+
+    pub(super) async fn delete_by_parents(&self, parents: Vec<&DocumentId>) -> Result<(), Error> {
+        let url = self.create_url(["_delete_by_query"], [("refresh", None)]);
+        let body = json!({
+            "query": {
+                "terms": {
+                    "parent": parents,
+                }
+            }
+        });
+        self.query_with_json::<_, IgnoredResponse>(Method::POST, url, Some(body))
+            .await?;
+        Ok(())
     }
 
     pub(super) async fn delete_documents(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<Item = &DocumentDeletionHint>,
     ) -> Result<Warning<DocumentId>, Error> {
-        let ids = ids.into_iter();
-        if ids.len() == 0 {
+        let mut ids = ids
+            .into_iter()
+            .flat_map(|hint| match hint.embedding_count {
+                0 => vec![],
+                1 => vec![hint.id.as_str().to_owned()],
+                n => (0..n).map(|idx| hint.id.create_child_id(idx)).collect_vec(),
+            })
+            .peekable();
+
+        if ids.peek().is_none() {
             return Ok(Warning::default());
         }
 
@@ -229,25 +287,28 @@ impl Client {
         Ok(response.failed_documents("delete", true).into())
     }
 
-    pub(super) async fn retain_documents(
+    async fn document_property_update(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        id: &DocumentId,
+        embedding_count: usize,
+        update_body: Value,
     ) -> Result<(), Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
-        let url = self.create_url(["_delete_by_query"], [("refresh", None)]);
-        let body = json!({
-            "query": {
-                "bool": {
-                    "must_not": {
-                        "ids": {
-                            "values": ids.into_iter().collect_vec()
-                        }
-                    }
-                }
-            }
-        });
-        self.query_with_json::<_, SerdeDiscard>(Method::POST, url, Some(body))
-            .await?;
+        let ids = match embedding_count {
+            0 => return Ok(()),
+            1 => Either::Left(iter::once(id.as_str().to_owned())),
+            n => Either::Right((0..n).map(|idx| id.create_child_id(idx))),
+        };
+
+        self.bulk_request::<String>(ids.flat_map(|id| {
+            [
+                serde_json::to_value(BulkInstruction::Update { id }),
+                Ok(update_body.clone()),
+            ]
+        }))
+        .await?
+        // Hint: Allow not-found to avoid issue with race conditions if
+        //       users race to delete and update and document.
+        .failed_documents("update", true);
 
         Ok(())
     }
@@ -255,122 +316,112 @@ impl Client {
     pub(super) async fn insert_document_properties(
         &self,
         id: &DocumentId,
+        embedding_count: usize,
         properties: &DocumentProperties,
-    ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties = params.properties",
-                "params": {
-                    "properties": properties
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+    ) -> Result<(), Error> {
+        self.document_property_update(
+            id,
+            embedding_count,
+            json!({
+                "script": {
+                    "source": "ctx._source.properties = params.properties",
+                    "params": {
+                        "properties": properties
+                    }
+                },
+                "_source": false
+            }),
+        )
+        .await
     }
 
     pub(super) async fn delete_document_properties(
         &self,
         id: &DocumentId,
-    ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties = params.properties",
-                "params": {
-                    "properties": DocumentProperties::default()
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+        embedding_count: usize,
+    ) -> Result<(), Error> {
+        self.document_property_update(
+            id,
+            embedding_count,
+            json!({
+                "script": {
+                    "source": "ctx._source.properties = params.properties",
+                    "params": {
+                        "properties": DocumentProperties::default()
+                    }
+                },
+                "_source": false
+            }),
+        )
+        .await
     }
 
     pub(super) async fn insert_document_property(
         &self,
         document_id: &DocumentId,
+        embedding_count: usize,
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
-    ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties.put(params.prop_id, params.property)",
-                "params": {
-                    "prop_id": property_id,
-                    "property": property
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+    ) -> Result<(), Error> {
+        self.document_property_update(
+            document_id,
+            embedding_count,
+            json!({
+                "script": {
+                    "source": "ctx._source.properties.put(params.prop_id, params.property)",
+                    "params": {
+                        "prop_id": property_id,
+                        "property": property
+                    }
+                },
+                "_source": false
+            }),
+        )
+        .await
     }
 
     pub(super) async fn delete_document_property(
         &self,
         document_id: &DocumentId,
+        embedding_count: usize,
         property_id: &DocumentPropertyId,
-    ) -> Result<Option<Option<()>>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.properties.remove(params.prop_id)",
-                "params": {
-                    "prop_id": property_id
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| Some(())))
+    ) -> Result<(), Error> {
+        self.document_property_update(
+            document_id,
+            embedding_count,
+            json!({
+                "script": {
+                    "source": "ctx._source.properties.remove(params.prop_id)",
+                    "params": {
+                        "prop_id": property_id
+                    }
+                },
+                "_source": false
+            }),
+        )
+        .await
     }
 
     pub(super) async fn insert_document_tags(
         &self,
         id: &DocumentId,
+        embedding_count: usize,
         tags: &DocumentTags,
-    ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
-                "source": "ctx._source.tags = params.tags",
-                "params": {
-                    "tags": tags
-                }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+    ) -> Result<(), Error> {
+        self.document_property_update(
+            id,
+            embedding_count,
+            json!({
+                "script": {
+                    "source": "ctx._source.tags = params.tags",
+                    "params": {
+                        "tags": tags
+                    }
+                },
+                "_source": false
+            }),
+        )
+        .await
     }
 
     pub(super) async fn extend_mapping(
@@ -458,6 +509,11 @@ impl Client {
     }
 }
 
+pub(super) struct DocumentDeletionHint {
+    pub(super) id: DocumentId,
+    pub(super) embedding_count: usize,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(default)]
 pub(crate) struct IndexUpdateConfig {
@@ -486,11 +542,13 @@ pub(crate) enum IndexUpdateMethod {
 }
 
 #[derive(Debug, Serialize)]
-struct IngestedDocument<'a> {
-    snippet: &'a DocumentSnippet,
-    properties: &'a DocumentProperties,
-    embedding: &'a NormalizedEmbedding,
-    tags: &'a DocumentTags,
+pub(crate) struct EsDocument<'a> {
+    pub(crate) snippet: &'a DocumentSnippet,
+    pub(crate) properties: &'a DocumentProperties,
+    pub(crate) embedding: &'a NormalizedEmbedding,
+    pub(crate) tags: &'a DocumentTags,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) parent: Option<&'a DocumentId>,
 }
 
 struct KnnSearchParts {
@@ -536,65 +594,58 @@ impl KnnSearchParams<'_> {
     }
 }
 
-fn normalize_scores<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn normalize_scores(mut scores: ScoreMap) -> ScoreMap {
     let max_score = scores
         .values()
+        .map(|(score, _)| score)
         .max_by(|l, r| l.total_cmp(r))
         .copied()
         .unwrap_or_default();
 
-    for score in scores.values_mut() {
+    for (score, _) in scores.values_mut() {
         *score /= max_score;
     }
 
     scores
 }
 
-fn normalize_scores_if_max_gt_1<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
+fn normalize_scores_if_max_gt_1<K, M>(mut scores: HashMap<K, (f32, M)>) -> HashMap<K, (f32, M)>
 where
     K: Eq + Hash,
 {
     let max_score = scores
         .values()
-        .max_by(|l, r| l.total_cmp(r))
-        .copied()
+        .map(|(score, _)| *score)
+        .max_by(f32::total_cmp)
         .unwrap_or_default()
         .max(1.0);
 
-    for score in scores.values_mut() {
+    for (score, _) in scores.values_mut() {
         *score /= max_score;
     }
 
     scores
 }
 
-fn merge_scores_average_duplicates_only<K>(
-    mut scores_1: HashMap<K, f32>,
-    scores_2: HashMap<K, f32>,
-) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
-    for (key, value) in scores_2 {
-        scores_1
-            .entry(key)
-            .and_modify(|score| *score = (*score + value) / 2.)
-            .or_insert(value);
+fn merge_scores_average_duplicates_only(mut scores_1: ScoreMap, scores_2: ScoreMap) -> ScoreMap {
+    for (key, (score, splits)) in scores_2 {
+        match scores_1.entry(key) {
+            Entry::Occupied(mut oc) => {
+                let entry = oc.get_mut();
+                entry.0 = (entry.0 + score) / 2.;
+                entry.1.extend(splits);
+            }
+            Entry::Vacant(vc) => {
+                vc.insert((score, splits));
+            }
+        }
     }
     scores_1
 }
 
-fn merge_scores_weighted<K>(
-    scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>,
-) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn merge_scores_weighted(scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> ScoreMap {
     let weighted = scores.into_iter().flat_map(|(weight, mut scores)| {
-        for score in scores.values_mut() {
+        for (score, _) in scores.values_mut() {
             *score *= weight;
         }
         scores
@@ -603,51 +654,45 @@ where
 }
 
 /// Reciprocal Rank Fusion
-fn rrf<K>(k: f32, scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn rrf(k: f32, scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> ScoreMap {
     let rrf_scores = scores.into_iter().flat_map(|(weight, scores)| {
         scores
             .into_iter()
-            .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+            .sorted_by(|(_, (s1, _)), (_, (s2, _))| s1.total_cmp(s2).reverse())
             .enumerate()
-            .map(move |(rank0, (document, _))| {
+            .map(move |(rank0, (document, (_, splits)))| {
                 #[allow(clippy::cast_precision_loss)]
-                (document, (k + rank0 as f32 + 1.).recip() * weight)
+                let rrf_score = (k + rank0 as f32 + 1.).recip() * weight;
+                (document, (rrf_score, splits))
             })
     });
     collect_summing_repeated(rrf_scores)
 }
 
-fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn collect_summing_repeated(scores: impl IntoIterator<Item = ScoreMap>) -> ScoreMap {
     scores
         .into_iter()
-        .fold(HashMap::new(), |mut acc, (key, value)| {
-            acc.entry(key).or_default().add_assign(value);
+        .fold(HashMap::new(), |mut acc, (key, (score, split))| {
+            let (current_score, current_splits) = acc.entry(key).or_default();
+            *current_score += score;
+            current_splits.extend(split);
             acc
         })
 }
 
-fn take_highest_n_scores<K>(n: usize, scores: HashMap<K, f32>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn take_highest_n_scores(n: usize, scores: ScoreMap) -> ScoreMap {
     if scores.len() <= n {
         return scores;
     }
 
     scores
         .into_iter()
-        .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+        .sorted_unstable_by(|(_, (s1, _)), (_, (s2, _))| s1.total_cmp(s2).reverse())
         .take(n)
         .collect()
 }
 
-type ScoreMap = HashMap<DocumentId, f32>;
+pub(super) type ScoreMap = HashMap<DocumentId, (f32, HashSet<usize>)>;
 
 impl NormalizationFn {
     fn to_fn(self) -> Box<dyn Fn(ScoreMap) -> ScoreMap> {

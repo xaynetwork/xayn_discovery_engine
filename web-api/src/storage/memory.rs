@@ -276,6 +276,7 @@ impl storage::Document for Storage {
                             id: id.clone(),
                             score: 1.,
                             embeddings: vec![embedding.clone()],
+                            splits: HashSet::new(),
                             properties: include_properties
                                 .then(|| document.properties.clone())
                                 .unwrap_or_default(),
@@ -347,6 +348,7 @@ impl storage::Document for Storage {
                         embeddings: vec![DocumentEmbedding::whole_document(
                             item.point.as_ref().clone(),
                         )],
+                        splits: HashSet::new(),
                         properties: document.properties.clone(),
                         tags: document.tags.clone(),
                     })
