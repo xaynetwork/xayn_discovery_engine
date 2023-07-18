@@ -483,13 +483,12 @@ fn embed_with_splitting(
     embedder: &Embedder,
     snippet: &str,
 ) -> Result<Vec<DocumentEmbedding>, Error> {
-    // TODO[pmk/now] use better splitting algorithm
-    snippet
-        .split('.')
+    cutters::cut(snippet, cutters::Language::English)
+        .into_iter()
         .map(|split| {
             // FIXME use something more elegant and robust
-            let range = derive_range(snippet, split)?;
-            let embedding = embedder.run(split)?;
+            let range = derive_range(snippet, split.str)?;
+            let embedding = embedder.run(split.str)?;
             Ok(DocumentEmbedding {
                 embedding,
                 range: Some(range),
