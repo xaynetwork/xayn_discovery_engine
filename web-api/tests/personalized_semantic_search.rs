@@ -41,6 +41,7 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
             }))
             .build()?,
         StatusCode::CREATED,
+        false,
     )
     .await;
     Ok(())
@@ -54,6 +55,7 @@ async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Erro
             .json(&json!({ "documents": [ { "id": "d2" }, { "id": "d9" } ] }))
             .build()?,
         StatusCode::NO_CONTENT,
+        false,
     )
     .await;
     Ok(())
@@ -111,6 +113,7 @@ fn test_full_personalization() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -131,6 +134,7 @@ fn test_full_personalization() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -150,6 +154,7 @@ fn test_full_personalization() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -186,6 +191,7 @@ fn test_subtle_personalization() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -221,6 +227,7 @@ fn test_full_personalization_with_inline_history() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -239,6 +246,7 @@ fn test_full_personalization_with_inline_history() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -258,6 +266,7 @@ fn test_full_personalization_with_inline_history() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(

@@ -34,6 +34,7 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
             }))
             .build()?,
         StatusCode::CREATED,
+        false,
     )
     .await;
 
@@ -89,6 +90,7 @@ fn test_semantic_search() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -123,6 +125,7 @@ fn test_semantic_search_with_query() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -162,6 +165,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
 
@@ -180,6 +184,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
 
@@ -198,6 +203,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
 
@@ -216,6 +222,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
 
@@ -237,6 +244,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
 
@@ -265,6 +273,7 @@ fn test_semantic_search_with_dev_option_hybrid_es_rrf() {
                     .build()?,
                 // current license is non-compliant for Reciprocal Rank Fusion (RRF)
                 StatusCode::INTERNAL_SERVER_ERROR,
+                false,
             )
             .await;
 
@@ -292,6 +301,7 @@ fn test_semantic_search_with_dev_option_candidates() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(documents, ["d1"], "unexpected documents: {documents:?}");
@@ -307,6 +317,7 @@ fn test_semantic_search_with_dev_option_candidates() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(
@@ -326,6 +337,7 @@ fn test_semantic_search_with_dev_option_candidates() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_order!(

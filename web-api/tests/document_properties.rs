@@ -45,6 +45,7 @@ fn document_properties(is_candidate: bool) {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
 
@@ -52,6 +53,7 @@ fn document_properties(is_candidate: bool) {
             &client,
             client.get(url.join("/documents/d1/properties")?).build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert!(properties.is_empty());
@@ -59,6 +61,7 @@ fn document_properties(is_candidate: bool) {
             &client,
             client.get(url.join("/documents/d2/properties")?).build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentNotFound);
@@ -70,6 +73,7 @@ fn document_properties(is_candidate: bool) {
                 .json(&json!({ "properties": { "some": "thing", "else": 42 } }))
                 .build()?,
             StatusCode::NO_CONTENT,
+            false,
         )
         .await;
         let error = send_assert_json::<Error>(
@@ -79,6 +83,7 @@ fn document_properties(is_candidate: bool) {
                 .json(&json!({ "properties": {} }))
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentNotFound);
@@ -86,6 +91,7 @@ fn document_properties(is_candidate: bool) {
             &client,
             client.get(url.join("/documents/d1/properties")?).build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert_eq!(
@@ -103,6 +109,7 @@ fn document_properties(is_candidate: bool) {
                 .delete(url.join("/documents/d1/properties")?)
                 .build()?,
             StatusCode::NO_CONTENT,
+            false,
         )
         .await;
         let error = send_assert_json::<Error>(
@@ -111,6 +118,7 @@ fn document_properties(is_candidate: bool) {
                 .delete(url.join("/documents/d2/properties")?)
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentNotFound);
@@ -118,6 +126,7 @@ fn document_properties(is_candidate: bool) {
             &client,
             client.get(url.join("/documents/d1/properties")?).build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert!(properties.is_empty());
@@ -154,6 +163,7 @@ fn document_property(is_candidate: bool) {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
 
@@ -163,6 +173,7 @@ fn document_property(is_candidate: bool) {
                 .get(url.join("/documents/d1/properties/p1")?)
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentPropertyNotFound);
@@ -172,6 +183,7 @@ fn document_property(is_candidate: bool) {
                 .get(url.join("/documents/d2/properties/p1")?)
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentNotFound);
@@ -182,6 +194,7 @@ fn document_property(is_candidate: bool) {
                 .json(&json!({ "property": 42 }))
                 .build()?,
             StatusCode::NO_CONTENT,
+            false,
         )
         .await;
         let error = send_assert_json::<Error>(
@@ -191,6 +204,7 @@ fn document_property(is_candidate: bool) {
                 .json(&json!({ "property": 42 }))
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentNotFound);
@@ -200,6 +214,7 @@ fn document_property(is_candidate: bool) {
                 .get(url.join("/documents/d1/properties/p1")?)
                 .build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert_eq!(property, json!(42));
@@ -210,6 +225,7 @@ fn document_property(is_candidate: bool) {
                 .delete(url.join("/documents/d1/properties/p1")?)
                 .build()?,
             StatusCode::NO_CONTENT,
+            false,
         )
         .await;
         let error = send_assert_json::<Error>(
@@ -218,6 +234,7 @@ fn document_property(is_candidate: bool) {
                 .delete(url.join("/documents/d1/properties/p1")?)
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentPropertyNotFound);
@@ -227,6 +244,7 @@ fn document_property(is_candidate: bool) {
                 .delete(url.join("/documents/d2/properties/p1")?)
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error, Error::DocumentNotFound);

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Front Office API
-  version: 2.3.0
+  version: 2.3.1
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -48,11 +48,14 @@ security:
 
 paths:
   /users/{user_id}/personalized_documents:
-    get:
+    parameters:
+      - $ref: './parameters/path/id.yml#/UserId'
+
+    post:
       tags:
         - front office
         - search
-      summary: Get personalized documents for the user
+      summary: Personalize documents for the user
       description: |-
         Get a list of documents personalized for the given `user_id`.
         Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
@@ -60,8 +63,36 @@ paths:
         Documents that have been interacted with by the user are filtered out from the result.
         Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
       operationId: getPersonalizedDocuments
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PersonalizedDocumentsRequest'
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: Impossible to create a personalized documents for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PersonalizedDocumentsError'
+
+    get:
+      tags:
+        - front office
+        - search
+      deprecated: true
+      summary: Get personalized documents for the user
+      description: Deprecated. Use `POST /users/{user_id}/personalized_documents` instead.
+      operationId: getPersonalizedDocumentsDeprecated
       parameters:
-        - $ref: './parameters/path/id.yml#/UserId'
         - name: count
           in: query
           description:
@@ -240,6 +271,21 @@ components:
       oneOf:
         - $ref: '#/components/schemas/FilterCompare'
         - $ref: '#/components/schemas/FilterCombine'
+    PersonalizedDocumentsRequest:
+      type: object
+      properties:
+        count:
+          $ref: '#/components/schemas/Count'
+        published_after:
+          $ref: './schemas/time.yml#/PublishedAfter'
+        include_properties:
+          $ref: '#/components/schemas/IncludeProperties'
+        filter:
+          description:
+            $ref: '#/components/schemas/Filter/description'
+          oneOf:
+            - $ref: '#/components/schemas/FilterCompare'
+            - $ref: '#/components/schemas/FilterCombine'
     PersonalizedDocumentData:
       type: object
       required: [id, score]

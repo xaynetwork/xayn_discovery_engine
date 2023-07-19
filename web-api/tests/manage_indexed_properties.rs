@@ -49,6 +49,7 @@ fn test_creating_indexed_properties() {
                     }))
                     .build()?,
                 StatusCode::ACCEPTED,
+                false,
             )
             .await;
 
@@ -91,6 +92,7 @@ fn test_creating_indexed_properties() {
                     }))
                     .build()?,
                 StatusCode::ACCEPTED,
+                false,
             )
             .await;
 
@@ -129,6 +131,7 @@ fn test_creating_indexed_properties() {
                     .get(ingestion_url.join("/documents/_indexed_properties")?)
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
 
@@ -137,7 +140,8 @@ fn test_creating_indexed_properties() {
             let es = services.silo.elastic_config();
             let url = es.url.parse::<Url>()?.join("_mapping")?;
             let res =
-                send_assert_json::<Value>(&client, client.get(url).build()?, StatusCode::OK).await;
+                send_assert_json::<Value>(&client, client.get(url).build()?, StatusCode::OK, false)
+                    .await;
             let properties_mapping = &res[services.test_id.as_str()]["mappings"]["properties"]
                 ["properties"]["properties"];
             assert_eq!(
@@ -201,6 +205,7 @@ fn test_check_new_property_values_against_schema() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
 
@@ -229,6 +234,7 @@ fn test_check_new_property_values_against_schema() {
                     }))
                     .build()?,
                 StatusCode::ACCEPTED,
+                false,
             )
             .await;
 
@@ -275,6 +281,7 @@ fn test_check_new_property_values_against_schema() {
                     }))
                     .build()?,
                 StatusCode::CREATED,
+                false,
             )
             .await;
 
@@ -300,6 +307,7 @@ fn test_check_new_property_values_against_schema() {
                         }))
                         .build()?,
                     StatusCode::BAD_REQUEST,
+                    false,
                 )
                 .await;
 
@@ -326,6 +334,7 @@ fn test_check_new_property_values_against_schema() {
                         }))
                         .build()?,
                     StatusCode::BAD_REQUEST,
+                    false,
                 )
                 .await;
 
@@ -368,6 +377,7 @@ fn test_check_new_property_values_against_schema() {
                         .json(&json!({ "property": bad_value }))
                         .build()?,
                     StatusCode::BAD_REQUEST,
+                    false,
                 )
                 .await;
 

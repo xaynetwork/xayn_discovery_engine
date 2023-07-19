@@ -37,6 +37,7 @@ async fn index(client: &Client, url: &Url, properties: Value) -> Result<(), Erro
             .json(&json!({ "properties": properties }))
             .build()?,
         StatusCode::ACCEPTED,
+        false,
     )
     .await;
     Ok(())
@@ -50,6 +51,7 @@ async fn ingest(client: &Client, url: &Url, documents: Value) -> Result<(), Erro
             .json(&json!({ "documents": documents }))
             .build()?,
         StatusCode::CREATED,
+        false,
     )
     .await;
     Ok(())
@@ -108,6 +110,7 @@ fn test_filter_string() {
                     .json(&json!({ "document": { "query": "zero" } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
@@ -122,6 +125,7 @@ fn test_filter_string() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2"].into());
@@ -136,6 +140,7 @@ fn test_filter_string() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -150,6 +155,7 @@ fn test_filter_string() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -189,6 +195,7 @@ fn test_filter_array_string_single() {
                     .json(&json!({ "document": { "query": "zero" } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
@@ -203,6 +210,7 @@ fn test_filter_array_string_single() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2"].into());
@@ -217,6 +225,7 @@ fn test_filter_array_string_single() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2", "d3"].into());
@@ -231,6 +240,7 @@ fn test_filter_array_string_single() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -245,6 +255,7 @@ fn test_filter_array_string_single() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -259,6 +270,7 @@ fn test_filter_array_string_single() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -299,6 +311,7 @@ fn test_filter_array_string_multiple() {
                     .json(&json!({ "document": { "query": "zero" } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3", "d4"].into());
@@ -313,6 +326,7 @@ fn test_filter_array_string_multiple() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2", "d3"].into());
@@ -327,6 +341,7 @@ fn test_filter_array_string_multiple() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d4"].into());
@@ -341,6 +356,7 @@ fn test_filter_array_string_multiple() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2", "d3", "d4"].into());
@@ -355,6 +371,7 @@ fn test_filter_array_string_multiple() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -369,6 +386,7 @@ fn test_filter_array_string_multiple() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -383,6 +401,7 @@ fn test_filter_array_string_multiple() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -422,6 +441,7 @@ fn test_filter_combine() {
                     .json(&json!({ "document": { "query": "zero" } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
@@ -438,6 +458,7 @@ fn test_filter_combine() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2"].into());
@@ -454,6 +475,7 @@ fn test_filter_combine() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -470,6 +492,7 @@ fn test_filter_combine() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2", "d3"].into());
@@ -486,6 +509,7 @@ fn test_filter_combine() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -497,6 +521,7 @@ fn test_filter_combine() {
                     .json(&json!({ "document": { "query": "zero" }, "filter": { "$and": [] } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
@@ -508,6 +533,7 @@ fn test_filter_combine() {
                     .json(&json!({ "document": { "query": "zero" }, "filter": { "$or": [] } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
@@ -525,6 +551,7 @@ fn test_filter_combine() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d3"].into());
@@ -542,6 +569,7 @@ fn test_filter_combine() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2", "d3"].into());
@@ -589,6 +617,7 @@ fn test_filter_date() {
                     .json(&json!({ "document": { "query": "zero" } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
@@ -603,6 +632,7 @@ fn test_filter_date() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d3"].into());
@@ -620,6 +650,7 @@ fn test_filter_date() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2"].into());
@@ -637,6 +668,7 @@ fn test_filter_date() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d2", "d3"].into());
@@ -651,6 +683,7 @@ fn test_filter_date() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -677,7 +710,7 @@ fn test_deprecated_published_after() {
             )
             .await?;
 
-            let response = send_assert(
+            let documents = send_assert_json::<SemanticSearchResponse>(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
@@ -687,12 +720,9 @@ fn test_deprecated_published_after() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                true,
             )
             .await;
-            assert!(response.headers().contains_key("deprecation"));
-            let documents =
-                serde_json::from_slice::<SemanticSearchResponse>(&response.bytes().await.unwrap())
-                    .unwrap();
             assert_eq!(documents.ids(), ["d1"].into());
 
             Ok(())

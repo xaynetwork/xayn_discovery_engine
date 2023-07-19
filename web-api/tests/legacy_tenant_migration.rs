@@ -203,6 +203,7 @@ fn test_full_migration() {
                 .json(&es_mapping)
                 .build()?,
             StatusCode::OK,
+            false,
         )
         .await;
 
@@ -237,6 +238,7 @@ fn test_full_migration() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
 
@@ -249,6 +251,7 @@ fn test_full_migration() {
                 .json(&json!({ "document": { "query": "snippet" } }))
                 .build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert_eq!(
@@ -312,6 +315,7 @@ fn test_full_migration() {
                 .json(&json!({ "document": { "query": "snippet" } }))
                 .build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert_eq!(
@@ -333,6 +337,7 @@ fn test_full_migration() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
 
@@ -345,6 +350,7 @@ fn test_full_migration() {
                 .json(&json!({ "document": { "query": "snippet" } }))
                 .build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert_eq!(

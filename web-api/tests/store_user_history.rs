@@ -54,6 +54,7 @@ fn store_user_history(enabled: bool) {
                     }))
                     .build()?,
                 StatusCode::CREATED,
+                false,
             )
             .await;
 
@@ -64,15 +65,17 @@ fn store_user_history(enabled: bool) {
                     .json(&json!({ "documents": [ { "id": "2" }, { "id": "5" } ] }))
                     .build()?,
                 StatusCode::NO_CONTENT,
+                false,
             )
             .await;
 
             let documents = send_assert_json::<PersonalizedDocumentsResponse>(
                 &client,
                 client
-                    .get(personalization.join("/users/u0/personalized_documents")?)
+                    .post(personalization.join("/users/u0/personalized_documents")?)
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             let documents = documents

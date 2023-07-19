@@ -40,6 +40,7 @@ async fn ingest(client: &Client, url: &Url) -> Result<(), anyhow::Error> {
             }))
             .build()?,
         StatusCode::CREATED,
+        false,
     )
     .await;
     Ok(())
@@ -74,18 +75,21 @@ fn test_ingestion_created() {
             &client,
             client.get(url.join("/documents/d1/properties")?).build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         send_assert(
             &client,
             client.get(url.join("/documents/d2/properties")?).build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         let error = send_assert_json::<Error>(
             &client,
             client.get(url.join("/documents/d3/properties")?).build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error.kind, Kind::DocumentNotFound);
@@ -109,6 +113,7 @@ fn test_ingestion_bad_request() {
                 }))
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error.kind, Kind::FailedToValidateDocuments);
@@ -120,6 +125,7 @@ fn test_ingestion_bad_request() {
             &client,
             client.get(url.join("/documents/d2/properties")?).build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         Ok(())
@@ -134,6 +140,7 @@ fn test_deletion() {
             &client,
             client.delete(url.join("/documents/d1")?).build()?,
             StatusCode::NO_CONTENT,
+            false,
         )
         .await;
         let error = send_assert_json::<Error>(
@@ -143,6 +150,7 @@ fn test_deletion() {
                 .json(&json!({ "documents": ["d1", "d2"] }))
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error.kind, Kind::FailedToDeleteSomeDocuments);
@@ -184,6 +192,7 @@ fn test_reingestion_candidates() {
                     }))
                     .build()?,
                 StatusCode::CREATED,
+                false,
             )
             .await;
             let SemanticSearchResponse { documents } = send_assert_json(
@@ -196,6 +205,7 @@ fn test_reingestion_candidates() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(
@@ -220,6 +230,7 @@ fn test_reingestion_candidates() {
                     }))
                     .build()?,
                 StatusCode::CREATED,
+                false,
             )
             .await;
             let SemanticSearchResponse { documents } = send_assert_json(
@@ -232,6 +243,7 @@ fn test_reingestion_candidates() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(
@@ -267,6 +279,7 @@ fn test_reingestion_snippets() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
         send_assert(
@@ -283,6 +296,7 @@ fn test_reingestion_snippets() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
 
@@ -311,6 +325,7 @@ fn test_ingestion_same_id() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
         let OrderPropertyResponse { property } = send_assert_json(
@@ -319,6 +334,7 @@ fn test_ingestion_same_id() {
                 .get(url.join("/documents/d1/properties/order")?)
                 .build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert_eq!(property, 3);
@@ -328,6 +344,7 @@ fn test_ingestion_same_id() {
                 .get(url.join("/documents/d2/properties/order")?)
                 .build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         assert_eq!(property, 2);
@@ -355,6 +372,7 @@ fn test_ingestion_validation() {
                     }))
                     .build()?,
                 StatusCode::BAD_REQUEST,
+                false,
             )
             .await;
             assert_eq!(error.kind, Kind::FailedToValidateDocuments);
@@ -374,6 +392,7 @@ fn test_ingestion_validation() {
                     }))
                     .build()?,
                 StatusCode::BAD_REQUEST,
+                false,
             )
             .await;
             assert_eq!(error.kind, Kind::FailedToValidateDocuments);
@@ -393,6 +412,7 @@ fn test_ingestion_validation() {
                     }))
                     .build()?,
                 StatusCode::BAD_REQUEST,
+                false,
             )
             .await;
             assert_eq!(error.kind, Kind::FailedToValidateDocuments);

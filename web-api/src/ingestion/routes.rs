@@ -69,6 +69,18 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::put().to(set_document_candidates)),
         )
         .service(
+            // this resource is deprecated and undocumented and will be removed in the future
+            web::resource("/documents/candidates")
+                .route(web::get().to(deprecate!(get_document_candidates(state))))
+                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
+        )
+        .service(
+            // this resource is deprecated and undocumented and will be removed in the future
+            web::resource("/candidates")
+                .route(web::get().to(deprecate!(get_document_candidates(state))))
+                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
+        )
+        .service(
             web::resource("/documents/_indexed_properties")
                 .route(web::post().to(create_indexed_properties))
                 .route(web::get().to(get_indexed_properties_schema)),
@@ -85,17 +97,6 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
                 .route(web::get().to(get_document_property))
                 .route(web::put().to(put_document_property))
                 .route(web::delete().to(delete_document_property)),
-        )
-        // all routes below are deprecated and undocumented and will be removed in the future
-        .service(
-            web::resource("/candidates")
-                .route(web::get().to(deprecate!(get_document_candidates(state))))
-                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
-        )
-        .service(
-            web::resource("/documents/candidates")
-                .route(web::get().to(deprecate!(get_document_candidates(state))))
-                .route(web::put().to(deprecate!(set_document_candidates(request, state)))),
         );
 }
 
