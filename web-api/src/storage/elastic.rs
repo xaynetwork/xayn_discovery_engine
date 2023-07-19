@@ -687,35 +687,36 @@ mod tests {
 
     #[test]
     fn test_rrf_parameters_are_used() {
-        let left = [
-            ("foo", 2.),
-            ("bar", 1.),
-            ("baz", 3.),
-        ].into_iter().collect::<HashMap<_, _>>();
+        let left = [("foo", 2.), ("bar", 1.), ("baz", 3.)]
+            .into_iter()
+            .collect::<HashMap<_, _>>();
 
-        let right = [
-            ("baz", 5.),
-            ("dodo", 1.2),
-        ].into_iter().collect::<HashMap<_, _>>();
+        let right = [("baz", 5.), ("dodo", 1.2)]
+            .into_iter()
+            .collect::<HashMap<_, _>>();
 
-        assert_eq!(rrf(80., [
-            (1., left.clone()),
-            (1., right.clone())
-        ]), [
-            ("foo", 1./(80. + 2.)),
-            ("bar", 1./(80. + 3.)),
-            ("baz", 1./(80. + 1.) + 1./(80. + 1.)),
-            ("dodo", 1./(80. + 2.)),
-        ].into_iter().collect());
+        assert_eq!(
+            rrf(80., [(1., left.clone()), (1., right.clone())]),
+            [
+                ("foo", 1. / (80. + 2.)),
+                ("bar", 1. / (80. + 3.)),
+                ("baz", 1. / (80. + 1.) + 1. / (80. + 1.)),
+                ("dodo", 1. / (80. + 2.)),
+            ]
+            .into_iter()
+            .collect()
+        );
 
-        assert_eq!(rrf(80., [
-            (0.2, left.clone()),
-            (8., right.clone())
-        ]), [
-            ("foo", 0.2/(80. + 2.)),
-            ("bar", 0.2/(80. + 3.)),
-            ("baz", 0.2/(80. + 1.) + 8./(80. + 1.)),
-            ("dodo", 8./(80. + 2.)),
-        ].into_iter().collect());
+        assert_eq!(
+            rrf(80., [(0.2, left.clone()), (8., right.clone())]),
+            [
+                ("foo", 0.2 / (80. + 2.)),
+                ("bar", 0.2 / (80. + 3.)),
+                ("baz", 0.2 / (80. + 1.) + 8. / (80. + 1.)),
+                ("dodo", 8. / (80. + 2.)),
+            ]
+            .into_iter()
+            .collect()
+        );
     }
 }
