@@ -596,18 +596,18 @@ where
 }
 
 /// Reciprocal Rank Fusion
-fn rrf<K>(k: f32, scores: impl IntoIterator<Item = HashMap<K, f32>>) -> HashMap<K, f32>
+fn rrf<K>(k: f32, scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>) -> HashMap<K, f32>
 where
     K: Eq + Hash,
 {
-    let rrf_scores = scores.into_iter().flat_map(|scores| {
+    let rrf_scores = scores.into_iter().flat_map(|(weight, scores)| {
         scores
             .into_iter()
             .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
             .enumerate()
-            .map(|(rank0, (document, _))| {
+            .map(move |(rank0, (document, _))| {
                 #[allow(clippy::cast_precision_loss)]
-                (document, (k + rank0 as f32 + 1.).recip())
+                (document, (k + rank0 as f32 + 1.).recip() * weight)
             })
     });
     collect_summing_repeated(rrf_scores)
@@ -665,9 +665,58 @@ impl MergeFn {
                 ])
             }),
             MergeFn::AverageDuplicatesOnly {} => Box::new(merge_scores_average_duplicates_only),
-            MergeFn::Rrf { rank_constant } => {
-                Box::new(move |s1, s2| rrf(rank_constant.unwrap_or(60.), [s1, s2]))
+            MergeFn::Rrf {
+                rank_constant,
+                knn_weight,
+                bm25_weight,
+            } => {
+                let rank_constant = rank_constant.unwrap_or(60.);
+                let knn_weight = knn_weight.unwrap_or(1.);
+                let bm25_weight = bm25_weight.unwrap_or(1.);
+                Box::new(move |knn, bm25| {
+                    rrf(rank_constant, [(knn_weight, knn), (bm25_weight, bm25)])
+                })
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rrf_parameters_are_used() {
+        let left = [("foo", 2.), ("bar", 1.), ("baz", 3.)]
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+
+        let right = [("baz", 5.), ("dodo", 1.2)]
+            .into_iter()
+            .collect::<HashMap<_, _>>();
+
+        assert_eq!(
+            rrf(80., [(1., left.clone()), (1., right.clone())]),
+            [
+                ("foo", 1. / (80. + 2.)),
+                ("bar", 1. / (80. + 3.)),
+                ("baz", 1. / (80. + 1.) + 1. / (80. + 1.)),
+                ("dodo", 1. / (80. + 2.)),
+            ]
+            .into_iter()
+            .collect()
+        );
+
+        assert_eq!(
+            rrf(80., [(0.2, left.clone()), (8., right.clone())]),
+            [
+                ("foo", 0.2 / (80. + 2.)),
+                ("bar", 0.2 / (80. + 3.)),
+                ("baz", 0.2 / (80. + 1.) + 8. / (80. + 1.)),
+                ("dodo", 8. / (80. + 2.)),
+            ]
+            .into_iter()
+            .collect()
+        );
     }
 }

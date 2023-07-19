@@ -399,6 +399,7 @@ struct DevOptions {
 #[serde(rename_all = "snake_case")]
 enum HybridDevOption {
     EsRrf {
+        #[serde(default)]
         rank_constant: Option<u32>,
     },
     Customize {

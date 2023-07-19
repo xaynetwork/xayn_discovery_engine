@@ -261,6 +261,45 @@ fn test_semantic_search_with_dev_options() {
             )
             .await;
 
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": { "customize": {
+                            "normalize_knn": "identity",
+                            "normalize_bm25": "identity",
+                            "merge_fn": { "rrf": { }}
+                        } } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
+            send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "_dev": { "hybrid": { "customize": {
+                            "normalize_knn": "identity",
+                            "normalize_bm25": "identity",
+                            "merge_fn": { "rrf": {
+                                "knn_weight": 0.8,
+                                "bm25_weight": 0.2
+                            }}
+                        } } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+
             Ok(())
         },
     );
