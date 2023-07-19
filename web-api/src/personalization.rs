@@ -75,6 +75,10 @@ pub(crate) struct PersonalizationConfig {
     /// Max number of documents to return.
     pub(crate) max_number_documents: usize,
 
+    /// Max number of document candidates for aKNN. The number of requested documents (`count`) must
+    /// by <= this, which can be guaranteed by setting this >= `max_number_documents`.
+    pub(crate) max_number_candidates: usize,
+
     /// Default number of documents to return.
     pub(crate) default_number_documents: usize,
 
@@ -99,6 +103,7 @@ impl Default for PersonalizationConfig {
     fn default() -> Self {
         Self {
             max_number_documents: 100,
+            max_number_candidates: 100,
             default_number_documents: 10,
             // FIXME: what is a default value we know works well with how we do knn?
             max_cois_for_knn: 10,
@@ -116,6 +121,10 @@ pub(crate) struct SemanticSearchConfig {
     /// Max number of documents to return.
     pub(crate) max_number_documents: usize,
 
+    /// Max number of document candidates for aKNN. The number of requested documents (`count`) must
+    /// by <= this, which can be guaranteed by setting this >= `max_number_documents`.
+    pub(crate) max_number_candidates: usize,
+
     /// Default number of documents to return.
     pub(crate) default_number_documents: usize,
 
@@ -128,6 +137,7 @@ impl Default for SemanticSearchConfig {
     fn default() -> Self {
         Self {
             max_number_documents: 100,
+            max_number_candidates: 100,
             default_number_documents: 10,
             score_weights: [0.4, 0.4, 0.2],
         }

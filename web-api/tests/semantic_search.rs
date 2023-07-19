@@ -13,34 +13,30 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use anyhow::Error;
+use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::json;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_web_api::{Ingestion, Personalization};
 
-#[derive(Serialize)]
-struct IngestedDocument {
-    id: String,
-    snippet: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    properties: Option<serde_json::Value>,
-}
-
-async fn ingest(
-    client: &Client,
-    base_url: &Url,
-    documents: &[IngestedDocument],
-) -> Result<(), Error> {
+async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .post(base_url.join("/documents")?)
-            .json(&json!({ "documents": documents }))
+            .post(ingestion_url.join("/documents")?)
+            .json(&json!({
+                "documents": [
+                    { "id": "d1", "snippet": "this is one sentence which we have" },
+                    { "id": "d2", "snippet": "duck duck quack", "properties": { "dodo": 4 } },
+                    { "id": "d3", "snippet": "this is another sentence which we have" }
+                ]
+            }))
             .build()?,
         StatusCode::CREATED,
     )
     .await;
+
     Ok(())
 }
 
@@ -57,34 +53,32 @@ struct SemanticSearchResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
+macro_rules! assert_order {
+    ($documents: expr, $ids: expr, $($arg: tt)*) => {
+        assert_eq!(
+            $documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect_vec(),
+            $ids,
+            $($arg)*
+        );
+        for documents in $documents.windows(2) {
+            let [d1, d2] = documents else { unreachable!() };
+            assert!(1. >= d1.score, $($arg)*);
+            assert!(d1.score > d2.score, $($arg)*);
+            assert!(d2.score >= 0., $($arg)*);
+        }
+    };
+}
+
 #[test]
 fn test_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
-            ingest(
-                &client,
-                &ingestion_url,
-                &[
-                    IngestedDocument {
-                        id: "d1".into(),
-                        snippet: "this is one sentence which we have".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d2".into(),
-                        snippet: "duck duck quack".into(),
-                        properties: Some(json!({ "dodo": 4 })),
-                    },
-                    IngestedDocument {
-                        id: "d3".into(),
-                        snippet: "this is another sentence which we have".into(),
-                        properties: None,
-                    },
-                ],
-            )
-            .await?;
+            ingest(&client, &ingestion_url).await?;
 
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
@@ -97,19 +91,13 @@ fn test_semantic_search() {
                 StatusCode::OK,
             )
             .await;
-
-            if let [first, second] = &documents[..] {
-                assert_eq!(first.id, "d3");
-                assert_eq!(second.id, "d2");
-                assert!(first.score > second.score);
-                assert!((0.0..first.score).contains(&second.score));
-                assert!((second.score..=1.0).contains(&first.score));
-                assert!((0.0..=1.0).contains(&second.score));
-                assert!(first.properties.is_null());
-                assert_eq!(second.properties, json!({ "dodo": 4 }))
-            } else {
-                panic!("Unexpected number of documents: {documents:?}");
-            }
+            assert_order!(
+                documents,
+                ["d3", "d2"],
+                "unexpected documents: {documents:?}",
+            );
+            assert!(documents[0].properties.is_null());
+            assert_eq!(documents[1].properties, json!({ "dodo": 4 }));
 
             Ok(())
         },
@@ -122,28 +110,7 @@ fn test_semantic_search_with_query() {
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
-            ingest(
-                &client,
-                &ingestion_url,
-                &[
-                    IngestedDocument {
-                        id: "d1".into(),
-                        snippet: "this is one sentence which we have".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d2".into(),
-                        snippet: "duck duck quack".into(),
-                        properties: Some(json!({ "dodo": 4 })),
-                    },
-                    IngestedDocument {
-                        id: "d3".into(),
-                        snippet: "this is another sentence which we have".into(),
-                        properties: None,
-                    },
-                ],
-            )
-            .await?;
+            ingest(&client, &ingestion_url).await?;
 
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
@@ -158,20 +125,14 @@ fn test_semantic_search_with_query() {
                 StatusCode::OK,
             )
             .await;
-
-            if let [first, second, third] = &documents[..] {
-                assert_eq!(first.id, "d1");
-                assert_eq!(second.id, "d3");
-                assert_eq!(third.id, "d2");
-                assert!((0.0..second.score).contains(&third.score));
-                assert!((third.score..first.score).contains(&second.score));
-                assert!((second.score..=1.0).contains(&first.score));
-                assert!(first.properties.is_null());
-                assert!(second.properties.is_null());
-                assert_eq!(third.properties, json!({ "dodo": 4 }))
-            } else {
-                panic!("Unexpected number of documents: {documents:?}");
-            }
+            assert_order!(
+                documents,
+                ["d1", "d3", "d2"],
+                "unexpected documents: {documents:?}",
+            );
+            assert!(documents[0].properties.is_null());
+            assert!(documents[1].properties.is_null());
+            assert_eq!(documents[2].properties, json!({ "dodo": 4 }));
 
             Ok(())
         },
@@ -179,33 +140,12 @@ fn test_semantic_search_with_query() {
 }
 
 #[test]
-fn test_semantic_search_with_dev_options() {
+fn test_semantic_search_with_dev_option_hybrid() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
-            ingest(
-                &client,
-                &ingestion_url,
-                &[
-                    IngestedDocument {
-                        id: "d1".into(),
-                        snippet: "this is one sentence which we have".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d2".into(),
-                        snippet: "duck duck quack".into(),
-                        properties: Some(json!({ "dodo": 4 })),
-                    },
-                    IngestedDocument {
-                        id: "d3".into(),
-                        snippet: "this is another sentence which we have".into(),
-                        properties: None,
-                    },
-                ],
-            )
-            .await?;
+            ingest(&client, &ingestion_url).await?;
 
             send_assert_json::<SemanticSearchResponse>(
                 &client,
@@ -217,7 +157,7 @@ fn test_semantic_search_with_dev_options() {
                         "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "normalize_if_max_gt1",
-                            "merge_fn": { "sum": {}}
+                            "merge_fn": { "sum": {} }
                         } } }
                     }))
                     .build()?,
@@ -235,7 +175,7 @@ fn test_semantic_search_with_dev_options() {
                         "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "normalize",
                             "normalize_bm25": "normalize",
-                            "merge_fn": { "sum": {}}
+                            "merge_fn": { "sum": {} }
                         } } }
                     }))
                     .build()?,
@@ -253,7 +193,7 @@ fn test_semantic_search_with_dev_options() {
                         "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "identity",
-                            "merge_fn": { "rrf": { "k": 60. }}
+                            "merge_fn": { "rrf": { "k": 60. } }
                         } } }
                     }))
                     .build()?,
@@ -271,7 +211,7 @@ fn test_semantic_search_with_dev_options() {
                         "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "identity",
-                            "merge_fn": { "rrf": { }}
+                            "merge_fn": { "rrf": { } }
                         } } }
                     }))
                     .build()?,
@@ -292,7 +232,7 @@ fn test_semantic_search_with_dev_options() {
                             "merge_fn": { "rrf": {
                                 "knn_weight": 0.8,
                                 "bm25_weight": 0.2
-                            }}
+                            } }
                         } } }
                     }))
                     .build()?,
@@ -305,37 +245,15 @@ fn test_semantic_search_with_dev_options() {
     );
 }
 
-#[ignore = "current license is non-compliant for [Reciprocal Rank Fusion (RRF)]"]
 #[test]
-fn test_semantic_search_with_dev_options_es_rrf() {
+fn test_semantic_search_with_dev_option_hybrid_es_rrf() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
-            ingest(
-                &client,
-                &ingestion_url,
-                &[
-                    IngestedDocument {
-                        id: "d1".into(),
-                        snippet: "this is one sentence which we have".into(),
-                        properties: None,
-                    },
-                    IngestedDocument {
-                        id: "d2".into(),
-                        snippet: "duck duck quack".into(),
-                        properties: Some(json!({ "dodo": 4 })),
-                    },
-                    IngestedDocument {
-                        id: "d3".into(),
-                        snippet: "this is another sentence which we have".into(),
-                        properties: None,
-                    },
-                ],
-            )
-            .await?;
+            ingest(&client, &ingestion_url).await?;
 
-            send_assert_json::<SemanticSearchResponse>(
+            send_assert(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
@@ -345,9 +263,76 @@ fn test_semantic_search_with_dev_options_es_rrf() {
                         "_dev": { "hybrid": { "es_rrf": { } } }
                     }))
                     .build()?,
+                // current license is non-compliant for Reciprocal Rank Fusion (RRF)
+                StatusCode::INTERNAL_SERVER_ERROR,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_semantic_search_with_dev_option_candidates() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(&client, &ingestion_url).await?;
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "count": 1,
+                        "_dev": { "max_number_candidates": 3 }
+                    }))
+                    .build()?,
                 StatusCode::OK,
             )
             .await;
+            assert_order!(documents, ["d1"], "unexpected documents: {documents:?}");
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "count": 2,
+                        "_dev": { "max_number_candidates": 3 }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_order!(
+                documents,
+                ["d1", "d3"],
+                "unexpected documents: {documents:?}",
+            );
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "count": 3,
+                        "_dev": { "max_number_candidates": 3 }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+            )
+            .await;
+            assert_order!(
+                documents,
+                ["d1", "d3", "d2"],
+                "unexpected documents: {documents:?}",
+            );
 
             Ok(())
         },
