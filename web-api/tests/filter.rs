@@ -927,6 +927,7 @@ fn test_filter_no_value() {
                     ] }))
                     .build()?,
                 StatusCode::BAD_REQUEST,
+                false,
             )
             .await;
             assert_eq!(bad_request.kind, Kind::FailedToValidateDocuments);
@@ -939,6 +940,7 @@ fn test_filter_no_value() {
                     .json(&json!({ "document": { "query": "zero" } }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
@@ -953,6 +955,7 @@ fn test_filter_no_value() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -967,6 +970,7 @@ fn test_filter_no_value() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -982,6 +986,7 @@ fn test_filter_no_value() {
                     .build()?,
                 // TODO: change to BAD_REQUEST once filters are validated against indexed properties schema
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
@@ -1002,6 +1007,7 @@ fn test_filter_no_value() {
                     }))
                     .build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
             assert!(documents.is_empty());
