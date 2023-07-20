@@ -1,3 +1,7 @@
+# 2.3.1 - 2023-07-20
+
+- deprecate `GET /users/{id}/personalized_documents` with query params in favor of `POST` with request body
+
 # 2.3.0 - 2023-07-06
 
 - Add back-office endpoints for retrieving and extending the indexed property schema
