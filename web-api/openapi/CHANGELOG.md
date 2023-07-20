@@ -2,6 +2,7 @@
 
 - Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` front-office endpoints:
     - boolean equality
+    - number range
 
 # 2.3.2 - 2023-07-20
 
