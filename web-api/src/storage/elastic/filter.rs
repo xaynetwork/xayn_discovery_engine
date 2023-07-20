@@ -365,6 +365,13 @@ mod tests {
 
     #[test]
     fn test_term() {
+        let clause = serde_json::from_str(r#"{ "a": { "$eq": true } }"#).unwrap();
+        let value = json!({ FILTER: [{ TERM: { PROP_A: true } }] });
+        assert_eq!(
+            serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+            value,
+        );
+
         let clause = serde_json::from_str(r#"{ "a": { "$eq": "b" } }"#).unwrap();
         let value = json!({ FILTER: [{ TERM: { PROP_A: "b" } }] });
         assert_eq!(

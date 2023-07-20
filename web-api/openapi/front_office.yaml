@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Front Office API
-  version: 2.3.2
+  version: 2.4.0
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -219,7 +219,9 @@ components:
         type: object
         properties:
           $eq:
-            $ref: './schemas/document.yml#/DocumentPropertyString'
+            oneOf:
+              - type: boolean
+              - $ref: './schemas/document.yml#/DocumentPropertyString'
           $in:
             allOf:
               - $ref: './schemas/document.yml#/DocumentPropertyArrayString'

@@ -15,13 +15,14 @@
 use std::fmt;
 
 use chrono::{DateTime, Utc};
+use const_format::formatcp;
 use derive_more::{Deref, DerefMut};
 use serde::{
     de::{Error, MapAccess, SeqAccess, Unexpected, Visitor},
     Deserialize,
     Deserializer,
 };
-use serde_json::json;
+use serde_json::{json, Value};
 
 use crate::models::{DocumentProperty, DocumentPropertyId};
 
@@ -51,6 +52,10 @@ struct CompareWith {
     value: DocumentProperty,
 }
 
+impl CompareWith {
+    const EXPECTING: &str = "a json object with exactly one right comparison argument and a matching type for the comparison operator";
+}
+
 impl<'de> Deserialize<'de> for CompareWith {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -62,7 +67,7 @@ impl<'de> Deserialize<'de> for CompareWith {
             type Value = CompareWith;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a json object with exactly one right comparison argument and a matching type for the comparison operator")
+                formatter.write_str(Self::Value::EXPECTING)
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -82,11 +87,24 @@ impl<'de> Deserialize<'de> for CompareWith {
                 }
                 match operation {
                     CompareOp::Eq => {
-                        if !value.is_string() {
-                            return Err(A::Error::invalid_type(
-                                Unexpected::Other("no string property"),
-                                &Self,
-                            ));
+                        if let Some(unexpected) = match &*value {
+                            Value::Bool(_) | Value::String(_) => None,
+                            Value::Null => Some(Unexpected::Other("null")),
+                            Value::Number(number) => {
+                                if let Some(number) = number.as_u64() {
+                                    Some(Unexpected::Unsigned(number))
+                                } else if let Some(number) = number.as_i64() {
+                                    Some(Unexpected::Signed(number))
+                                } else if let Some(number) = number.as_f64() {
+                                    Some(Unexpected::Float(number))
+                                } else {
+                                    Some(Unexpected::Other("number"))
+                                }
+                            }
+                            Value::Array(_) => Some(Unexpected::Seq),
+                            Value::Object(_) => Some(Unexpected::Map),
+                        } {
+                            return Err(A::Error::invalid_type(unexpected, &Self));
                         }
                     }
                     CompareOp::In => {
@@ -132,6 +150,10 @@ pub(crate) struct Compare {
     pub(crate) value: DocumentProperty,
 }
 
+impl Compare {
+    const EXPECTING: &str = "a json object with exactly one left comparison argument";
+}
+
 impl<'de> Deserialize<'de> for Compare {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -143,7 +165,7 @@ impl<'de> Deserialize<'de> for Compare {
             type Value = Compare;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str("a json object with exactly one left comparison argument")
+                formatter.write_str(Self::Value::EXPECTING)
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -190,6 +212,10 @@ pub(crate) struct Filters(Vec<Filter>);
 
 impl Filters {
     const MAX_FILTERS_PER_COMBINATION: usize = 10;
+    const EXPECTING: &str = formatcp!(
+        "a json array with at most {} combination arguments",
+        Filters::MAX_FILTERS_PER_COMBINATION,
+    );
 
     fn is_below_depth(&self, max: usize) -> bool {
         (max > 0)
@@ -209,10 +235,7 @@ impl<'de> Deserialize<'de> for Filters {
             type Value = Filters;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str(&format!(
-                    "a json array with at most {} combination arguments",
-                    Self::Value::MAX_FILTERS_PER_COMBINATION,
-                ))
+                formatter.write_str(Self::Value::EXPECTING)
             }
 
             fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
@@ -249,6 +272,10 @@ pub(crate) struct Combine {
 
 impl Combine {
     const MAX_DEPTH: usize = 2;
+    const EXPECTING: &str = formatcp!(
+        "a json object with exactly one combination operator and at most {} times nested combinations",
+        Combine::MAX_DEPTH,
+    );
 }
 
 impl<'de> Deserialize<'de> for Combine {
@@ -262,10 +289,7 @@ impl<'de> Deserialize<'de> for Combine {
             type Value = Combine;
 
             fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                formatter.write_str(&format!(
-                    "a json object with exactly one combination operator and at most {} times nested combinations",
-                    Self::Value::MAX_DEPTH,
-                ))
+                formatter.write_str(Self::Value::EXPECTING)
             }
 
             fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
@@ -389,6 +413,53 @@ mod tests {
 
     use super::*;
 
+    const DATE: &str = "1234-05-06T07:08:09Z";
+
+    #[test]
+    fn test_compare_with_bool() {
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(r#"{ "$eq": true }"#).unwrap(),
+            CompareWith {
+                operation: CompareOp::Eq,
+                value: json!(true).try_into().unwrap(),
+            },
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(r#"{ "$eq": false }"#).unwrap(),
+            CompareWith {
+                operation: CompareOp::Eq,
+                value: json!(false).try_into().unwrap(),
+            },
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>("{}")
+                .unwrap_err()
+                .to_string(),
+            format!(
+                "invalid length 0, expected {} at line 1 column 2",
+                CompareWith::EXPECTING,
+            ),
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(r#"{ "$eq": true, "$eq": false }"#)
+                .unwrap_err()
+                .to_string(),
+            format!(
+                "invalid length 2, expected {} at line 1 column 29",
+                CompareWith::EXPECTING,
+            ),
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(r#"{ "$eq": 42 }"#)
+                .unwrap_err()
+                .to_string(),
+            format!(
+                "invalid type: integer `42`, expected {} at line 1 column 13",
+                CompareWith::EXPECTING,
+            ),
+        );
+    }
+
     #[test]
     fn test_compare_with_string() {
         assert_eq!(
@@ -402,19 +473,28 @@ mod tests {
             serde_json::from_str::<CompareWith>("{}")
                 .unwrap_err()
                 .to_string(),
-            "invalid length 0, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 2",
+            format!(
+                "invalid length 0, expected {} at line 1 column 2",
+                CompareWith::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<CompareWith>(r#"{ "$eq": "test1", "$eq": "test2" }"#)
                 .unwrap_err()
                 .to_string(),
-            "invalid length 2, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 34",
+            format!(
+                "invalid length 2, expected {} at line 1 column 34",
+                CompareWith::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<CompareWith>(r#"{ "$eq": 42 }"#)
                 .unwrap_err()
                 .to_string(),
-            "invalid type: no string property, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 13",
+            format!(
+                "invalid type: integer `42`, expected {} at line 1 column 13",
+                CompareWith::EXPECTING,
+            ),
         );
     }
 
@@ -431,7 +511,10 @@ mod tests {
             serde_json::from_str::<CompareWith>("{}")
                 .unwrap_err()
                 .to_string(),
-            "invalid length 0, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 2",
+            format!(
+                "invalid length 0, expected {} at line 1 column 2",
+                CompareWith::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<CompareWith>(
@@ -439,13 +522,19 @@ mod tests {
             )
             .unwrap_err()
             .to_string(),
-            "invalid length 2, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 52",
+            format!(
+                "invalid length 2, expected {} at line 1 column 52",
+                CompareWith::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<CompareWith>(r#"{ "$in": "test" }"#)
                 .unwrap_err()
                 .to_string(),
-            "invalid type: no array of strings property, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 17",
+            format!(
+                "invalid type: no array of strings property, expected {} at line 1 column 17",
+                CompareWith::EXPECTING,
+            ),
         );
 
         let num_ids = CompareOp::MAX_VALUES_PER_IN + 1;
@@ -463,20 +552,22 @@ mod tests {
             serde_json::from_str::<CompareWith>(
                 &serde_json::to_string(&json!({
                     "$in": many_ids
-                })).unwrap()
+                }))
+                .unwrap()
             )
             .unwrap_err()
             .to_string(),
-            "invalid length 501, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 2907",
+            format!(
+                "invalid length 501, expected {} at line 1 column 2907",
+                CompareWith::EXPECTING,
+            ),
         );
     }
-
-    const DATE: &str = "1234-05-06T07:08:09Z";
 
     #[test]
     fn test_compare_with_date() {
         assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$gt": "1234-05-06T07:08:09Z" }"#).unwrap(),
+            serde_json::from_str::<CompareWith>(&json!({ "$gt": DATE }).to_string()).unwrap(),
             CompareWith {
                 operation: CompareOp::Gt,
                 value: json!(DATE).try_into().unwrap(),
@@ -486,30 +577,50 @@ mod tests {
             serde_json::from_str::<CompareWith>("{}")
                 .unwrap_err()
                 .to_string(),
-            "invalid length 0, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 2",
+            format!(
+                "invalid length 0, expected {} at line 1 column 2",
+                CompareWith::EXPECTING,
+            ),
         );
         assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$gt": "1234-05-06T07:08:09Z", "$gt": "1234-05-06T07:08:09Z" }"#)
+            serde_json::from_str::<CompareWith>(&json!({ "$gt": DATE, "$lt": DATE }).to_string())
                 .unwrap_err()
                 .to_string(),
-            "invalid length 2, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 64",
+            format!(
+                "invalid length 2, expected {} at line 1 column 59",
+                CompareWith::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<CompareWith>(r#"{ "$gt": 42 }"#)
                 .unwrap_err()
                 .to_string(),
-            "invalid type: no date property, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 13",
+            format!(
+                "invalid type: no date property, expected {} at line 1 column 13",
+                CompareWith::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<CompareWith>(r#"{ "$gt": "invalid date" }"#)
                 .unwrap_err()
                 .to_string(),
-            "invalid type: no date property, expected a json object with exactly one right comparison argument and a matching type for the comparison operator at line 1 column 25",
+            format!(
+                "invalid type: no date property, expected {} at line 1 column 25",
+                CompareWith::EXPECTING,
+            ),
         );
     }
 
     #[test]
     fn test_compare() {
+        assert_eq!(
+            serde_json::from_str::<Compare>(r#"{ "prop": { "$eq": true } }"#).unwrap(),
+            Compare {
+                operation: CompareOp::Eq,
+                field: "prop".try_into().unwrap(),
+                value: json!(true).try_into().unwrap(),
+            },
+        );
         assert_eq!(
             serde_json::from_str::<Compare>(r#"{ "prop": { "$eq": "test" } }"#).unwrap(),
             Compare {
@@ -527,7 +638,7 @@ mod tests {
             },
         );
         assert_eq!(
-            serde_json::from_str::<Compare>(r#"{ "prop": { "$gt": "1234-05-06T07:08:09Z" } }"#)
+            serde_json::from_str::<Compare>(&json!({ "prop": { "$gt": DATE } }).to_string())
                 .unwrap(),
             Compare {
                 operation: CompareOp::Gt,
@@ -539,7 +650,10 @@ mod tests {
             serde_json::from_str::<Compare>("{}")
                 .unwrap_err()
                 .to_string(),
-            "invalid length 0, expected a json object with exactly one left comparison argument at line 1 column 2",
+            format!(
+                "invalid length 0, expected {} at line 1 column 2",
+                Compare::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<Compare>(
@@ -547,7 +661,10 @@ mod tests {
             )
             .unwrap_err()
             .to_string(),
-            "invalid length 2, expected a json object with exactly one left comparison argument at line 1 column 68",
+            format!(
+                "invalid length 2, expected {} at line 1 column 68",
+                Compare::EXPECTING,
+            ),
         );
     }
 
@@ -602,6 +719,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::too_many_lines)]
     fn test_combine() {
         let compare = Filter::Compare(Compare {
             operation: CompareOp::Eq,
@@ -658,25 +776,38 @@ mod tests {
             serde_json::from_str::<Combine>("{}")
                 .unwrap_err()
                 .to_string(),
-            "invalid length 0, expected a json object with exactly one combination operator and at most 2 times nested combinations at line 1 column 2",
+            format!(
+                "invalid length 0, expected {} at line 1 column 2",
+                Combine::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [], "$and": [] }"#)
                 .unwrap_err()
                 .to_string(),
-                "invalid length 2, expected a json object with exactly one combination operator and at most 2 times nested combinations at line 1 column 26",
+            format!(
+                "invalid length 2, expected {} at line 1 column 26",
+                Combine::EXPECTING,
+            ),
         );
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [ { "$and": [], "$and": [] } ] }"#)
                 .unwrap_err()
                 .to_string(),
-                "invalid variant, expected one of: Compare(invalid length 2, expected a json object with exactly one left comparison argument); Combine(invalid length 2, expected a json object with exactly one combination operator and at most 2 times nested combinations) at line 1 column 40",
+                format!(
+                    "invalid variant, expected one of: Compare(invalid length 2, expected {}); Combine(invalid length 2, expected {}) at line 1 column 40",
+                    Compare::EXPECTING,
+                    Combine::EXPECTING,
+                ),
         );
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [ { "$and": [ { "$and": [] } ] } ] }"#)
                 .unwrap_err()
                 .to_string(),
-                "invalid value: more than 2 times nested combinations, expected a json object with exactly one combination operator and at most 2 times nested combinations at line 1 column 46",
+                format!(
+                    "invalid value: more than 2 times nested combinations, expected {} at line 1 column 46",
+                    Combine::EXPECTING,
+                ),
         );
         assert_eq!(
             serde_json::from_str::<Combine>(
@@ -696,7 +827,10 @@ mod tests {
             )
             .unwrap_err()
             .to_string(),
-            "invalid length 11, expected a json array with at most 10 combination arguments at line 13 column 17",
+            format!(
+                "invalid length 11, expected {} at line 13 column 17",
+                Filters::EXPECTING,
+            ),
         );
     }
 

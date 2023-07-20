@@ -81,7 +81,92 @@ impl SemanticSearchResponse {
 }
 
 #[test]
-fn test_filter_string() {
+fn test_filter_boolean() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            index(
+                &client,
+                &ingestion_url,
+                json!({ "p1": { "type": "boolean" }, "p2": { "type": "boolean" } }),
+            )
+            .await?;
+            ingest(
+                &client,
+                &ingestion_url,
+                json!([
+                    { "id": "d1", "snippet": "one" },
+                    { "id": "d2", "snippet": "two", "properties": { "p1": true } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": false } }
+                ]),
+            )
+            .await?;
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" } }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$eq": true } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d2"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$eq": false } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p2": { "$eq": true } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_filter_keyword() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -166,7 +251,7 @@ fn test_filter_string() {
 }
 
 #[test]
-fn test_filter_array_string_single() {
+fn test_filter_keyword_array_single() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
@@ -281,7 +366,7 @@ fn test_filter_array_string_single() {
 }
 
 #[test]
-fn test_filter_array_string_multiple() {
+fn test_filter_keyword_array_multiple() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
