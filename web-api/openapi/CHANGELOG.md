@@ -1,3 +1,7 @@
+# 2.3.2 - 2023-07-20
+
+- align the semantic search query string pattern with its description
+
 # 2.3.1 - 2023-07-20
 
 - deprecate `GET /users/{id}/personalized_documents` with query params in favor of `POST` with request body

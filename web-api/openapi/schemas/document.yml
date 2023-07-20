@@ -67,10 +67,9 @@ DocumentSearchQuery:
     A search query can be any non-empty, UTF-8-encoded string which doesn't contain a zero byte.
     The length constraints are in bytes, not characters.
   type: string
-  pattern: ".+"
+  pattern: '^[^\x00]+$'
   minLength: 1
   maxLength: 512
-  example: "inflation is causing world-wide price hikes, especially for energy and food consumption"
 
 History:
   type: array
