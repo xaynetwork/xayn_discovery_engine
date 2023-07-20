@@ -980,6 +980,7 @@ fn test_filter_no_value() {
                         "filter": { "p2": { "$eq": true } }
                     }))
                     .build()?,
+                // TODO: change to BAD_REQUEST once filters are validated against indexed properties schema
                 StatusCode::OK,
             )
             .await;
