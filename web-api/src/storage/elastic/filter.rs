@@ -73,26 +73,18 @@ impl Serialize for Terms<'_> {
 
 fn cmp_range(this: &Value, other: &Value) -> Option<Ordering> {
     match (this, other) {
-        (Value::Number(this), Value::Number(value)) => {
-            // unwraps are always possible without feature `arbitrary_precision`
-            Some(this.as_f64().unwrap().total_cmp(&value.as_f64().unwrap()))
-        }
-        (Value::String(this), Value::String(value)) => {
-            // unwraps are always possible since range strings are valid dates
-            Some(
-                DateTime::parse_from_rfc3339(this)
-                    .unwrap()
-                    .cmp(&DateTime::parse_from_rfc3339(value).unwrap()),
-            )
-        }
-        // TODO: remove Option<_> and change to unreachable! once filters are validated against indexed properties schema
+        (Value::Number(this), Value::Number(value)) => this
+            .as_f64()
+            .and_then(|this| value.as_f64().map(|value| this.total_cmp(&value))),
+        (Value::String(this), Value::String(value)) => DateTime::parse_from_rfc3339(this)
+            .and_then(|this| DateTime::parse_from_rfc3339(value).map(|value| this.cmp(&value)))
+            .ok(),
         _ => None,
-        // _ => unreachable!(/* values are both numbers or dates */),
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 enum GreaterRangeOp {
     Gt,
     Gte,
@@ -105,35 +97,33 @@ struct GreaterRange<'a> {
 }
 
 impl GreaterRange<'_> {
-    fn and(&mut self, greater: Self) {
-        match cmp_range(self.value, greater.value) {
-            Some(Ordering::Less) => *self = greater,
+    fn and(&mut self, other: Self) {
+        match cmp_range(self.value, other.value) {
+            Some(Ordering::Less) => *self = other,
             Some(Ordering::Equal) => {
-                if self.operation == GreaterRangeOp::Gte && greater.operation == GreaterRangeOp::Gt
-                {
-                    self.operation = greater.operation;
+                if self.operation == GreaterRangeOp::Gte && other.operation == GreaterRangeOp::Gt {
+                    self.operation = other.operation;
                 }
             }
             Some(Ordering::Greater) | None => {}
         }
     }
 
-    fn or(&mut self, greater: Self) {
-        match cmp_range(self.value, greater.value) {
+    fn or(&mut self, other: Self) {
+        match cmp_range(self.value, other.value) {
             Some(Ordering::Less) | None => {}
             Some(Ordering::Equal) => {
-                if self.operation == GreaterRangeOp::Gt && greater.operation == GreaterRangeOp::Gte
-                {
-                    self.operation = greater.operation;
+                if self.operation == GreaterRangeOp::Gt && other.operation == GreaterRangeOp::Gte {
+                    self.operation = other.operation;
                 }
             }
-            Some(Ordering::Greater) => *self = greater,
+            Some(Ordering::Greater) => *self = other,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "snake_case")]
 enum LessRangeOp {
     Lt,
     Lte,
@@ -146,24 +136,24 @@ struct LessRange<'a> {
 }
 
 impl LessRange<'_> {
-    fn and(&mut self, less: Self) {
-        match cmp_range(self.value, less.value) {
+    fn and(&mut self, other: Self) {
+        match cmp_range(self.value, other.value) {
             Some(Ordering::Less) | None => {}
             Some(Ordering::Equal) => {
-                if self.operation == LessRangeOp::Lte && less.operation == LessRangeOp::Lt {
-                    self.operation = less.operation;
+                if self.operation == LessRangeOp::Lte && other.operation == LessRangeOp::Lt {
+                    self.operation = other.operation;
                 }
             }
-            Some(Ordering::Greater) => *self = less,
+            Some(Ordering::Greater) => *self = other,
         }
     }
 
-    fn or(&mut self, less: Self) {
-        match cmp_range(self.value, less.value) {
-            Some(Ordering::Less) => *self = less,
+    fn or(&mut self, other: Self) {
+        match cmp_range(self.value, other.value) {
+            Some(Ordering::Less) => *self = other,
             Some(Ordering::Equal) => {
-                if self.operation == LessRangeOp::Lt && less.operation == LessRangeOp::Lte {
-                    self.operation = less.operation;
+                if self.operation == LessRangeOp::Lt && other.operation == LessRangeOp::Lte {
+                    self.operation = other.operation;
                 }
             }
             Some(Ordering::Greater) | None => {}
@@ -197,9 +187,7 @@ impl Serialize for Range<'_> {
         }
 
         let field = format!("properties.{}", self.field);
-        let mut range = HashMap::with_capacity(
-            usize::from(self.greater.is_some()) + usize::from(self.less.is_some()),
-        );
+        let mut range = HashMap::with_capacity(2);
         if let Some(GreaterRange { operation, value }) = self.greater {
             range.insert(RangeOp::Greater(operation), value);
         }
@@ -357,7 +345,7 @@ enum Clause<'a> {
     MustNot(MustNot<'a>),
 }
 
-fn fully_merge_range(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
+fn merge_range_and(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
     fn is_range<'a>(clause: &Clause<'a>) -> Option<&'a DocumentPropertyId> {
         if let Clause::Range(range) = clause {
             Some(range.field)
@@ -399,7 +387,7 @@ fn fully_merge_range(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
     clause
 }
 
-fn partly_merge_range(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
+fn merge_range_or(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
     fn is_greater_range<'a>(clause: &Clause<'a>) -> Option<&'a DocumentPropertyId> {
         if let Clause::Range(range) = clause {
             range.greater.is_some().then_some(range.field)
@@ -524,11 +512,11 @@ impl<'a> Clause<'a> {
 
                 match operation {
                     CombineOp::And => Self::Filter(Filter {
-                        filter: fully_merge_range(clause),
+                        filter: merge_range_and(clause),
                         is_root,
                     }),
                     CombineOp::Or => Self::Should(Should {
-                        should: partly_merge_range(clause),
+                        should: merge_range_or(clause),
                         is_root,
                     }),
                 }

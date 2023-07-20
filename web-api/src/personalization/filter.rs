@@ -79,10 +79,10 @@ impl<'de> Deserialize<'de> for CompareWith {
                         Unexpected::Unsigned(value)
                     } else if let Some(value) = value.as_i64() {
                         Unexpected::Signed(value)
+                    } else if let Some(value) = value.as_f64() {
+                        Unexpected::Float(value)
                     } else {
-                        Unexpected::Float(value.as_f64().unwrap(
-                            /* always possible without feature `arbitrary_precision` */
-                        ))
+                        Unexpected::Other("number")
                     }
                 }
 
