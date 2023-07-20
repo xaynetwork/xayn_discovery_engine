@@ -21,7 +21,7 @@ pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
@@ -30,6 +30,7 @@ use xayn_web_api_shared::{
     serde::{json_object, merge_json_objects, JsonObject},
 };
 
+use self::filter::Clauses;
 use super::{
     property_filter::IndexedPropertiesSchemaUpdate,
     MergeFn,
@@ -499,7 +500,11 @@ struct KnnSearchParts {
 
 impl KnnSearchParams<'_> {
     fn create_common_knn_search_parts(&self) -> KnnSearchParts {
-        let inner_filter = self.create_search_filter();
+        let Ok(Value::Object(inner_filter)) =
+            serde_json::to_value(Clauses::new(self.filter, self.excluded))
+        else {
+            unreachable!(/* filter clauses is valid json object */);
+        };
         let knn_object = self.create_knn_request_object(&inner_filter);
         let generic_parameters = json_object!({ "size": self.count });
 

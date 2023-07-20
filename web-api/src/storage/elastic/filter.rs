@@ -15,13 +15,10 @@
 use std::{cmp::Ordering, collections::HashMap};
 
 use serde::{Serialize, Serializer};
-use serde_json::Value;
-use xayn_web_api_shared::serde::{merge_json_objects, JsonObject};
 
 use crate::{
     models::{DocumentId, DocumentProperty, DocumentPropertyId},
     personalization::filter::{self, Combine, CombineOp, Compare, CompareOp},
-    storage::KnnSearchParams,
 };
 
 #[derive(Debug)]
@@ -214,6 +211,12 @@ struct Filter<'a> {
     is_root: bool,
 }
 
+impl Filter<'_> {
+    fn is_empty(&self) -> bool {
+        self.filter.is_empty()
+    }
+}
+
 impl Serialize for Filter<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -248,6 +251,12 @@ struct Should<'a> {
     is_root: bool,
 }
 
+impl Should<'_> {
+    fn is_empty(&self) -> bool {
+        self.should.is_empty()
+    }
+}
+
 impl Serialize for Should<'_> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -278,50 +287,14 @@ impl Serialize for Should<'_> {
     }
 }
 
-#[derive(Debug)]
-struct MustNot<'a> {
-    must_not: Vec<Clause<'a>>,
-    is_root: bool,
-}
-
-impl Serialize for MustNot<'_> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        #[derive(Serialize)]
-        struct MustNot<'a> {
-            must_not: &'a [Clause<'a>],
-        }
-
-        #[derive(Serialize)]
-        struct SubMustNot<'a> {
-            #[serde(rename = "bool")]
-            must_not: MustNot<'a>,
-        }
-
-        let must_not = MustNot {
-            must_not: &self.must_not,
-        };
-
-        if self.is_root {
-            must_not.serialize(serializer)
-        } else {
-            SubMustNot { must_not }.serialize(serializer)
-        }
-    }
-}
-
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 enum Clause<'a> {
     Term(Term<'a>),
     Terms(Terms<'a>),
     Range(Range<'a>),
-    Ids(Ids<'a>),
     Filter(Filter<'a>),
     Should(Should<'a>),
-    MustNot(MustNot<'a>),
 }
 
 fn merge_range_and(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
@@ -435,53 +408,42 @@ impl<'a> Clause<'a> {
                 operation,
                 field,
                 value,
-            }) => {
-                let clause = match operation {
-                    CompareOp::Eq => Self::Term(Term { field, value }),
-                    CompareOp::In => Self::Terms(Terms { field, value }),
-                    CompareOp::Gt => Self::Range(Range {
-                        field,
-                        greater: Some(GreaterRange {
-                            operation: GreaterRangeOp::Gt,
-                            value,
-                        }),
-                        less: None,
+            }) => match operation {
+                CompareOp::Eq => Self::Term(Term { field, value }),
+                CompareOp::In => Self::Terms(Terms { field, value }),
+                CompareOp::Gt => Self::Range(Range {
+                    field,
+                    greater: Some(GreaterRange {
+                        operation: GreaterRangeOp::Gt,
+                        value,
                     }),
-                    CompareOp::Gte => Self::Range(Range {
-                        field,
-                        greater: Some(GreaterRange {
-                            operation: GreaterRangeOp::Gte,
-                            value,
-                        }),
-                        less: None,
+                    less: None,
+                }),
+                CompareOp::Gte => Self::Range(Range {
+                    field,
+                    greater: Some(GreaterRange {
+                        operation: GreaterRangeOp::Gte,
+                        value,
                     }),
-                    CompareOp::Lt => Self::Range(Range {
-                        field,
-                        greater: None,
-                        less: Some(LessRange {
-                            operation: LessRangeOp::Lt,
-                            value,
-                        }),
+                    less: None,
+                }),
+                CompareOp::Lt => Self::Range(Range {
+                    field,
+                    greater: None,
+                    less: Some(LessRange {
+                        operation: LessRangeOp::Lt,
+                        value,
                     }),
-                    CompareOp::Lte => Self::Range(Range {
-                        field,
-                        greater: None,
-                        less: Some(LessRange {
-                            operation: LessRangeOp::Lte,
-                            value,
-                        }),
+                }),
+                CompareOp::Lte => Self::Range(Range {
+                    field,
+                    greater: None,
+                    less: Some(LessRange {
+                        operation: LessRangeOp::Lte,
+                        value,
                     }),
-                };
-
-                if is_root {
-                    Self::Filter(Filter {
-                        filter: vec![clause],
-                        is_root,
-                    })
-                } else {
-                    clause
-                }
-            }
+                }),
+            },
 
             filter::Filter::Combine(Combine { operation, filters }) => {
                 let clause = filters
@@ -502,37 +464,47 @@ impl<'a> Clause<'a> {
             }
         }
     }
-
-    fn excluded_ids(values: &'a [DocumentId]) -> Self {
-        Self::MustNot(MustNot {
-            must_not: vec![Clause::Ids(Ids { values })],
-            is_root: true,
-        })
-    }
 }
 
-impl KnnSearchParams<'_> {
-    pub(super) fn create_search_filter(&self) -> JsonObject {
-        let mut clauses = Vec::new();
-        if !self.excluded.is_empty() {
+#[derive(Debug, Serialize)]
+pub(super) struct Clauses<'a> {
+    #[serde(flatten, skip_serializing_if = "Filter::is_empty")]
+    filter: Filter<'a>,
+    #[serde(flatten, skip_serializing_if = "Should::is_empty")]
+    should: Should<'a>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    must_not: Vec<Ids<'a>>,
+}
+
+impl<'a> Clauses<'a> {
+    pub(super) fn new(filter: Option<&'a filter::Filter>, excluded: &'a [DocumentId]) -> Self {
+        let mut clauses = Self {
+            filter: Filter {
+                filter: Vec::new(),
+                is_root: true,
+            },
+            should: Should {
+                should: Vec::new(),
+                is_root: true,
+            },
+            must_not: Vec::new(),
+        };
+        if let Some(filter) = filter {
+            match Clause::new(filter, true) {
+                clause @ (Clause::Term(_) | Clause::Terms(_) | Clause::Range(_)) => {
+                    clauses.filter.filter.push(clause);
+                }
+                Clause::Filter(clause) => clauses.filter = clause,
+                Clause::Should(clause) => clauses.should = clause,
+            }
+        }
+        if !excluded.is_empty() {
             // existing pg documents are not filtered in the query to avoid too much work for a cold
             // path, filtering them afterwards can occasionally lead to less than k results though
-            clauses.push(Clause::excluded_ids(self.excluded));
-        }
-        if let Some(filter) = self.filter {
-            clauses.push(Clause::new(filter, true));
+            clauses.must_not.push(Ids { values: excluded });
         }
 
-        merge_json_objects(clauses.into_iter().map(|clause| {
-            let Ok(Value::Object(clause)) = serde_json::to_value(clause) else {
-                unreachable!(
-                    // clause serialization can't fail
-                    // clause doesn't contain map with non-string keys
-                    // clause is json object
-                );
-            };
-            clause
-        }))
+        clauses
     }
 }
 
@@ -559,14 +531,14 @@ mod tests {
         let clause = serde_json::from_str(r#"{ "a": { "$eq": true } }"#).unwrap();
         let value = json!({ FILTER: [{ TERM: { PROP_A: true } }] });
         assert_eq!(
-            serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
             value,
         );
 
         let clause = serde_json::from_str(r#"{ "a": { "$eq": "b" } }"#).unwrap();
         let value = json!({ FILTER: [{ TERM: { PROP_A: "b" } }] });
         assert_eq!(
-            serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
             value,
         );
     }
@@ -576,7 +548,7 @@ mod tests {
         let clause = serde_json::from_str(r#"{ "a": { "$in": ["b", "c"] } }"#).unwrap();
         let value = json!({ FILTER: [{ TERMS: { PROP_A: ["b", "c"] } }] });
         assert_eq!(
-            serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
             value,
         );
     }
@@ -757,7 +729,7 @@ mod tests {
                 serde_json::from_str(&json!({ "a": { operation.0: 42 } }).to_string()).unwrap();
             let value = json!({ FILTER: [{ RANGE: { PROP_A: { operation.1: 42 } } }] });
             assert_eq!(
-                serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+                serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
                 value,
             );
 
@@ -765,7 +737,7 @@ mod tests {
                 serde_json::from_str(&json!({ "a": { operation.0: DATE } }).to_string()).unwrap();
             let value = json!({ FILTER: [{ RANGE: { PROP_A: { operation.1: DATE } } }] });
             assert_eq!(
-                serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+                serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
                 value,
             );
         }
@@ -784,14 +756,14 @@ mod tests {
             ] }"#,
         )
         .unwrap();
-        let Clause::Filter(Filter { filter, .. }) = Clause::new(&clause, true) else {
-            panic!();
-        };
-        let value = json!([
+        let value = json!({ FILTER: [
             { RANGE: { PROP_A: { "gte": 4, "lt": 1 } } },
             { RANGE: { PROP_C: { "gt": 5, "lte": 0 } } }
-        ]);
-        assert_eq!(serde_json::to_value(filter).unwrap(), value);
+        ] });
+        assert_eq!(
+            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            value,
+        );
     }
 
     #[test]
@@ -807,28 +779,19 @@ mod tests {
             ] }"#,
         )
         .unwrap();
-        let Clause::Should(Should { should, .. }) = Clause::new(&clause, true) else {
-            panic!();
-        };
-        let value = json!([
-            { RANGE: { PROP_A: { "gt": 3 } } },
-            { RANGE: { PROP_C: { "gt": 5 } } },
-            { RANGE: { PROP_A: { "lte": 2 } } },
-            { RANGE: { PROP_C: { "lte": 0 } } }
-        ]);
-        assert_eq!(serde_json::to_value(should).unwrap(), value);
-    }
-
-    #[test]
-    fn test_excluded_ids() {
-        let ids = [
-            "a".try_into().unwrap(),
-            "b".try_into().unwrap(),
-            "c".try_into().unwrap(),
-        ];
-        let clause = Clause::excluded_ids(&ids);
-        let value = json!({ "must_not": [{ "ids": { "values": ["a", "b", "c"] } }] });
-        assert_eq!(serde_json::to_value(clause).unwrap(), value);
+        let value = json!({
+            SHOULD: [
+                { RANGE: { PROP_A: { "gt": 3 } } },
+                { RANGE: { PROP_C: { "gt": 5 } } },
+                { RANGE: { PROP_A: { "lte": 2 } } },
+                { RANGE: { PROP_C: { "lte": 0 } } }
+            ],
+            MINIMUM_SHOULD_MATCH: 1
+        });
+        assert_eq!(
+            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            value,
+        );
     }
 
     #[test]
@@ -847,7 +810,7 @@ mod tests {
             { RANGE: { PROP_C: { "gt": DATE, "lt": DATE } } }
         ] });
         assert_eq!(
-            serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
             value,
         );
     }
@@ -872,7 +835,7 @@ mod tests {
             MINIMUM_SHOULD_MATCH: 1
         });
         assert_eq!(
-            serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
             value,
         );
     }
@@ -920,6 +883,20 @@ mod tests {
         });
         assert_eq!(
             serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+            value,
+        );
+    }
+
+    #[test]
+    fn test_must_not() {
+        let ids = [
+            "a".try_into().unwrap(),
+            "b".try_into().unwrap(),
+            "c".try_into().unwrap(),
+        ];
+        let value = json!({ "must_not": [{ "ids": { "values": ["a", "b", "c"] } }] });
+        assert_eq!(
+            serde_json::to_value(Clauses::new(None, &ids)).unwrap(),
             value,
         );
     }
