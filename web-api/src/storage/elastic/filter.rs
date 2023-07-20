@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{cmp::Ordering, collections::HashMap};
 
 use serde::{Serialize, Serializer};
 use serde_json::Value;
@@ -70,20 +70,82 @@ impl Serialize for Terms<'_> {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
-#[serde(rename_all = "lowercase")]
-enum RangeOp {
-    Gt,
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum GreaterRangeOp {
     Gte,
+    Gt,
+}
+
+#[derive(Debug, PartialEq)]
+struct GreaterRange<'a> {
+    operation: GreaterRangeOp,
+    value: &'a DocumentProperty,
+}
+
+impl GreaterRange<'_> {
+    fn and(&mut self, other: Self) {
+        match self.value.partial_cmp(other.value) {
+            Some(Ordering::Less) => *self = other,
+            Some(Ordering::Equal) if self.operation < other.operation => {
+                self.operation = other.operation;
+            }
+            _ => {}
+        }
+    }
+
+    fn or(&mut self, other: Self) {
+        match self.value.partial_cmp(other.value) {
+            Some(Ordering::Greater) => *self = other,
+            Some(Ordering::Equal) if self.operation > other.operation => {
+                self.operation = other.operation;
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+enum LessRangeOp {
     Lt,
     Lte,
 }
 
 #[derive(Debug)]
-struct Range<'a> {
-    operation: RangeOp,
-    field: &'a DocumentPropertyId,
+struct LessRange<'a> {
+    operation: LessRangeOp,
     value: &'a DocumentProperty,
+}
+
+impl LessRange<'_> {
+    fn and(&mut self, other: Self) {
+        match self.value.partial_cmp(other.value) {
+            Some(Ordering::Greater) => *self = other,
+            Some(Ordering::Equal) if self.operation > other.operation => {
+                self.operation = other.operation;
+            }
+            _ => {}
+        }
+    }
+
+    fn or(&mut self, other: Self) {
+        match self.value.partial_cmp(other.value) {
+            Some(Ordering::Less) => *self = other,
+            Some(Ordering::Equal) if self.operation < other.operation => {
+                self.operation = other.operation;
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Range<'a> {
+    field: &'a DocumentPropertyId,
+    // at least one of the options is Some(_)
+    greater: Option<GreaterRange<'a>>,
+    less: Option<LessRange<'a>>,
 }
 
 impl Serialize for Range<'_> {
@@ -91,13 +153,26 @@ impl Serialize for Range<'_> {
     where
         S: Serializer,
     {
+        #[derive(Eq, Hash, PartialEq, Serialize)]
+        #[serde(untagged)]
+        enum RangeOp {
+            Greater(GreaterRangeOp),
+            Less(LessRangeOp),
+        }
+
         #[derive(Serialize)]
         struct Range<'a> {
             range: HashMap<&'a str, HashMap<RangeOp, &'a DocumentProperty>>,
         }
 
         let field = format!("properties.{}", self.field);
-        let range = [(self.operation, self.value)].into();
+        let mut range = HashMap::with_capacity(2);
+        if let Some(GreaterRange { operation, value }) = self.greater {
+            range.insert(RangeOp::Greater(operation), value);
+        }
+        if let Some(LessRange { operation, value }) = self.less {
+            range.insert(RangeOp::Less(operation), value);
+        }
         let range = [(field.as_str(), range)].into();
 
         Range { range }.serialize(serializer)
@@ -249,6 +324,110 @@ enum Clause<'a> {
     MustNot(MustNot<'a>),
 }
 
+fn merge_range_and(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
+    fn is_range<'a>(clause: &Clause<'a>) -> Option<&'a DocumentPropertyId> {
+        if let Clause::Range(range) = clause {
+            Some(range.field)
+        } else {
+            None
+        }
+    }
+
+    let mut i = 0;
+    while i < clause.len() {
+        if let Some(field) = is_range(&clause[i]).map(ToOwned::to_owned) {
+            let mut j = i + 1;
+            while j < clause.len() {
+                if is_range(&clause[j]).map_or(false, |f| f == &field) {
+                    let Clause::Range(range_j) = clause.swap_remove(j) else {
+                        unreachable!(/* clause[j] is range */);
+                    };
+                    let Clause::Range(range_i) = &mut clause[i] else {
+                        unreachable!(/* clause[i] is range */);
+                    };
+                    match (&mut range_i.greater, range_j.greater) {
+                        (Some(greater_i), Some(greater_j)) => greater_i.and(greater_j),
+                        (None, greater_j @ Some(_)) => range_i.greater = greater_j,
+                        (Some(_) | None, None) => {}
+                    }
+                    match (&mut range_i.less, range_j.less) {
+                        (Some(less_i), Some(less_j)) => less_i.and(less_j),
+                        (None, less_j @ Some(_)) => range_i.less = less_j,
+                        (Some(_) | None, None) => {}
+                    }
+                } else {
+                    j += 1;
+                }
+            }
+        }
+        i += 1;
+    }
+
+    clause
+}
+
+fn merge_range_or(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
+    fn is_greater_range<'a>(clause: &Clause<'a>) -> Option<&'a DocumentPropertyId> {
+        if let Clause::Range(range) = clause {
+            range.greater.is_some().then_some(range.field)
+        } else {
+            None
+        }
+    }
+
+    fn is_less_range<'a>(clause: &Clause<'a>) -> Option<&'a DocumentPropertyId> {
+        if let Clause::Range(range) = clause {
+            range.less.is_some().then_some(range.field)
+        } else {
+            None
+        }
+    }
+
+    let mut i = 0;
+    while i < clause.len() {
+        if let Some(field) = is_greater_range(&clause[i]).map(ToOwned::to_owned) {
+            let mut j = i + 1;
+            while j < clause.len() {
+                if is_greater_range(&clause[j]).map_or(false, |f| f == &field) {
+                    let Clause::Range(Range { greater: Some(greater_j), .. }) =
+                        clause.swap_remove(j)
+                    else {
+                        unreachable!(/* clause[j] is greater range */);
+                    };
+                    let Clause::Range(Range { greater: Some(greater_i), .. }) =
+                        &mut clause[i]
+                    else {
+                        unreachable!(/* clause[i] is greater range */);
+                    };
+                    greater_i.or(greater_j);
+                } else {
+                    j += 1;
+                }
+            }
+        } else if let Some(field) = is_less_range(&clause[i]).map(ToOwned::to_owned) {
+            let mut j = i + 1;
+            while j < clause.len() {
+                if is_less_range(&clause[j]).map_or(false, |f| f == &field) {
+                    let Clause::Range(Range { less: Some(less_j), .. }) =
+                        clause.swap_remove(j)
+                    else {
+                        unreachable!(/* clause[j] is less range */);
+                    };
+                    let Clause::Range(Range { less: Some(less_i), .. }) = &mut clause[i] else {
+                        unreachable!(/* clause[i] is less range */);
+                    };
+                    less_i.or(less_j);
+                } else {
+                    j += 1;
+                }
+            }
+        }
+        i += 1;
+    }
+
+    clause
+}
+
 impl<'a> Clause<'a> {
     fn new(clause: &'a filter::Filter, is_root: bool) -> Self {
         match clause {
@@ -261,24 +440,36 @@ impl<'a> Clause<'a> {
                     CompareOp::Eq => Self::Term(Term { field, value }),
                     CompareOp::In => Self::Terms(Terms { field, value }),
                     CompareOp::Gt => Self::Range(Range {
-                        operation: RangeOp::Gt,
                         field,
-                        value,
+                        greater: Some(GreaterRange {
+                            operation: GreaterRangeOp::Gt,
+                            value,
+                        }),
+                        less: None,
                     }),
                     CompareOp::Gte => Self::Range(Range {
-                        operation: RangeOp::Gte,
                         field,
-                        value,
+                        greater: Some(GreaterRange {
+                            operation: GreaterRangeOp::Gte,
+                            value,
+                        }),
+                        less: None,
                     }),
                     CompareOp::Lt => Self::Range(Range {
-                        operation: RangeOp::Lt,
                         field,
-                        value,
+                        greater: None,
+                        less: Some(LessRange {
+                            operation: LessRangeOp::Lt,
+                            value,
+                        }),
                     }),
                     CompareOp::Lte => Self::Range(Range {
-                        operation: RangeOp::Lte,
                         field,
-                        value,
+                        greater: None,
+                        less: Some(LessRange {
+                            operation: LessRangeOp::Lte,
+                            value,
+                        }),
                     }),
                 };
 
@@ -300,11 +491,11 @@ impl<'a> Clause<'a> {
 
                 match operation {
                     CombineOp::And => Self::Filter(Filter {
-                        filter: clause,
+                        filter: merge_range_and(clause),
                         is_root,
                     }),
                     CombineOp::Or => Self::Should(Should {
-                        should: clause,
+                        should: merge_range_or(clause),
                         is_root,
                     }),
                 }
@@ -391,6 +582,170 @@ mod tests {
     }
 
     #[test]
+    fn test_greater_range_and() {
+        let val_1 = &json!(21).try_into().unwrap();
+        let val_2 = &json!(42).try_into().unwrap();
+        for (op_1, op_2) in [
+            (GreaterRangeOp::Gt, GreaterRangeOp::Gt),
+            (GreaterRangeOp::Gt, GreaterRangeOp::Gte),
+            (GreaterRangeOp::Gte, GreaterRangeOp::Gt),
+            (GreaterRangeOp::Gte, GreaterRangeOp::Gte),
+        ] {
+            let mut range = GreaterRange {
+                operation: op_1,
+                value: val_1,
+            };
+            range.and(GreaterRange {
+                operation: op_2,
+                value: val_2,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.and(GreaterRange {
+                operation: op_1,
+                value: val_1,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.and(GreaterRange {
+                operation: op_1,
+                value: val_2,
+            });
+            if op_2 == GreaterRangeOp::Gte && op_1 == GreaterRangeOp::Gt {
+                assert_eq!(range.operation, op_1);
+            } else {
+                assert_eq!(range.operation, op_2);
+            }
+            assert_eq!(range.value, val_2);
+        }
+    }
+
+    #[test]
+    fn test_greater_range_or() {
+        let val_1 = &json!(42).try_into().unwrap();
+        let val_2 = &json!(21).try_into().unwrap();
+        for (op_1, op_2) in [
+            (GreaterRangeOp::Gt, GreaterRangeOp::Gt),
+            (GreaterRangeOp::Gt, GreaterRangeOp::Gte),
+            (GreaterRangeOp::Gte, GreaterRangeOp::Gt),
+            (GreaterRangeOp::Gte, GreaterRangeOp::Gte),
+        ] {
+            let mut range = GreaterRange {
+                operation: op_1,
+                value: val_1,
+            };
+            range.or(GreaterRange {
+                operation: op_2,
+                value: val_2,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.or(GreaterRange {
+                operation: op_1,
+                value: val_1,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.or(GreaterRange {
+                operation: op_1,
+                value: val_2,
+            });
+            if op_2 == GreaterRangeOp::Gt && op_1 == GreaterRangeOp::Gte {
+                assert_eq!(range.operation, op_1);
+            } else {
+                assert_eq!(range.operation, op_2);
+            }
+            assert_eq!(range.value, val_2);
+        }
+    }
+
+    #[test]
+    fn test_less_range_and() {
+        let val_1 = &json!(42).try_into().unwrap();
+        let val_2 = &json!(21).try_into().unwrap();
+        for (op_1, op_2) in [
+            (LessRangeOp::Lt, LessRangeOp::Lt),
+            (LessRangeOp::Lt, LessRangeOp::Lte),
+            (LessRangeOp::Lte, LessRangeOp::Lt),
+            (LessRangeOp::Lte, LessRangeOp::Lte),
+        ] {
+            let mut range = LessRange {
+                operation: op_1,
+                value: val_1,
+            };
+            range.and(LessRange {
+                operation: op_2,
+                value: val_2,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.and(LessRange {
+                operation: op_1,
+                value: val_1,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.and(LessRange {
+                operation: op_1,
+                value: val_2,
+            });
+            if op_2 == LessRangeOp::Lte && op_1 == LessRangeOp::Lt {
+                assert_eq!(range.operation, op_1);
+            } else {
+                assert_eq!(range.operation, op_2);
+            }
+            assert_eq!(range.value, val_2);
+        }
+    }
+
+    #[test]
+    fn test_less_range_or() {
+        let val_1 = &json!(21).try_into().unwrap();
+        let val_2 = &json!(42).try_into().unwrap();
+        for (op_1, op_2) in [
+            (LessRangeOp::Lt, LessRangeOp::Lt),
+            (LessRangeOp::Lt, LessRangeOp::Lte),
+            (LessRangeOp::Lte, LessRangeOp::Lt),
+            (LessRangeOp::Lte, LessRangeOp::Lte),
+        ] {
+            let mut range = LessRange {
+                operation: op_1,
+                value: val_1,
+            };
+            range.or(LessRange {
+                operation: op_2,
+                value: val_2,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.or(LessRange {
+                operation: op_1,
+                value: val_1,
+            });
+            assert_eq!(range.operation, op_2);
+            assert_eq!(range.value, val_2);
+
+            range.or(LessRange {
+                operation: op_1,
+                value: val_2,
+            });
+            if op_2 == LessRangeOp::Lt && op_1 == LessRangeOp::Lte {
+                assert_eq!(range.operation, op_1);
+            } else {
+                assert_eq!(range.operation, op_2);
+            }
+            assert_eq!(range.value, val_2);
+        }
+    }
+
+    #[test]
     fn test_range() {
         for operation in [
             ("$gt", "gt"),
@@ -414,6 +769,54 @@ mod tests {
                 value,
             );
         }
+    }
+
+    #[test]
+    fn test_fully_merge_range() {
+        let clause = serde_json::from_str(
+            r#"{ "$and": [
+                { "a": { "$gt": 3 } },
+                { "c": { "$gt": 5 } },
+                { "a": { "$gte": 4 } },
+                { "a": { "$lte": 2 } },
+                { "c": { "$lte": 0 } },
+                { "a": { "$lt": 1 } }
+            ] }"#,
+        )
+        .unwrap();
+        let Clause::Filter(Filter { filter, .. }) = Clause::new(&clause, true) else {
+            panic!();
+        };
+        let value = json!([
+            { RANGE: { PROP_A: { "gte": 4, "lt": 1 } } },
+            { RANGE: { PROP_C: { "gt": 5, "lte": 0 } } }
+        ]);
+        assert_eq!(serde_json::to_value(filter).unwrap(), value);
+    }
+
+    #[test]
+    fn test_partly_merge_range() {
+        let clause = serde_json::from_str(
+            r#"{ "$or": [
+                { "a": { "$gt": 3 } },
+                { "c": { "$gt": 5 } },
+                { "a": { "$gte": 4 } },
+                { "a": { "$lte": 2 } },
+                { "c": { "$lte": 0 } },
+                { "a": { "$lt": 1 } }
+            ] }"#,
+        )
+        .unwrap();
+        let Clause::Should(Should { should, .. }) = Clause::new(&clause, true) else {
+            panic!();
+        };
+        let value = json!([
+            { RANGE: { PROP_A: { "gt": 3 } } },
+            { RANGE: { PROP_C: { "gt": 5 } } },
+            { RANGE: { PROP_A: { "lte": 2 } } },
+            { RANGE: { PROP_C: { "lte": 0 } } }
+        ]);
+        assert_eq!(serde_json::to_value(should).unwrap(), value);
     }
 
     #[test]
@@ -441,8 +844,7 @@ mod tests {
         .unwrap();
         let value = json!({ FILTER: [
             { TERM: { PROP_A: "b" } },
-            { RANGE: { PROP_C: { "gt": DATE } } },
-            { RANGE: { PROP_C: { "lt": DATE } } }
+            { RANGE: { PROP_C: { "gt": DATE, "lt": DATE } } }
         ] });
         assert_eq!(
             serde_json::to_value(Clause::new(&clause, true)).unwrap(),
@@ -484,20 +886,24 @@ mod tests {
         ]);
         let and = json!({ "$and": filters });
         let or = json!({ "$or": filters });
-        let clauses = json_array!([
+        let filter_clause = json_array!([
+            { TERM: { PROP_A: "b" } },
+            { RANGE: { PROP_C: { "gt": DATE, "lt": DATE } } }
+        ]);
+        let should_clause = json_array!([
             { TERM: { PROP_A: "b" } },
             { RANGE: { PROP_C: { "gt": DATE } } },
             { RANGE: { PROP_C: { "lt": DATE } } }
         ]);
-        let filter = json!({ BOOL: { FILTER: clauses } });
-        let should = json!({ BOOL: { SHOULD: clauses, MINIMUM_SHOULD_MATCH: 1 } });
+        let filter = json!({ BOOL: { FILTER: filter_clause } });
+        let should = json!({ BOOL: { SHOULD: should_clause, MINIMUM_SHOULD_MATCH: 1 } });
 
         let clause = serde_json::from_str(
-            &json!({ "$and": [and, or, filters[0], and, filters[1], filters[2]] }).to_string(),
+            &json!({ "$and": [and, or, filters[0], filters[1], and, filters[2]] }).to_string(),
         )
         .unwrap();
         let value = json!({
-            FILTER: [filter, should, clauses[0], filter, clauses[1], clauses[2]]
+            FILTER: [filter, should, filter_clause[0], filter_clause[1], filter]
         });
         assert_eq!(
             serde_json::to_value(Clause::new(&clause, true)).unwrap(),
@@ -505,11 +911,11 @@ mod tests {
         );
 
         let clause = serde_json::from_str(
-            &json!({ "$or": [or, and, filters[0], or, filters[1], filters[2]] }).to_string(),
+            &json!({ "$or": [or, and, filters[0], filters[1], or, filters[2]] }).to_string(),
         )
         .unwrap();
         let value = json!({
-            SHOULD: [should, filter, clauses[0], should, clauses[1], clauses[2]],
+            SHOULD: [should, filter, should_clause[0], should_clause[1], should, should_clause[2]],
             MINIMUM_SHOULD_MATCH: 1
         });
         assert_eq!(
