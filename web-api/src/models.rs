@@ -34,6 +34,7 @@ use crate::{
         InvalidDocumentProperty,
         InvalidDocumentPropertyId,
         InvalidDocumentPropertyReason,
+        InvalidDocumentQuery,
         InvalidDocumentSnippet,
         InvalidDocumentTag,
         InvalidDocumentTags,
@@ -143,6 +144,8 @@ string_wrapper! {
     pub(crate) UserId, InvalidUserId, is_valid_id;
     /// A document tag.
     pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
+    /// A document query.
+    pub(crate) DocumentQuery, InvalidDocumentQuery, |value| is_valid_string(value, 512);
 }
 
 /// A document snippet.

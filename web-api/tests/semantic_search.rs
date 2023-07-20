@@ -114,6 +114,17 @@ fn test_semantic_search_with_query() {
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 
+            send_assert(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "" } }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client

@@ -49,7 +49,7 @@ use crate::{
         common::{BadRequest, DocumentNotFound, InvalidDocumentCount},
         warning::Warning,
     },
-    models::{DocumentId, DocumentProperties, PersonalizedDocument, UserId},
+    models::{DocumentId, DocumentProperties, DocumentQuery, PersonalizedDocument, UserId},
     storage::{self, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
     utils::deprecate,
     Error,
@@ -445,8 +445,8 @@ enum DevHybrid {
 fn create_search_strategy(
     enable_hybrid_search: bool,
     dev: Option<DevHybrid>,
-    query: Option<String>,
-) -> SearchStrategy {
+    query: Option<&DocumentQuery>,
+) -> SearchStrategy<'_> {
     if !enable_hybrid_search {
         return SearchStrategy::Knn;
     }
@@ -528,7 +528,7 @@ impl UnvalidatedInputDocument {
                 "either id or query must be present in the request, but both were found",
             )
             .into()),
-            (None, Some(query)) => Ok(InputDocument::Query(query)),
+            (None, Some(query)) => Ok(InputDocument::Query(query.try_into()?)),
             (Some(id), None) => Ok(InputDocument::Ref(id.try_into()?)),
             (None, None) => {
                 Err(BadRequest::from("either id or query must be present in the request").into())
@@ -574,7 +574,7 @@ struct SemanticSearchRequest {
 
 enum InputDocument {
     Ref(DocumentId),
-    Query(String),
+    Query(DocumentQuery),
 }
 
 struct Personalize {
@@ -637,8 +637,8 @@ async fn semantic_search(
                 create_search_strategy(enable_hybrid_search, dev.hybrid, None),
             )
         }
-        InputDocument::Query(query) => {
-            let embedding = state.embedder.run(&query)?;
+        InputDocument::Query(ref query) => {
+            let embedding = state.embedder.run(query)?;
             (
                 embedding,
                 create_search_strategy(enable_hybrid_search, dev.hybrid, Some(query)),

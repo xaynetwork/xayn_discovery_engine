@@ -134,6 +134,14 @@ pub(crate) enum InvalidDocumentSnippet {
 
 impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
 
+/// Malformed document query.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidDocumentQuery {
+    pub(crate) value: String,
+}
+
+impl_application_error!(InvalidDocumentQuery => BAD_REQUEST, INFO);
+
 /// Malsized document count.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentCount {
