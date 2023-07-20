@@ -51,6 +51,7 @@ stdout = """
   },
   "personalization": {
     "max_number_documents": 100,
+    "max_number_candidates": 100,
     "default_number_documents": 10,
     "max_cois_for_knn": 10,
     "score_weights": [
@@ -64,6 +65,7 @@ stdout = """
   },
   "semantic_search": {
     "max_number_documents": 100,
+    "max_number_candidates": 100,
     "default_number_documents": 10,
     "score_weights": [
       0.4,

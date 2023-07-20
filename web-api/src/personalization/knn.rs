@@ -35,6 +35,7 @@ pub(super) struct CoiSearch<'a, I> {
     pub(super) horizon: Duration,
     pub(super) max_cois: usize,
     pub(super) count: usize,
+    pub(super) num_candidates: usize,
     pub(super) time: DateTime<Utc>,
     pub(super) include_properties: bool,
     pub(super) filter: Option<&'a Filter>,
@@ -63,18 +64,10 @@ where
         let document_futures = cois
             .iter()
             .map(|(coi, weight)| async {
-                // weights_sum can't be zero, because coi weights will always return some weights that are > 0
+                // weights_sum can't be zero, because all coi_weights are in [0, 1] and at least one of them is > 0
                 let weight = *weight / weights_sum;
-                #[allow(
-                    // fine as max documents count is small enough
-                    clippy::cast_precision_loss,
-                    // fine as weight should be between 0 and 1
-                    clippy::cast_sign_loss,
-                    // fine as number of neighbors is small enough
-                    clippy::cast_possible_truncation
-                )]
-                let count = (weight * self.count as f32).ceil() as usize;
-                let num_candidates = self.count.max(count);
+                let count = weighted_number(weight, self.count);
+                let num_candidates = weighted_number(weight, self.num_candidates).max(count);
                 storage::Document::get_by_embedding(
                     storage,
                     KnnSearchParams {
@@ -99,6 +92,18 @@ where
             Ok(all_documents.into_values().collect_vec())
         }
     }
+}
+
+#[allow(
+    // fine if number is small enough
+    clippy::cast_precision_loss,
+    // fine if weight is between 0 and 1
+    clippy::cast_sign_loss,
+    // weight * number is small enough if the previous assumptions are fine
+    clippy::cast_possible_truncation
+)]
+fn weighted_number(weight: f32, number: usize) -> usize {
+    (weight * number as f32).ceil() as usize
 }
 
 async fn merge_knn_searchs(
@@ -147,6 +152,7 @@ mod tests {
             horizon: CoiConfig::default().horizon(),
             max_cois: PersonalizationConfig::default().max_cois_for_knn,
             count: 10,
+            num_candidates: 10,
             time: Utc::now(),
             include_properties: false,
             filter: None,

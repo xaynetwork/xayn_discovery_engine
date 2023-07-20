@@ -173,6 +173,7 @@ impl UnvalidatedPersonalizedDocumentsQuery {
             count,
             config.max_number_documents,
             config.default_number_documents,
+            config.max_number_candidates,
         )?;
         let filter = filter
             .map(|filter| serde_json::from_str(&filter))
@@ -303,6 +304,7 @@ pub(crate) async fn personalize_documents_by(
                 horizon: coi_system.config().horizon(),
                 max_cois: personalization.max_cois_for_knn,
                 count,
+                num_candidates: personalization.max_number_candidates,
                 time,
                 include_properties,
                 filter,
@@ -383,7 +385,7 @@ struct UnvalidatedSemanticSearchQuery {
     #[serde(default)]
     enable_hybrid_search: bool,
     #[serde(default, rename = "_dev")]
-    dev: Option<DevOptions>,
+    dev: DevOption,
     #[serde(default = "default_include_properties")]
     include_properties: bool,
     filter: Option<Filter>,
@@ -391,13 +393,14 @@ struct UnvalidatedSemanticSearchQuery {
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(default)]
-struct DevOptions {
-    hybrid: Option<HybridDevOption>,
+struct DevOption {
+    hybrid: Option<DevHybrid>,
+    max_number_candidates: Option<usize>,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
-enum HybridDevOption {
+enum DevHybrid {
     EsRrf {
         #[serde(default)]
         rank_constant: Option<u32>,
@@ -411,7 +414,7 @@ enum HybridDevOption {
 
 fn create_search_strategy(
     enable_hybrid_search: bool,
-    dev: Option<&DevOptions>,
+    dev: Option<DevHybrid>,
     query: Option<String>,
 ) -> SearchStrategy {
     if !enable_hybrid_search {
@@ -420,19 +423,16 @@ fn create_search_strategy(
     let Some(query) = query else {
         return SearchStrategy::Knn;
     };
-    let Some(DevOptions {
-        hybrid: Some(hybrid),
-    }) = dev
-    else {
+    let Some(hybrid) = dev else {
         return SearchStrategy::Hybrid { query };
     };
 
-    match hybrid.clone() {
-        HybridDevOption::EsRrf { rank_constant } => SearchStrategy::HybridEsRrf {
+    match hybrid {
+        DevHybrid::EsRrf { rank_constant } => SearchStrategy::HybridEsRrf {
             query,
             rank_constant,
         },
-        HybridDevOption::Customize {
+        DevHybrid::Customize {
             normalize_knn,
             normalize_bm25,
             merge_fn,
@@ -471,6 +471,7 @@ impl UnvalidatedSemanticSearchQuery {
                 count,
                 semantic_search_config.max_number_documents,
                 semantic_search_config.default_number_documents,
+                semantic_search_config.max_number_candidates,
             )?,
             personalize: personalize
                 .map(|personalize| personalize.validate(config.as_ref(), warnings))
@@ -535,7 +536,7 @@ struct SemanticSearchQuery {
     count: usize,
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
-    dev: Option<DevOptions>,
+    dev: DevOption,
     include_properties: bool,
     filter: Option<Filter>,
     is_deprecated: bool,
@@ -555,10 +556,11 @@ fn validate_count(
     count: Option<usize>,
     max: usize,
     default: usize,
+    candidates: usize,
 ) -> Result<usize, InvalidDocumentCount> {
     let count = count.unwrap_or(default);
 
-    if (1..=max).contains(&count) {
+    if (1..=max.min(candidates)).contains(&count) {
         Ok(count)
     } else {
         Err(InvalidDocumentCount { count, min: 1, max })
@@ -602,14 +604,14 @@ async fn semantic_search(
             excluded.push(id);
             (
                 embedding,
-                create_search_strategy(enable_hybrid_search, dev.as_ref(), None),
+                create_search_strategy(enable_hybrid_search, dev.hybrid, None),
             )
         }
         InputDocument::Query(query) => {
             let embedding = state.embedder.run(&query)?;
             (
                 embedding,
-                create_search_strategy(enable_hybrid_search, dev.as_ref(), Some(query)),
+                create_search_strategy(enable_hybrid_search, dev.hybrid, Some(query)),
             )
         }
     };
@@ -620,7 +622,9 @@ async fn semantic_search(
             excluded: &excluded,
             embedding: &embedding,
             count,
-            num_candidates: count,
+            num_candidates: dev
+                .max_number_candidates
+                .unwrap_or(state.config.semantic_search.max_number_candidates),
             strategy,
             include_properties,
             filter: filter.as_ref(),
