@@ -80,6 +80,17 @@ impl SemanticSearchResponse {
     }
 }
 
+#[derive(Debug, Deserialize, PartialEq)]
+enum Kind {
+    FailedToValidateDocuments,
+}
+
+#[derive(Deserialize)]
+struct BadRequest {
+    kind: Kind,
+    details: SemanticSearchResponse,
+}
+
 #[test]
 fn test_filter_boolean() {
     test_two_apps::<Ingestion, Personalization, _>(
@@ -871,6 +882,128 @@ fn test_filter_date() {
                     .json(&json!({
                         "document": { "query": "zero" },
                         "filter": { "p2": { "$gt": "0000-01-01T00:00:00Z" } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_filter_no_value() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            index(
+                &client,
+                &ingestion_url,
+                json!({ "p1": { "type": "keyword[]" } }),
+            )
+            .await?;
+            ingest(
+                &client,
+                &ingestion_url,
+                json!([
+                    { "id": "d1", "snippet": "one" },
+                    { "id": "d2", "snippet": "two", "properties": { "p2": null } },
+                    { "id": "d3", "snippet": "three", "properties": { "p1": [] } }
+                ]),
+            )
+            .await?;
+
+            let bad_request = send_assert_json::<BadRequest>(
+                &client,
+                client
+                    .post(ingestion_url.join("/documents")?)
+                    .json(&json!({ "documents": [
+                        { "id": "d4", "snippet": "four", "properties": { "p1": null } }
+                    ] }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+            assert_eq!(bad_request.kind, Kind::FailedToValidateDocuments);
+            assert_eq!(bad_request.details.ids(), ["d4"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "query": "zero" } }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert_eq!(documents.ids(), ["d1", "d2", "d3"].into());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": ["this", "that"] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p1": { "$in": [] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p2": { "$eq": true } }
+                    }))
+                    .build()?,
+                // TODO: change to BAD_REQUEST once filters are validated against indexed properties schema
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert!(documents.is_empty());
+
+            index(
+                &client,
+                &ingestion_url,
+                json!({ "p2": { "type": "boolean" } }),
+            )
+            .await?;
+            let documents = send_assert_json::<SemanticSearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "zero" },
+                        "filter": { "p2": { "$eq": true } }
                     }))
                     .build()?,
                 StatusCode::OK,
