@@ -54,7 +54,8 @@ stdout = """
     "token_size": 250
   },
   "tenants": {
-    "enable_legacy_tenant": true
+    "enable_legacy_tenant": true,
+    "enable_dev": false
   }
 }
 """

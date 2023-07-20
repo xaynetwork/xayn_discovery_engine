@@ -17,6 +17,7 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
+use toml::toml;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_web_api::{Ingestion, Personalization};
 
@@ -81,13 +82,25 @@ fn test_semantic_search() {
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
+            send_assert(
                 &client,
                 client
                     .post(personalization_url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
+                        "_dev": { "max_number_candidates": 100 }
                     }))
+                    .build()?,
+                StatusCode::FORBIDDEN,
+                false,
+            )
+            .await;
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({ "document": { "id": "d1" } }))
                     .build()?,
                 StatusCode::OK,
                 false,
@@ -157,7 +170,10 @@ fn test_semantic_search_with_query() {
 fn test_semantic_search_with_dev_option_hybrid() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
+        Some(toml! {
+            [tenants]
+            enable_dev = true
+        }),
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 
@@ -228,7 +244,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
                         "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "identity",
-                            "merge_fn": { "rrf": { } }
+                            "merge_fn": { "rrf": {} }
                         } } }
                     }))
                     .build()?,
@@ -268,7 +284,10 @@ fn test_semantic_search_with_dev_option_hybrid() {
 fn test_semantic_search_with_dev_option_hybrid_es_rrf() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
+        Some(toml! {
+            [tenants]
+            enable_dev = true
+        }),
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 
@@ -279,11 +298,11 @@ fn test_semantic_search_with_dev_option_hybrid_es_rrf() {
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
                         "enable_hybrid_search": true,
-                        "_dev": { "hybrid": { "es_rrf": { } } }
+                        "_dev": { "hybrid": { "es_rrf": {} } }
                     }))
                     .build()?,
                 // current license is non-compliant for Reciprocal Rank Fusion (RRF)
-                StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::FORBIDDEN,
                 false,
             )
             .await;
@@ -297,7 +316,10 @@ fn test_semantic_search_with_dev_option_hybrid_es_rrf() {
 fn test_semantic_search_with_dev_option_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
+        Some(toml! {
+            [tenants]
+            enable_dev = true
+        }),
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 

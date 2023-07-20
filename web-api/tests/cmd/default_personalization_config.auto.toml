@@ -74,7 +74,8 @@ stdout = """
     ]
   },
   "tenants": {
-    "enable_legacy_tenant": true
+    "enable_legacy_tenant": true,
+    "enable_dev": false
   }
 }
 """
