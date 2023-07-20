@@ -39,9 +39,10 @@ use sqlx::{
 use tracing::{info, instrument};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiId, CoiStats};
+use xayn_web_api_shared::elastic::ScoreMap;
 
 use super::{
-    elastic::{DocumentDeletionHint, ScoreMap},
+    elastic::DocumentDeletionHint,
     property_filter::{
         IndexedPropertiesSchema,
         IndexedPropertiesSchemaUpdate,
@@ -277,7 +278,7 @@ impl Database {
 
     async fn get_personalized(
         tx: &mut Transaction<'_, Postgres>,
-        scores: ScoreMap,
+        scores: ScoreMap<DocumentId>,
         include_properties: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut builder = QueryBuilder::new(format!(

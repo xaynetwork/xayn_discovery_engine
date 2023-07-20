@@ -420,12 +420,9 @@ impl Client {
             .await
     }
 
-    pub async fn search_request<I>(
-        &self,
-        mut body: JsonObject,
-    ) -> Result<HashMap<I, (f32, HashSet<usize>)>, Error>
+    pub async fn search_request<Id>(&self, mut body: JsonObject) -> Result<ScoreMap<Id>, Error>
     where
-        I: FromStr + Eq + Hash,
+        Id: FromStr + Eq + Hash,
     {
         if body.get("size") == Some(&json!(0)) {
             return Ok(HashMap::new());
@@ -440,7 +437,7 @@ impl Client {
             )
             .await?;
 
-        let mut map = HashMap::default();
+        let mut map = HashMap::<_, (f32, HashSet<usize>)>::default();
         for hit in response.hits.hits.into_iter() {
             if let Some(suffix) = hit.id.strip_prefix("_child.") {
                 let (idx, parent_id) = suffix.split_once('.').ok_or_else(|| {
@@ -529,7 +526,7 @@ impl Client {
         method: Method,
         url: Url,
         body: Option<B>,
-    ) -> Result<Option<T>, Error>
+    ) -> Result<T, Error>
     where
         B: Serialize,
         T: DeserializeOwned,
@@ -546,6 +543,8 @@ impl Client {
         self.query_with_bytes(method, url, post_data).await
     }
 }
+
+pub type ScoreMap<Id> = HashMap<Id, (f32, HashSet<usize>)>;
 
 #[derive(Debug, Error, displaydoc::Display, From)]
 pub enum Error {
