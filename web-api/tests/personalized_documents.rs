@@ -16,7 +16,7 @@ use std::collections::HashMap;
 
 use anyhow::Error;
 use itertools::Itertools;
-use reqwest::{Client, StatusCode, Url};
+use reqwest::{Client, Request, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
@@ -110,78 +110,8 @@ enum PersonalizedDocumentsResponse {
     Error(PersonalizedDocumentsError),
 }
 
-async fn personalize(
-    client: &Client,
-    personalization_url: &Url,
-    published_after: Option<&str>,
-    include_properties: Option<bool>,
-    is_deprecated: bool,
-) -> Result<Vec<PersonalizedDocumentData>, Error> {
-    let request = if is_deprecated {
-        let mut request = client
-            .get(personalization_url.join("/users/u1/personalized_documents")?)
-            .query(&[("count", "5")]);
-        if let Some(published_after) = published_after {
-            request = request.query(&[(
-                "filter",
-                json!({ "publication_date": { "$gte": published_after } }).to_string(),
-            )]);
-        }
-        if let Some(include_properties) = include_properties {
-            request = request.query(&[("include_properties", &include_properties.to_string())]);
-        }
-        request
-    } else {
-        let mut body = json_object!({ "count": 5 });
-        if let Some(published_after) = published_after {
-            body.insert(
-                "filter".into(),
-                json!({ "publication_date": { "$gte": published_after } }),
-            );
-        }
-        if let Some(include_properties) = include_properties {
-            body.insert("include_properties".into(), json!(include_properties));
-        }
-        client
-            .post(personalization_url.join("/users/u1/personalized_documents")?)
-            .json(&body)
-    }
-    .build()?;
-
-    let error = send_assert_json::<PersonalizedDocumentsResponse>(
-        client,
-        request.try_clone().unwrap(),
-        StatusCode::CONFLICT,
-        is_deprecated,
-    )
-    .await;
-    assert_eq!(
-        error,
-        PersonalizedDocumentsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
-    );
-
-    interact(client, personalization_url).await?;
-
-    let documents = send_assert_json::<PersonalizedDocumentsResponse>(
-        client,
-        request,
-        StatusCode::OK,
-        is_deprecated,
-    )
-    .await;
-    assert!(matches!(
-        documents,
-        PersonalizedDocumentsResponse::Documents(_),
-    ));
-    let PersonalizedDocumentsResponse::Documents(documents) = documents else {
-        unreachable!();
-    };
-
-    Ok(documents)
-}
-
 macro_rules! assert_order {
-    ($documents: expr, $ids: expr, $($arg: tt)*) => {
+    ($documents: expr, $ids: expr, $($arg: tt)*) => {{
         assert_eq!(
             $documents
                 .iter()
@@ -196,56 +126,157 @@ macro_rules! assert_order {
             assert!(d1.score > d2.score, $($arg)*);
             assert!(d2.score >= 0., $($arg)*);
         }
-    };
+    }};
 }
 
-fn personalization_all_dates(is_deprecated: bool) {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_dates(&client, &ingestion_url).await?;
-            let documents =
-                personalize(&client, &personalization_url, None, None, is_deprecated).await?;
-            assert_order!(
-                &documents,
-                ["d8", "d6", "d1", "d5"],
-                "unexpected personalized documents: {documents:?}",
-            );
-            Ok(())
-        },
+async fn personalize(
+    client: &Client,
+    personalization_url: &Url,
+    published_after: Option<&str>,
+    include_properties: Option<bool>,
+    assert: impl Fn(&[PersonalizedDocumentData]),
+) -> Result<(), Error> {
+    fn build_request(
+        client: &Client,
+        personalization_url: &Url,
+        published_after: Option<&str>,
+        include_properties: Option<bool>,
+        is_deprecated: bool,
+    ) -> Result<Request, Error> {
+        if is_deprecated {
+            let mut request = client
+                .get(personalization_url.join("/users/u1/personalized_documents")?)
+                .query(&[("count", "5")]);
+            if let Some(published_after) = published_after {
+                request = request.query(&[(
+                    "filter",
+                    json!({ "publication_date": { "$gte": published_after } }).to_string(),
+                )]);
+            }
+            if let Some(include_properties) = include_properties {
+                request = request.query(&[("include_properties", &include_properties.to_string())]);
+            }
+            request
+        } else {
+            let mut body = json_object!({ "count": 5 });
+            if let Some(published_after) = published_after {
+                body.insert(
+                    "filter".into(),
+                    json!({ "publication_date": { "$gte": published_after } }),
+                );
+            }
+            if let Some(include_properties) = include_properties {
+                body.insert("include_properties".into(), json!(include_properties));
+            }
+            client
+                .post(personalization_url.join("/users/u1/personalized_documents")?)
+                .json(&body)
+        }
+        .build()
+        .map_err(Into::into)
+    }
+
+    let error = send_assert_json::<PersonalizedDocumentsResponse>(
+        client,
+        build_request(
+            client,
+            personalization_url,
+            published_after,
+            include_properties,
+            false,
+        )?,
+        StatusCode::CONFLICT,
+        false,
+    )
+    .await;
+    assert_eq!(
+        error,
+        PersonalizedDocumentsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
     );
+
+    let error = send_assert_json::<PersonalizedDocumentsResponse>(
+        client,
+        build_request(
+            client,
+            personalization_url,
+            published_after,
+            include_properties,
+            true,
+        )?,
+        StatusCode::CONFLICT,
+        true,
+    )
+    .await;
+    assert_eq!(
+        error,
+        PersonalizedDocumentsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
+    );
+
+    interact(client, personalization_url).await?;
+
+    let documents = send_assert_json::<PersonalizedDocumentsResponse>(
+        client,
+        build_request(
+            client,
+            personalization_url,
+            published_after,
+            include_properties,
+            false,
+        )?,
+        StatusCode::OK,
+        false,
+    )
+    .await;
+    assert!(matches!(
+        documents,
+        PersonalizedDocumentsResponse::Documents(_),
+    ));
+    let PersonalizedDocumentsResponse::Documents(documents) = documents else {
+        unreachable!();
+    };
+    assert(&documents);
+
+    let documents = send_assert_json::<PersonalizedDocumentsResponse>(
+        client,
+        build_request(
+            client,
+            personalization_url,
+            published_after,
+            include_properties,
+            true,
+        )?,
+        StatusCode::OK,
+        true,
+    )
+    .await;
+    assert!(matches!(
+        documents,
+        PersonalizedDocumentsResponse::Documents(_),
+    ));
+    let PersonalizedDocumentsResponse::Documents(documents) = documents else {
+        unreachable!();
+    };
+    assert(&documents);
+
+    Ok(())
 }
 
 #[test]
 fn test_personalization_all_dates() {
-    personalization_all_dates(false);
-}
-
-#[test]
-fn test_deprecated_personalization_all_dates() {
-    personalization_all_dates(true);
-}
-
-fn personalization_limited_dates(is_deprecated: bool) {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
-            let documents = personalize(
-                &client,
-                &personalization_url,
-                Some("2022-01-01T00:00:00Z"),
-                None,
-                is_deprecated,
-            )
+            personalize(&client, &personalization_url, None, None, |documents| {
+                assert_order!(
+                    documents,
+                    ["d8", "d6", "d1", "d5"],
+                    "unexpected personalized documents: {documents:?}"
+                )
+            })
             .await?;
-            assert_order!(
-                &documents,
-                ["d1", "d5", "d4", "d3"],
-                "unexpected personalized documents: {documents:?}",
-            );
+
             Ok(())
         },
     );
@@ -253,27 +284,26 @@ fn personalization_limited_dates(is_deprecated: bool) {
 
 #[test]
 fn test_personalization_limited_dates() {
-    personalization_limited_dates(false);
-}
-
-#[test]
-fn test_deprecated_personalization_limited_dates() {
-    personalization_limited_dates(true);
-}
-
-fn personalization_with_tags(is_deprecated: bool) {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_tags(&client, &ingestion_url).await?;
-            let documents =
-                personalize(&client, &personalization_url, None, None, is_deprecated).await?;
-            assert_order!(
-                &documents,
-                ["d5", "d6", "d1", "d8"],
-                "unexpected personalized documents: {documents:?}",
-            );
+            ingest_with_dates(&client, &ingestion_url).await?;
+            personalize(
+                &client,
+                &personalization_url,
+                Some("2022-01-01T00:00:00Z"),
+                None,
+                |documents| {
+                    assert_order!(
+                        documents,
+                        ["d1", "d5", "d4", "d3"],
+                        "unexpected personalized documents: {documents:?}"
+                    )
+                },
+            )
+            .await?;
+
             Ok(())
         },
     );
@@ -281,37 +311,50 @@ fn personalization_with_tags(is_deprecated: bool) {
 
 #[test]
 fn test_personalization_with_tags() {
-    personalization_with_tags(false);
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest_with_tags(&client, &ingestion_url).await?;
+            personalize(&client, &personalization_url, None, None, |documents| {
+                assert_order!(
+                    documents,
+                    ["d5", "d6", "d1", "d8"],
+                    "unexpected personalized documents: {documents:?}"
+                )
+            })
+            .await?;
+
+            Ok(())
+        },
+    );
 }
 
-#[test]
-fn test_deprecated_personalization_with_tags() {
-    personalization_with_tags(true);
-}
-
-fn personalization_include_properties(include_properties: bool, is_deprecated: bool) {
+fn personalization_include_properties(include_properties: bool) {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest_with_dates(&client, &ingestion_url).await?;
-            let documents = personalize(
+            personalize(
                 &client,
                 &personalization_url,
                 None,
                 Some(include_properties),
-                is_deprecated,
+                |documents| {
+                    let is_empty = documents
+                        .iter()
+                        .map(|document| document.properties.is_empty())
+                        .collect_vec();
+                    if include_properties {
+                        assert_eq!(is_empty, [true, false, false, false]);
+                    } else {
+                        assert_eq!(is_empty, [true, true, true, true]);
+                    }
+                },
             )
             .await?;
-            let is_empty = documents
-                .iter()
-                .map(|document| document.properties.is_empty())
-                .collect_vec();
-            if include_properties {
-                assert_eq!(is_empty, [true, false, false, false]);
-            } else {
-                assert_eq!(is_empty, [true, true, true, true]);
-            }
+
             Ok(())
         },
     );
@@ -319,22 +362,12 @@ fn personalization_include_properties(include_properties: bool, is_deprecated: b
 
 #[test]
 fn test_personalization_include_properties() {
-    personalization_include_properties(true, false);
+    personalization_include_properties(true);
 }
 
 #[test]
 fn test_personalization_exclude_properties() {
-    personalization_include_properties(false, false);
-}
-
-#[test]
-fn test_deprecated_personalization_include_properties() {
-    personalization_include_properties(true, true);
-}
-
-#[test]
-fn test_deprecated_personalization_exclude_properties() {
-    personalization_include_properties(false, true);
+    personalization_include_properties(false);
 }
 
 #[test]

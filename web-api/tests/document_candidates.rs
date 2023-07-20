@@ -228,35 +228,36 @@ fn test_candidates_reingestion() {
     });
 }
 
-fn deprecated_candidates(path: &'static str) {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+#[test]
+fn test_deprecated_candidates() {
+    async fn deprecated_candidates(
+        client: &Client,
+        url: &Url,
+        path: &'static str,
+    ) -> Result<(), Error> {
+        let url = url.join(path)?;
         send_assert(
-            &client,
-            client.get(url.join(path)?).build()?,
+            client,
+            client.get(url.clone()).build()?,
             StatusCode::OK,
             true,
         )
         .await;
         send_assert(
-            &client,
-            client
-                .put(url.join(path)?)
-                .json(&json!({ "documents": [] }))
-                .build()?,
+            client,
+            client.put(url).json(&json!({ "documents": [] })).build()?,
             StatusCode::NO_CONTENT,
             true,
         )
         .await;
+
+        Ok(())
+    }
+
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        deprecated_candidates(&client, &url, "/candidates").await?;
+        deprecated_candidates(&client, &url, "/documents/candidates").await?;
+
         Ok(())
     });
-}
-
-#[test]
-fn test_deprecated_candidates() {
-    deprecated_candidates("/candidates");
-}
-
-#[test]
-fn test_deprecated_documents_candidates() {
-    deprecated_candidates("/documents/candidates");
 }
