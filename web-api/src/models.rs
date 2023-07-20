@@ -14,6 +14,7 @@
 
 use std::{borrow::Borrow, collections::HashMap};
 
+use chrono::DateTime;
 use derive_more::{Deref, DerefMut, Display, Into};
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -239,6 +240,20 @@ impl DocumentProperty {
         };
 
         Ok(Self(value))
+    }
+}
+
+impl PartialOrd for DocumentProperty {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (&self.0, &other.0) {
+            (Value::Number(this), Value::Number(other)) => this
+                .as_f64()
+                .and_then(|this| other.as_f64().map(|other| this.total_cmp(&other))),
+            (Value::String(this), Value::String(other)) => DateTime::parse_from_rfc3339(this)
+                .and_then(|this| DateTime::parse_from_rfc3339(other).map(|other| this.cmp(&other)))
+                .ok(),
+            _ => None,
+        }
     }
 }
 

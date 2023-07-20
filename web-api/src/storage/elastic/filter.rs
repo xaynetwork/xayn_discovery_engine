@@ -14,7 +14,6 @@
 
 use std::{cmp::Ordering, collections::HashMap};
 
-use chrono::DateTime;
 use serde::{Serialize, Serializer};
 use serde_json::Value;
 use xayn_web_api_shared::serde::{merge_json_objects, JsonObject};
@@ -71,26 +70,14 @@ impl Serialize for Terms<'_> {
     }
 }
 
-fn cmp_range(this: &Value, other: &Value) -> Option<Ordering> {
-    match (this, other) {
-        (Value::Number(this), Value::Number(value)) => this
-            .as_f64()
-            .and_then(|this| value.as_f64().map(|value| this.total_cmp(&value))),
-        (Value::String(this), Value::String(value)) => DateTime::parse_from_rfc3339(this)
-            .and_then(|this| DateTime::parse_from_rfc3339(value).map(|value| this.cmp(&value)))
-            .ok(),
-        _ => None,
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum GreaterRangeOp {
-    Gt,
     Gte,
+    Gt,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 struct GreaterRange<'a> {
     operation: GreaterRangeOp,
     value: &'a DocumentProperty,
@@ -98,31 +85,27 @@ struct GreaterRange<'a> {
 
 impl GreaterRange<'_> {
     fn and(&mut self, other: Self) {
-        match cmp_range(self.value, other.value) {
+        match self.value.partial_cmp(other.value) {
             Some(Ordering::Less) => *self = other,
-            Some(Ordering::Equal) => {
-                if self.operation == GreaterRangeOp::Gte && other.operation == GreaterRangeOp::Gt {
-                    self.operation = other.operation;
-                }
+            Some(Ordering::Equal) if self.operation < other.operation => {
+                self.operation = other.operation;
             }
-            Some(Ordering::Greater) | None => {}
+            _ => {}
         }
     }
 
     fn or(&mut self, other: Self) {
-        match cmp_range(self.value, other.value) {
-            Some(Ordering::Less) | None => {}
-            Some(Ordering::Equal) => {
-                if self.operation == GreaterRangeOp::Gt && other.operation == GreaterRangeOp::Gte {
-                    self.operation = other.operation;
-                }
-            }
+        match self.value.partial_cmp(other.value) {
             Some(Ordering::Greater) => *self = other,
+            Some(Ordering::Equal) if self.operation > other.operation => {
+                self.operation = other.operation;
+            }
+            _ => {}
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum LessRangeOp {
     Lt,
@@ -137,26 +120,22 @@ struct LessRange<'a> {
 
 impl LessRange<'_> {
     fn and(&mut self, other: Self) {
-        match cmp_range(self.value, other.value) {
-            Some(Ordering::Less) | None => {}
-            Some(Ordering::Equal) => {
-                if self.operation == LessRangeOp::Lte && other.operation == LessRangeOp::Lt {
-                    self.operation = other.operation;
-                }
-            }
+        match self.value.partial_cmp(other.value) {
             Some(Ordering::Greater) => *self = other,
+            Some(Ordering::Equal) if self.operation > other.operation => {
+                self.operation = other.operation;
+            }
+            _ => {}
         }
     }
 
     fn or(&mut self, other: Self) {
-        match cmp_range(self.value, other.value) {
+        match self.value.partial_cmp(other.value) {
             Some(Ordering::Less) => *self = other,
-            Some(Ordering::Equal) => {
-                if self.operation == LessRangeOp::Lt && other.operation == LessRangeOp::Lte {
-                    self.operation = other.operation;
-                }
+            Some(Ordering::Equal) if self.operation < other.operation => {
+                self.operation = other.operation;
             }
-            Some(Ordering::Greater) | None => {}
+            _ => {}
         }
     }
 }
