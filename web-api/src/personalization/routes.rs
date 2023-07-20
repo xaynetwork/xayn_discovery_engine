@@ -630,11 +630,13 @@ async fn semantic_search(
         is_deprecated,
     } = body.validate_and_resolve_defaults(&state.config, &mut warnings)?;
     if !state.config.tenants.enable_dev && dev.is_some() {
+        // notify the caller instead of silently discarding the dev option
         return Ok(deprecate!(if is_deprecated {
             Either::Left(HttpResponse::Forbidden())
         }));
     }
     if let Some(DevHybrid::EsRrf { .. }) = dev.hybrid {
+        // not available because of the es license, return a 403 instead of forwarding a 500
         return Ok(deprecate!(if is_deprecated {
             Either::Left(HttpResponse::Forbidden())
         }));
