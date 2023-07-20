@@ -1,10 +1,15 @@
+# 2.4.0 - 2023-07-20
+
+- Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` front-office endpoints:
+    - boolean equality
+
 # 2.3.2 - 2023-07-20
 
-- align the semantic search query string pattern with its description
+- Align the semantic search query string pattern with its description
 
 # 2.3.1 - 2023-07-20
 
-- deprecate `GET /users/{id}/personalized_documents` with query params in favor of `POST` with request body
+- Deprecate `GET /users/{id}/personalized_documents` with query params in favor of `POST` with request body
 
 # 2.3.0 - 2023-07-06
 
@@ -26,10 +31,10 @@
 
 # 2.0.0 - 2023-06-19
 
-- trim whitespace around ids, snippets, tags and string properties
-- disallow underscore prefixes in all ids and dots in property ids
-- limit properties to boolean, number, string or array of strings and a total size of 2.5KB
-- limit snippets and string properties to a total size of 2KB each
-- remove the `min_similarity` request option from the `/semantic_search` endpoint
-- move the candidates endpoint to `/documents/_candidates` and deprecate the old endpoints
-- add `include_properties` request option to the `/users/{id}/personalized_documents` and `/semantic_search` endpoints and include the document properties in the response accordingly
+- Trim whitespace around ids, snippets, tags and string properties
+- Disallow underscore prefixes in all ids and dots in property ids
+- Limit properties to boolean, number, string or array of strings and a total size of 2.5KB
+- Limit snippets and string properties to a total size of 2KB each
+- Remove the `min_similarity` request option from the `/semantic_search` endpoint
+- Move the candidates endpoint to `/documents/_candidates` and deprecate the old endpoints
+- Add `include_properties` request option to the `/users/{id}/personalized_documents` and `/semantic_search` endpoints and include the document properties in the response accordingly
