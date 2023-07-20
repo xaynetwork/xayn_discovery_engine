@@ -428,6 +428,12 @@ struct DevOption {
     max_number_candidates: Option<usize>,
 }
 
+impl DevOption {
+    fn is_some(&self) -> bool {
+        self.hybrid.is_some() || self.max_number_candidates.is_some()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum DevHybrid {
@@ -491,21 +497,24 @@ impl UnvalidatedSemanticSearchRequest {
             include_properties,
             filter,
         } = self;
+        let document = document.validate()?;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
+        let count = validate_count(
+            count,
+            semantic_search_config.max_number_documents,
+            semantic_search_config.default_number_documents,
+            semantic_search_config.max_number_candidates,
+        )?;
+        let personalize = personalize
+            .map(|personalize| personalize.validate(config.as_ref(), warnings))
+            .transpose()?;
         let filter = Filter::insert_published_after(filter, published_after);
         let is_deprecated = published_after.is_some();
 
         Ok(SemanticSearchRequest {
-            document: document.validate()?,
-            count: validate_count(
-                count,
-                semantic_search_config.max_number_documents,
-                semantic_search_config.default_number_documents,
-                semantic_search_config.max_number_candidates,
-            )?,
-            personalize: personalize
-                .map(|personalize| personalize.validate(config.as_ref(), warnings))
-                .transpose()?,
+            document,
+            count,
+            personalize,
             enable_hybrid_search,
             dev,
             include_properties,
@@ -608,8 +617,8 @@ async fn semantic_search(
     Json(body): Json<UnvalidatedSemanticSearchRequest>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
+    // TODO: actually return non-empty warnings in the response
     let mut warnings = Vec::new();
-
     let SemanticSearchRequest {
         document,
         count,
@@ -620,6 +629,18 @@ async fn semantic_search(
         filter,
         is_deprecated,
     } = body.validate_and_resolve_defaults(&state.config, &mut warnings)?;
+    if !state.config.tenants.enable_dev && dev.is_some() {
+        // notify the caller instead of silently discarding the dev option
+        return Ok(deprecate!(if is_deprecated {
+            Either::Left(HttpResponse::Forbidden())
+        }));
+    }
+    if let Some(DevHybrid::EsRrf { .. }) = dev.hybrid {
+        // not available because of the es license, return a 403 instead of forwarding a 500
+        return Ok(deprecate!(if is_deprecated {
+            Either::Left(HttpResponse::Forbidden())
+        }));
+    }
 
     let mut excluded = if let Some(personalize) = &personalize {
         personalized_exclusions(&storage, state.config.as_ref(), personalize).await?
@@ -674,9 +695,9 @@ async fn semantic_search(
     }
 
     Ok(deprecate!(if is_deprecated {
-        Json(SemanticSearchResponse {
+        Either::Right(Json(SemanticSearchResponse {
             documents: documents.into_iter().map_into().collect(),
-        })
+        }))
     }))
 }
 

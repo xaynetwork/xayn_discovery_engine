@@ -18,12 +18,14 @@ use serde::{Deserialize, Serialize};
 #[serde(default)]
 pub struct Config {
     pub(crate) enable_legacy_tenant: bool,
+    pub(crate) enable_dev: bool,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             enable_legacy_tenant: true,
+            enable_dev: false,
         }
     }
 }
