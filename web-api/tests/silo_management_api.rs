@@ -52,6 +52,7 @@ fn test_tenants_can_be_created() {
                     ]
                 })).build()?,
                 StatusCode::OK,
+                false,
             )
             .await;
 

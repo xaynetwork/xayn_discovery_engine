@@ -39,6 +39,7 @@ fn test_tenant_id_is_required_if_legacy_tenant_is_disabled() {
                     }))
                     .build()?,
                 StatusCode::INTERNAL_SERVER_ERROR,
+                false,
             )
             .await;
             Ok(())
@@ -67,6 +68,7 @@ fn test_tenant_id_is_not_required_if_legacy_tenant_is_enabled() {
                     }))
                     .build()?,
                 StatusCode::CREATED,
+                false,
             )
             .await;
 

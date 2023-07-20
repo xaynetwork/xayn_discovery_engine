@@ -59,16 +59,20 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
     let users = web::scope("/users/{user_id}")
         .service(web::resource("interactions").route(web::patch().to(interactions)))
         .service(
-            web::resource("personalized_documents").route(web::get().to(personalized_documents)),
+            web::resource("personalized_documents")
+                .route(web::post().to(personalized_documents))
+                // this route is deprecated and will be removed in the future
+                .route(web::get().to(deprecate!(personalized_documents(
+                    state, user_id, body, params, storage,
+                )))),
         );
     let semantic_search = web::resource("/semantic_search").route(web::post().to(semantic_search));
 
     config.service(users).service(semantic_search);
 }
 
-/// Represents user interaction request body.
 #[derive(Debug, Deserialize)]
-struct UpdateInteractions {
+struct UserInteractionRequest {
     documents: Vec<UserInteractionData>,
 }
 
@@ -81,11 +85,11 @@ struct UserInteractionData {
 async fn interactions(
     state: Data<AppState>,
     user_id: Path<String>,
-    Json(interactions): Json<UpdateInteractions>,
+    Json(body): Json<UserInteractionRequest>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
-    let interactions = interactions
+    let interactions = body
         .documents
         .into_iter()
         .map(|data| data.document_id.try_into())
@@ -122,8 +126,8 @@ pub(crate) async fn update_interactions(
         |context| {
             for tag in &context.document.tags {
                 *context.tag_weight_diff
-                            .get_mut(tag)
-                            .unwrap(/* update_interactions assures all tags are given */) += 1;
+                    .get_mut(tag)
+                    .unwrap(/* update_interactions assures all tags are given */) += 1;
             }
             coi.log_user_reaction(context.interests, &context.document.embedding, context.time)
                 .clone()
@@ -138,7 +142,15 @@ const fn default_include_properties() -> bool {
     true
 }
 
-/// Represents personalized documents query params.
+#[derive(Debug, Deserialize)]
+struct UnvalidatedPersonalizedDocumentsRequest {
+    count: Option<usize>,
+    published_after: Option<DateTime<Utc>>,
+    filter: Option<Filter>,
+    #[serde(default = "default_include_properties")]
+    include_properties: bool,
+}
+
 #[derive(Debug, Deserialize)]
 struct UnvalidatedPersonalizedDocumentsQuery {
     count: Option<usize>,
@@ -149,18 +161,18 @@ struct UnvalidatedPersonalizedDocumentsQuery {
 }
 
 #[derive(Debug)]
-struct PersonalizedDocumentsQuery {
+struct PersonalizedDocumentsRequest {
     count: usize,
     filter: Option<Filter>,
     include_properties: bool,
     is_deprecated: bool,
 }
 
-impl UnvalidatedPersonalizedDocumentsQuery {
+impl UnvalidatedPersonalizedDocumentsRequest {
     fn validate_and_resolve_defaults(
         self,
         config: &impl AsRef<PersonalizationConfig>,
-    ) -> Result<PersonalizedDocumentsQuery, Error> {
+    ) -> Result<PersonalizedDocumentsRequest, Error> {
         let Self {
             count,
             published_after,
@@ -175,13 +187,10 @@ impl UnvalidatedPersonalizedDocumentsQuery {
             config.default_number_documents,
             config.max_number_candidates,
         )?;
-        let filter = filter
-            .map(|filter| serde_json::from_str(&filter))
-            .transpose()?;
         let filter = Filter::insert_published_after(filter, published_after);
         let is_deprecated = published_after.is_some();
 
-        Ok(PersonalizedDocumentsQuery {
+        Ok(PersonalizedDocumentsRequest {
             count,
             filter,
             include_properties,
@@ -193,16 +202,37 @@ impl UnvalidatedPersonalizedDocumentsQuery {
 async fn personalized_documents(
     state: Data<AppState>,
     user_id: Path<String>,
+    body: Option<Json<UnvalidatedPersonalizedDocumentsRequest>>,
     Query(params): Query<UnvalidatedPersonalizedDocumentsQuery>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
-    let PersonalizedDocumentsQuery {
+    let PersonalizedDocumentsRequest {
         count,
         filter,
         include_properties,
         is_deprecated,
-    } = params.validate_and_resolve_defaults(&state.config)?;
+    } = if let Some(Json(body)) = body {
+        body.validate_and_resolve_defaults(&state.config)?
+    } else {
+        UnvalidatedPersonalizedDocumentsRequest {
+            count: params.count,
+            published_after: params.published_after,
+            filter: params
+                .filter
+                .map(|filter| serde_json::from_str(&filter))
+                .transpose()?,
+            include_properties: params.include_properties,
+        }
+        .validate_and_resolve_defaults(&state.config)?
+        // TODO: once the deprecated params are removed use this instead in case of no request body
+        // PersonalizedDocumentsRequest {
+        //     count: state.config.personalization.default_number_documents,
+        //     filter: None,
+        //     include_properties: default_include_properties(),
+        //     is_deprecated: false,
+        // }
+    };
 
     let documents = if let Some(documents) = personalize_documents_by(
         &storage,
@@ -377,7 +407,7 @@ impl UnvalidatedInputUser {
 }
 
 #[derive(Debug, Deserialize)]
-struct UnvalidatedSemanticSearchQuery {
+struct UnvalidatedSemanticSearchRequest {
     document: UnvalidatedInputDocument,
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
@@ -445,12 +475,12 @@ fn create_search_strategy(
     }
 }
 
-impl UnvalidatedSemanticSearchQuery {
+impl UnvalidatedSemanticSearchRequest {
     fn validate_and_resolve_defaults(
         self,
         config: &(impl AsRef<SemanticSearchConfig> + AsRef<PersonalizationConfig>),
         warnings: &mut Vec<Warning>,
-    ) -> Result<SemanticSearchQuery, Error> {
+    ) -> Result<SemanticSearchRequest, Error> {
         let Self {
             document,
             count,
@@ -465,7 +495,7 @@ impl UnvalidatedSemanticSearchQuery {
         let filter = Filter::insert_published_after(filter, published_after);
         let is_deprecated = published_after.is_some();
 
-        Ok(SemanticSearchQuery {
+        Ok(SemanticSearchRequest {
             document: document.validate()?,
             count: validate_count(
                 count,
@@ -531,7 +561,7 @@ impl UnvalidatedPersonalize {
     }
 }
 
-struct SemanticSearchQuery {
+struct SemanticSearchRequest {
     document: InputDocument,
     count: usize,
     personalize: Option<Personalize>,
@@ -575,12 +605,12 @@ struct SemanticSearchResponse {
 #[instrument(skip(state, storage))]
 async fn semantic_search(
     state: Data<AppState>,
-    Json(query): Json<UnvalidatedSemanticSearchQuery>,
+    Json(body): Json<UnvalidatedSemanticSearchRequest>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let mut warnings = Vec::new();
 
-    let SemanticSearchQuery {
+    let SemanticSearchRequest {
         document,
         count,
         personalize,
@@ -589,7 +619,7 @@ async fn semantic_search(
         include_properties,
         filter,
         is_deprecated,
-    } = query.validate_and_resolve_defaults(&state.config, &mut warnings)?;
+    } = body.validate_and_resolve_defaults(&state.config, &mut warnings)?;
 
     let mut excluded = if let Some(personalize) = &personalize {
         personalized_exclusions(&storage, state.config.as_ref(), personalize).await?

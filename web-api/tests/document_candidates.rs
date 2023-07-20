@@ -36,6 +36,7 @@ async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
             }))
             .build()?,
         StatusCode::CREATED,
+        false,
     )
     .await;
     Ok(())
@@ -54,7 +55,7 @@ impl DocumentCandidatesResponse {
 
 async fn get(client: &Client, url: &Url) -> Result<DocumentCandidatesResponse, Error> {
     let request = client.get(url.join("/documents/_candidates")?).build()?;
-    let response = send_assert_json(client, request, StatusCode::OK).await;
+    let response = send_assert_json(client, request, StatusCode::OK, false).await;
 
     Ok(response)
 }
@@ -64,7 +65,7 @@ async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) ->
         .put(url.join("/documents/_candidates")?)
         .json(&json!({ "documents": ids.into_iter().map(|id| json!({ "id": id })).collect_vec() }))
         .build()?;
-    send_assert(client, request, StatusCode::NO_CONTENT).await;
+    send_assert(client, request, StatusCode::NO_CONTENT, false).await;
 
     Ok(())
 }
@@ -123,6 +124,7 @@ fn test_candidates_not_default() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2"].into());
@@ -168,6 +170,7 @@ fn test_candidates_warning() {
                 }))
                 .build()?,
             StatusCode::BAD_REQUEST,
+            false,
         )
         .await;
         assert_eq!(error.kind, Kind::FailedToSetSomeDocumentCandidates);
@@ -195,6 +198,7 @@ fn test_candidates_reingestion() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2"].into());
@@ -215,9 +219,44 @@ fn test_candidates_reingestion() {
                 }))
                 .build()?,
             StatusCode::CREATED,
+            false,
         )
         .await;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d4", "d6"].into());
+
+        Ok(())
+    });
+}
+
+#[test]
+fn test_deprecated_candidates() {
+    async fn deprecated_candidates(
+        client: &Client,
+        url: &Url,
+        path: &'static str,
+    ) -> Result<(), Error> {
+        let url = url.join(path)?;
+        send_assert(
+            client,
+            client.get(url.clone()).build()?,
+            StatusCode::OK,
+            true,
+        )
+        .await;
+        send_assert(
+            client,
+            client.put(url).json(&json!({ "documents": [] })).build()?,
+            StatusCode::NO_CONTENT,
+            true,
+        )
+        .await;
+
+        Ok(())
+    }
+
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        deprecated_candidates(&client, &url, "/candidates").await?;
+        deprecated_candidates(&client, &url, "/documents/candidates").await?;
 
         Ok(())
     });

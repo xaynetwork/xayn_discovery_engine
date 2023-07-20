@@ -203,10 +203,23 @@ pub fn just(args: &[&str]) -> Result<String, Error> {
 }
 
 #[instrument(skip_all)]
-pub async fn send_assert(client: &Client, req: Request, expected: StatusCode) -> Response {
+pub async fn send_assert(
+    client: &Client,
+    req: Request,
+    expected: StatusCode,
+    is_deprecated: bool,
+) -> Response {
     let method = req.method().clone();
     let target = req.url().clone();
     let response = client.execute(req).await.unwrap();
+
+    let headers = response.headers();
+    assert_eq!(
+        headers.contains_key("deprecation"),
+        is_deprecated,
+        "Failed to assert headers: {headers:?}",
+    );
+
     let status = response.status();
     if status != expected {
         let bytes = response.bytes().await.unwrap();
@@ -219,13 +232,18 @@ pub async fn send_assert(client: &Client, req: Request, expected: StatusCode) ->
 }
 
 #[instrument(skip_all)]
-pub async fn send_assert_json<O>(client: &Client, req: Request, expected: StatusCode) -> O
+pub async fn send_assert_json<O>(
+    client: &Client,
+    req: Request,
+    expected: StatusCode,
+    is_deprecated: bool,
+) -> O
 where
     O: DeserializeOwned,
 {
     let method = req.method().clone();
     let target = req.url().clone();
-    let response = send_assert(client, req, expected).await;
+    let response = send_assert(client, req, expected, is_deprecated).await;
     let bytes = response.bytes().await.unwrap();
     match serde_json::from_slice::<O>(&bytes) {
         Ok(out) => out,
@@ -793,6 +811,7 @@ async fn setup_web_dev_services(
 #[instrument]
 pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::Config) {
     let pg_db = Some(test_id.to_string());
+    let pg_max_pool_size = 3;
     let es_index_name = format!("{test_id}_default");
     let es_timeout = Duration::from_secs(30);
     let pg_config;
@@ -801,6 +820,7 @@ pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::C
         pg_config = postgres::Config {
             db: pg_db,
             base_url: "postgres://user:pw@postgres:5432/".into(),
+            max_pool_size: pg_max_pool_size,
             ..Default::default()
         };
         es_config = elastic::Config {
@@ -813,6 +833,7 @@ pub fn db_configs_for_testing(test_id: &TestId) -> (postgres::Config, elastic::C
         pg_config = postgres::Config {
             db: pg_db,
             base_url: "postgres://user:pw@localhost:3054/".into(),
+            max_pool_size: pg_max_pool_size,
             ..Default::default()
         };
         es_config = elastic::Config {

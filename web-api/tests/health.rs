@@ -31,6 +31,7 @@ fn test_health() {
             &client,
             client.get(url.join("/health")?).build()?,
             StatusCode::OK,
+            false,
         )
         .await;
         Ok(())
