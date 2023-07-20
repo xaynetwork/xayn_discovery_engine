@@ -22,7 +22,7 @@ use serde::{
     Deserialize,
     Deserializer,
 };
-use serde_json::{json, Value};
+use serde_json::{json, Number, Value};
 
 use crate::models::{DocumentProperty, DocumentPropertyId};
 
@@ -74,6 +74,18 @@ impl<'de> Deserialize<'de> for CompareWith {
             where
                 A: MapAccess<'de>,
             {
+                fn unexpected_number(value: &Number) -> Unexpected<'_> {
+                    if let Some(value) = value.as_u64() {
+                        Unexpected::Unsigned(value)
+                    } else if let Some(value) = value.as_i64() {
+                        Unexpected::Signed(value)
+                    } else if let Some(value) = value.as_f64() {
+                        Unexpected::Float(value)
+                    } else {
+                        Unexpected::Other("number")
+                    }
+                }
+
                 if let Some(size) = map.size_hint() {
                     if size != 1 {
                         return Err(A::Error::invalid_length(size, &Self));
@@ -85,52 +97,54 @@ impl<'de> Deserialize<'de> for CompareWith {
                 if map.next_entry::<CompareOp, DocumentProperty>()?.is_some() {
                     return Err(A::Error::invalid_length(2, &Self));
                 }
+
                 match operation {
                     CompareOp::Eq => {
                         if let Some(unexpected) = match &*value {
                             Value::Bool(_) | Value::String(_) => None,
                             Value::Null => Some(Unexpected::Other("null")),
-                            Value::Number(number) => {
-                                if let Some(number) = number.as_u64() {
-                                    Some(Unexpected::Unsigned(number))
-                                } else if let Some(number) = number.as_i64() {
-                                    Some(Unexpected::Signed(number))
-                                } else if let Some(number) = number.as_f64() {
-                                    Some(Unexpected::Float(number))
-                                } else {
-                                    Some(Unexpected::Other("number"))
-                                }
-                            }
+                            Value::Number(value) => Some(unexpected_number(value)),
                             Value::Array(_) => Some(Unexpected::Seq),
                             Value::Object(_) => Some(Unexpected::Map),
                         } {
                             return Err(A::Error::invalid_type(unexpected, &Self));
                         }
                     }
+
                     CompareOp::In => {
-                        if value
-                            .as_array()
-                            .map_or(true, |value| value.iter().any(|value| !value.is_string()))
-                        {
-                            return Err(A::Error::invalid_type(
-                                Unexpected::Other("no array of strings property"),
-                                &Self,
-                            ));
-                        }
-                        let len = value.as_array().unwrap(/* value is array */).len();
-                        if len > CompareOp::MAX_VALUES_PER_IN {
-                            return Err(A::Error::invalid_length(len, &Self));
+                        if let Some(unexpected) = match &*value {
+                            Value::Array(value) => {
+                                let len = value.len();
+                                if len > CompareOp::MAX_VALUES_PER_IN {
+                                    return Err(A::Error::invalid_length(len, &Self));
+                                }
+                                value
+                                    .iter()
+                                    .any(|value| !value.is_string())
+                                    .then_some(Unexpected::Seq)
+                            }
+                            Value::Null => Some(Unexpected::Other("null")),
+                            Value::Bool(value) => Some(Unexpected::Bool(*value)),
+                            Value::Number(value) => Some(unexpected_number(value)),
+                            Value::String(value) => Some(Unexpected::Str(value)),
+                            Value::Object(_) => Some(Unexpected::Map),
+                        } {
+                            return Err(A::Error::invalid_type(unexpected, &Self));
                         }
                     }
+
                     CompareOp::Gt | CompareOp::Gte | CompareOp::Lt | CompareOp::Lte => {
-                        if value
-                            .as_str()
-                            .map_or(true, |value| DateTime::parse_from_rfc3339(value).is_err())
-                        {
-                            return Err(A::Error::invalid_type(
-                                Unexpected::Other("no date property"),
-                                &Self,
-                            ));
+                        if let Some(unexpected) = match &*value {
+                            Value::Number(_) => None,
+                            Value::String(value) => DateTime::parse_from_rfc3339(value)
+                                .is_err()
+                                .then_some(Unexpected::Other("invalid date string")),
+                            Value::Null => Some(Unexpected::Other("null")),
+                            Value::Bool(value) => Some(Unexpected::Bool(*value)),
+                            Value::Array(_) => Some(Unexpected::Seq),
+                            Value::Object(_) => Some(Unexpected::Map),
+                        } {
+                            return Err(A::Error::invalid_type(unexpected, &Self));
                         }
                     }
                 }
@@ -276,6 +290,8 @@ impl Combine {
         "a json object with exactly one combination operator and at most {} times nested combinations",
         Combine::MAX_DEPTH,
     );
+    const UNEXPECTED_DEPTH: &str =
+        formatcp!("more than {} times nested combinations", Combine::MAX_DEPTH);
 }
 
 impl<'de> Deserialize<'de> for Combine {
@@ -296,21 +312,20 @@ impl<'de> Deserialize<'de> for Combine {
             where
                 A: MapAccess<'de>,
             {
+                if let Some(size) = map.size_hint() {
+                    if size != 1 {
+                        return Err(A::Error::invalid_length(size, &Self));
+                    }
+                }
                 let Some((operation, filters)) = map.next_entry::<_, Filters>()? else {
                     return Err(A::Error::invalid_length(0, &Self));
                 };
-                if map.next_entry::<CombineOp, Vec<Filter>>()?.is_some() {
-                    return Err(A::Error::invalid_length(
-                        2 + map.size_hint().unwrap_or_default(),
-                        &Self,
-                    ));
+                if map.next_entry::<CombineOp, Filters>()?.is_some() {
+                    return Err(A::Error::invalid_length(2, &Self));
                 }
                 if !filters.is_below_depth(Self::Value::MAX_DEPTH) {
                     return Err(A::Error::invalid_value(
-                        Unexpected::Other(&format!(
-                            "more than {} times nested combinations",
-                            Self::Value::MAX_DEPTH,
-                        )),
+                        Unexpected::Other(Self::Value::UNEXPECTED_DEPTH),
                         &Self,
                     ));
                 }
@@ -408,7 +423,6 @@ impl<'de> Deserialize<'de> for Filter {
 
 #[cfg(test)]
 mod tests {
-    use itertools::Itertools;
     use serde_json::json;
 
     use super::*;
@@ -532,33 +546,69 @@ mod tests {
                 .unwrap_err()
                 .to_string(),
             format!(
-                "invalid type: no array of strings property, expected {} at line 1 column 17",
+                "invalid type: string \"test\", expected {} at line 1 column 17",
                 CompareWith::EXPECTING,
             ),
         );
 
-        let num_ids = CompareOp::MAX_VALUES_PER_IN + 1;
-        let many_ids = std::iter::from_fn({
-            let mut c = 0;
-            move || {
-                c += 1;
-                Some(c.to_string())
-            }
-        })
-        .take(num_ids)
-        .collect_vec();
-
+        let array = vec!["test"; CompareOp::MAX_VALUES_PER_IN + 1];
         assert_eq!(
-            serde_json::from_str::<CompareWith>(
-                &serde_json::to_string(&json!({
-                    "$in": many_ids
-                }))
-                .unwrap()
-            )
-            .unwrap_err()
-            .to_string(),
+            serde_json::from_str::<CompareWith>(&json!({ "$in": array }).to_string())
+                .unwrap_err()
+                .to_string(),
             format!(
-                "invalid length 501, expected {} at line 1 column 2907",
+                "invalid length {}, expected {} at line 1 column 3516",
+                CompareOp::MAX_VALUES_PER_IN + 1,
+                CompareWith::EXPECTING,
+            ),
+        );
+    }
+
+    #[test]
+    fn test_compare_with_number() {
+        for operation in [
+            ("$gt", CompareOp::Gt),
+            ("$gte", CompareOp::Gte),
+            ("$lt", CompareOp::Lt),
+            ("$lte", CompareOp::Lte),
+        ] {
+            for number in [json!(42_u64), json!(-42_i64), json!(42_f64)] {
+                assert_eq!(
+                    serde_json::from_str::<CompareWith>(
+                        &json!({ operation.0: number }).to_string()
+                    )
+                    .unwrap(),
+                    CompareWith {
+                        operation: operation.1,
+                        value: number.try_into().unwrap(),
+                    },
+                );
+            }
+        }
+        assert_eq!(
+            serde_json::from_str::<CompareWith>("{}")
+                .unwrap_err()
+                .to_string(),
+            format!(
+                "invalid length 0, expected {} at line 1 column 2",
+                CompareWith::EXPECTING,
+            ),
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(&json!({ "$gt": 42, "$lt": 42 }).to_string())
+                .unwrap_err()
+                .to_string(),
+            format!(
+                "invalid length 2, expected {} at line 1 column 19",
+                CompareWith::EXPECTING,
+            ),
+        );
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(r#"{ "$gt": true }"#)
+                .unwrap_err()
+                .to_string(),
+            format!(
+                "invalid type: boolean `true`, expected {} at line 1 column 15",
                 CompareWith::EXPECTING,
             ),
         );
@@ -566,13 +616,21 @@ mod tests {
 
     #[test]
     fn test_compare_with_date() {
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(&json!({ "$gt": DATE }).to_string()).unwrap(),
-            CompareWith {
-                operation: CompareOp::Gt,
-                value: json!(DATE).try_into().unwrap(),
-            },
-        );
+        for operation in [
+            ("$gt", CompareOp::Gt),
+            ("$gte", CompareOp::Gte),
+            ("$lt", CompareOp::Lt),
+            ("$lte", CompareOp::Lte),
+        ] {
+            assert_eq!(
+                serde_json::from_str::<CompareWith>(&json!({ operation.0: DATE }).to_string())
+                    .unwrap(),
+                CompareWith {
+                    operation: operation.1,
+                    value: json!(DATE).try_into().unwrap(),
+                },
+            );
+        }
         assert_eq!(
             serde_json::from_str::<CompareWith>("{}")
                 .unwrap_err()
@@ -592,11 +650,11 @@ mod tests {
             ),
         );
         assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$gt": 42 }"#)
+            serde_json::from_str::<CompareWith>(r#"{ "$gt": true }"#)
                 .unwrap_err()
                 .to_string(),
             format!(
-                "invalid type: no date property, expected {} at line 1 column 13",
+                "invalid type: boolean `true`, expected {} at line 1 column 15",
                 CompareWith::EXPECTING,
             ),
         );
@@ -605,7 +663,7 @@ mod tests {
                 .unwrap_err()
                 .to_string(),
             format!(
-                "invalid type: no date property, expected {} at line 1 column 25",
+                "invalid type: invalid date string, expected {} at line 1 column 25",
                 CompareWith::EXPECTING,
             ),
         );
@@ -635,6 +693,14 @@ mod tests {
                 operation: CompareOp::In,
                 field: "prop".try_into().unwrap(),
                 value: json!(["test", "this"]).try_into().unwrap(),
+            },
+        );
+        assert_eq!(
+            serde_json::from_str::<Compare>(&json!({ "prop": { "$gt": 42 } }).to_string()).unwrap(),
+            Compare {
+                operation: CompareOp::Gt,
+                field: "prop".try_into().unwrap(),
+                value: json!(42).try_into().unwrap(),
             },
         );
         assert_eq!(
@@ -719,7 +785,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::too_many_lines)]
     fn test_combine() {
         let compare = Filter::Compare(Compare {
             operation: CompareOp::Eq,
@@ -809,26 +874,15 @@ mod tests {
                     Combine::EXPECTING,
                 ),
         );
+        let filters =
+            vec![json!({ "prop": { "$eq": "test" } }); Filters::MAX_FILTERS_PER_COMBINATION + 1];
         assert_eq!(
-            serde_json::from_str::<Combine>(
-                r#"{ "$and": [
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } },
-                    { "prop": { "$eq": "test" } }
-                ] }"#
-            )
-            .unwrap_err()
-            .to_string(),
+            serde_json::from_str::<Combine>(&json!({ "$and": filters }).to_string())
+                .unwrap_err()
+                .to_string(),
             format!(
-                "invalid length 11, expected {} at line 13 column 17",
+                "invalid length {}, expected {} at line 1 column 273",
+                Filters::MAX_FILTERS_PER_COMBINATION + 1,
                 Filters::EXPECTING,
             ),
         );
@@ -840,7 +894,8 @@ mod tests {
             serde_json::from_str::<Filter>(
                 r#"{ "$and": [
                     { "$or": [ { "p1": { "$eq": "a" } }, { "p2": { "$in": ["b", "c"] } } ] },
-                    { "p3": { "$gt": "1234-05-06T07:08:09Z" } }
+                    { "p3": { "$gt": "1234-05-06T07:08:09Z" } },
+                    { "p4": { "$lt": 42 } }
                 ] }"#
             )
             .unwrap(),
@@ -866,6 +921,11 @@ mod tests {
                         operation: CompareOp::Gt,
                         field: "p3".try_into().unwrap(),
                         value: json!(DATE).try_into().unwrap()
+                    }),
+                    Filter::Compare(Compare {
+                        operation: CompareOp::Lt,
+                        field: "p4".try_into().unwrap(),
+                        value: json!(42).try_into().unwrap()
                     })
                 ])
             }),

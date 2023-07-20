@@ -227,13 +227,21 @@ components:
               - $ref: './schemas/document.yml#/DocumentPropertyArrayString'
               - maxItems: 500
           $gt:
-            $ref: './schemas/time.yml#/Timestamp'
+            oneOf:
+              - type: number
+              - $ref: './schemas/time.yml#/Timestamp'
           $gte:
-            $ref: './schemas/time.yml#/Timestamp'
+            oneOf:
+              - type: number
+              - $ref: './schemas/time.yml#/Timestamp'
           $lt:
-            $ref: './schemas/time.yml#/Timestamp'
+            oneOf:
+              - type: number
+              - $ref: './schemas/time.yml#/Timestamp'
           $lte:
-            $ref: './schemas/time.yml#/Timestamp'
+            oneOf:
+              - type: number
+              - $ref: './schemas/time.yml#/Timestamp'
         minProperties: 1
         maxProperties: 1
         x-additionalPropertiesName: document property id

@@ -392,26 +392,25 @@ mod tests {
 
     #[test]
     fn test_range() {
-        for (clause, value) in [
-            (
-                &serde_json::from_str(&json!({ "a": { "$gt": DATE } }).to_string()).unwrap(),
-                json!({ FILTER: [{ RANGE: { PROP_A: { "gt": DATE } } }] }),
-            ),
-            (
-                &serde_json::from_str(&json!({ "a": { "$gte": DATE } }).to_string()).unwrap(),
-                json!({ FILTER: [{ RANGE: { PROP_A: { "gte": DATE } } }] }),
-            ),
-            (
-                &serde_json::from_str(&json!({ "a": { "$lt": DATE } }).to_string()).unwrap(),
-                json!({ FILTER: [{ RANGE: { PROP_A: { "lt": DATE } } }] }),
-            ),
-            (
-                &serde_json::from_str(&json!({ "a": { "$lte": DATE } }).to_string()).unwrap(),
-                json!({ FILTER: [{ RANGE: { PROP_A: { "lte": DATE } } }] }),
-            ),
+        for operation in [
+            ("$gt", "gt"),
+            ("$gte", "gte"),
+            ("$lt", "lt"),
+            ("$lte", "lte"),
         ] {
+            let clause =
+                serde_json::from_str(&json!({ "a": { operation.0: 42 } }).to_string()).unwrap();
+            let value = json!({ FILTER: [{ RANGE: { PROP_A: { operation.1: 42 } } }] });
             assert_eq!(
-                serde_json::to_value(Clause::new(clause, true)).unwrap(),
+                serde_json::to_value(Clause::new(&clause, true)).unwrap(),
+                value,
+            );
+
+            let clause =
+                serde_json::from_str(&json!({ "a": { operation.0: DATE } }).to_string()).unwrap();
+            let value = json!({ FILTER: [{ RANGE: { PROP_A: { operation.1: DATE } } }] });
+            assert_eq!(
+                serde_json::to_value(Clause::new(&clause, true)).unwrap(),
                 value,
             );
         }
