@@ -119,26 +119,27 @@ fn test_ingestion_bad_request() {
         )
         .await;
         assert_eq!(error.kind, Kind::FailedToValidateDocuments);
-        let failed_documents = match error.details {
-            Some(Details::Ingest(documents)) => documents
-                .into_iter()
-                .map(|mut value| {
-                    let id = value
-                        .as_object_mut()
-                        .and_then(|obj| obj.remove("id"))
-                        .and_then(|id| {
-                            if let Value::String(id) = id {
-                                Some(id)
-                            } else {
-                                None
-                            }
-                        })
-                        .expect("unexpected error format");
-                    (id, value)
-                })
-                .collect::<HashMap<_, _>>(),
-            other => panic!("Unexpected error details {:?}", other),
+        let Some(Details::Ingest(failed_documents)) = error.details else {
+            panic!("Unexpected error details {:?}", error.details);
         };
+
+        let failed_documents = failed_documents
+            .into_iter()
+            .map(|mut value| {
+                let id = value
+                    .as_object_mut()
+                    .and_then(|obj| obj.remove("id"))
+                    .and_then(|id| {
+                        if let Value::String(id) = id {
+                            Some(id)
+                        } else {
+                            None
+                        }
+                    })
+                    .expect("unexpected error format");
+                (id, value)
+            })
+            .collect::<HashMap<_, _>>();
 
         assert_eq!(
             failed_documents["d!"],
