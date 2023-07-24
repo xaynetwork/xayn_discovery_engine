@@ -153,22 +153,11 @@ pub(crate) struct InvalidDocumentCount {
 impl_application_error!(InvalidDocumentCount => BAD_REQUEST, INFO);
 
 #[derive(Debug, Display, Error, Serialize)]
-pub(crate) enum InvalidDevOption {
-    /// Malsized max_number_candidates of {max_number_candidates}, must be >= requested count of {count}
-    MaxNumberCandidates {
-        max_number_candidates: usize,
-        count: usize,
-    },
-}
-
-impl_application_error!(InvalidDevOption => BAD_REQUEST, INFO);
-
-#[derive(Debug, Display, Error, Serialize)]
 pub(crate) enum ForbiddenDevOption {
     /// Dev options are not enabled for this tentant
     DevDisabled,
-    /// ES RRF is not enabled because of the lisence
-    EsRrfUnlisenced,
+    /// ES RRF is not enabled because of the license
+    EsRrfUnlicensed,
 }
 
 impl_application_error!(ForbiddenDevOption => FORBIDDEN, INFO);

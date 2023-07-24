@@ -46,13 +46,7 @@ use super::{
 use crate::{
     app::TenantState,
     error::{
-        common::{
-            BadRequest,
-            DocumentNotFound,
-            ForbiddenDevOption,
-            InvalidDevOption,
-            InvalidDocumentCount,
-        },
+        common::{BadRequest, DocumentNotFound, ForbiddenDevOption, InvalidDocumentCount},
         warning::Warning,
     },
     models::{DocumentId, DocumentProperties, DocumentQuery, PersonalizedDocument, UserId},
@@ -436,23 +430,14 @@ struct DevOption {
 }
 
 impl DevOption {
-    fn validate(&self, enable_dev: bool, count: usize) -> Result<(), Error> {
+    fn validate(&self, enable_dev: bool) -> Result<(), Error> {
         if !enable_dev && (self.hybrid.is_some() || self.max_number_candidates.is_some()) {
             // notify the caller instead of silently discarding the dev option
             return Err(ForbiddenDevOption::DevDisabled.into());
         }
         if let Some(DevHybrid::EsRrf { .. }) = self.hybrid {
             // not available because of the es license, return a 403 instead of forwarding a 500
-            return Err(ForbiddenDevOption::EsRrfUnlisenced.into());
-        }
-        if let Some(max_number_candidates) = self.max_number_candidates {
-            if max_number_candidates < count {
-                return Err(InvalidDevOption::MaxNumberCandidates {
-                    max_number_candidates,
-                    count,
-                }
-                .into());
-            }
+            return Err(ForbiddenDevOption::EsRrfUnlicensed.into());
         }
 
         Ok(())
@@ -531,7 +516,7 @@ impl UnvalidatedSemanticSearchRequest {
 
         let document = document.validate()?;
         let count = count.unwrap_or(semantic_search_config.default_number_documents);
-        dev.validate(tenants_config.enable_dev, count)?;
+        dev.validate(tenants_config.enable_dev)?;
         let num_candidates = dev
             .max_number_candidates
             .unwrap_or(semantic_search_config.max_number_candidates);
