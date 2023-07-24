@@ -12,7 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{collections::HashMap, ops::AddAssign};
+use std::{
+    collections::{HashMap, HashSet},
+    ops::AddAssign,
+};
 
 use actix_web::{
     http::StatusCode,
@@ -264,7 +267,10 @@ async fn personalized_documents(
     .await?
     {
         Either::Left(Json(PersonalizedDocumentsResponse {
-            documents: documents.into_iter().map_into().collect(),
+            documents: documents
+                .into_iter()
+                .map(|document| PersonalizedDocumentData::from_document(document, false))
+                .collect(),
         }))
     } else {
         Either::Right((
@@ -284,14 +290,21 @@ struct PersonalizedDocumentData {
     score: f32,
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     properties: DocumentProperties,
+    #[serde(skip_serializing_if = "HashSet::is_empty")]
+    splits: HashSet<usize>,
 }
 
-impl From<PersonalizedDocument> for PersonalizedDocumentData {
-    fn from(document: PersonalizedDocument) -> Self {
+impl PersonalizedDocumentData {
+    fn from_document(document: PersonalizedDocument, include_splits: bool) -> Self {
         Self {
             id: document.id,
             score: document.score,
             properties: document.properties,
+            splits: if include_splits {
+                document.splits
+            } else {
+                HashSet::new()
+            },
         }
     }
 }
@@ -441,6 +454,7 @@ struct UnvalidatedSemanticSearchRequest {
 struct DevOption {
     hybrid: Option<DevHybrid>,
     max_number_candidates: Option<usize>,
+    include_splits: bool,
 }
 
 impl DevOption {
@@ -712,7 +726,12 @@ async fn semantic_search(
 
     Ok(deprecate!(if is_deprecated {
         Either::Right(Json(SemanticSearchResponse {
-            documents: documents.into_iter().map_into().collect(),
+            documents: documents
+                .into_iter()
+                .map(|document| {
+                    PersonalizedDocumentData::from_document(document, dev.include_splits)
+                })
+                .collect(),
         }))
     }))
 }
