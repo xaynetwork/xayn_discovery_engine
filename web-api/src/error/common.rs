@@ -48,27 +48,36 @@ pub(crate) struct DocumentPropertyNotFound;
 
 impl_application_error!(DocumentPropertyNotFound => BAD_REQUEST, INFO);
 
-/// Malformed user id.
-#[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct InvalidUserId {
-    pub(crate) value: String,
+#[derive(Debug, Display, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
+#[serde(rename_all = "snake_case")]
+pub(crate) enum InvalidString {
+    /// Invalid size. Got {got}, expected {min}..={max}.
+    Size { got: usize, min: usize, max: usize },
+    /// Invalid syntax, expected: {expected}
+    Syntax { expected: &'static str },
 }
+
+/// Malformed user id: {0}
+#[derive(Debug, Error, Display, Serialize)]
+#[serde(transparent)]
+pub(crate) struct InvalidUserId(pub(crate) InvalidString);
 
 impl_application_error!(InvalidUserId => BAD_REQUEST, INFO);
 
-/// Malformed document id.
+/// Malformed document id: {0}
 #[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct InvalidDocumentId {
-    pub(crate) value: String,
-}
+#[cfg_attr(test, derive(PartialEq))]
+#[serde(transparent)]
+pub(crate) struct InvalidDocumentId(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentId => BAD_REQUEST, INFO);
 
-/// Malformed document property id.
+/// Malformed document property id: {0}
 #[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct InvalidDocumentPropertyId {
-    pub(crate) value: String,
-}
+#[cfg_attr(test, derive(PartialEq))]
+#[serde(transparent)]
+pub(crate) struct InvalidDocumentPropertyId(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
@@ -98,8 +107,9 @@ pub(crate) enum InvalidDocumentPropertyReason {
 
 impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);
 
-/// Malsized document properties.
+/// Storage size of properties is to large. Got {size}, expected {max_size}.
 #[derive(Debug, Error, Display, Serialize)]
+#[allow(clippy::doc_markdown)]
 pub(crate) struct InvalidDocumentProperties {
     pub(crate) size: usize,
     pub(crate) max_size: usize,
@@ -107,42 +117,39 @@ pub(crate) struct InvalidDocumentProperties {
 
 impl_application_error!(InvalidDocumentProperties => BAD_REQUEST, INFO);
 
-/// Malformed document tag.
+/// Malformed document tag: {0}
 #[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct InvalidDocumentTag {
-    pub(crate) value: String,
-}
+#[cfg_attr(test, derive(PartialEq))]
+#[serde(transparent)]
+pub(crate) struct InvalidDocumentTag(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentTag => BAD_REQUEST, INFO);
 
-/// Malsized document tags.
+/// To many document tags. Got {size}, expect at most {max}.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentTags {
     pub(crate) size: usize,
+    pub(crate) max: usize,
 }
 
 impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
 
+/// Malformed document snippet: {0}
 #[derive(Debug, Error, Display, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum InvalidDocumentSnippet {
-    /// Malformed document snippet.
-    Value { value: String },
-    /// Malsized document snippet.
-    Size { size: usize, max_size: usize },
-}
+#[serde(transparent)]
+pub(crate) struct InvalidDocumentSnippet(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
 
-/// Malformed document query.
+/// Malformed document query: {0}
 #[derive(Debug, Error, Display, Serialize)]
-pub(crate) struct InvalidDocumentQuery {
-    pub(crate) value: String,
-}
+#[cfg_attr(test, derive(PartialEq))]
+#[serde(transparent)]
+pub(crate) struct InvalidDocumentQuery(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentQuery => BAD_REQUEST, INFO);
 
-/// Malsized document count.
+/// Malsized document count. Got {count}, expected {min}..={max}.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct InvalidDocumentCount {
     pub(crate) count: usize,
@@ -208,7 +215,7 @@ impl_application_error!(HistoryTooSmall => BAD_REQUEST, INFO);
 
 impl_application_error!(IncompatibleUpdate => BAD_REQUEST, INFO);
 
-/// Custom error for 400 Bad Request status code.
+/// Custom error for 400 Bad Request status code: {message}
 #[derive(Debug, Error, Display, Serialize, From)]
 pub(crate) struct BadRequest {
     pub(crate) message: Cow<'static, str>,

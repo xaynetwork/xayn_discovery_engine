@@ -146,7 +146,9 @@ fn test_ingestion_bad_request() {
             json!({
                 "kind": "InvalidDocumentId",
                 "details": {
-                    "value": "d!"
+                    "syntax": {
+                        "expected": "^[a-zA-Z0-9\\-:@.][a-zA-Z0-9\\-:@._]*$"
+                    }
                 }
             })
         );
@@ -156,8 +158,9 @@ fn test_ingestion_bad_request() {
                 "kind": "InvalidDocumentSnippet" ,
                 "details": {
                     "size": {
-                        "size": 2049,
-                        "max_size": 2048,
+                        "got": 2049,
+                        "min": 1,
+                        "max": 2048,
                     }
                 }
             })
@@ -420,7 +423,15 @@ fn test_ingestion_validation() {
             assert_eq!(error.kind, Kind::FailedToValidateDocuments);
             assert_eq!(
                 error.details.unwrap(),
-                Details::Ingest(vec![json!({ "id": "d1" })]),
+                Details::Ingest(vec![json!({
+                    "id": "d1",
+                    "kind": "InvalidDocumentSnippet",
+                    "details": {
+                        "syntax": {
+                            "expected": "^[^\\x00]*$"
+                        }
+                    }
+                })]),
             );
 
             let error = send_assert_json::<Error>(
@@ -440,7 +451,17 @@ fn test_ingestion_validation() {
             assert_eq!(error.kind, Kind::FailedToValidateDocuments);
             assert_eq!(
                 error.details.unwrap(),
-                Details::Ingest(vec![json!({ "id": "d1" })]),
+                Details::Ingest(vec![json!({
+                    "id": "d1",
+                    "kind": "InvalidDocumentSnippet",
+                    "details": {
+                        "size": {
+                            "got": 11,
+                            "min": 1,
+                            "max": 10
+                        }
+                    }
+                })]),
             );
 
             let error = send_assert_json::<Error>(
@@ -458,9 +479,17 @@ fn test_ingestion_validation() {
             )
             .await;
             assert_eq!(error.kind, Kind::FailedToValidateDocuments);
+            // TODO[pmk/now] this isn't right
             assert_eq!(
                 error.details.unwrap(),
-                Details::Ingest(vec![json!({ "id": "d1" })]),
+                Details::Ingest(vec![json!({
+                    "id": "d1",
+                    "kind": "InvalidDocumentProperties",
+                    "details": {
+                        "size": 27,
+                        "max_size": 10,
+                    }
+                })]),
             );
 
             Ok(())

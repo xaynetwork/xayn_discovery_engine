@@ -39,6 +39,7 @@ use crate::{
         InvalidDocumentSnippet,
         InvalidDocumentTag,
         InvalidDocumentTags,
+        InvalidString,
         InvalidUserId,
     },
     storage::property_filter::IndexedPropertyType,
@@ -52,7 +53,7 @@ fn trim(string: &mut String) {
 }
 
 macro_rules! string_wrapper {
-    ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $is_valid:expr);* $(;)?) => {
+    ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $syntax:expr, $full_range:expr);* $(;)?) => {
         $(
             $(#[$attribute])*
             #[derive(
@@ -77,12 +78,26 @@ macro_rules! string_wrapper {
                 type Error = $error;
 
                 fn try_from(mut value: String) -> Result<Self, Self::Error> {
+                    use std::ops::RangeInclusive;
+                    use $crate::error::common::InvalidString;
+
                     trim(&mut value);
 
-                    if $is_valid(&value) {
-                        Ok(Self(value))
+                    let size = value.len();
+                    let range = RangeInclusive::from($full_range);
+                    let syntax = &*$syntax;
+                    if !range.contains(&size) {
+                        Err($error(InvalidString::Size {
+                            got: size,
+                            min: *range.start(),
+                            max: *range.end(),
+                        }))
+                    } else if !syntax.is_match(&value) {
+                        Err($error(InvalidString::Syntax {
+                            expected: syntax.as_str(),
+                        }))
                     } else {
-                        Err($error { value })
+                        Ok(Self(value))
                     }
                 }
             }
@@ -110,43 +125,25 @@ macro_rules! string_wrapper {
     };
 }
 
-fn is_valid_id(value: &str) -> bool {
-    static RE: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@.][a-zA-Z0-9\-:@._]*$").unwrap());
+static GENERIC_ID_SYNTAX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@.][a-zA-Z0-9\-:@._]*$").unwrap());
 
-    (1..=256).contains(&value.len()) && RE.is_match(value)
-}
+static PROPERTY_ID_SYNTAX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@][a-zA-Z0-9\-:@_]*$").unwrap());
 
-fn is_valid_property_id(value: &str) -> bool {
-    static RE: Lazy<Regex> =
-        Lazy::new(|| Regex::new(r"^[a-zA-Z0-9\-:@][a-zA-Z0-9\-:@_]*$").unwrap());
-
-    (1..=256).contains(&value.len()) && RE.is_match(value)
-}
-
-fn is_valid_string(value: &str, len: usize) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]+$").unwrap());
-
-    (1..=len).contains(&value.len()) && RE.is_match(value)
-}
-
-fn is_valid_string_empty_ok(value: &str, len: usize) -> bool {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]*$").unwrap());
-
-    (0..=len).contains(&value.len()) && RE.is_match(value)
-}
+static GENERIC_STRING_SYNTAX: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\x00]*$").unwrap());
 
 string_wrapper! {
     /// A unique document identifier.
-    pub(crate) DocumentId, InvalidDocumentId, is_valid_id;
+    pub(crate) DocumentId, InvalidDocumentId, GENERIC_ID_SYNTAX, 1..=256;
     /// A unique document property identifier.
-    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, is_valid_property_id;
+    pub(crate) DocumentPropertyId, InvalidDocumentPropertyId, PROPERTY_ID_SYNTAX, 1..=256;
     /// A unique user identifier.
-    pub(crate) UserId, InvalidUserId, is_valid_id;
+    pub(crate) UserId, InvalidUserId, GENERIC_ID_SYNTAX, 1..=256;
     /// A document tag.
-    pub(crate) DocumentTag, InvalidDocumentTag, |value| is_valid_string(value, 256);
+    pub(crate) DocumentTag, InvalidDocumentTag, GENERIC_STRING_SYNTAX, 1..=256;
     /// A document query.
-    pub(crate) DocumentQuery, InvalidDocumentQuery, |value| is_valid_string(value, 512);
+    pub(crate) DocumentQuery, InvalidDocumentQuery, GENERIC_STRING_SYNTAX, 1..=512;
 }
 
 /// A document snippet.
@@ -163,15 +160,19 @@ impl DocumentSnippet {
         let mut value = value.into();
         trim(&mut value);
 
-        if is_valid_string(&value, max_size) {
-            Ok(Self(value))
+        let size = value.len();
+        if !(1..=max_size).contains(&value.len()) {
+            Err(InvalidDocumentSnippet(InvalidString::Size {
+                got: size,
+                min: 1,
+                max: max_size,
+            }))
+        } else if !GENERIC_STRING_SYNTAX.is_match(&value) {
+            Err(InvalidDocumentSnippet(InvalidString::Syntax {
+                expected: GENERIC_STRING_SYNTAX.as_str(),
+            }))
         } else {
-            let size = value.len();
-            if size > max_size {
-                Err(InvalidDocumentSnippet::Size { size, max_size })
-            } else {
-                Err(InvalidDocumentSnippet::Value { value })
-            }
+            Ok(Self(value))
         }
     }
 }
@@ -185,16 +186,24 @@ impl DocumentProperty {
         property_id: &DocumentPropertyId,
         mut value: Value,
     ) -> Result<Self, InvalidDocumentProperty> {
+        let check_string_property_value = |s: &str| {
+            if s.len() <= 2_048 && GENERIC_STRING_SYNTAX.is_match(s) {
+                Ok(())
+            } else {
+                Err(())
+            }
+        };
+
         match &mut value {
             Value::Bool(_) | Value::Number(_) | Value::Null => {}
             Value::String(string) => {
-                if !is_valid_string_empty_ok(string, 2_048) {
+                let Ok(()) = check_string_property_value(string) else {
                     return Err(InvalidDocumentProperty {
                         property: property_id.clone(),
-                        invalid_value: value.clone(),
+                        invalid_value: value,
                         invalid_reason: InvalidDocumentPropertyReason::InvalidString,
                     });
-                }
+                };
             }
             Value::Array(array) => {
                 if array.len() > 100 {
@@ -215,13 +224,13 @@ impl DocumentProperty {
                         });
                     };
                     trim(string);
-                    if !is_valid_string(string, 2_048) {
+                    let Ok(()) = check_string_property_value(string) else {
                         return Err(InvalidDocumentProperty {
                             property: property_id.clone(),
                             invalid_value: value.clone(),
                             invalid_reason: InvalidDocumentPropertyReason::InvalidString,
                         });
-                    }
+                    };
                 }
             }
             Value::Object(_) => {
@@ -291,10 +300,11 @@ impl TryFrom<Vec<DocumentTag>> for DocumentTags {
 
     fn try_from(tags: Vec<DocumentTag>) -> Result<Self, Self::Error> {
         let size = tags.len();
-        if size <= 10 {
+        let max = 10;
+        if size <= max {
             Ok(Self(tags))
         } else {
-            Err(InvalidDocumentTags { size })
+            Err(InvalidDocumentTags { size, max })
         }
     }
 }
@@ -401,51 +411,143 @@ mod tests {
 
     #[test]
     fn test_is_valid_id() {
-        assert!(is_valid_id("abcdefghijklmnopqrstruvwxyz"));
-        assert!(is_valid_id("ABCDEFGHIJKLMNOPQURSTUVWXYZ"));
-        assert!(is_valid_id("0123456789"));
-        assert!(is_valid_id("-_:@."));
-        assert!(!is_valid_id(""));
-        assert!(!is_valid_id("_"));
-        assert!(!is_valid_id(&["a"; 257].join("")));
-        assert!(!is_valid_id("!?ß"));
+        assert!(DocumentId::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentId::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentId::try_from("0123456789").is_ok());
+        assert!(DocumentId::try_from("-_:@.").is_ok());
+
+        assert_eq!(
+            DocumentId::try_from(""),
+            Err(InvalidDocumentId(InvalidString::Size {
+                got: 0,
+                min: 1,
+                max: 256
+            }))
+        );
+        assert_eq!(
+            DocumentId::try_from("_"),
+            Err(InvalidDocumentId(InvalidString::Syntax {
+                expected: GENERIC_ID_SYNTAX.as_str()
+            }))
+        );
+        assert_eq!(
+            DocumentId::try_from(["a"; 257].join("")),
+            Err(InvalidDocumentId(InvalidString::Size {
+                got: 257,
+                min: 1,
+                max: 256
+            }))
+        );
+        assert_eq!(
+            DocumentId::try_from("!?ß"),
+            Err(InvalidDocumentId(InvalidString::Syntax {
+                expected: GENERIC_ID_SYNTAX.as_str()
+            }))
+        );
     }
 
     #[test]
     fn test_is_valid_property_id() {
-        assert!(is_valid_property_id("abcdefghijklmnopqrstruvwxyz"));
-        assert!(is_valid_property_id("ABCDEFGHIJKLMNOPQURSTUVWXYZ"));
-        assert!(is_valid_property_id("0123456789"));
-        assert!(is_valid_property_id("-_:@"));
-        assert!(!is_valid_property_id(""));
-        assert!(!is_valid_property_id("_"));
-        assert!(!is_valid_property_id("."));
-        assert!(!is_valid_property_id(&["a"; 257].join("")));
-        assert!(!is_valid_property_id("!?ß"));
+        assert!(DocumentPropertyId::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentPropertyId::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentPropertyId::try_from("0123456789").is_ok());
+        assert!(DocumentPropertyId::try_from("-_:@").is_ok());
+
+        assert_eq!(
+            DocumentPropertyId::try_from(""),
+            Err(InvalidDocumentPropertyId(InvalidString::Size {
+                got: 0,
+                min: 1,
+                max: 256
+            }))
+        );
+        assert_eq!(
+            DocumentPropertyId::try_from("_"),
+            Err(InvalidDocumentPropertyId(InvalidString::Syntax {
+                expected: PROPERTY_ID_SYNTAX.as_str()
+            }))
+        );
+        assert_eq!(
+            DocumentPropertyId::try_from("."),
+            Err(InvalidDocumentPropertyId(InvalidString::Syntax {
+                expected: PROPERTY_ID_SYNTAX.as_str()
+            }))
+        );
+        assert_eq!(
+            DocumentPropertyId::try_from(["a"; 257].join("")),
+            Err(InvalidDocumentPropertyId(InvalidString::Size {
+                got: 257,
+                min: 1,
+                max: 256
+            }))
+        );
+        assert_eq!(
+            DocumentPropertyId::try_from("!?ß"),
+            Err(InvalidDocumentPropertyId(InvalidString::Syntax {
+                expected: PROPERTY_ID_SYNTAX.as_str()
+            }))
+        );
     }
 
     #[test]
-    fn test_is_valid_string() {
-        assert!(is_valid_string("abcdefghijklmnopqrstruvwxyz", 256));
-        assert!(is_valid_string("ABCDEFGHIJKLMNOPQURSTUVWXYZ", 256));
-        assert!(is_valid_string("0123456789", 256));
-        assert!(is_valid_string(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€", 256));
-        assert!(!is_valid_string("", 256));
-        assert!(!is_valid_string(&["a"; 257].join(""), 256));
-        assert!(!is_valid_string("\0", 256));
+    fn test_is_valid_tag() {
+        assert!(DocumentTag::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentTag::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentTag::try_from("0123456789").is_ok());
+        assert!(DocumentTag::try_from(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
+
+        assert_eq!(
+            DocumentTag::try_from(""),
+            Err(InvalidDocumentTag(InvalidString::Size {
+                got: 0,
+                min: 1,
+                max: 256
+            }))
+        );
+        assert_eq!(
+            DocumentTag::try_from(["a"; 257].join("")),
+            Err(InvalidDocumentTag(InvalidString::Size {
+                got: 257,
+                min: 1,
+                max: 256
+            }))
+        );
+        assert_eq!(
+            DocumentTag::try_from("\0"),
+            Err(InvalidDocumentTag(InvalidString::Syntax {
+                expected: GENERIC_STRING_SYNTAX.as_str()
+            }))
+        );
     }
 
     #[test]
-    fn test_is_valid_string_empty_ok() {
-        assert!(is_valid_string_empty_ok("abcdefghijklmnopqrstruvwxyz", 256));
-        assert!(is_valid_string_empty_ok("ABCDEFGHIJKLMNOPQURSTUVWXYZ", 256));
-        assert!(is_valid_string_empty_ok("0123456789", 256));
-        assert!(is_valid_string_empty_ok(
-            " .:,;-_#'+*^°!\"§$%&/()=?\\´`@€",
-            256
-        ));
-        assert!(is_valid_string_empty_ok("", 256));
-        assert!(!is_valid_string_empty_ok(&["a"; 257].join(""), 256));
-        assert!(!is_valid_string_empty_ok("\0", 256));
+    fn test_is_valid_query() {
+        assert!(DocumentQuery::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
+        assert!(DocumentQuery::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
+        assert!(DocumentQuery::try_from("0123456789").is_ok());
+        assert!(DocumentQuery::try_from(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
+
+        assert_eq!(
+            DocumentQuery::try_from(""),
+            Err(InvalidDocumentQuery(InvalidString::Size {
+                got: 0,
+                min: 1,
+                max: 512,
+            }))
+        );
+        assert_eq!(
+            DocumentQuery::try_from(["a"; 513].join("")),
+            Err(InvalidDocumentQuery(InvalidString::Size {
+                got: 513,
+                min: 1,
+                max: 512,
+            }))
+        );
+        assert_eq!(
+            DocumentQuery::try_from("\0"),
+            Err(InvalidDocumentQuery(InvalidString::Syntax {
+                expected: GENERIC_STRING_SYNTAX.as_str()
+            }))
+        );
     }
 }
