@@ -64,7 +64,7 @@ async fn query(
     filter: Option<Value>,
 ) -> Result<SearchResponse, Error> {
     let res = send_assert_json::<SearchResponse>(
-        &client,
+        client,
         client
             .post(personalization_url.join("/semantic_search")?)
             .json(&json!({
@@ -85,9 +85,9 @@ async fn query(
 }
 
 async fn set_candidates(client: &Client, ingestion_url: &Url, ids: &[&str]) -> Result<(), Error> {
-    let ids = ids.into_iter().map(|id| json!({ "id": id })).collect_vec();
+    let ids = ids.iter().map(|id| json!({ "id": id })).collect_vec();
     send_assert(
-        &client,
+        client,
         client
             .put(ingestion_url.join("/documents/_candidates")?)
             .json(&json!({ "documents": ids }))
