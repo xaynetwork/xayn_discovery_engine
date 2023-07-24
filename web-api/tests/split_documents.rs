@@ -20,7 +20,13 @@ use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
 use url::Url;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
+use xayn_integration_tests::{
+    send_assert,
+    send_assert_json,
+    test_two_apps,
+    with_dev_options,
+    UNCHANGED_CONFIG,
+};
 use xayn_web_api::{Ingestion, Personalization};
 
 #[derive(Debug, Deserialize)]
@@ -168,7 +174,7 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
 fn test_split_documents_for_semantic_search() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
+        with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
             let query = |text, count| query(&client, &personalization_url, text, count, None);
             ingest(&client, &ingestion_url).await?;
@@ -190,7 +196,7 @@ fn test_split_documents_for_semantic_search() {
 fn test_split_documents_with_set_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
+        with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
             let query = |text, count| query(&client, &personalization_url, text, count, None);
             let set_candidates = |ids| set_candidates(&client, &ingestion_url, ids);
@@ -224,7 +230,7 @@ fn test_split_documents_with_set_candidates() {
 fn test_split_documents_with_property_updates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
+        with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
             let query = |text, value| {
                 query(
@@ -357,7 +363,7 @@ fn test_split_documents_with_property_updates() {
 fn test_endpoints_which_do_not_yet_fully_support_split_do_not_fall_over() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
+        with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
             send_assert(

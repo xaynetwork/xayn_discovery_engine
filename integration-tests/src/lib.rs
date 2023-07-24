@@ -608,6 +608,13 @@ fn build_client(services: &Services) -> Arc<Client> {
 
 pub const UNCHANGED_CONFIG: Option<Table> = None;
 
+pub fn with_dev_options() -> Option<Table> {
+    Some(toml! {
+        [tenants]
+        enable_dev = true
+    })
+}
+
 pub fn extend_config(current: &mut Table, extension: Table) {
     for (key, value) in extension {
         if let Some(current) = current.get_mut(&key) {

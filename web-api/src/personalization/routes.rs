@@ -454,12 +454,14 @@ struct UnvalidatedSemanticSearchRequest {
 struct DevOption {
     hybrid: Option<DevHybrid>,
     max_number_candidates: Option<usize>,
-    include_splits: bool,
+    include_splits: Option<bool>,
 }
 
 impl DevOption {
     fn is_some(&self) -> bool {
-        self.hybrid.is_some() || self.max_number_candidates.is_some()
+        self.hybrid.is_some()
+            || self.max_number_candidates.is_some()
+            || self.include_splits.is_some()
     }
 }
 
@@ -729,7 +731,10 @@ async fn semantic_search(
             documents: documents
                 .into_iter()
                 .map(|document| {
-                    PersonalizedDocumentData::from_document(document, dev.include_splits)
+                    PersonalizedDocumentData::from_document(
+                        document,
+                        dev.include_splits.unwrap_or_default(),
+                    )
                 })
                 .collect(),
         }))
