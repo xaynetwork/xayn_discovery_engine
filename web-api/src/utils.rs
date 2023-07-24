@@ -11,6 +11,8 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 
+use std::path::Path;
+
 use derive_more::Deref;
 use figment::value::magic::RelativePathBuf as FigmentRelativePathBuf;
 use serde::{Deserialize, Serialize};
@@ -22,10 +24,13 @@ pub struct RelativePathBuf {
     inner: FigmentRelativePathBuf,
 }
 
-impl From<&str> for RelativePathBuf {
-    fn from(s: &str) -> Self {
+impl<P> From<P> for RelativePathBuf
+where
+    P: AsRef<Path>,
+{
+    fn from(path: P) -> Self {
         Self {
-            inner: FigmentRelativePathBuf::from(s),
+            inner: FigmentRelativePathBuf::from(path),
         }
     }
 }

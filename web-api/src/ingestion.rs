@@ -15,6 +15,7 @@
 mod routes;
 
 use actix_web::web::ServiceConfig;
+use anyhow::bail;
 use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
@@ -45,7 +46,9 @@ impl Application for Ingestion {
         routes::configure_ops_service(config);
     }
 
-    fn create_extension(_config: &Self::Config) -> Result<Self::Extension, SetupError> {
+    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
+        config.ingestion.validate()?;
+
         Ok(Extension {})
     }
 }
@@ -86,5 +89,26 @@ impl Default for IngestionConfig {
     }
 }
 
+impl IngestionConfig {
+    fn validate(&self) -> Result<(), SetupError> {
+        if self.max_indexed_properties == 0 {
+            bail!("invalid IngestionConfig, max_indexed_properties must be > 0 to account for publication_date");
+        }
+        self.index_update.validate()?;
+
+        Ok(())
+    }
+}
+
 #[derive(AsRef)]
 pub struct Extension {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_default_ingestion_config() {
+        IngestionConfig::default().validate().unwrap();
+    }
+}

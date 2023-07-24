@@ -12,9 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use anyhow::bail;
 use serde::{Deserialize, Serialize};
-use xayn_ai_bert::{AvgEmbedder, Config as BertConfig, NormalizedEmbedding};
+use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
@@ -35,39 +34,46 @@ impl Default for Config {
 }
 
 pub(crate) struct Embedder {
-    bert: AvgEmbedder,
+    embedder: AvgEmbedder,
 }
 
 impl Embedder {
-    pub(crate) fn run(&self, s: &str) -> Result<NormalizedEmbedding, InternalError> {
-        self.bert
-            .run(s)
+    pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
+        let config = EmbedderConfig::new(config.directory.relative())?
+            .with_token_size(config.token_size)?
+            .with_pooler();
+        config.validate()?;
+        let embedder = config.build()?;
+
+        Ok(Self { embedder })
+    }
+
+    pub(crate) fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
+        self.embedder
+            .run(sequence)
             .map_err(InternalError::from_std)?
             .normalize()
             .map_err(InternalError::from_std)
     }
 
-    pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
-        let path = config.directory.relative();
-        if !path.exists() {
-            bail!(
-                "Fail to load Embedder: asset dir missing: {}",
-                path.display()
-            );
-        }
-        let config_file = path.join("config.toml");
-        if !config_file.exists() {
-            bail!(
-                "Fail to load Embedder: <assets>/config.toml doesn't exist: {}",
-                config_file.display(),
-            );
-        }
-        let bert = BertConfig::new(path)?.with_pooler().build()?;
-
-        Ok(Embedder { bert })
-    }
-
     pub(crate) fn embedding_size(&self) -> usize {
-        self.bert.embedding_size()
+        self.embedder.embedding_size()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use xayn_test_utils::asset::xaynia;
+
+    use super::*;
+
+    #[test]
+    fn test_embedder() {
+        let config = Config {
+            directory: xaynia().unwrap().into(),
+            ..Config::default()
+        };
+        let embedder = Embedder::load(&config).unwrap();
+        embedder.run("test").unwrap();
     }
 }

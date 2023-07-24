@@ -14,6 +14,7 @@
 
 use std::{fs::File, io::BufReader};
 
+use anyhow::bail;
 use derive_more::{Deref, From};
 use serde::Deserialize;
 use tract_onnx::prelude::{
@@ -94,7 +95,11 @@ pub(crate) struct Prediction(TValue);
 impl Model {
     /// Creates a model from a configuration.
     pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, TractError> {
-        let mut model = BufReader::new(File::open(config.dir.join("model.onnx"))?);
+        let model = config.dir.join("model.onnx");
+        if !model.exists() {
+            bail!("embedder model '{}' doesn't exist", model.display());
+        }
+        let mut model = BufReader::new(File::open(model)?);
         let model = tract_onnx::onnx().model_for_read(&mut model)?;
         let model = config.extract_facts("input", model, InferenceModel::with_input_fact)?;
         let model = config.extract_facts("output", model, InferenceModel::with_output_fact)?;

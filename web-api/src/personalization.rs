@@ -19,6 +19,7 @@ pub(crate) mod routes;
 mod stateless;
 
 use actix_web::web::ServiceConfig;
+use anyhow::bail;
 use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
@@ -48,6 +49,12 @@ impl Application for Personalization {
     }
 
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
+        if let Err(error) = config.coi.validate() {
+            bail!("invalid CoiConfig, {error}");
+        }
+        config.personalization.validate()?;
+        config.semantic_search.validate()?;
+
         Ok(Extension {
             coi: config.coi.clone().build(),
         })
@@ -115,6 +122,28 @@ impl Default for PersonalizationConfig {
     }
 }
 
+impl PersonalizationConfig {
+    fn validate(&self) -> Result<(), SetupError> {
+        if self.max_number_documents > self.max_number_candidates {
+            // this is stricter than necessary, but ok for our use cases
+            bail!("invalid PersonalizationConfig, max_number_documents must be <= max_number_candidates");
+        }
+        if self.default_number_documents > self.max_number_documents {
+            bail!("invalid PersonalizationConfig, default_number_documents must be <= max_number_documents");
+        }
+        if self
+            .score_weights
+            .iter()
+            .any(|weight| !(0. ..=1.).contains(weight))
+            || (self.score_weights.iter().sum::<f32>() - 1.).abs() > f32::EPSILON
+        {
+            bail!("invalid PersonalizationConfig, score_weights must be in [0, 1] each and add up to 1");
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub(crate) struct SemanticSearchConfig {
@@ -143,7 +172,45 @@ impl Default for SemanticSearchConfig {
         }
     }
 }
+
+impl SemanticSearchConfig {
+    fn validate(&self) -> Result<(), SetupError> {
+        if self.max_number_documents > self.max_number_candidates {
+            // this is stricter than necessary, but ok for our use cases
+            bail!("invalid SemanticSearchConfig, max_number_documents must be <= max_number_candidates");
+        }
+        if self.default_number_documents > self.max_number_documents {
+            bail!("invalid SemanticSearchConfig, default_number_documents must be <= max_number_documents");
+        }
+        if self
+            .score_weights
+            .iter()
+            .any(|weight| !(0. ..=1.).contains(weight))
+            || (self.score_weights.iter().sum::<f32>() - 1.).abs() > f32::EPSILON
+        {
+            bail!("invalid SemanticSearchConfig, score_weights must be in [0, 1] each and add up to 1");
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(AsRef)]
 pub struct Extension {
     pub(crate) coi: CoiSystem,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_default_personalization_config() {
+        PersonalizationConfig::default().validate().unwrap();
+    }
+
+    #[test]
+    fn test_validate_default_semantic_search_config() {
+        PersonalizationConfig::default().validate().unwrap();
+    }
 }

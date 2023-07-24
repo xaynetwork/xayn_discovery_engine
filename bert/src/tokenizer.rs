@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use anyhow::anyhow;
 use derive_more::{Deref, From};
 use figment::value::Dict;
 use ndarray::Array2;
@@ -81,7 +82,13 @@ pub(crate) struct Tokenizer {
 
 impl Tokenizer {
     pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, Error> {
-        let mut tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json"))?;
+        let tokenizer = config.dir.join("tokenizer.json");
+        if !tokenizer.exists() {
+            return Err(
+                anyhow!("embedder tokenizer '{}' doesn't exist", tokenizer.display()).into(),
+            );
+        }
+        let mut tokenizer = HfTokenizer::from_file(tokenizer)?;
         let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
         let padding = PaddingParams {
             strategy: PaddingStrategy::Fixed(config.token_size),

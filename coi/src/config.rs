@@ -61,6 +61,20 @@ pub enum Error {
 }
 
 impl Config {
+    pub fn validate(&self) -> Result<(), Error> {
+        if !(0. ..=1.).contains(&self.shift_factor) {
+            return Err(Error::ShiftFactor);
+        }
+        if !(-1. ..=1.).contains(&self.threshold) {
+            return Err(Error::Threshold);
+        }
+        if self.min_cois == 0 {
+            return Err(Error::MinCois);
+        }
+
+        Ok(())
+    }
+
     /// The shift factor by how much a coi is shifted towards a new point.
     pub fn shift_factor(&self) -> f32 {
         self.shift_factor
@@ -71,12 +85,10 @@ impl Config {
     /// # Errors
     /// Fails if the shift factor is outside of the unit interval.
     pub fn with_shift_factor(mut self, shift_factor: f32) -> Result<Self, Error> {
-        if (0. ..=1.).contains(&shift_factor) {
-            self.shift_factor = shift_factor;
-            Ok(self)
-        } else {
-            Err(Error::ShiftFactor)
-        }
+        self.shift_factor = shift_factor;
+        self.validate()?;
+
+        Ok(self)
     }
 
     /// The maximum similarity between distinct cois.
@@ -89,12 +101,10 @@ impl Config {
     /// # Errors
     /// Fails if the threshold is not within [`-1, 1`].
     pub fn with_threshold(mut self, threshold: f32) -> Result<Self, Error> {
-        if (-1. ..=1.).contains(&threshold) {
-            self.threshold = threshold;
-            Ok(self)
-        } else {
-            Err(Error::Threshold)
-        }
+        self.threshold = threshold;
+        self.validate()?;
+
+        Ok(self)
     }
 
     /// The minimum number of cois required for the context calculation.
@@ -107,12 +117,10 @@ impl Config {
     /// # Errors
     /// Fails if the minimum number is zero.
     pub fn with_min_cois(mut self, min_cois: usize) -> Result<Self, Error> {
-        if min_cois > 0 {
-            self.min_cois = min_cois;
-            Ok(self)
-        } else {
-            Err(Error::MinCois)
-        }
+        self.min_cois = min_cois;
+        self.validate()?;
+
+        Ok(self)
     }
 
     /// The time since the last view after which a coi becomes irrelevant.
@@ -129,5 +137,15 @@ impl Config {
     /// Creates a coi system.
     pub fn build(self) -> System {
         System { config: self }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_default_config() {
+        Config::default().validate().unwrap();
     }
 }

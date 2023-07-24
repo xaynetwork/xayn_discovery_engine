@@ -6,6 +6,7 @@ rust-version = { workspace = true }
 license = { workspace = true }
 
 [dependencies]
+anyhow = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 figment = { workspace = true }
