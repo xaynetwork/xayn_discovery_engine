@@ -72,12 +72,11 @@ pub(crate) struct InvalidDocumentPropertyId {
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
-/// Malformed property {document}/{property}, {invalid_reason}: {invalid_value}
+/// Malformed property {property}, {invalid_reason}: {invalid_value}
 #[derive(Debug, Error, Display, Serialize)]
 // there are some false positives with clippy and displaydoc
 #[allow(clippy::doc_markdown)]
 pub(crate) struct InvalidDocumentProperty {
-    pub(crate) document: DocumentId,
     pub(crate) property: DocumentPropertyId,
     pub(crate) invalid_value: Value,
     pub(crate) invalid_reason: InvalidDocumentPropertyReason,
@@ -125,6 +124,7 @@ pub(crate) struct InvalidDocumentTags {
 impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
 
 #[derive(Debug, Error, Display, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum InvalidDocumentSnippet {
     /// Malformed document snippet.
     Value { value: String },

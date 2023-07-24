@@ -175,7 +175,6 @@ impl NewIsCandidate {
 }
 
 async fn validate_document_properties(
-    document_id: &DocumentId,
     properties: impl IntoIterator<Item = (String, Value)>,
     storage: &(impl storage::Size + storage::IndexedProperties),
     max_size: usize,
@@ -184,14 +183,14 @@ async fn validate_document_properties(
         .into_iter()
         .map(|(property_id, property)| {
             let property_id = DocumentPropertyId::try_from(property_id)?;
-            let property = DocumentProperty::try_from_value(document_id, &property_id, property)?;
+            let property = DocumentProperty::try_from_value(&property_id, property)?;
             Ok((property_id, property))
         })
         .try_collect::<_, HashMap<_, _>, Error>()?;
 
     let schema = storage.load_schema().await?;
     for (property, value) in &properties {
-        schema.validate_property(document_id, property, value)?;
+        schema.validate_property(property, value)?;
     }
 
     let size = storage::Size::json(storage, &serde_json::to_value(&properties)?).await?;
@@ -219,7 +218,7 @@ impl UnvalidatedIngestedDocument {
         });
 
         let properties =
-            validate_document_properties(&id, self.properties, storage, config.max_properties_size)
+            validate_document_properties(self.properties, storage, config.max_properties_size)
                 .await?;
         let tags = self
             .tags
@@ -283,7 +282,7 @@ async fn upsert_documents(
         match document.validate(&state.config, &storage).await {
             Ok(document) => documents.push(document),
             Err(error) => {
-                info!("Invalid document '{id}': {error:#?}");
+                info!("Invalid document '{id}': {error}");
                 invalid_documents.push(DocumentInBatchError::new(id, &*error));
             }
         }
@@ -552,7 +551,6 @@ async fn put_document_properties(
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
     let properties = validate_document_properties(
-        &document_id,
         properties.properties,
         &storage,
         state.config.ingestion.max_properties_size,
@@ -614,7 +612,7 @@ async fn put_document_property(
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
     let property_id = DocumentPropertyId::try_from(property_id)?;
-    let property = DocumentProperty::try_from_value(&document_id, &property_id, body.property)?;
+    let property = DocumentProperty::try_from_value(&property_id, body.property)?;
 
     let properties = storage::DocumentProperties::get(&storage, &document_id)
         .await?
@@ -624,7 +622,6 @@ async fn put_document_property(
         .map(|(property_id, property)| (property_id.into(), property.into()));
 
     validate_document_properties(
-        &document_id,
         properties,
         &storage,
         state.config.ingestion.max_properties_size,

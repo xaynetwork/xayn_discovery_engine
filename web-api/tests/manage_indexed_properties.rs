@@ -317,7 +317,6 @@ fn test_check_new_property_values_against_schema() {
                         "id": id,
                         "kind": "InvalidDocumentProperty",
                         "details": {
-                            "document": id,
                             "invalid_reason": {
                                 "IncompatibleType": {
                                     "expected": expected_type,
@@ -357,7 +356,6 @@ fn test_check_new_property_values_against_schema() {
                 assert_eq!(
                     &res["details"],
                     &json!({
-                        "document": "d1",
                         "property": property,
                         "invalid_reason": {
                             "IncompatibleType": {
@@ -400,7 +398,6 @@ fn test_check_new_property_values_against_schema() {
                 assert_eq!(
                     &res["details"],
                     &json!({
-                        "document": "d2",
                         "property": property,
                         "invalid_reason": {
                             "IncompatibleType": {

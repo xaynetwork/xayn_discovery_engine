@@ -359,7 +359,6 @@ impl Filter {
         if let Some(published_after) = published_after {
             let field = "publication_date".try_into().unwrap(/* valid property id */);
             let value = DocumentProperty::try_from_value(
-                &"unused".try_into().unwrap(/* valid document id */),
                 &field,
                 json!(published_after.to_rfc3339()),
             ).unwrap(/* valid property */);

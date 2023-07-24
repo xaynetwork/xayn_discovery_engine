@@ -182,7 +182,6 @@ pub(crate) struct DocumentProperty(Value);
 
 impl DocumentProperty {
     pub(crate) fn try_from_value(
-        document_id: &DocumentId,
         property_id: &DocumentPropertyId,
         mut value: Value,
     ) -> Result<Self, InvalidDocumentProperty> {
@@ -191,7 +190,6 @@ impl DocumentProperty {
             Value::String(string) => {
                 if !is_valid_string_empty_ok(string, 2_048) {
                     return Err(InvalidDocumentProperty {
-                        document: document_id.clone(),
                         property: property_id.clone(),
                         invalid_value: value.clone(),
                         invalid_reason: InvalidDocumentPropertyReason::InvalidString,
@@ -201,7 +199,6 @@ impl DocumentProperty {
             Value::Array(array) => {
                 if array.len() > 100 {
                     return Err(InvalidDocumentProperty {
-                        document: document_id.clone(),
                         property: property_id.clone(),
                         invalid_value: value.clone(),
                         invalid_reason: InvalidDocumentPropertyReason::InvalidArray,
@@ -210,7 +207,6 @@ impl DocumentProperty {
                 for value in array {
                     let Value::String(ref mut string) = value else {
                         return Err(InvalidDocumentProperty {
-                            document: document_id.clone(),
                             property: property_id.clone(),
                             invalid_value: value.clone(),
                             invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
@@ -221,7 +217,6 @@ impl DocumentProperty {
                     trim(string);
                     if !is_valid_string(string, 2_048) {
                         return Err(InvalidDocumentProperty {
-                            document: document_id.clone(),
                             property: property_id.clone(),
                             invalid_value: value.clone(),
                             invalid_reason: InvalidDocumentPropertyReason::InvalidString,
@@ -231,7 +226,6 @@ impl DocumentProperty {
             }
             Value::Object(_) => {
                 return Err(InvalidDocumentProperty {
-                    document: document_id.clone(),
                     property: property_id.clone(),
                     invalid_value: value.clone(),
                     invalid_reason: InvalidDocumentPropertyReason::UnsupportedType,
@@ -401,11 +395,7 @@ mod tests {
         type Error = InvalidDocumentProperty;
 
         fn try_from(value: Value) -> Result<Self, Self::Error> {
-            DocumentProperty::try_from_value(
-                &"d".try_into().unwrap(),
-                &"p".try_into().unwrap(),
-                value,
-            )
+            DocumentProperty::try_from_value(&"p".try_into().unwrap(), value)
         }
     }
 

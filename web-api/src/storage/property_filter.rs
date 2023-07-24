@@ -24,7 +24,7 @@ use thiserror::Error;
 
 use crate::{
     error::common::{InvalidDocumentProperty, InvalidDocumentPropertyReason},
-    models::{DocumentId, DocumentProperty, DocumentPropertyId},
+    models::{DocumentProperty, DocumentPropertyId},
 };
 
 #[derive(Debug, Display, PartialEq, Error, Serialize)]
@@ -78,7 +78,6 @@ impl IndexedPropertiesSchema {
 
     pub(crate) fn validate_property(
         &self,
-        document: &DocumentId,
         property: &DocumentPropertyId,
         value: &DocumentProperty,
     ) -> Result<(), InvalidDocumentProperty> {
@@ -97,7 +96,6 @@ impl IndexedPropertiesSchema {
             | (Value::Array(_), IndexedPropertyType::KeywordArray) => Ok(()),
             (Value::String(string), IndexedPropertyType::Date) => {
                 DateTime::parse_from_rfc3339(string).map_err(|_| InvalidDocumentProperty {
-                    document: document.clone(),
                     property: property.clone(),
                     invalid_value: value.clone(),
                     invalid_reason: InvalidDocumentPropertyReason::MalformedDateTimeString,
@@ -105,7 +103,6 @@ impl IndexedPropertiesSchema {
                 Ok(())
             },
             (_, r#type) => Err(InvalidDocumentProperty {
-                document: document.clone(),
                 property: property.clone(),
                 invalid_value: value.clone(),
                 invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
