@@ -58,9 +58,6 @@ html_theme_options = {
 }
 
 html_static_path = ['_static']
-# html_logo = "logo.svg"
-# pygments_style = "bw"
-# pygments_dark_style = "bw"
 # https://pygments.org/styles/
 pygments_style = "default"
 pygments_dark_style = "monokai"

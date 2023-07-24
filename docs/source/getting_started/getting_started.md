@@ -39,7 +39,7 @@ curl -X POST https://<url>/documents
                     "title": "The initial challange",
                     "link": "https://xayn.com/blog/the-initial-challenge",
                     "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
-                    "tags" : ["privacy", "energy", "conference"],
+                    "location" : ["germany", "berlin", "conference"],
                 }
             }
         ]
@@ -243,7 +243,7 @@ curl --location 'https://<url>/documents/_indexed_properties' \
 --header 'authorizationToken: <back_office_token>>'
 ```
 
-This returns just the `publication_date`, which is indexed by default (__Deprecated__).
+This returns just the `publication_date`, which is indexed by default.
 
 ```json
 {
@@ -263,7 +263,7 @@ curl --location 'https://<url>/documents/_indexed_properties' \
 --header 'authorizationToken: <back_office_token>' \
 --data '{
     "properties": {
-        "tags": {
+        "location": {
             "type": "keyword[]"
         }
     }
@@ -271,7 +271,7 @@ curl --location 'https://<url>/documents/_indexed_properties' \
 
 ```
 
-After a short indexing period we can apply filters to our requests.
+After a short indexing period, depending on the number of ingested documents, we can apply filters to our requests.
 
 ## Applying a Filter
 
@@ -285,7 +285,7 @@ curl --location 'https://<url>/semantic_search' \
 --header 'authorizationToken: <front_office_token>' \
 --data '{
     "filter": {
-        "tags": {
+        "location": {
             "$in": [
                 "conference"
             ]
@@ -297,18 +297,49 @@ curl --location 'https://<url>/semantic_search' \
 }'
 ```
 
-In `personalized_documents` the filter is used as a url param, and because of that it needs to be URI encoded. 
-
-The value `filter=%7B%22tags%22%3A%20%7B%20%22%24in%22%3A%20%5B%22conference%22%5D%20%7D%7D` decodes to `{"tags": { "$in": ["conference"] }}` :
+In `personalized_documents` the filter is applied in a similar way: 
 
 ```{code-block} bash
 :caption: /users/{user_id}/personalized_documents
 
-curl --location 'https://<url>/users/<user_id>/personalized_documents?filter=%7B%22tags%22%3A%20%7B%20%22%24in%22%3A%20%5B%22conference%22%5D%20%7D%7D' \
+curl --location 'https://<url>/users/<user_id>/personalized_documents' \
+--header 'Content-Type: application/json' \
 --header 'authorizationToken: <front_office_token>'
+--data '{ "filter": {
+    "location": {
+        "$in": [
+            "conference"
+        ]
+    }
+}}'
 ```
 
 # Candidates
 
-[`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates) is a back-office api that allows to globally define the documents that all apis can recommend or generate search results from. Documents that are not part of the candidates group will not be included in search results or recommendations, but interactions with these documents can still be recorded to use for personalisation.
+The [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates) api is a set back-office requests that allows to globally define the documents that all apis can recommend or generate search results from.  Documents that are not part of the candidates set will not be included in search results or recommendations, but interactions with these documents are still stored and can still be recorded.
 
+After ingesting documents we can check the candidates:
+
+```bash
+curl --location 'https://<url>/documents/candidates' \
+--header 'authorizationToken: <back_office_token>'
+```
+
+This returns a list with all documents ids. By default all newly ingested documents are set to be candidates. This behavior can be changed by passing [`is_candidate`](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) or [`default_is_candidate`](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) in the ingestion request.
+
+Then we can __change__ the candidates by sending a list of document-ids to the `candidates` endpoint:
+
+```bash
+curl --location --request PUT 'https://164pz0ca24.execute-api.eu-central-1.amazonaws.com/default/documents/candidates' \
+--header 'Content-Type: application/json' \
+--header 'authorizationToken: R8yTEtBCuIYqxLXFVnbZ2HVj1DH1fNx5BQwQpih7' \
+--data '{
+    "documents" :[{ "id": "u1234}, { "id": "u1232}, { "id": "u1231}]
+}'
+```
+
+```{note}
+Please note, that setting candidates can only be undone by sending the complete list of all ingested document-ids again. 
+```
+
+The candidates can facilitate fast transitions between different sets of documents without compromising the users' centers of interest (COIs) with which they were engaging. One practical scenario is handling outdated news articles that should not reappear in the recommendations. However, the past user interactions with those outdated articles should still influence the suggested documents.
