@@ -14,6 +14,7 @@ lindera-core = "0.25.0"
 lindera-dictionary = "0.25.0"
 lindera-tokenizer = "0.25.0"
 ndarray = { workspace = true, features = ["serde"] }
+onnxruntime = {version = ">=0.0.2", features = ["model-fetching"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true, optional = true }
