@@ -46,11 +46,18 @@ use super::{
 use crate::{
     app::TenantState,
     error::{
-        common::{BadRequest, DocumentNotFound, InvalidDocumentCount},
+        common::{
+            BadRequest,
+            DocumentNotFound,
+            ForbiddenDevOption,
+            InvalidDevOption,
+            InvalidDocumentCount,
+        },
         warning::Warning,
     },
     models::{DocumentId, DocumentProperties, DocumentQuery, PersonalizedDocument, UserId},
     storage::{self, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
+    tenants,
     utils::deprecate,
     Error,
 };
@@ -181,10 +188,10 @@ impl UnvalidatedPersonalizedDocumentsRequest {
         } = self;
         let config = config.as_ref();
 
-        let count = validate_count(
+        let count = count.unwrap_or(config.default_number_documents);
+        validate_count(
             count,
             config.max_number_documents,
-            config.default_number_documents,
             config.max_number_candidates,
         )?;
         let filter = Filter::insert_published_after(filter, published_after);
@@ -429,8 +436,26 @@ struct DevOption {
 }
 
 impl DevOption {
-    fn is_some(&self) -> bool {
-        self.hybrid.is_some() || self.max_number_candidates.is_some()
+    fn validate(&self, enable_dev: bool, count: usize) -> Result<(), Error> {
+        if !enable_dev && (self.hybrid.is_some() || self.max_number_candidates.is_some()) {
+            // notify the caller instead of silently discarding the dev option
+            return Err(ForbiddenDevOption::DevDisabled.into());
+        }
+        if let Some(DevHybrid::EsRrf { .. }) = self.hybrid {
+            // not available because of the es license, return a 403 instead of forwarding a 500
+            return Err(ForbiddenDevOption::EsRrfUnlisenced.into());
+        }
+        if let Some(max_number_candidates) = self.max_number_candidates {
+            if max_number_candidates < count {
+                return Err(InvalidDevOption::MaxNumberCandidates {
+                    max_number_candidates,
+                    count,
+                }
+                .into());
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -448,43 +473,47 @@ enum DevHybrid {
     },
 }
 
-fn create_search_strategy(
-    enable_hybrid_search: bool,
-    dev: Option<DevHybrid>,
-    query: Option<&DocumentQuery>,
-) -> SearchStrategy<'_> {
-    if !enable_hybrid_search {
-        return SearchStrategy::Knn;
-    }
-    let Some(query) = query else {
-        return SearchStrategy::Knn;
-    };
-    let Some(hybrid) = dev else {
-        return SearchStrategy::Hybrid { query };
-    };
+impl<'a> SearchStrategy<'a> {
+    fn new(
+        enable_hybrid_search: bool,
+        dev_hybrid_search: Option<DevHybrid>,
+        query: Option<&'a DocumentQuery>,
+    ) -> Self {
+        if !enable_hybrid_search {
+            return Self::Knn;
+        }
+        let Some(query) = query else {
+            return Self::Knn;
+        };
+        let Some(dev_hybrid_search) = dev_hybrid_search else {
+            return Self::Hybrid { query };
+        };
 
-    match hybrid {
-        DevHybrid::EsRrf { rank_constant } => SearchStrategy::HybridEsRrf {
-            query,
-            rank_constant,
-        },
-        DevHybrid::Customize {
-            normalize_knn,
-            normalize_bm25,
-            merge_fn,
-        } => SearchStrategy::HybridDev {
-            query,
-            normalize_knn,
-            normalize_bm25,
-            merge_fn,
-        },
+        match dev_hybrid_search {
+            DevHybrid::EsRrf { rank_constant } => Self::HybridEsRrf {
+                query,
+                rank_constant,
+            },
+            DevHybrid::Customize {
+                normalize_knn,
+                normalize_bm25,
+                merge_fn,
+            } => Self::HybridDev {
+                query,
+                normalize_knn,
+                normalize_bm25,
+                merge_fn,
+            },
+        }
     }
 }
 
 impl UnvalidatedSemanticSearchRequest {
     fn validate_and_resolve_defaults(
         self,
-        config: &(impl AsRef<SemanticSearchConfig> + AsRef<PersonalizationConfig>),
+        config: &(impl AsRef<SemanticSearchConfig>
+              + AsRef<PersonalizationConfig>
+              + AsRef<tenants::Config>),
         warnings: &mut Vec<Warning>,
     ) -> Result<SemanticSearchRequest, Error> {
         let Self {
@@ -497,26 +526,34 @@ impl UnvalidatedSemanticSearchRequest {
             include_properties,
             filter,
         } = self;
-        let document = document.validate()?;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
-        let count = validate_count(
+        let tenants_config: &tenants::Config = config.as_ref();
+
+        let document = document.validate()?;
+        let count = count.unwrap_or(semantic_search_config.default_number_documents);
+        dev.validate(tenants_config.enable_dev, count)?;
+        let num_candidates = dev
+            .max_number_candidates
+            .unwrap_or(semantic_search_config.max_number_candidates);
+        validate_count(
             count,
             semantic_search_config.max_number_documents,
-            semantic_search_config.default_number_documents,
-            semantic_search_config.max_number_candidates,
+            num_candidates,
         )?;
         let personalize = personalize
             .map(|personalize| personalize.validate(config.as_ref(), warnings))
             .transpose()?;
+        let dev_hybrid_search = dev.hybrid;
         let filter = Filter::insert_published_after(filter, published_after);
         let is_deprecated = published_after.is_some();
 
         Ok(SemanticSearchRequest {
             document,
             count,
+            num_candidates,
             personalize,
             enable_hybrid_search,
-            dev,
+            dev_hybrid_search,
             include_properties,
             filter,
             is_deprecated,
@@ -573,9 +610,10 @@ impl UnvalidatedPersonalize {
 struct SemanticSearchRequest {
     document: InputDocument,
     count: usize,
+    num_candidates: usize,
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
-    dev: DevOption,
+    dev_hybrid_search: Option<DevHybrid>,
     include_properties: bool,
     filter: Option<Filter>,
     is_deprecated: bool,
@@ -591,19 +629,14 @@ struct Personalize {
     user: InputUser,
 }
 
-fn validate_count(
-    count: Option<usize>,
-    max: usize,
-    default: usize,
-    candidates: usize,
-) -> Result<usize, InvalidDocumentCount> {
-    let count = count.unwrap_or(default);
-
-    if (1..=max.min(candidates)).contains(&count) {
-        Ok(count)
-    } else {
-        Err(InvalidDocumentCount { count, min: 1, max })
+fn validate_count(count: usize, max: usize, candidates: usize) -> Result<(), InvalidDocumentCount> {
+    let min = 1;
+    let max = max.min(candidates);
+    if !(min..=max).contains(&count) {
+        return Err(InvalidDocumentCount { count, min, max });
     }
+
+    Ok(())
 }
 
 #[derive(Serialize)]
@@ -622,50 +655,34 @@ async fn semantic_search(
     let SemanticSearchRequest {
         document,
         count,
+        num_candidates,
         personalize,
         enable_hybrid_search,
-        dev,
+        dev_hybrid_search,
         include_properties,
         filter,
         is_deprecated,
     } = body.validate_and_resolve_defaults(&state.config, &mut warnings)?;
-    if !state.config.tenants.enable_dev && dev.is_some() {
-        // notify the caller instead of silently discarding the dev option
-        return Ok(deprecate!(if is_deprecated {
-            Either::Left(HttpResponse::Forbidden())
-        }));
-    }
-    if let Some(DevHybrid::EsRrf { .. }) = dev.hybrid {
-        // not available because of the es license, return a 403 instead of forwarding a 500
-        return Ok(deprecate!(if is_deprecated {
-            Either::Left(HttpResponse::Forbidden())
-        }));
-    }
 
     let mut excluded = if let Some(personalize) = &personalize {
         personalized_exclusions(&storage, state.config.as_ref(), personalize).await?
     } else {
         Vec::new()
     };
-    let (embedding, strategy) = match document {
+    let (embedding, query) = match document {
         InputDocument::Ref(id) => {
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
             excluded.push(id);
-            (
-                embedding,
-                create_search_strategy(enable_hybrid_search, dev.hybrid, None),
-            )
+            (embedding, None)
         }
         InputDocument::Query(ref query) => {
             let embedding = state.embedder.run(query)?;
-            (
-                embedding,
-                create_search_strategy(enable_hybrid_search, dev.hybrid, Some(query)),
-            )
+            (embedding, Some(query))
         }
     };
+    let strategy = SearchStrategy::new(enable_hybrid_search, dev_hybrid_search, query);
 
     let mut documents = storage::Document::get_by_embedding(
         &storage,
@@ -673,9 +690,7 @@ async fn semantic_search(
             excluded: &excluded,
             embedding: &embedding,
             count,
-            num_candidates: dev
-                .max_number_candidates
-                .unwrap_or(state.config.semantic_search.max_number_candidates),
+            num_candidates,
             strategy,
             include_properties,
             filter: filter.as_ref(),
@@ -695,9 +710,9 @@ async fn semantic_search(
     }
 
     Ok(deprecate!(if is_deprecated {
-        Either::Right(Json(SemanticSearchResponse {
+        Json(SemanticSearchResponse {
             documents: documents.into_iter().map_into().collect(),
-        }))
+        })
     }))
 }
 
