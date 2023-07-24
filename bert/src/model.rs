@@ -42,7 +42,7 @@ enum Dimension {
     Dynamic(DynDim),
 }
 
-impl<T, P> Config<T, P> {
+impl<P> Config<P> {
     fn extract_facts(
         &self,
         io: &'static str,
@@ -93,7 +93,7 @@ pub(crate) struct Prediction(TValue);
 
 impl Model {
     /// Creates a model from a configuration.
-    pub(crate) fn new<T, P>(config: &Config<T, P>) -> Result<Self, TractError> {
+    pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, TractError> {
         let mut model = BufReader::new(File::open(config.dir.join("model.onnx"))?);
         let model = tract_onnx::onnx().model_for_read(&mut model)?;
         let model = config.extract_facts("input", model, InferenceModel::with_input_fact)?;

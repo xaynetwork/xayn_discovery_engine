@@ -40,7 +40,7 @@ mod config;
 mod model;
 mod pipeline;
 mod pooler;
-pub mod tokenizer;
+mod tokenizer;
 
 pub use crate::{
     config::Config,
@@ -58,4 +58,4 @@ pub use crate::{
 };
 
 /// A Transformer pipeline with an average pooler.
-pub type AvgEmbedder = Pipeline<crate::tokenizer::Tokenizer, AveragePooler>;
+pub type AvgEmbedder = Pipeline<AveragePooler>;

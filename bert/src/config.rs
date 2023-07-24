@@ -25,7 +25,7 @@ use crate::{
     model::Model,
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
-    tokenizer::{Tokenize, Tokenizer},
+    tokenizer::Tokenizer,
 };
 
 /// A pipeline configuration.
@@ -40,9 +40,7 @@ use crate::{
 /// # the path is always `tokenizer.json`
 /// [tokenizer]
 /// add-special-tokens = true
-/// use-type-ids = true
 ///
-/// # tokens-related configs of the tokenizer, may differ between tokenizers
 /// [tokenizer.tokens]
 /// # the `token size` must be in the inclusive range, but is passed as an argument
 /// size.min = 2
@@ -80,15 +78,14 @@ use crate::{
 /// type = "f32"
 /// ```
 #[must_use]
-pub struct Config<T, P> {
+pub struct Config<P> {
     pub dir: PathBuf,
     toml: Figment,
     pub(crate) token_size: usize,
-    tokenizer: PhantomData<T>,
     pooler: PhantomData<P>,
 }
 
-impl Config<Tokenizer, NonePooler> {
+impl Config<NonePooler> {
     /// Creates a pipeline configuration.
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         let dir = dir.into();
@@ -101,13 +98,12 @@ impl Config<Tokenizer, NonePooler> {
             dir,
             toml,
             token_size,
-            tokenizer: PhantomData,
             pooler: PhantomData,
         })
     }
 }
 
-impl<T, P> Config<T, P> {
+impl<P> Config<P> {
     const MIN_TOKEN_SIZE: &str = "tokenizer.tokens.size.min";
     const MAX_TOKEN_SIZE: &str = "tokenizer.tokens.size.max";
 
@@ -139,38 +135,21 @@ impl<T, P> Config<T, P> {
         }
     }
 
-    /// Sets the tokenizer for the model.
-    ///
-    /// Defaults to `bert::Tokenizer`.
-    pub fn with_tokenizer<U>(self) -> Config<U, P> {
-        Config {
-            dir: self.dir,
-            toml: self.toml,
-            token_size: self.token_size,
-            tokenizer: PhantomData,
-            pooler: self.pooler,
-        }
-    }
-
     /// Sets the pooler for the model.
     ///
     /// Defaults to `NonePooler`.
-    pub fn with_pooler<Q>(self) -> Config<T, Q> {
+    pub fn with_pooler<Q>(self) -> Config<Q> {
         Config {
             dir: self.dir,
             toml: self.toml,
             token_size: self.token_size,
-            tokenizer: self.tokenizer,
             pooler: PhantomData,
         }
     }
 
     /// Creates a pipeline from a configuration.
-    pub fn build(&self) -> Result<Pipeline<T, P>, PipelineError>
-    where
-        T: Tokenize,
-    {
-        let tokenizer = T::new(self)?;
+    pub fn build(&self) -> Result<Pipeline<P>, PipelineError> {
+        let tokenizer = Tokenizer::new(self)?;
         let model = Model::new(self)?;
 
         Ok(Pipeline {
