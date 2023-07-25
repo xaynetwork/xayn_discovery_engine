@@ -39,7 +39,7 @@ curl -X POST https://<url>/documents
                     "title": "The initial challange",
                     "link": "https://xayn.com/blog/the-initial-challenge",
                     "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
-
+                    "location" : ["germany", "berlin", "conference"],
                 }
             }
         ]
@@ -52,9 +52,9 @@ Each document has a unique identifier that can be used to refer to it in the sys
 
 The `snippet` field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.
 
-For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per-document option 'summarise'; when enabled, the system will summarise the content of the document to create a snippet.
+For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per-document option `summarize`; when enabled, the system will summarise the content of the document to create a snippet.
 
-The 'properties' field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.
+The `properties` field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.
 
 The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see [createDocuments](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) for more information on properties.
 
@@ -99,7 +99,9 @@ curl -X POST https://<url>/users/u1234/interactions
 
 ```
 
+```{note}
 Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the personalised endpoint.
+```
 
 Let's ask for personalised documents again now:
 
@@ -148,7 +150,7 @@ curl -X POST https://<url>/semantic_search
     }'
 ```
 
-The result contains a list of documents that are similar to the `snippet` of the provided _document id_.
+The result contains a list of documents that are similar to the provided document (identified by its _document id_).
 
 ## Free Text search
 
@@ -174,7 +176,6 @@ The quality of the results can vary on the length of the provided query. Short q
 
 ## Personalised search
 
-Any search can also be combined with an `user id` or a user history, which is a list of `interactions`.
 To personalise search results for a specific user, any search can also be combined with an `user id` or a user `history`, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.
 
 This is how we ask the system for a personalised search result for a [user](#recommendations-personalised-documents):
@@ -216,11 +217,129 @@ Alternatively a history of interactions can be used instead of a user id to ask 
 }
 ```
 
+```{note}
 Please note: `"exclude_seen": true` (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.
+```
 
-# Candidates and Filters
+# Filters
 
-For more advanced scenarios, in which just a portion of the documents should be returned there are apis on the front and on the back office:
+Finding specific documents in large datasets based on a key-phrase or their relation to other documents can often be challenging. To address this issue, we can employ a structured filter on one or more of the `properties` fields to narrow down the search scope.
 
-- [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates): is a back-office api that allows to globally define the documents that all apis can recommend or generate search results from. Documents that are not part of the candidates group will not be included in search results or recommendations, but interactions with these documents can still be recorded to use for personalisation.
-- [`/semantic_search filter property`](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments): is a front-office api, that allows to define complex filter scenarios for any user facing request.
+The `filter` functionality is available in the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/search/operation/getSimilarDocuments) and [`/users/{user_id}/personalized_documents`](https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments) endpoints, and it involves a two-step process:
+
+1. Indexing the desired property field for the filter to operate on.
+2. Applying the `filter` in the request to `/semantic_search` or `/users/{user_id}/personalized_documents`.
+
+```{note}
+Please note that the __first step__ is necessary to leverage the filtering at all.
+```
+
+## Indexing a filter property
+
+First lets check which properties are already indexed: 
+
+```bash
+curl --location 'https://<url>/documents/_indexed_properties' \
+--header 'authorizationToken: <back_office_token>>'
+```
+
+This returns just the `publication_date`, which is indexed by default.
+
+```json
+{
+    "properties": {
+        "publication_date": {
+            "type": "date"
+        }
+    }
+}
+```
+
+Next, we can proceed to include our desired property, specifically the `tags` field, in the index. To accomplish this, we need to provide the name and type of the property. The available types for indexing are [`keyword, keyword[], boolean, date, number`](https://docs.xayn.com/back_office.html#tag/property-indexing/operation/createIndexedProperties).
+
+```bash
+curl --location 'https://<url>/documents/_indexed_properties' \
+--header 'Content-Type: application/json' \
+--header 'authorizationToken: <back_office_token>' \
+--data '{
+    "properties": {
+        "location": {
+            "type": "keyword[]"
+        }
+    }
+}'
+
+```
+
+After a short indexing period, depending on the number of ingested documents, we can apply filters to our requests.
+
+## Applying a Filter
+
+Applying a filter then just requires to use the `filter` property in the `/semantic_search` or `/users/{user_id}/personalized_documents` query parameter. In the following two examples we simply filter for the tag `conference`.
+
+```{code-block} bash
+:caption: /semantic_search
+
+curl --location 'https://<url>/semantic_search' \
+--header 'Content-Type: application/json' \
+--header 'authorizationToken: <front_office_token>' \
+--data '{
+    "filter": {
+        "location": {
+            "$in": [
+                "conference"
+            ]
+        }
+    },
+    "document": {
+        "query": "Privacy and security"
+    }
+}'
+```
+
+In `personalized_documents` the filter is applied in a similar way: 
+
+```{code-block} bash
+:caption: /users/{user_id}/personalized_documents
+
+curl --location 'https://<url>/users/<user_id>/personalized_documents' \
+--header 'Content-Type: application/json' \
+--header 'authorizationToken: <front_office_token>'
+--data '{ "filter": {
+    "location": {
+        "$in": [
+            "conference"
+        ]
+    }
+}}'
+```
+
+# Candidates
+
+The [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates) api is a set back-office requests that allows to globally define the documents that all apis can recommend or generate search results from.  Documents that are not part of the candidates set will not be included in search results or recommendations, but interactions with these documents are still stored and can still be recorded.
+
+After ingesting documents we can check the candidates:
+
+```bash
+curl --location 'https://<url>/documents/candidates' \
+--header 'authorizationToken: <back_office_token>'
+```
+
+This returns a list with all documents ids. By default all newly ingested documents are set to be candidates. This behavior can be changed by passing [`is_candidate`](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) or [`default_is_candidate`](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) in the ingestion request.
+
+Then we can __change__ the candidates by sending a list of document-ids to the `candidates` endpoint:
+
+```bash
+curl --location --request PUT 'https://164pz0ca24.execute-api.eu-central-1.amazonaws.com/default/documents/candidates' \
+--header 'Content-Type: application/json' \
+--header 'authorizationToken: R8yTEtBCuIYqxLXFVnbZ2HVj1DH1fNx5BQwQpih7' \
+--data '{
+    "documents" :[{ "id": "u1234}, { "id": "u1232}, { "id": "u1231}]
+}'
+```
+
+```{note}
+Please note, that setting candidates can only be undone by sending the complete list of all ingested document-ids again. 
+```
+
+The candidates can facilitate fast transitions between different sets of documents without compromising the users' centers of interest (COIs) with which they were engaging. One practical scenario is handling outdated news articles that should not reappear in the recommendations. However, the past user interactions with those outdated articles should still influence the suggested documents.

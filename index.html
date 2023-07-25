@@ -9,6 +9,7 @@
         <title>Documentation documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
     
@@ -16,7 +17,7 @@
 
 <style>
   body {
-    --color-code-background: #ffffff;
+    --color-code-background: #f8f8f8;
   --color-code-foreground: black;
   --color-brand-primary: #544998;
   --color-brand-content: #544998;
@@ -27,8 +28,8 @@
   }
   @media not print {
     body[data-theme="dark"] {
-      --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
+      --color-code-background: #272822;
+  --color-code-foreground: #f8f8f2;
   --color-brand-primary: #b3adcf;
   --color-brand-content: #b3adcf;
   --color-api-name: #8d87b7;
@@ -37,8 +38,8 @@
     }
     @media (prefers-color-scheme: dark) {
       body:not([data-theme="light"]) {
-        --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
+        --color-code-background: #272822;
+  --color-code-foreground: #f8f8f2;
   --color-brand-primary: #b3adcf;
   --color-brand-content: #b3adcf;
   --color-api-name: #8d87b7;
@@ -176,7 +177,8 @@
 <li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#ingest">Ingest</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#recommendations-personalised-documents">Recommendations: Personalised documents</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#search">Search</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates-and-filters">Candidates and Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#filters">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates">Candidates</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Api Reference</span></p>
 <ul>
@@ -239,7 +241,12 @@ The front office allows you to interact with the service to manage the users’ 
 <li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#personalised-search">Personalised search</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates-and-filters">Candidates and Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#filters">Filters</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#indexing-a-filter-property">Indexing a filter property</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#applying-a-filter">Applying a Filter</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates">Candidates</a></li>
 </ul>
 </div>
 <p><div class="toctree-wrapper compound">
@@ -318,5 +325,7 @@ The front office allows you to interact with the service to manage the users’ 
     <script src="_static/doctools.js"></script>
     <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/scripts/furo.js"></script>
+    <script src="_static/clipboard.min.js"></script>
+    <script src="_static/copybutton.js"></script>
     </body>
 </html>

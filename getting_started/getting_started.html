@@ -9,6 +9,7 @@
         <title>Overview - Documentation documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?digest=e6660623a769aa55fea372102b9bf3151b292993" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?digest=30d1aed668e5c3a91c3e3bf6a60b675221979f0e" />
     
     
@@ -16,7 +17,7 @@
 
 <style>
   body {
-    --color-code-background: #ffffff;
+    --color-code-background: #f8f8f8;
   --color-code-foreground: black;
   --color-brand-primary: #544998;
   --color-brand-content: #544998;
@@ -27,8 +28,8 @@
   }
   @media not print {
     body[data-theme="dark"] {
-      --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
+      --color-code-background: #272822;
+  --color-code-foreground: #f8f8f2;
   --color-brand-primary: #b3adcf;
   --color-brand-content: #b3adcf;
   --color-api-name: #8d87b7;
@@ -37,8 +38,8 @@
     }
     @media (prefers-color-scheme: dark) {
       body:not([data-theme="light"]) {
-        --color-code-background: #202020;
-  --color-code-foreground: #d0d0d0;
+        --color-code-background: #272822;
+  --color-code-foreground: #f8f8f2;
   --color-brand-primary: #b3adcf;
   --color-brand-content: #b3adcf;
   --color-api-name: #8d87b7;
@@ -176,7 +177,8 @@
 <li class="toctree-l1"><a class="reference internal" href="#ingest">Ingest</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#recommendations-personalised-documents">Recommendations: Personalised documents</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#search">Search</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#candidates-and-filters">Candidates and Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#filters">Filters</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#candidates">Candidates</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Api Reference</span></p>
 <ul>
@@ -254,7 +256,7 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <span class="s2">                    &quot;</span>title<span class="s2">&quot;: &quot;</span>The<span class="w"> </span>initial<span class="w"> </span>challange<span class="s2">&quot;,</span>
 <span class="s2">                    &quot;</span>link<span class="s2">&quot;: &quot;</span>https://xayn.com/blog/the-initial-challenge<span class="s2">&quot;,</span>
 <span class="s2">                    &quot;</span>image<span class="s2">&quot;: &quot;</span>https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png<span class="s2">&quot;,</span>
-
+<span class="s2">                    &quot;</span>location<span class="s2">&quot; : [&quot;</span>germany<span class="s2">&quot;, &quot;</span>berlin<span class="s2">&quot;, &quot;</span>conference<span class="s2">&quot;],</span>
 <span class="s2">                }</span>
 <span class="s2">            }</span>
 <span class="s2">        ]</span>
@@ -264,8 +266,8 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <p>The endpoint takes a list of documents to ingest.</p>
 <p>Each document has a unique identifier that can be used to refer to it in the system.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">snippet</span></code> field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.</p>
-<p>For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per-document option ‘summarise’; when enabled, the system will summarise the content of the document to create a snippet.</p>
-<p>The ‘properties’ field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.</p>
+<p>For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyse is limited, if it is not possible to provide a concise snippet, we can use the per-document option <code class="docutils literal notranslate"><span class="pre">summarize</span></code>; when enabled, the system will summarise the content of the document to create a snippet.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">properties</span></code> field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.</p>
 <p>The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments">createDocuments</a> for more information on properties.</p>
 <p>This example assumes that we will eventually display the returned documents as a ‘for-you’ section, where we want to display an article’s image, title, text preview, and a link (for click-through), so we have included these specific properties during ingestion.</p>
 </section>
@@ -296,7 +298,10 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <span class="s1">    }&#39;</span>
 </pre></div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>Please note that if an interaction between a user and a document is added, the document will <strong>not</strong> be part of the documents returned for future calls to the personalised endpoint.</p>
+</div>
 <p>Let’s ask for personalised documents again now:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents?include_properties<span class="o">=</span><span class="nb">true</span>
 <span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
@@ -336,7 +341,7 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <span class="s1">    }&#39;</span>
 </pre></div>
 </div>
-<p>The result contains a list of documents that are similar to the <code class="docutils literal notranslate"><span class="pre">snippet</span></code> of the provided <em>document id</em>.</p>
+<p>The result contains a list of documents that are similar to the provided document (identified by its <em>document id</em>).</p>
 </section>
 <section id="free-text-search">
 <h2>Free Text search<a class="headerlink" href="#free-text-search" title="Permalink to this heading">#</a></h2>
@@ -359,8 +364,7 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 </section>
 <section id="personalised-search">
 <h2>Personalised search<a class="headerlink" href="#personalised-search" title="Permalink to this heading">#</a></h2>
-<p>Any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user history, which is a list of <code class="docutils literal notranslate"><span class="pre">interactions</span></code>.
-To personalise search results for a specific user, any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user <code class="docutils literal notranslate"><span class="pre">history</span></code>, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.</p>
+<p>To personalise search results for a specific user, any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user <code class="docutils literal notranslate"><span class="pre">history</span></code>, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.</p>
 <p>This is how we ask the system for a personalised search result for a <a class="reference internal" href="#recommendations-personalised-documents"><span class="xref myst">user</span></a>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
 <span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
@@ -395,16 +399,120 @@ To personalise search results for a specific user, any search can also be combin
 <span class="p">}</span>
 </pre></div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
 <p>Please note: <code class="docutils literal notranslate"><span class="pre">&quot;exclude_seen&quot;:</span> <span class="pre">true</span></code> (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.</p>
+</div>
 </section>
 </section>
-<section id="candidates-and-filters">
-<h1>Candidates and Filters<a class="headerlink" href="#candidates-and-filters" title="Permalink to this heading">#</a></h1>
-<p>For more advanced scenarios, in which just a portion of the documents should be returned there are apis on the front and on the back office:</p>
-<ul class="simple">
-<li><p><a class="reference external" href="https://docs.xayn.com/back_office.html#tag/candidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a>: is a back-office api that allows to globally define the documents that all apis can recommend or generate search results from. Documents that are not part of the candidates group will not be included in search results or recommendations, but interactions with these documents can still be recorded to use for personalisation.</p></li>
-<li><p><a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span> <span class="pre">filter</span> <span class="pre">property</span></code></a>: is a front-office api, that allows to define complex filter scenarios for any user facing request.</p></li>
-</ul>
+<section id="filters">
+<h1>Filters<a class="headerlink" href="#filters" title="Permalink to this heading">#</a></h1>
+<p>Finding specific documents in large datasets based on a key-phrase or their relation to other documents can often be challenging. To address this issue, we can employ a structured filter on one or more of the <code class="docutils literal notranslate"><span class="pre">properties</span></code> fields to narrow down the search scope.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">filter</span></code> functionality is available in the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code></a> and <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments"><code class="docutils literal notranslate"><span class="pre">/users/{user_id}/personalized_documents</span></code></a> endpoints, and it involves a two-step process:</p>
+<ol class="arabic simple">
+<li><p>Indexing the desired property field for the filter to operate on.</p></li>
+<li><p>Applying the <code class="docutils literal notranslate"><span class="pre">filter</span></code> in the request to <code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code> or <code class="docutils literal notranslate"><span class="pre">/users/{user_id}/personalized_documents</span></code>.</p></li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Please note that the <strong>first step</strong> is necessary to leverage the filtering at all.</p>
+</div>
+<section id="indexing-a-filter-property">
+<h2>Indexing a filter property<a class="headerlink" href="#indexing-a-filter-property" title="Permalink to this heading">#</a></h2>
+<p>First lets check which properties are already indexed:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/documents/_indexed_properties&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;back_office_token&gt;&gt;&#39;</span>
+</pre></div>
+</div>
+<p>This returns just the <code class="docutils literal notranslate"><span class="pre">publication_date</span></code>, which is indexed by default.</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;publication_date&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;date&quot;</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>Next, we can proceed to include our desired property, specifically the <code class="docutils literal notranslate"><span class="pre">tags</span></code> field, in the index. To accomplish this, we need to provide the name and type of the property. The available types for indexing are <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/property-indexing/operation/createIndexedProperties"><code class="docutils literal notranslate"><span class="pre">keyword,</span> <span class="pre">keyword[],</span> <span class="pre">boolean,</span> <span class="pre">date,</span> <span class="pre">number</span></code></a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/documents/_indexed_properties&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;back_office_token&gt;&#39;</span><span class="w"> </span><span class="se">\</span>
+--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">    &quot;properties&quot;: {</span>
+<span class="s1">        &quot;location&quot;: {</span>
+<span class="s1">            &quot;type&quot;: &quot;keyword[]&quot;</span>
+<span class="s1">        }</span>
+<span class="s1">    }</span>
+<span class="s1">}&#39;</span>
+</pre></div>
+</div>
+<p>After a short indexing period, depending on the number of ingested documents, we can apply filters to our requests.</p>
+</section>
+<section id="applying-a-filter">
+<h2>Applying a Filter<a class="headerlink" href="#applying-a-filter" title="Permalink to this heading">#</a></h2>
+<p>Applying a filter then just requires to use the <code class="docutils literal notranslate"><span class="pre">filter</span></code> property in the <code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code> or <code class="docutils literal notranslate"><span class="pre">/users/{user_id}/personalized_documents</span></code> query parameter. In the following two examples we simply filter for the tag <code class="docutils literal notranslate"><span class="pre">conference</span></code>.</p>
+<div class="literal-block-wrapper docutils container" id="id1">
+<div class="code-block-caption"><span class="caption-text">/semantic_search</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/semantic_search&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;front_office_token&gt;&#39;</span><span class="w"> </span><span class="se">\</span>
+--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">    &quot;filter&quot;: {</span>
+<span class="s1">        &quot;location&quot;: {</span>
+<span class="s1">            &quot;$in&quot;: [</span>
+<span class="s1">                &quot;conference&quot;</span>
+<span class="s1">            ]</span>
+<span class="s1">        }</span>
+<span class="s1">    },</span>
+<span class="s1">    &quot;document&quot;: {</span>
+<span class="s1">        &quot;query&quot;: &quot;Privacy and security&quot;</span>
+<span class="s1">    }</span>
+<span class="s1">}&#39;</span>
+</pre></div>
+</div>
+</div>
+<p>In <code class="docutils literal notranslate"><span class="pre">personalized_documents</span></code> the filter is applied in a similar way:</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">/users/{user_id}/personalized_documents</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/users/&lt;user_id&gt;/personalized_documents&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;front_office_token&gt;&#39;</span>
+--data<span class="w"> </span><span class="s1">&#39;{ &quot;filter&quot;: {</span>
+<span class="s1">    &quot;location&quot;: {</span>
+<span class="s1">        &quot;$in&quot;: [</span>
+<span class="s1">            &quot;conference&quot;</span>
+<span class="s1">        ]</span>
+<span class="s1">    }</span>
+<span class="s1">}}&#39;</span>
+</pre></div>
+</div>
+</div>
+</section>
+</section>
+<section id="candidates">
+<h1>Candidates<a class="headerlink" href="#candidates" title="Permalink to this heading">#</a></h1>
+<p>The <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/candidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a> api is a set back-office requests that allows to globally define the documents that all apis can recommend or generate search results from.  Documents that are not part of the candidates set will not be included in search results or recommendations, but interactions with these documents are still stored and can still be recorded.</p>
+<p>After ingesting documents we can check the candidates:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/documents/candidates&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;back_office_token&gt;&#39;</span>
+</pre></div>
+</div>
+<p>This returns a list with all documents ids. By default all newly ingested documents are set to be candidates. This behavior can be changed by passing <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">is_candidate</span></code></a> or <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">default_is_candidate</span></code></a> in the ingestion request.</p>
+<p>Then we can <strong>change</strong> the candidates by sending a list of document-ids to the <code class="docutils literal notranslate"><span class="pre">candidates</span></code> endpoint:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span>--request<span class="w"> </span>PUT<span class="w"> </span><span class="s1">&#39;https://164pz0ca24.execute-api.eu-central-1.amazonaws.com/default/documents/candidates&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
+--header<span class="w"> </span><span class="s1">&#39;authorizationToken: R8yTEtBCuIYqxLXFVnbZ2HVj1DH1fNx5BQwQpih7&#39;</span><span class="w"> </span><span class="se">\</span>
+--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">    &quot;documents&quot; :[{ &quot;id&quot;: &quot;u1234}, { &quot;id&quot;: &quot;u1232}, { &quot;id&quot;: &quot;u1231}]</span>
+<span class="s1">}&#39;</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Please note, that setting candidates can only be undone by sending the complete list of all ingested document-ids again.</p>
+</div>
+<p>The candidates can facilitate fast transitions between different sets of documents without compromising the users’ centers of interest (COIs) with which they were engaging. One practical scenario is handling outdated news articles that should not reappear in the recommendations. However, the past user interactions with those outdated articles should still influence the suggested documents.</p>
 </section>
 
         </article>
@@ -459,5 +567,7 @@ To personalise search results for a specific user, any search can also be combin
     <script src="../_static/doctools.js"></script>
     <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/scripts/furo.js"></script>
+    <script src="../_static/clipboard.min.js"></script>
+    <script src="../_static/copybutton.js"></script>
     </body>
 </html>
