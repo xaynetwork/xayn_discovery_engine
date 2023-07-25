@@ -273,7 +273,10 @@ impl DocumentProperties {
         max_size: usize,
     ) -> Result<Self, InvalidDocumentProperties> {
         if size > max_size {
-            return Err(InvalidDocumentProperties { size, max_size });
+            return Err(InvalidDocumentProperties::StorageSize {
+                got: size,
+                max: max_size,
+            });
         }
 
         Ok(Self(properties))

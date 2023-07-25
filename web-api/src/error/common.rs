@@ -107,12 +107,11 @@ pub(crate) enum InvalidDocumentPropertyReason {
 
 impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);
 
-/// Storage size of properties is to large. Got {size}, expected {max_size}.
 #[derive(Debug, Error, Display, Serialize)]
-#[allow(clippy::doc_markdown)]
-pub(crate) struct InvalidDocumentProperties {
-    pub(crate) size: usize,
-    pub(crate) max_size: usize,
+#[serde(rename_all = "snake_case")]
+pub(crate) enum InvalidDocumentProperties {
+    /// Storage size of properties is to large. Got {got}, expected {max}.
+    StorageSize { got: usize, max: usize },
 }
 
 impl_application_error!(InvalidDocumentProperties => BAD_REQUEST, INFO);

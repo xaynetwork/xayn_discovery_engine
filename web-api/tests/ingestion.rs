@@ -486,8 +486,10 @@ fn test_ingestion_validation() {
                     "id": "d1",
                     "kind": "InvalidDocumentProperties",
                     "details": {
-                        "size": 27,
-                        "max_size": 10,
+                        "storage_size": {
+                            "got": 27,
+                            "max": 10,
+                        },
                     }
                 })]),
             );
