@@ -56,6 +56,18 @@ pub fn e5_mocked() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "e5_mocked_v0000"])
 }
 
+/// Resoloves the path to the sts data
+pub fn sts_data() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "sts_sentences.json"])
+}
+
+/// Resolves the path to the zdf data
+pub fn zdf_data() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "zdf_sentences.json"])
+}
+
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2,18 +2,13 @@ use std::time::Duration;
 use derive_more::Deref;
 use ndarray::Array2;
 use xayn_ai_bert::{tokenizer::Tokenizer, Config, FirstPooler};
-use xayn_test_utils::asset::smbert;
 use onnxruntime::{environment::Environment, GraphOptimizationLevel, LoggingLevel};
-use onnxruntime::download::vision::ImageClassification;
-use onnxruntime::session::Session;
 use onnxruntime::tensor::OrtOwnedTensor;
 use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, tokenizer::Tokenizer as HfTokenizer, TruncationDirection, TruncationParams, TruncationStrategy};
-use tract_onnx::tract_hir::internal::SessionState;
-use serde::{de, Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer};
+use xayn_test_utils::asset::{sts_data, zdf_data, smbert};
 
-fn create_tokenizer() -> Result<HfTokenizer, Box<dyn std::error::Error>> {
-    let token_size = 128;
-
+fn create_tokenizer(token_size: usize) -> Result<HfTokenizer, Box<dyn std::error::Error>> {
     let config = Config::new(smbert()?)?
         .with_token_size(token_size)?;
     let mut tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json")).unwrap();
@@ -40,7 +35,8 @@ fn create_tokenizer() -> Result<HfTokenizer, Box<dyn std::error::Error>> {
     Ok(tokenizer)
 }
 
-fn run_onnx(tokenizer: HfTokenizer, texts: Texts) -> Result<Duration, Box<dyn std::error::Error>>{
+fn run_onnx(texts: Texts, token_size: usize) -> Result<Duration, Box<dyn std::error::Error>>{
+    let tokenizer = create_tokenizer(token_size)?;
     let token_reshaper = |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
 
     let environment = Environment::builder()
@@ -68,8 +64,7 @@ fn run_onnx(tokenizer: HfTokenizer, texts: Texts) -> Result<Duration, Box<dyn st
     Ok(start.elapsed())
 }
 
-fn run_tract(texts: Texts) -> Result<Duration, Box<dyn std::error::Error>> {
-    let token_size = 128;
+fn run_tract(texts: Texts, token_size: usize) -> Result<Duration, Box<dyn std::error::Error>> {
     let pipeline = Config::new(smbert()?)?
         .with_token_size(token_size)?
         .with_tokenizer::<Tokenizer>()
@@ -84,23 +79,26 @@ fn run_tract(texts: Texts) -> Result<Duration, Box<dyn std::error::Error>> {
 }
 
 
+#[derive(Debug)]
 enum BenchmarkData {
     STS,
     ZDF,
 }
 
+#[derive(Debug)]
 enum Embedder {
     ONNX,
     TRACT,
 }
 
-fn run_benchmark(benchmark_data: BenchmarkData, embedder_type: Embedder) -> Result<(), Box<dyn std::error::Error>> {
-    let tokenizer = create_tokenizer()?;
+fn run_benchmark(benchmark_data: BenchmarkData, embedder_type: Embedder, token_size: usize) -> Result<(), Box<dyn std::error::Error>> {
+    // print config of benchmark in single line
+    println!("Benchmark: {:?}, Embedder: {:?}, Token size: {}", benchmark_data, embedder_type, token_size);
     let sentences = load_data(benchmark_data);
     // measure inference time
     let duration = match embedder_type {
-        Embedder::ONNX => run_onnx(tokenizer, sentences)?,
-        Embedder::TRACT => run_tract(sentences)?,
+        Embedder::ONNX => run_onnx(sentences, token_size)?,
+        Embedder::TRACT => run_tract(sentences, token_size)?,
     };
     // print average inference time
     println!("Inference time: {:?}", duration);
@@ -125,26 +123,22 @@ impl Texts {
     }
 }
 
-fn path_to_sts() -> String {
-    "/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/bert/examples/sts_sentences.json".to_string()
-}
-
-fn path_to_zdf() -> String {
-    "/Users/maciejkrajewski/CLionProjects/xayn_discovery_engine/bert/examples/zdf_sentences.json".to_string()
-}
-
 fn load_data(benchmark_type: BenchmarkData) -> Texts {
     match benchmark_type {
-        BenchmarkData::STS => Texts::from_json(path_to_sts()).unwrap(),
-        BenchmarkData::ZDF => Texts::from_json(path_to_zdf()).unwrap(),
+        BenchmarkData::STS => Texts::from_json(sts_data().unwrap()).unwrap(),
+        BenchmarkData::ZDF => Texts::from_json(zdf_data().unwrap()).unwrap(),
     }
 }
 
-
+/// run with `cargo run --example onnx_runtime`
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    run_benchmark(BenchmarkData::STS, Embedder::TRACT)?;
-    run_benchmark(BenchmarkData::STS, Embedder::ONNX)?;
-    run_benchmark(BenchmarkData::ZDF, Embedder::TRACT)?;
-    run_benchmark(BenchmarkData::ZDF, Embedder::ONNX)?;
+    let token_sizes = vec![64, 128, 256];
+    // run benchmark for different token sizes
+    for token_size in token_sizes {
+        run_benchmark(BenchmarkData::STS, Embedder::TRACT, token_size)?;
+        run_benchmark(BenchmarkData::STS, Embedder::ONNX, token_size)?;
+        run_benchmark(BenchmarkData::ZDF, Embedder::TRACT, token_size)?;
+        run_benchmark(BenchmarkData::ZDF, Embedder::ONNX, token_size)?;
+    }
     Ok(())
 }
