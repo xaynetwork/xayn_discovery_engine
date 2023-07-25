@@ -1,16 +1,32 @@
-use std::time::Duration;
+// Copyright 2021 Xayn AG
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Affero General Public License as
+// published by the Free Software Foundation, version 3.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 use derive_more::Deref;
 use ndarray::Array2;
-use xayn_ai_bert::{tokenizer::Tokenizer, Config, FirstPooler};
-use onnxruntime::{environment::Environment, GraphOptimizationLevel, LoggingLevel};
 use onnxruntime::tensor::OrtOwnedTensor;
-use tokenizers::{PaddingDirection, PaddingParams, PaddingStrategy, tokenizer::Tokenizer as HfTokenizer, TruncationDirection, TruncationParams, TruncationStrategy};
-use serde::{Deserialize, Deserializer};
-use xayn_test_utils::asset::{sts_data, zdf_data, smbert};
+use onnxruntime::{environment::Environment, GraphOptimizationLevel, LoggingLevel};
+use serde::{Deserialize};
+use std::time::Duration;
+use tokenizers::{
+    tokenizer::Tokenizer as HfTokenizer, PaddingDirection, PaddingParams, PaddingStrategy,
+    TruncationDirection, TruncationParams, TruncationStrategy,
+};
+use xayn_ai_bert::{tokenizer::Tokenizer, Config, FirstPooler};
+use xayn_test_utils::asset::{smbert, sts_data, zdf_data};
 
 fn create_tokenizer(token_size: usize) -> Result<HfTokenizer, Box<dyn std::error::Error>> {
-    let config = Config::new(smbert()?)?
-        .with_token_size(token_size)?;
+    let config = Config::new(smbert()?)?.with_token_size(token_size)?;
     let mut tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json")).unwrap();
     let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
     let padding = PaddingParams {
@@ -35,9 +51,10 @@ fn create_tokenizer(token_size: usize) -> Result<HfTokenizer, Box<dyn std::error
     Ok(tokenizer)
 }
 
-fn run_onnx(texts: Texts, token_size: usize) -> Result<Duration, Box<dyn std::error::Error>>{
+fn run_onnx(texts: Texts, token_size: usize) -> Result<Duration, Box<dyn std::error::Error>> {
     let tokenizer = create_tokenizer(token_size)?;
-    let token_reshaper = |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
+    let token_reshaper =
+        |slice: &[u32]| Array2::from_shape_fn((1, slice.len()), |(_, i)| i64::from(slice[i]));
 
     let environment = Environment::builder()
         .with_name("test")
@@ -58,7 +75,7 @@ fn run_onnx(texts: Texts, token_size: usize) -> Result<Duration, Box<dyn std::er
         let attention_mask = token_reshaper(tokens.get_attention_mask());
         let type_ids = token_reshaper(tokens.get_type_ids());
         let in_tensor = vec![token_ids, attention_mask, type_ids];
-        let outputs: Vec<OrtOwnedTensor<f32,_>> = session.run(in_tensor)?;
+        let outputs: Vec<OrtOwnedTensor<f32, _>> = session.run(in_tensor)?;
         //add average pooling at the end
     }
     Ok(start.elapsed())
@@ -78,7 +95,6 @@ fn run_tract(texts: Texts, token_size: usize) -> Result<Duration, Box<dyn std::e
     Ok(start.elapsed())
 }
 
-
 #[derive(Debug)]
 enum BenchmarkData {
     STS,
@@ -91,9 +107,16 @@ enum Embedder {
     TRACT,
 }
 
-fn run_benchmark(benchmark_data: BenchmarkData, embedder_type: Embedder, token_size: usize) -> Result<(), Box<dyn std::error::Error>> {
+fn run_benchmark(
+    benchmark_data: BenchmarkData,
+    embedder_type: Embedder,
+    token_size: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
     // print config of benchmark in single line
-    println!("Benchmark: {:?}, Embedder: {:?}, Token size: {}", benchmark_data, embedder_type, token_size);
+    println!(
+        "Benchmark: {:?}, Embedder: {:?}, Token size: {}",
+        benchmark_data, embedder_type, token_size
+    );
     let sentences = load_data(benchmark_data);
     // measure inference time
     let duration = match embedder_type {
@@ -111,7 +134,9 @@ pub struct Texts(Vec<String>);
 
 impl Texts {
     /// Reads json file with texts and returns a vector of texts.
-    pub fn from_json(path: impl AsRef<std::path::Path>) -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn from_json(
+        path: impl AsRef<std::path::Path>,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         let file = std::fs::File::open(path)?;
         let texts = serde_json::from_reader(file)?;
         Ok(Self(texts))
