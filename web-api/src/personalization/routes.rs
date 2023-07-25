@@ -435,10 +435,6 @@ impl DevOption {
             // notify the caller instead of silently discarding the dev option
             return Err(ForbiddenDevOption::DevDisabled.into());
         }
-        if let Some(DevHybrid::EsRrf { .. }) = self.hybrid {
-            // not available because of the es license, return a 403 instead of forwarding a 500
-            return Err(ForbiddenDevOption::EsRrfUnlicensed.into());
-        }
 
         Ok(())
     }
@@ -447,10 +443,6 @@ impl DevOption {
 #[derive(Clone, Copy, Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 enum DevHybrid {
-    EsRrf {
-        #[serde(default)]
-        rank_constant: Option<u32>,
-    },
     Customize {
         normalize_knn: NormalizationFn,
         normalize_bm25: NormalizationFn,
@@ -475,10 +467,6 @@ impl<'a> SearchStrategy<'a> {
         };
 
         match dev_hybrid_search {
-            DevHybrid::EsRrf { rank_constant } => Self::HybridEsRrf {
-                query,
-                rank_constant,
-            },
             DevHybrid::Customize {
                 normalize_knn,
                 normalize_bm25,

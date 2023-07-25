@@ -156,8 +156,6 @@ impl_application_error!(InvalidDocumentCount => BAD_REQUEST, INFO);
 pub(crate) enum ForbiddenDevOption {
     /// Dev options are not enabled for this tentant
     DevDisabled,
-    /// ES RRF is not enabled because of the license
-    EsRrfUnlicensed,
 }
 
 impl_application_error!(ForbiddenDevOption => FORBIDDEN, INFO);

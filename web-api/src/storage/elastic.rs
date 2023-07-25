@@ -61,13 +61,6 @@ impl Client {
     ) -> Result<HashMap<DocumentId, f32>, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
-            SearchStrategy::HybridEsRrf {
-                query,
-                rank_constant,
-            } => {
-                self.hybrid_search_es_rrf(params, query, rank_constant)
-                    .await
-            }
             SearchStrategy::Hybrid { query } => {
                 let normalize_knn = identity;
                 let normalize_bm25 = normalize_scores_if_max_gt_1;
@@ -144,46 +137,6 @@ impl Client {
 
         let merged = merge_function(normalize_knn(knn_scores), normalize_bm25(bm25_scores));
         Ok(take_highest_n_scores(count, merged))
-    }
-
-    async fn hybrid_search_es_rrf<'a>(
-        &self,
-        params: KnnSearchParams<'a>,
-        query: &DocumentQuery,
-        rank_constant: Option<u32>,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
-        let count = params.count;
-
-        let KnnSearchParts {
-            knn_object,
-            generic_parameters,
-            inner_filter,
-        } = params.create_common_knn_search_parts();
-
-        let request = merge_json_objects([
-            knn_object,
-            generic_parameters,
-            json_object!({
-                "query": { "bool": merge_json_objects([
-                    inner_filter,
-                    json_object!({
-                        "must": { "match": { "snippet": query }}
-                    })
-                ]) },
-                "rank": {
-                    "rrf": {
-                        // must be >= "size"
-                        "window_size": count,
-                        //FIXME If we stabilize this we can omit `rank_constant` if its `None` to
-                        //      safe a few bytes. But during testing we always encode it to always
-                        //      run with the same parameters, even if ES changes the default.
-                        "rank_constant": rank_constant.unwrap_or(60)
-                    }
-                }
-            }),
-        ]);
-
-        Ok(self.search_request(request).await?)
     }
 
     pub(super) async fn insert_documents(

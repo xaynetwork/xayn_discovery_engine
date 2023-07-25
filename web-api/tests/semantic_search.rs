@@ -281,38 +281,6 @@ fn test_semantic_search_with_dev_option_hybrid() {
 }
 
 #[test]
-fn test_semantic_search_with_dev_option_hybrid_es_rrf() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        Some(toml! {
-            [tenants]
-            enable_dev = true
-        }),
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(&client, &ingestion_url).await?;
-
-            send_assert(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "_dev": { "hybrid": { "es_rrf": {} } }
-                    }))
-                    .build()?,
-                // current license is non-compliant for Reciprocal Rank Fusion (RRF)
-                StatusCode::FORBIDDEN,
-                false,
-            )
-            .await;
-
-            Ok(())
-        },
-    );
-}
-
-#[test]
 fn test_semantic_search_with_dev_option_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
