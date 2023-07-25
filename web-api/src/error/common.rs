@@ -152,6 +152,16 @@ pub(crate) struct InvalidDocumentCount {
 
 impl_application_error!(InvalidDocumentCount => BAD_REQUEST, INFO);
 
+#[derive(Debug, Display, Error, Serialize)]
+pub(crate) enum ForbiddenDevOption {
+    /// Dev options are not enabled for this tentant
+    DevDisabled,
+    /// ES RRF is not enabled because of the license
+    EsRrfUnlicensed,
+}
+
+impl_application_error!(ForbiddenDevOption => FORBIDDEN, INFO);
+
 /// Failed to delete some documents.
 #[derive(Debug, Error, Display, Serialize)]
 pub(crate) struct FailedToDeleteSomeDocuments {
