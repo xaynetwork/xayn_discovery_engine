@@ -79,7 +79,7 @@ use crate::{
 /// ```
 #[must_use]
 pub struct Config<P> {
-    pub dir: PathBuf,
+    pub(crate) dir: PathBuf,
     toml: Figment,
     pub(crate) token_size: usize,
     pooler: PhantomData<P>,
@@ -89,7 +89,21 @@ impl Config<NonePooler> {
     /// Creates a pipeline configuration.
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
         let dir = dir.into();
-        let toml = Figment::from(Toml::file(dir.join("config.toml")));
+        if !dir.exists() {
+            return Err(Error::from(Kind::Message(format!(
+                "embedder directory '{}' doesn't exist",
+                dir.display(),
+            ))));
+        }
+        let toml = dir.join("config.toml");
+        if !toml.exists() {
+            return Err(Error::from(Kind::Message(format!(
+                "embedder config '{}' doesn't exist",
+                toml.display(),
+            ))));
+        }
+
+        let toml = Figment::from(Toml::file(toml));
         let token_size = (toml.extract_inner::<usize>(Self::MIN_TOKEN_SIZE)?
             + toml.extract_inner::<usize>(Self::MAX_TOKEN_SIZE)?)
             / 2;
@@ -114,6 +128,19 @@ impl<P> Config<P> {
         self.toml.extract_inner(key).map_err(Into::into)
     }
 
+    pub fn validate(&self) -> Result<(), Error> {
+        let min = self.extract::<usize>(Self::MIN_TOKEN_SIZE)?;
+        let max = self.extract::<usize>(Self::MAX_TOKEN_SIZE)?;
+        if !(min..=max).contains(&self.token_size) {
+            return Err(Error::from(Kind::InvalidValue(
+                Actual::Unsigned(self.token_size as u128),
+                format!("token_size in {min}..={max}"),
+            )));
+        }
+
+        Ok(())
+    }
+
     /// Sets the token size for the tokenizer and the model.
     ///
     /// Defaults to the midpoint of the token size range.
@@ -121,18 +148,10 @@ impl<P> Config<P> {
     /// # Errors
     /// Fails if `size` is not within the token size range.
     pub fn with_token_size(mut self, size: usize) -> Result<Self, Error> {
-        let min = self.extract::<usize>(Self::MIN_TOKEN_SIZE)?;
-        let max = self.extract::<usize>(Self::MAX_TOKEN_SIZE)?;
+        self.token_size = size;
+        self.validate()?;
 
-        if (min..=max).contains(&size) {
-            self.token_size = size;
-            Ok(self)
-        } else {
-            Err(Error::from(Kind::InvalidValue(
-                Actual::Unsigned(size as u128),
-                format!("{min}..={max}"),
-            )))
-        }
+        Ok(self)
     }
 
     /// Sets the pooler for the model.

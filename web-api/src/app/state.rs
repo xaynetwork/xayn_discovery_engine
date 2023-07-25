@@ -61,6 +61,7 @@ where
 
     pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
         let extension = A::create_extension(&config)?;
+        // embedder config is validated during loading
         let embedder = Embedder::load(config.as_ref())?;
         let (silo, legacy_tenant) =
             initialize_silo(config.as_ref(), config.as_ref(), embedder.embedding_size()).await?;

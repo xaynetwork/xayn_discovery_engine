@@ -17,6 +17,7 @@ mod filter;
 
 use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
 
+use anyhow::bail;
 pub(crate) use client::{Client, ClientBuilder};
 use itertools::Itertools;
 use reqwest::Method;
@@ -38,6 +39,7 @@ use super::{
     SearchStrategy,
 };
 use crate::{
+    app::SetupError,
     models::{
         self,
         DocumentId,
@@ -473,6 +475,16 @@ impl Default for IndexUpdateConfig {
     }
 }
 
+impl IndexUpdateConfig {
+    pub(crate) fn validate(&self) -> Result<(), SetupError> {
+        if self.requests_per_second == 0 {
+            bail!("invalid IndexUpdateConfig, requests_per_second must be > 0");
+        }
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum IndexUpdateMethod {
@@ -724,5 +736,10 @@ mod tests {
             .into_iter()
             .collect()
         );
+    }
+
+    #[test]
+    fn test_validate_default_index_update_config() {
+        IndexUpdateConfig::default().validate().unwrap();
     }
 }

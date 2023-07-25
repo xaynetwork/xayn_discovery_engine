@@ -36,24 +36,29 @@ fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
         .canonicalize()
 }
 
-/// Resolves the path to the qasmbert.
+/// Resolves the path to the qasmbert model.
 pub fn qasmbert() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "qasmbert_v0002"])
 }
 
-/// Resolves the path to the smbert.
+/// Resolves the path to the smbert model.
 pub fn smbert() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "smbert_v0004"])
 }
 
-/// Resolves the path to the mocked smbert.
+/// Resolves the path to the mocked smbert model.
 pub fn smbert_mocked() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "smbert_mocked_v0004"])
 }
 
-/// Resolves the path to the e5 like model.
+/// Resolves the path to the mocked e5 model.
 pub fn e5_mocked() -> Result<PathBuf> {
     resolve_path(&[DATA_DIR, "e5_mocked_v0000"])
+}
+
+/// Resolves the path to the xaynia model.
+pub fn xaynia() -> Result<PathBuf> {
+    qasmbert()
 }
 
 #[cfg(test)]
