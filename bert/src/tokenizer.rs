@@ -35,7 +35,7 @@ pub(crate) struct AttentionMask(pub(crate) Array2<i64>);
 
 /// The encoded sequence.
 #[derive(Clone)]
-pub struct Encoding {
+pub(crate) struct Encoding {
     pub(crate) token_ids: Array2<i64>,
     pub(crate) attention_mask: Array2<i64>,
     pub(crate) type_ids: Option<Array2<i64>>,
@@ -72,25 +72,15 @@ impl From<Encoding> for Vec<Array2<i64>> {
     }
 }
 
-pub trait Tokenize {
-    /// Creates a tokenizer from a configuration.
-    fn new<P>(config: &Config<Self, P>) -> Result<Self, Error>
-    where
-        Self: Sized;
-
-    /// Encodes the sequence.
-    fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error>;
-}
-
 /// A pre-configured huggingface tokenizer.
-pub struct Tokenizer {
+pub(crate) struct Tokenizer {
     tokenizer: HfTokenizer,
     add_special_tokens: bool,
     use_type_ids: bool,
 }
 
-impl Tokenize for Tokenizer {
-    fn new<P>(config: &Config<Self, P>) -> Result<Self, Error> {
+impl Tokenizer {
+    pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, Error> {
         let mut tokenizer = HfTokenizer::from_file(config.dir.join("tokenizer.json"))?;
         let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
         let padding = PaddingParams {
@@ -111,8 +101,8 @@ impl Tokenize for Tokenizer {
         };
         tokenizer.with_padding(Some(padding));
         tokenizer.with_truncation(Some(truncation));
-        let use_type_ids = config.extract::<Dict>("model.input")?.len() > 2;
         let add_special_tokens = config.extract::<bool>("tokenizer.add-special-tokens")?;
+        let use_type_ids = config.extract::<Dict>("model.input")?.len() > 2;
 
         Ok(Tokenizer {
             tokenizer,
@@ -121,7 +111,7 @@ impl Tokenize for Tokenizer {
         })
     }
 
-    fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
+    pub(crate) fn encode(&self, sequence: impl AsRef<str>) -> Result<Encoding, Error> {
         let encoding = self
             .tokenizer
             .encode(sequence.as_ref(), self.add_special_tokens)?;
@@ -155,15 +145,15 @@ mod tests {
         assert_eq!(encoding.token_ids.shape(), [1, 257]);
         assert_eq!(
             encoding.token_ids.slice(s![0, ..20]),
-            arr1(&[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+            arr1(&[2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         );
         assert_eq!(
             encoding.attention_mask.slice(s![0, ..20]),
-            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         );
         assert_eq!(
             encoding.type_ids.unwrap().slice(s![0, ..20]),
-            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         );
     }
 
@@ -177,15 +167,15 @@ mod tests {
         assert_eq!(encoding.token_ids.shape(), [1, 257]);
         assert_eq!(
             encoding.token_ids.slice(s![0, ..15]),
-            arr1(&[2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0])
+            arr1(&[2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0]),
         );
         assert_eq!(
             encoding.attention_mask.slice(s![0, ..15]),
-            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0])
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0]),
         );
         assert_eq!(
             encoding.type_ids.unwrap().slice(s![0, ..15]),
-            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+            arr1(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
         );
     }
 
@@ -199,11 +189,11 @@ mod tests {
         assert_eq!(encoding.token_ids.shape(), [1, 258]);
         assert_eq!(
             encoding.token_ids.slice(s![0, ..15]),
-            arr1(&[0, 32255, 621, 3638, 4, 39210, 19515, 20090, 24057, 142_766, 5, 2, 1, 1, 1])
+            arr1(&[0, 32255, 621, 3638, 4, 39210, 19515, 20090, 24057, 142_766, 5, 2, 1, 1, 1]),
         );
         assert_eq!(
             encoding.attention_mask.slice(s![0, ..15]),
-            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0])
+            arr1(&[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]),
         );
         assert!(encoding.type_ids.is_none());
     }
