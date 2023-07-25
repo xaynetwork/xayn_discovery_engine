@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Borrow, collections::HashMap};
+use std::{borrow::Borrow, collections::HashMap, ops::RangeInclusive};
 
 use chrono::DateTime;
 use derive_more::{Deref, DerefMut, Display, Into};
@@ -52,6 +52,27 @@ fn trim(string: &mut String) {
     }
 }
 
+fn validate_string(
+    value: &str,
+    length_constraints: RangeInclusive<usize>,
+    syntax: &'static Regex,
+) -> Result<(), InvalidString> {
+    let size = value.len();
+    if !length_constraints.contains(&size) {
+        Err(InvalidString::Size {
+            got: size,
+            min: *length_constraints.start(),
+            max: *length_constraints.end(),
+        })
+    } else if !syntax.is_match(value) {
+        Err(InvalidString::Syntax {
+            expected: syntax.as_str(),
+        })
+    } else {
+        Ok(())
+    }
+}
+
 macro_rules! string_wrapper {
     ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $syntax:expr, $full_range:expr);* $(;)?) => {
         $(
@@ -78,27 +99,15 @@ macro_rules! string_wrapper {
                 type Error = $error;
 
                 fn try_from(mut value: String) -> Result<Self, Self::Error> {
-                    use std::ops::RangeInclusive;
-                    use $crate::error::common::InvalidString;
+                    use ::std::ops::RangeInclusive;
 
                     trim(&mut value);
 
-                    let size = value.len();
-                    let range = RangeInclusive::from($full_range);
-                    let syntax = &*$syntax;
-                    if !range.contains(&size) {
-                        Err($error(InvalidString::Size {
-                            got: size,
-                            min: *range.start(),
-                            max: *range.end(),
-                        }))
-                    } else if !syntax.is_match(&value) {
-                        Err($error(InvalidString::Syntax {
-                            expected: syntax.as_str(),
-                        }))
-                    } else {
-                        Ok(Self(value))
-                    }
+                    let length_constraints = RangeInclusive::from($full_range);
+                    validate_string(&value, length_constraints, &*$syntax)
+                        .map_err($error)?;
+
+                    Ok(Self(value))
                 }
             }
 
@@ -160,20 +169,10 @@ impl DocumentSnippet {
         let mut value = value.into();
         trim(&mut value);
 
-        let size = value.len();
-        if !(1..=max_size).contains(&value.len()) {
-            Err(InvalidDocumentSnippet(InvalidString::Size {
-                got: size,
-                min: 1,
-                max: max_size,
-            }))
-        } else if !GENERIC_STRING_SYNTAX.is_match(&value) {
-            Err(InvalidDocumentSnippet(InvalidString::Syntax {
-                expected: GENERIC_STRING_SYNTAX.as_str(),
-            }))
-        } else {
-            Ok(Self(value))
-        }
+        validate_string(&value, 1..=max_size, &GENERIC_STRING_SYNTAX)
+            .map_err(InvalidDocumentSnippet)?;
+
+        Ok(Self(value))
     }
 }
 
