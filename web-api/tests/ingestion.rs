@@ -479,7 +479,6 @@ fn test_ingestion_validation() {
             )
             .await;
             assert_eq!(error.kind, Kind::FailedToValidateDocuments);
-            // TODO[pmk/now] this isn't right
             assert_eq!(
                 error.details.unwrap(),
                 Details::Ingest(vec![json!({
