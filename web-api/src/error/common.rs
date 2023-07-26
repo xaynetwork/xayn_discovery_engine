@@ -52,7 +52,7 @@ impl_application_error!(DocumentPropertyNotFound => BAD_REQUEST, INFO);
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum InvalidString {
-    /// Invalid size. Got {got}, expected {min}..={max}.
+    /// Invalid byte size. Got {got}, expected {min}..={max}.
     Size { got: usize, min: usize, max: usize },
     /// Invalid syntax, expected: {expected}
     Syntax { expected: &'static str },
@@ -81,7 +81,7 @@ pub(crate) struct InvalidDocumentPropertyId(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
-/// Malformed property {property}, {invalid_reason}: {invalid_value}
+/// Malformed document property {property}, {invalid_reason}: {invalid_value}
 #[derive(Debug, Error, Display, Serialize)]
 // there are some false positives with clippy and displaydoc
 #[allow(clippy::doc_markdown)]
@@ -110,7 +110,7 @@ impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);
 #[derive(Debug, Error, Display, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum InvalidDocumentProperties {
-    /// Storage size of properties is to large. Got {got}, expected {max}.
+    /// Storage byte size of document properties is to large. Got {got}, expected at most {max}.
     StorageSize { got: usize, max: usize },
 }
 
@@ -174,7 +174,7 @@ pub(crate) struct FailedToValidateDocuments {
 
 impl_application_error!(FailedToValidateDocuments => BAD_REQUEST, INFO);
 
-#[derive(Serialize, Debug, From)]
+#[derive(Serialize, Debug)]
 pub(crate) struct DocumentInBatchError {
     pub(crate) id: String,
     pub(crate) kind: String,

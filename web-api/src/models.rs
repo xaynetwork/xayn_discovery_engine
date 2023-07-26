@@ -99,8 +99,6 @@ macro_rules! string_wrapper {
                 type Error = $error;
 
                 fn try_from(mut value: String) -> Result<Self, Self::Error> {
-                    use ::std::ops::RangeInclusive;
-
                     trim(&mut value);
 
                     let length_constraints = RangeInclusive::from($full_range);
@@ -185,24 +183,19 @@ impl DocumentProperty {
         property_id: &DocumentPropertyId,
         mut value: Value,
     ) -> Result<Self, InvalidDocumentProperty> {
-        let check_string_property_value = |s: &str| {
-            if s.len() <= 2_048 && GENERIC_STRING_SYNTAX.is_match(s) {
-                Ok(())
-            } else {
-                Err(())
-            }
-        };
+        let validate_string =
+            |value: &str| validate_string(value, 0..=2_048, &GENERIC_STRING_SYNTAX);
 
         match &mut value {
             Value::Bool(_) | Value::Number(_) | Value::Null => {}
             Value::String(string) => {
-                let Ok(()) = check_string_property_value(string) else {
+                if validate_string(string).is_err() {
                     return Err(InvalidDocumentProperty {
                         property: property_id.clone(),
                         invalid_value: value,
                         invalid_reason: InvalidDocumentPropertyReason::InvalidString,
                     });
-                };
+                }
             }
             Value::Array(array) => {
                 if array.len() > 100 {
@@ -223,13 +216,13 @@ impl DocumentProperty {
                         });
                     };
                     trim(string);
-                    let Ok(()) = check_string_property_value(string) else {
+                    if validate_string(string).is_err() {
                         return Err(InvalidDocumentProperty {
                             property: property_id.clone(),
                             invalid_value: value.clone(),
                             invalid_reason: InvalidDocumentPropertyReason::InvalidString,
                         });
-                    };
+                    }
                 }
             }
             Value::Object(_) => {
