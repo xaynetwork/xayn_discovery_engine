@@ -12,6 +12,8 @@ actix-web = { version = "4.3.1", default-features = false, features = ["compress
 anyhow = { workspace = true }
 async-stream = "0.3.5"
 async-trait = "0.1.68"
+aws-config = "0.55.3"
+aws-sdk-sagemakerruntime = "0.28.0"
 chrono = { workspace = true }
 clap = { version = "4.3.4", features = ["derive"] }
 const_format = "0.2.31"

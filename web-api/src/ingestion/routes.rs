@@ -28,6 +28,7 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 use xayn_web_api_db_ctrl::{Operation, Silo};
+use futures_util::future;
 
 use super::AppState;
 use crate::{
@@ -391,9 +392,9 @@ async fn upsert_documents(
     let start = Instant::now();
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
-        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
+        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| async {
             let short_text = document.summary.as_deref().unwrap_or(&document.snippet);
-            match state.embedder.run(short_text) {
+            match state.embedder.run(short_text).await {
                 Ok(embedding) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
