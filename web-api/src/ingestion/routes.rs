@@ -20,6 +20,7 @@ use actix_web::{
     Responder,
 };
 use anyhow::anyhow;
+use futures_util::stream::{FuturesOrdered, StreamExt};
 use itertools::{Either, Itertools};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -28,7 +29,6 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 use xayn_web_api_db_ctrl::{Operation, Silo};
-use futures_util::future;
 
 use super::AppState;
 use crate::{
@@ -390,26 +390,40 @@ async fn upsert_documents(
     .await?;
 
     let start = Instant::now();
-    let (new_documents, mut failed_documents) = new_documents
-        .into_iter()
-        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| async {
-            let short_text = document.summary.as_deref().unwrap_or(&document.snippet);
-            match state.embedder.run(short_text).await {
-                Ok(embedding) => Either::Left(models::IngestedDocument {
-                    id: document.id,
-                    snippet: document.snippet,
-                    is_summarized: document.summary.is_some(),
-                    properties: document.properties,
-                    tags: document.tags,
-                    embedding,
-                    is_candidate: new_is_candidate.value,
-                }),
-                Err(error) => {
-                    error!("Failed to embed document '{}': {:#?}", document.id, error);
-                    Either::Right(DocumentInBatchError::new(document.id, &error))
-                }
-            }
-        });
+    let state = &state;
+    let new_documents_len = new_documents.len();
+    let (new_documents, mut failed_documents) =
+        new_documents
+            .into_iter()
+            .map(|(document, new_is_candidate)| async move {
+                let short_text = document.summary.as_deref().unwrap_or(&document.snippet);
+                let embedding = state.embedder.run(short_text).await;
+                (document, new_is_candidate, embedding)
+            })
+            .collect::<FuturesOrdered<_>>()
+            .fold(
+                (Vec::with_capacity(new_documents_len), Vec::new()),
+                |(mut new_documents, mut failed_documents),
+                 (document, new_is_candidate, embedding)| async move {
+                    match embedding {
+                        Ok(embedding) => new_documents.push(models::IngestedDocument {
+                            id: document.id,
+                            snippet: document.snippet,
+                            is_summarized: document.summary.is_some(),
+                            properties: document.properties,
+                            tags: document.tags,
+                            embedding,
+                            is_candidate: new_is_candidate.value,
+                        }),
+                        Err(error) => {
+                            error!("Failed to embed document '{}': {:#?}", document.id, error);
+                            failed_documents.push(DocumentInBatchError::new(document.id, &error));
+                        }
+                    }
+                    (new_documents, failed_documents)
+                },
+            )
+            .await;
 
     debug!(
         "{} new embeddings calculated in {} seconds and {} unchanged embeddings skipped",
