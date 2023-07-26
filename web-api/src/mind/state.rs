@@ -42,11 +42,11 @@ pub(super) struct State {
 }
 
 impl State {
-    pub(super) fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
+    pub(super) async fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
         let embedder = Embedder::load(&embedding::Config {
-            directory: "../assets/xaynia_v0002".into(),
+            // directory: "../assets/xaynia_v0002".into(),
             ..embedding::Config::default()
-        })
+        }).await
         .map_err(|error| Panic::from(&*error))?;
 
         let coi = config.coi.build();
@@ -67,22 +67,22 @@ impl State {
     }
 
     pub(super) async fn insert(&self, documents: Vec<Document>) -> Result<(), Panic> {
-        let documents = documents
-            .into_iter()
-            .map(|document| {
-                let embedding = self.embedder.run(&document.snippet)?;
-                Ok(IngestedDocument {
-                    id: document.id,
-                    snippet: document.snippet,
-                    is_summarized: false,
-                    properties: DocumentProperties::default(),
-                    tags: vec![document.category, document.subcategory].try_into()?,
-                    embedding,
-                    is_candidate: true,
-                })
-            })
-            .try_collect::<_, _, Panic>()?;
-        storage::Document::insert(&self.storage, documents).await?;
+        // let documents = documents
+        //     .into_iter()
+        //     .map(|document| async {
+        //         let embedding = self.embedder.run(&document.snippet).await?;
+        //         Ok(IngestedDocument {
+        //             id: document.id,
+        //             snippet: document.snippet,
+        //             is_summarized: false,
+        //             properties: DocumentProperties::default(),
+        //             tags: vec![document.category, document.subcategory].try_into()?,
+        //             embedding,
+        //             is_candidate: true,
+        //         })
+        //     })
+        //     .try_collect::<_, _, Panic>()?;
+        // storage::Document::insert(&self.storage, documents).await?;
 
         Ok(())
     }

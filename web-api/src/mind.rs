@@ -43,7 +43,7 @@ use crate::{
 async fn run_persona_benchmark() -> Result<(), Panic> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-    let state = State::new(Storage::default(), StateConfig::default())?;
+    let state = State::new(Storage::default(), StateConfig::default()).await?;
     // load documents from document provider to state
     state.insert(document_provider.to_documents()).await?;
     let benchmark_config = PersonaBasedConfig::default();
@@ -122,7 +122,7 @@ async fn run_persona_benchmark() -> Result<(), Panic> {
 async fn run_user_benchmark() -> Result<(), Panic> {
     let document_provider = DocumentProvider::new("news.tsv")?;
 
-    let state = State::new(Storage::default(), StateConfig::default())?;
+    let state = State::new(Storage::default(), StateConfig::default()).await?;
     state.insert(document_provider.to_documents()).await?;
 
     let nranks = vec![5, 10];
@@ -198,7 +198,7 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
     // load list of possible specific topics from file (need to create it)
     let specific_topics = SpecificTopics::new("topics.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-    let state = State::new(Storage::default(), StateConfig::default())?;
+    let state = State::new(Storage::default(), StateConfig::default()).await?;
     // load documents from document provider to state
     state.insert(document_provider.to_documents()).await?;
     let benchmark_config = SaturationConfig::default();
@@ -280,7 +280,7 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
 async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
     let users_interests = Users::new("user_categories.json")?;
     let document_provider = DocumentProvider::new("news.tsv")?;
-    let state = State::new(Storage::default(), StateConfig::default())?;
+    let state = State::new(Storage::default(), StateConfig::default()).await?;
     // load documents from document provider to state
     state.insert(document_provider.to_documents()).await?;
     let benchmark_config = PersonaBasedConfig::default();
@@ -365,7 +365,7 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
     let document_provider = DocumentProvider::new("news.tsv")?;
     let grid_search_config = GridSearchConfig::default();
     let configs = grid_search_config.create_state_configs()?;
-    let mut state = State::new(Storage::default(), StateConfig::default())?;
+    let mut state = State::new(Storage::default(), StateConfig::default()).await?;
     state.insert(document_provider.to_documents()).await?;
     let mut rng = StdRng::seed_from_u64(42);
     let file = File::create("params.json")?;

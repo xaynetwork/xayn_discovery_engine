@@ -87,6 +87,7 @@ impl Embedder {
             .client
             .invoke_endpoint()
             .endpoint_name(self.sagemaker_endpoint_name.clone())
+            .content_type("application/json")
             .body(Blob::new(input.to_string()))
             .send()
             .await
@@ -107,13 +108,13 @@ mod tests {
 
     use super::*;
 
-    #[test]
+    #[tokio::test]
     async fn test_embedder() {
         let config = Config {
            token_size: 250,
            sagemaker_endpoint_name : "e5-small-v2-endpoint".to_string()
         };
-        let embedder = Embedder::load(&config).unwrap();
-        embedder.run("test").unwrap();
+        let embedder = Embedder::load(&config).await.unwrap();
+        embedder.run("test").await.unwrap();
     }
 }
