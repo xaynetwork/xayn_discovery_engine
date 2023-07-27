@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Front Office API
-  version: 2.4.0
+  version: 2.4.1
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -273,8 +273,8 @@ components:
         Filter the documents wrt their properties.
 
         *Comparison:*
-        A key must be a valid `DocumentPropertyId`.
-        The `DocumentProperty` type corresponding to the `DocumentPropertyId` must support the filter operation.
+        A key must be a valid `DocumentPropertyId` and the id must have been indexed before.
+        The compared value must be of the `IndexedPropertyType` for which the id has been indexed.
 
         *Combination:*
         Combinators may only be nested two times.

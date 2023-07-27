@@ -189,8 +189,8 @@ async fn validate_document_properties(
         .try_collect::<_, HashMap<_, _>, Error>()?;
 
     let schema = storage.load_schema().await?;
-    for (property, value) in &properties {
-        schema.validate_property(property, value)?;
+    for (property_id, value) in &properties {
+        schema.validate_property(property_id, value)?;
     }
 
     let size = storage::Size::json(storage, &serde_json::to_value(&properties)?).await?;

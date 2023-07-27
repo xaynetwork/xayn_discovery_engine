@@ -81,19 +81,21 @@ pub(crate) struct InvalidDocumentPropertyId(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
-/// Malformed document property {property}, {invalid_reason}: {invalid_value}
+/// Malformed document property {property_id}, {invalid_reason}: {invalid_value}
 #[derive(Debug, Error, Display, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
 // there are some false positives with clippy and displaydoc
 #[allow(clippy::doc_markdown)]
 pub(crate) struct InvalidDocumentProperty {
-    pub(crate) property: DocumentPropertyId,
+    pub(crate) property_id: DocumentPropertyId,
     pub(crate) invalid_value: Value,
     pub(crate) invalid_reason: InvalidDocumentPropertyReason,
 }
 
 #[derive(Debug, Error, Display, Serialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub(crate) enum InvalidDocumentPropertyReason {
-    /// unsupported value
+    /// unsupported type
     UnsupportedType,
     /// malformed datetime string
     MalformedDateTimeString,
@@ -103,6 +105,8 @@ pub(crate) enum InvalidDocumentPropertyReason {
     InvalidString,
     /// array too long
     InvalidArray,
+    /// unindexed id
+    UnindexedId,
 }
 
 impl_application_error!(InvalidDocumentProperty => BAD_REQUEST, INFO);

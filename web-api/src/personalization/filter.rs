@@ -17,16 +17,22 @@ use std::fmt;
 use chrono::{DateTime, Utc};
 use const_format::formatcp;
 use derive_more::{Deref, DerefMut};
+use itertools::Itertools;
 use serde::{
     de::{Error, MapAccess, SeqAccess, Unexpected, Visitor},
     Deserialize,
     Deserializer,
+    Serialize,
 };
 use serde_json::{json, Number, Value};
 
-use crate::models::{DocumentProperty, DocumentPropertyId};
+use crate::{
+    error::common::InvalidDocumentProperty,
+    models::{DocumentProperty, DocumentPropertyId},
+    storage::property_filter::IndexedPropertiesSchema,
+};
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
 pub(crate) enum CompareOp {
     #[serde(rename = "$eq")]
     Eq,
@@ -113,15 +119,13 @@ impl<'de> Deserialize<'de> for CompareWith {
 
                     CompareOp::In => {
                         if let Some(unexpected) = match &*value {
+                            // we only accept string arrays as valid properties
                             Value::Array(value) => {
                                 let len = value.len();
                                 if len > CompareOp::MAX_VALUES_PER_IN {
                                     return Err(A::Error::invalid_length(len, &Self));
                                 }
-                                value
-                                    .iter()
-                                    .any(|value| !value.is_string())
-                                    .then_some(Unexpected::Seq)
+                                None
                             }
                             Value::Null => Some(Unexpected::Other("null")),
                             Value::Bool(value) => Some(Unexpected::Bool(*value)),
@@ -392,6 +396,20 @@ impl Filter {
             filter
         }
     }
+
+    pub(crate) fn validate(
+        &self,
+        schema: &IndexedPropertiesSchema,
+    ) -> Result<(), InvalidDocumentProperty> {
+        match self {
+            Self::Compare(compare) => schema.validate_filter(&compare.field, &compare.value),
+            Self::Combine(combine) => combine
+                .filters
+                .iter()
+                .map(|filter| filter.validate(schema))
+                .try_collect(),
+        }
+    }
 }
 
 impl<'de> Deserialize<'de> for Filter {
@@ -422,11 +440,68 @@ impl<'de> Deserialize<'de> for Filter {
 
 #[cfg(test)]
 mod tests {
+    use std::{collections::HashMap, fmt::Debug};
+
+    use serde::de::DeserializeOwned;
     use serde_json::json;
 
     use super::*;
+    use crate::{
+        error::common::InvalidDocumentPropertyReason,
+        storage::property_filter::{IndexedPropertyDefinition, IndexedPropertyType},
+    };
 
     const DATE: &str = "1234-05-06T07:08:09Z";
+
+    trait Expecting {
+        const EXPECTING: &'static str;
+    }
+
+    impl Expecting for CompareWith {
+        const EXPECTING: &'static str = Self::EXPECTING;
+    }
+
+    impl Expecting for Compare {
+        const EXPECTING: &'static str = Self::EXPECTING;
+    }
+
+    impl Expecting for Combine {
+        const EXPECTING: &'static str = Self::EXPECTING;
+    }
+
+    fn assert_invalid_len<T>(filter: &str, len: usize, column: usize)
+    where
+        T: Debug + DeserializeOwned + Expecting,
+    {
+        let error = serde_json::from_str::<T>(filter).unwrap_err().to_string();
+        let message = format!(
+            "invalid length {len}, expected {} at line 1 column {column}",
+            T::EXPECTING,
+        );
+        assert_eq!(error, message);
+    }
+
+    fn assert_invalid_type(filter: &str, value: &str, column: usize) {
+        let error = serde_json::from_str::<CompareWith>(filter)
+            .unwrap_err()
+            .to_string();
+        let message = format!(
+            "invalid type: {value}, expected {} at line 1 column {column}",
+            CompareWith::EXPECTING,
+        );
+        assert_eq!(error, message);
+    }
+
+    #[test]
+    fn test_compare_with_null() {
+        assert_invalid_len::<CompareWith>("{}", 0, 2);
+        assert_invalid_len::<CompareWith>(r#"{ "$eq": null, "$eq": null }"#, 2, 28);
+        assert_invalid_type(r#"{ "$in": null }"#, "null", 15);
+        assert_invalid_type(r#"{ "$gt": null }"#, "null", 15);
+        assert_invalid_type(r#"{ "$gte": null }"#, "null", 16);
+        assert_invalid_type(r#"{ "$lt": null }"#, "null", 15);
+        assert_invalid_type(r#"{ "$lte": null }"#, "null", 16);
+    }
 
     #[test]
     fn test_compare_with_bool() {
@@ -444,128 +519,63 @@ mod tests {
                 value: json!(false).try_into().unwrap(),
             },
         );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>("{}")
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 0, expected {} at line 1 column 2",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$eq": true, "$eq": false }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 2, expected {} at line 1 column 29",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$eq": 42 }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid type: integer `42`, expected {} at line 1 column 13",
-                CompareWith::EXPECTING,
-            ),
-        );
+        assert_invalid_len::<CompareWith>("{}", 0, 2);
+        assert_invalid_len::<CompareWith>(r#"{ "$eq": true, "$eq": false }"#, 2, 29);
+        assert_invalid_type(r#"{ "$in": true }"#, "boolean `true`", 15);
+        assert_invalid_type(r#"{ "$gt": true }"#, "boolean `true`", 15);
+        assert_invalid_type(r#"{ "$gte": true }"#, "boolean `true`", 16);
+        assert_invalid_type(r#"{ "$lt": true }"#, "boolean `true`", 15);
+        assert_invalid_type(r#"{ "$lte": true }"#, "boolean `true`", 16);
     }
 
     #[test]
     fn test_compare_with_string() {
         assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$eq": "test" }"#).unwrap(),
+            serde_json::from_str::<CompareWith>(r#"{ "$eq": "abc" }"#).unwrap(),
             CompareWith {
                 operation: CompareOp::Eq,
-                value: json!("test").try_into().unwrap(),
+                value: json!("abc").try_into().unwrap(),
             },
         );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>("{}")
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 0, expected {} at line 1 column 2",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$eq": "test1", "$eq": "test2" }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 2, expected {} at line 1 column 34",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$eq": 42 }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid type: integer `42`, expected {} at line 1 column 13",
-                CompareWith::EXPECTING,
-            ),
-        );
+        assert_invalid_len::<CompareWith>("{}", 0, 2);
+        assert_invalid_len::<CompareWith>(r#"{ "$eq": "abc", "$eq": "def" }"#, 2, 30);
+        assert_invalid_type(r#"{ "$in": "abc" }"#, r#"string "abc""#, 16);
+        assert_invalid_type(r#"{ "$gt": "abc" }"#, "invalid date string", 16);
+        assert_invalid_type(r#"{ "$gte": "abc" }"#, "invalid date string", 17);
+        assert_invalid_type(r#"{ "$lt": "abc" }"#, "invalid date string", 16);
+        assert_invalid_type(r#"{ "$lte": "abc" }"#, "invalid date string", 17);
     }
 
     #[test]
     fn test_compare_with_array_string() {
         assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$in": ["test", "this"] }"#).unwrap(),
+            serde_json::from_str::<CompareWith>(r#"{ "$in": ["a", "b", "c"] }"#).unwrap(),
             CompareWith {
                 operation: CompareOp::In,
-                value: json!(["test", "this"]).try_into().unwrap(),
+                value: json!(["a", "b", "c"]).try_into().unwrap(),
             },
         );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>("{}")
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 0, expected {} at line 1 column 2",
-                CompareWith::EXPECTING,
-            ),
+        assert_invalid_len::<CompareWith>("{}", 0, 2);
+        assert_invalid_len::<CompareWith>(
+            r#"{ "$in": ["a", "b", "c"], "$in": ["d", "e", "f"] }"#,
+            2,
+            50,
         );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(
-                r#"{ "$in": ["test", "this"], "$in": ["test", "that"] }"#
-            )
-            .unwrap_err()
-            .to_string(),
-            format!(
-                "invalid length 2, expected {} at line 1 column 52",
-                CompareWith::EXPECTING,
-            ),
+        assert_invalid_len::<CompareWith>(
+            &json!({ "$in": vec!["a"; CompareOp::MAX_VALUES_PER_IN + 1] }).to_string(),
+            CompareOp::MAX_VALUES_PER_IN + 1,
+            2013,
         );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$in": "test" }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid type: string \"test\", expected {} at line 1 column 17",
-                CompareWith::EXPECTING,
-            ),
-        );
-
-        let array = vec!["test"; CompareOp::MAX_VALUES_PER_IN + 1];
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(&json!({ "$in": array }).to_string())
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length {}, expected {} at line 1 column 3516",
-                CompareOp::MAX_VALUES_PER_IN + 1,
-                CompareWith::EXPECTING,
-            ),
-        );
+        assert_invalid_type(r#"{ "$eq": ["a", "b", "c"] }"#, "sequence", 26);
+        assert_invalid_type(r#"{ "$gt": ["a", "b", "c"] }"#, "sequence", 26);
+        assert_invalid_type(r#"{ "$gte": ["a", "b", "c"] }"#, "sequence", 27);
+        assert_invalid_type(r#"{ "$lt": ["a", "b", "c"] }"#, "sequence", 26);
+        assert_invalid_type(r#"{ "$lte": ["a", "b", "c"] }"#, "sequence", 27);
     }
 
     #[test]
     fn test_compare_with_number() {
-        for operation in [
+        for (op, operation) in [
             ("$gt", CompareOp::Gt),
             ("$gte", CompareOp::Gte),
             ("$lt", CompareOp::Lt),
@@ -573,98 +583,50 @@ mod tests {
         ] {
             for number in [json!(42_u64), json!(-42_i64), json!(42_f64)] {
                 assert_eq!(
-                    serde_json::from_str::<CompareWith>(
-                        &json!({ operation.0: number }).to_string()
-                    )
-                    .unwrap(),
+                    serde_json::from_str::<CompareWith>(&json!({ op: number }).to_string())
+                        .unwrap(),
                     CompareWith {
-                        operation: operation.1,
+                        operation,
                         value: number.try_into().unwrap(),
                     },
                 );
             }
         }
-        assert_eq!(
-            serde_json::from_str::<CompareWith>("{}")
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 0, expected {} at line 1 column 2",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(&json!({ "$gt": 42, "$lt": 42 }).to_string())
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 2, expected {} at line 1 column 19",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$gt": true }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid type: boolean `true`, expected {} at line 1 column 15",
-                CompareWith::EXPECTING,
-            ),
-        );
+        assert_invalid_len::<CompareWith>("{}", 0, 2);
+        assert_invalid_len::<CompareWith>(r#"{ "$gt": 42, "$lt": 42 }"#, 2, 24);
+        assert_invalid_type(r#"{ "$eq": 42 }"#, "integer `42`", 13);
+        assert_invalid_type(r#"{ "$in": 42 }"#, "integer `42`", 13);
     }
 
     #[test]
     fn test_compare_with_date() {
-        for operation in [
+        assert_eq!(
+            serde_json::from_str::<CompareWith>(&json!({ "$eq": DATE }).to_string()).unwrap(),
+            CompareWith {
+                operation: CompareOp::Eq,
+                value: json!(DATE).try_into().unwrap(),
+            },
+        );
+        for (op, operation) in [
             ("$gt", CompareOp::Gt),
             ("$gte", CompareOp::Gte),
             ("$lt", CompareOp::Lt),
             ("$lte", CompareOp::Lte),
         ] {
             assert_eq!(
-                serde_json::from_str::<CompareWith>(&json!({ operation.0: DATE }).to_string())
-                    .unwrap(),
+                serde_json::from_str::<CompareWith>(&json!({ op: DATE }).to_string()).unwrap(),
                 CompareWith {
-                    operation: operation.1,
+                    operation,
                     value: json!(DATE).try_into().unwrap(),
                 },
             );
         }
-        assert_eq!(
-            serde_json::from_str::<CompareWith>("{}")
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 0, expected {} at line 1 column 2",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(&json!({ "$gt": DATE, "$lt": DATE }).to_string())
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 2, expected {} at line 1 column 59",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$gt": true }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid type: boolean `true`, expected {} at line 1 column 15",
-                CompareWith::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<CompareWith>(r#"{ "$gt": "invalid date" }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid type: invalid date string, expected {} at line 1 column 25",
-                CompareWith::EXPECTING,
-            ),
+        assert_invalid_len::<CompareWith>("{}", 0, 2);
+        assert_invalid_len::<CompareWith>(&json!({ "$gt": DATE, "$lt": DATE }).to_string(), 2, 59);
+        assert_invalid_type(
+            &json!({ "$in": DATE }).to_string(),
+            &format!(r#"string "{DATE}""#),
+            30,
         );
     }
 
@@ -679,23 +641,23 @@ mod tests {
             },
         );
         assert_eq!(
-            serde_json::from_str::<Compare>(r#"{ "prop": { "$eq": "test" } }"#).unwrap(),
+            serde_json::from_str::<Compare>(r#"{ "prop": { "$eq": "abc" } }"#).unwrap(),
             Compare {
                 operation: CompareOp::Eq,
                 field: "prop".try_into().unwrap(),
-                value: json!("test").try_into().unwrap(),
+                value: json!("abc").try_into().unwrap(),
             },
         );
         assert_eq!(
-            serde_json::from_str::<Compare>(r#"{ "prop": { "$in": ["test", "this"] } }"#).unwrap(),
+            serde_json::from_str::<Compare>(r#"{ "prop": { "$in": ["a", "b", "c"] } }"#).unwrap(),
             Compare {
                 operation: CompareOp::In,
                 field: "prop".try_into().unwrap(),
-                value: json!(["test", "this"]).try_into().unwrap(),
+                value: json!(["a", "b", "c"]).try_into().unwrap(),
             },
         );
         assert_eq!(
-            serde_json::from_str::<Compare>(&json!({ "prop": { "$gt": 42 } }).to_string()).unwrap(),
+            serde_json::from_str::<Compare>(r#"{ "prop": { "$gt": 42 } }"#).unwrap(),
             Compare {
                 operation: CompareOp::Gt,
                 field: "prop".try_into().unwrap(),
@@ -711,25 +673,11 @@ mod tests {
                 value: json!(DATE).try_into().unwrap(),
             },
         );
-        assert_eq!(
-            serde_json::from_str::<Compare>("{}")
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 0, expected {} at line 1 column 2",
-                Compare::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<Compare>(
-                r#"{ "prop1": { "$eq": "test" }, "prop2": { "$in": ["test", "this"] } }"#
-            )
-            .unwrap_err()
-            .to_string(),
-            format!(
-                "invalid length 2, expected {} at line 1 column 68",
-                Compare::EXPECTING,
-            ),
+        assert_invalid_len::<Compare>("{}", 0, 2);
+        assert_invalid_len::<Compare>(
+            r#"{ "prop1": { "$eq": "a" }, "prop2": { "$in": ["b", "c"] } }"#,
+            2,
+            59,
         );
     }
 
@@ -836,24 +784,8 @@ mod tests {
             combine_1,
         );
 
-        assert_eq!(
-            serde_json::from_str::<Combine>("{}")
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 0, expected {} at line 1 column 2",
-                Combine::EXPECTING,
-            ),
-        );
-        assert_eq!(
-            serde_json::from_str::<Combine>(r#"{ "$and": [], "$and": [] }"#)
-                .unwrap_err()
-                .to_string(),
-            format!(
-                "invalid length 2, expected {} at line 1 column 26",
-                Combine::EXPECTING,
-            ),
-        );
+        assert_invalid_len::<Combine>("{}", 0, 2);
+        assert_invalid_len::<Combine>(r#"{ "$and": [], "$and": [] }"#, 2, 26);
         assert_eq!(
             serde_json::from_str::<Combine>(r#"{ "$and": [ { "$and": [], "$and": [] } ] }"#)
                 .unwrap_err()
@@ -990,5 +922,129 @@ mod tests {
                 filters: Filters(vec![combine_or, published_after_filter]),
             }),
         );
+    }
+
+    #[test]
+    fn test_validate_unindexed() {
+        let id = DocumentPropertyId::try_from("p").unwrap();
+        let schema = IndexedPropertiesSchema::from(HashMap::new());
+        let assert_unindexed = |op: &str, value: Value| {
+            let filter =
+                serde_json::from_str::<Filter>(&json!({ id.as_str(): { op: value } }).to_string())
+                    .unwrap();
+            let error = InvalidDocumentProperty {
+                property_id: id.clone(),
+                invalid_value: value,
+                invalid_reason: InvalidDocumentPropertyReason::UnindexedId,
+            };
+            assert_eq!(filter.validate(&schema).unwrap_err(), error);
+        };
+        assert_unindexed("$eq", json!(true));
+        assert_unindexed("$eq", json!("abc"));
+        assert_unindexed("$in", json!(["a", "b", "c"]));
+        assert_unindexed("$gt", json!(42));
+        assert_unindexed("$gt", json!(DATE));
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    fn assert_compatible(
+        id: &DocumentPropertyId,
+        op: &str,
+        value: Value,
+        expected: IndexedPropertyType,
+    ) {
+        let filter =
+            serde_json::from_str::<Filter>(&json!({ id.as_str(): { op: value } }).to_string())
+                .unwrap();
+        let schema =
+            HashMap::from([(id.clone(), IndexedPropertyDefinition { r#type: expected })]).into();
+        filter.validate(&schema).unwrap();
+    }
+
+    fn assert_incompatible(
+        id: &DocumentPropertyId,
+        op: &str,
+        value: Value,
+        expected: IndexedPropertyType,
+    ) {
+        let filter =
+            serde_json::from_str::<Filter>(&json!({ id.as_str(): { op: value } }).to_string())
+                .unwrap();
+        let schema =
+            HashMap::from([(id.clone(), IndexedPropertyDefinition { r#type: expected })]).into();
+        let error = InvalidDocumentProperty {
+            property_id: id.clone(),
+            invalid_value: value,
+            invalid_reason: InvalidDocumentPropertyReason::IncompatibleType { expected },
+        };
+        assert_eq!(filter.validate(&schema).unwrap_err(), error);
+    }
+
+    #[test]
+    fn test_validate_bool() {
+        let id = DocumentPropertyId::try_from("p").unwrap();
+        let expected = IndexedPropertyType::Boolean;
+        assert_compatible(&id, "$eq", json!(true), expected);
+        assert_incompatible(&id, "$eq", json!("abc"), expected);
+        assert_incompatible(&id, "$in", json!(["a", "b", "c"]), expected);
+        assert_incompatible(&id, "$gt", json!(42), expected);
+        assert_incompatible(&id, "$gt", json!(DATE), expected);
+    }
+
+    #[test]
+    fn test_validate_string() {
+        let id = DocumentPropertyId::try_from("p").unwrap();
+        let expected = IndexedPropertyType::Keyword;
+        assert_compatible(&id, "$eq", json!("abc"), expected);
+        assert_compatible(&id, "$in", json!(["a", "b", "c"]), expected);
+        assert_compatible(&id, "$eq", json!(DATE), expected);
+        assert_incompatible(&id, "$eq", json!(true), expected);
+        assert_incompatible(&id, "$gt", json!(42), expected);
+    }
+
+    #[test]
+    fn test_validate_array_string() {
+        let id = DocumentPropertyId::try_from("p").unwrap();
+        let expected = IndexedPropertyType::KeywordArray;
+        assert_compatible(&id, "$in", json!(["a", "b", "c"]), expected);
+        assert_incompatible(&id, "$eq", json!(true), expected);
+        assert_incompatible(&id, "$eq", json!("abc"), expected);
+        assert_incompatible(&id, "$gt", json!(42), expected);
+        assert_incompatible(&id, "$eq", json!(DATE), expected);
+    }
+
+    #[test]
+    fn test_validate_number() {
+        let id = DocumentPropertyId::try_from("p").unwrap();
+        let expected = IndexedPropertyType::Number;
+        assert_compatible(&id, "$gt", json!(42), expected);
+        assert_incompatible(&id, "$eq", json!(true), expected);
+        assert_incompatible(&id, "$eq", json!("abc"), expected);
+        assert_incompatible(&id, "$in", json!(["a", "b", "c"]), expected);
+        assert_incompatible(&id, "$eq", json!(DATE), expected);
+    }
+
+    #[test]
+    fn test_validate_date() {
+        let id = DocumentPropertyId::try_from("p").unwrap();
+        let expected = IndexedPropertyType::Date;
+        assert_compatible(&id, "$eq", json!(DATE), expected);
+        assert_compatible(&id, "$gt", json!(DATE), expected);
+        assert_incompatible(&id, "$eq", json!(true), expected);
+        assert_incompatible(&id, "$in", json!(["a", "b", "c"]), expected);
+        assert_incompatible(&id, "$gt", json!(42), expected);
+
+        let value = json!("abc");
+        let filter =
+            serde_json::from_str::<Filter>(&json!({ id.as_str(): { "$eq": value } }).to_string())
+                .unwrap();
+        let schema =
+            HashMap::from([(id.clone(), IndexedPropertyDefinition { r#type: expected })]).into();
+        let error = InvalidDocumentProperty {
+            property_id: id,
+            invalid_value: value,
+            invalid_reason: InvalidDocumentPropertyReason::MalformedDateTimeString,
+        };
+        assert_eq!(filter.validate(&schema).unwrap_err(), error);
     }
 }

@@ -170,9 +170,10 @@ struct PersonalizedDocumentsRequest {
 }
 
 impl UnvalidatedPersonalizedDocumentsRequest {
-    fn validate_and_resolve_defaults(
+    async fn validate_and_resolve_defaults(
         self,
         config: &impl AsRef<PersonalizationConfig>,
+        storage: &impl storage::IndexedProperties,
     ) -> Result<PersonalizedDocumentsRequest, Error> {
         let Self {
             count,
@@ -189,6 +190,9 @@ impl UnvalidatedPersonalizedDocumentsRequest {
             config.max_number_candidates,
         )?;
         let filter = Filter::insert_published_after(filter, published_after);
+        if let Some(filter) = &filter {
+            filter.validate(&storage.load_schema().await?)?;
+        }
         let is_deprecated = published_after.is_some();
 
         Ok(PersonalizedDocumentsRequest {
@@ -214,7 +218,8 @@ async fn personalized_documents(
         include_properties,
         is_deprecated,
     } = if let Some(Json(body)) = body {
-        body.validate_and_resolve_defaults(&state.config)?
+        body.validate_and_resolve_defaults(&state.config, &storage)
+            .await?
     } else {
         UnvalidatedPersonalizedDocumentsRequest {
             count: params.count,
@@ -225,7 +230,8 @@ async fn personalized_documents(
                 .transpose()?,
             include_properties: params.include_properties,
         }
-        .validate_and_resolve_defaults(&state.config)?
+        .validate_and_resolve_defaults(&state.config, &storage)
+        .await?
         // TODO: once the deprecated params are removed use this instead in case of no request body
         // PersonalizedDocumentsRequest {
         //     count: state.config.personalization.default_number_documents,
@@ -482,11 +488,12 @@ impl<'a> SearchStrategy<'a> {
 }
 
 impl UnvalidatedSemanticSearchRequest {
-    fn validate_and_resolve_defaults(
+    async fn validate_and_resolve_defaults(
         self,
         config: &(impl AsRef<SemanticSearchConfig>
               + AsRef<PersonalizationConfig>
               + AsRef<tenants::Config>),
+        storage: &impl storage::IndexedProperties,
         warnings: &mut Vec<Warning>,
     ) -> Result<SemanticSearchRequest, Error> {
         let Self {
@@ -518,6 +525,9 @@ impl UnvalidatedSemanticSearchRequest {
             .transpose()?;
         let dev_hybrid_search = dev.hybrid;
         let filter = Filter::insert_published_after(filter, published_after);
+        if let Some(filter) = &filter {
+            filter.validate(&storage.load_schema().await?)?;
+        }
         let is_deprecated = published_after.is_some();
 
         Ok(SemanticSearchRequest {
@@ -635,7 +645,9 @@ async fn semantic_search(
         include_properties,
         filter,
         is_deprecated,
-    } = body.validate_and_resolve_defaults(&state.config, &mut warnings)?;
+    } = body
+        .validate_and_resolve_defaults(&state.config, &storage, &mut warnings)
+        .await?;
 
     let mut excluded = if let Some(personalize) = &personalize {
         personalized_exclusions(&storage, state.config.as_ref(), personalize).await?

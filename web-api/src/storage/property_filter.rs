@@ -30,8 +30,8 @@ use crate::{
 #[derive(Debug, Display, PartialEq, Error, Serialize)]
 #[non_exhaustive]
 pub(crate) enum IncompatibleUpdate {
-    #[display(fmt = "Property {property} is already defined.")]
-    PropertyIsAlreadyIndexed { property: DocumentPropertyId },
+    #[display(fmt = "Property {property_id} is already defined.")]
+    PropertyIsAlreadyIndexed { property_id: DocumentPropertyId },
     #[display(
         fmt = "Only {allowed} indexed properties including publication_date are allowed, got: {count}"
     )]
@@ -58,10 +58,10 @@ impl IndexedPropertiesSchema {
         schema_update: IndexedPropertiesSchemaUpdate,
         max_total_properties: usize,
     ) -> Result<(), IncompatibleUpdate> {
-        for (property, _) in &schema_update {
-            if self.properties.contains_key(property) {
+        for (property_id, _) in &schema_update {
+            if self.properties.contains_key(property_id) {
                 return Err(IncompatibleUpdate::PropertyIsAlreadyIndexed {
-                    property: property.clone(),
+                    property_id: property_id.clone(),
                 });
             }
         }
@@ -78,14 +78,14 @@ impl IndexedPropertiesSchema {
 
     pub(crate) fn validate_property(
         &self,
-        property: &DocumentPropertyId,
+        property_id: &DocumentPropertyId,
         value: &DocumentProperty,
     ) -> Result<(), InvalidDocumentProperty> {
         // This code only checks additional validity constraints coming from a schema
         // but otherwise expect a valid property, hence why we take a `&DocumentProperty`
         // instead of a `&Value`.
         let value = &**value;
-        let Some(definition) = self.properties.get(property) else {
+        let Some(definition) = self.properties.get(property_id) else {
             return Ok(());
         };
         match (value, definition.r#type) {
@@ -93,23 +93,74 @@ impl IndexedPropertiesSchema {
             | (Value::Number(_), IndexedPropertyType::Number)
             | (Value::String(_), IndexedPropertyType::Keyword)
             // we only accept string arrays as valid properties
-            | (Value::Array(_), IndexedPropertyType::KeywordArray) => Ok(()),
+            | (Value::Array(_), IndexedPropertyType::KeywordArray) => {}
             (Value::String(string), IndexedPropertyType::Date) => {
-                DateTime::parse_from_rfc3339(string).map_err(|_| InvalidDocumentProperty {
-                    property: property.clone(),
+                if DateTime::parse_from_rfc3339(string).is_err() {
+                    return Err(InvalidDocumentProperty {
+                        property_id: property_id.clone(),
+                        invalid_value: value.clone(),
+                        invalid_reason: InvalidDocumentPropertyReason::MalformedDateTimeString,
+                    })
+                }
+            }
+            (_, r#type) => {
+                return Err(InvalidDocumentProperty {
+                    property_id: property_id.clone(),
                     invalid_value: value.clone(),
-                    invalid_reason: InvalidDocumentPropertyReason::MalformedDateTimeString,
-                })?;
-                Ok(())
+                    invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
+                        expected: r#type,
+                    },
+                });
             },
-            (_, r#type) => Err(InvalidDocumentProperty {
-                property: property.clone(),
-                invalid_value: value.clone(),
-                invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
-                    expected: r#type,
-                },
-            }),
         }
+
+        Ok(())
+    }
+
+    pub(crate) fn validate_filter(
+        &self,
+        property_id: &DocumentPropertyId,
+        value: &DocumentProperty,
+    ) -> Result<(), InvalidDocumentProperty> {
+        // This code only checks additional validity constraints coming from a schema
+        // but otherwise expect a valid property, hence why we take a `&DocumentProperty`
+        // instead of a `&Value`.
+        let value = &**value;
+        let Some(definition) = self.properties.get(property_id) else {
+            return Err(InvalidDocumentProperty {
+                property_id: property_id.clone(),
+                invalid_value: value.clone(),
+                invalid_reason: InvalidDocumentPropertyReason::UnindexedId,
+            });
+        };
+        match (value, definition.r#type) {
+            (Value::Bool(_), IndexedPropertyType::Boolean)
+            | (Value::Number(_), IndexedPropertyType::Number)
+            | (Value::String(_), IndexedPropertyType::Keyword)
+            // we only accept string arrays as valid properties
+            | (Value::Array(_), IndexedPropertyType::Keyword | IndexedPropertyType::KeywordArray)
+            => {}
+            (Value::String(string), IndexedPropertyType::Date) => {
+                if DateTime::parse_from_rfc3339(string).is_err() {
+                    return Err(InvalidDocumentProperty {
+                        property_id: property_id.clone(),
+                        invalid_value: value.clone(),
+                        invalid_reason: InvalidDocumentPropertyReason::MalformedDateTimeString,
+                    })
+                }
+            }
+            (_, r#type) => {
+                return Err(InvalidDocumentProperty {
+                    property_id: property_id.clone(),
+                    invalid_value: value.clone(),
+                    invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
+                        expected: r#type,
+                    },
+                });
+            },
+        }
+
+        Ok(())
     }
 }
 
@@ -198,8 +249,8 @@ mod tests {
         assert_eq!(
             err,
             IncompatibleUpdate::PropertyIsAlreadyIndexed {
-                property: "foo".try_into().unwrap()
-            }
+                property_id: "foo".try_into().unwrap(),
+            },
         );
     }
 
