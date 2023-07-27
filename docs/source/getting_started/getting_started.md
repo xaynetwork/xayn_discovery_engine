@@ -18,7 +18,7 @@ We have two authentication tokens, one to connect to the back office and one to 
 To authenticate, we need to set the `authenticationToken` header to one of them, depending on what we need to do.
 As our API expects all request bodies to be JSON encoded, we also need to set the `Content-Type` header to `application/json`.
 
-In the follwoing examples we are going to use three environment variables: `$URL`, `$BACKOFFICE_TOKEN`, and `$FRONTOFFICE_TOKEN`.
+In the following examples, we are going to use three environment variables: `$URL`, `$BACKOFFICE_TOKEN`, and `$FRONTOFFICE_TOKEN`.
 To try the examples you need first to set them to the values for your system:
 
 ```bash
