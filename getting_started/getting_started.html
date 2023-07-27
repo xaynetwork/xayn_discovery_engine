@@ -237,30 +237,38 @@ With the front office, it is also possible to implement other use cases such as 
 We have two authentication tokens, one to connect to the back office and one to connect to the front office.<br />
 To authenticate, we need to set the <code class="docutils literal notranslate"><span class="pre">authenticationToken</span></code> header to one of them, depending on what we need to do.
 As our API expects all request bodies to be JSON encoded, we also need to set the <code class="docutils literal notranslate"><span class="pre">Content-Type</span></code> header to <code class="docutils literal notranslate"><span class="pre">application/json</span></code>.</p>
+<p>In the following examples, we are going to use three environment variables: <code class="docutils literal notranslate"><span class="pre">$URL</span></code>, <code class="docutils literal notranslate"><span class="pre">$BACKOFFICE_TOKEN</span></code>, and <code class="docutils literal notranslate"><span class="pre">$FRONTOFFICE_TOKEN</span></code>.
+To try the examples you need to set them to the values for your system beforehand:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">URL</span><span class="o">=</span><span class="s2">&quot;&lt;url&gt;&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">BACKOFFICE_TOKEN</span><span class="o">=</span><span class="s2">&quot;&lt;backoffice_token&gt;&quot;</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">FRONTOFFICE_TOKEN</span><span class="o">=</span><span class="s2">&quot;&lt;frontoffice_token&gt;&quot;</span>
+</pre></div>
+</div>
 </section>
 <section id="ingest">
 <h1>Ingest<a class="headerlink" href="#ingest" title="Permalink to this heading">#</a></h1>
 <p>We can use the back office endpoint <a class="reference external" href="https:/docs.xayn.com/back_office.html#operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">/documents</span></code></a> to ingest documents.</p>
 <p>We will ingest a document that represents this article: <a class="reference external" href="https://xayn.com/blog/the-initial-challenge">https://xayn.com/blog/the-initial-challenge</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/documents
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;back_office_token&gt;&quot;</span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
 <span class="s1">        &quot;documents&quot;: [</span>
 <span class="s1">            {</span>
 <span class="s1">                &quot;id&quot;: &quot;xayn_cd5604c&quot;,</span>
-<span class="s1">                &quot;snippet&quot;: &quot;The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there&#39;</span>s<span class="w"> </span>a<span class="w"> </span>backlash<span class="w"> </span>towards<span class="w"> </span>these<span class="w"> </span>practices.<span class="w"> </span>At<span class="w"> </span>Xayn,<span class="w"> </span>our<span class="w"> </span>mission<span class="w"> </span>is<span class="w"> </span>to<span class="w"> </span>provide<span class="w"> </span>personalisation<span class="w"> </span>without<span class="w"> </span>user<span class="w"> </span>data<span class="w"> </span>leaving<span class="w"> </span>the<span class="w"> </span>device,<span class="w"> </span>maintaining<span class="w"> </span>absolute<span class="w"> </span>privacy.<span class="w"> </span>We<span class="w"> </span>use<span class="w"> </span>semantic<span class="w"> </span>similarity<span class="w"> </span>and<span class="w"> </span>centers<span class="w"> </span>of<span class="w"> </span>interest<span class="w"> </span>to<span class="w"> </span>understand<span class="w"> </span>user<span class="w"> </span>preferences<span class="w"> </span>and<span class="w"> </span>present<span class="w"> </span>better<span class="w"> </span>matching<span class="w"> </span>articles.<span class="w"> </span>With<span class="w"> </span>our<span class="w"> </span>model<span class="w"> </span>Xaynia,<span class="w"> </span>we<span class="w"> </span>offer<span class="w"> </span>semantic<span class="w"> </span>similarity<span class="w"> </span>and<span class="w"> </span>search<span class="w"> </span>with<span class="w"> </span>minimal<span class="w"> </span>energy<span class="w"> </span>consumption<span class="w"> </span>and<span class="w"> </span>at<span class="w"> </span>a<span class="w"> </span>low<span class="w"> </span>price,<span class="w"> </span>making<span class="w"> </span>it<span class="w"> </span>highly<span class="w"> </span>energy-efficient<span class="w"> </span>compared<span class="w"> </span>to<span class="w"> </span>other<span class="w"> </span>transformer<span class="w"> </span>models.<span class="s2">&quot;,</span>
-<span class="s2">                summarize: false,</span>
-
-<span class="s2">                &quot;</span>properties<span class="s2">&quot;: {</span>
-<span class="s2">                    &quot;</span>title<span class="s2">&quot;: &quot;</span>The<span class="w"> </span>initial<span class="w"> </span>challange<span class="s2">&quot;,</span>
-<span class="s2">                    &quot;</span>link<span class="s2">&quot;: &quot;</span>https://xayn.com/blog/the-initial-challenge<span class="s2">&quot;,</span>
-<span class="s2">                    &quot;</span>image<span class="s2">&quot;: &quot;</span>https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png<span class="s2">&quot;,</span>
-<span class="s2">                    &quot;</span>location<span class="s2">&quot; : [&quot;</span>germany<span class="s2">&quot;, &quot;</span>berlin<span class="s2">&quot;, &quot;</span>conference<span class="s2">&quot;],</span>
-<span class="s2">                }</span>
-<span class="s2">            }</span>
-<span class="s2">        ]</span>
-<span class="s2">    }&#39;</span>
+<span class="s1">                &quot;snippet&quot;: &quot;The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there is a backlash towards these practices. At Xayn, our mission is to pr</span>
+<span class="s1">ovide personalisation without user data leaving the device, maintaining absolute privacy. We use semantic similarity and centers of interest to understand user preferences and present better matching articles. Wit</span>
+<span class="s1">h our model Xaynia, we offer semantic similarity and search with minimal energy consumption and at a low price, making it highly energy-efficient compared to other transformer models.&quot;,</span>
+<span class="s1">                &quot;summarize&quot;: false,</span>
+<span class="s1">                &quot;properties&quot;: {</span>
+<span class="s1">                    &quot;title&quot;: &quot;The initial challange&quot;,</span>
+<span class="s1">                    &quot;link&quot;: &quot;https://xayn.com/blog/the-initial-challenge&quot;,</span>
+<span class="s1">                    &quot;image&quot;: &quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png&quot;,</span>
+<span class="s1">                    &quot;location&quot; : [&quot;germany&quot;, &quot;berlin&quot;, &quot;conference&quot;]</span>
+<span class="s1">                }</span>
+<span class="s1">            }</span>
+<span class="s1">        ]</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 <p>The endpoint takes a list of documents to ingest.</p>
@@ -277,8 +285,9 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <p>From a system perspective, a user is represented by an ID that is needed to group their interactions. We don’t need to know who this user is, so it is preferable to create this ID in a privacy-protecting way. For example, create a hash method that converts your user into an ID hash. Please ensure you don’t use any sensitive or personally identifiable information (PII).</p>
 <p>Let’s use <code class="docutils literal notranslate"><span class="pre">u1234</span></code> as the user ID for our example.</p>
 <p>We ask the system for <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments">personalised documents</a> for this user.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/personalized_documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
 </pre></div>
 </div>
 <p>As we can see, this returns with <code class="docutils literal notranslate"><span class="pre">409</span></code> status code and the following body:</p>
@@ -288,12 +297,12 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <p>When there is an error, the system uses the ‘kind’ field to specify what kind of error has occurred. There may also be a <code class="docutils literal notranslate"><span class="pre">details</span></code> field.</p>
 <p>In this case, we have ‘NotEnoughInteractions’. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.</p>
 <p>We can add an <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/interaction">interaction</a> between our user <code class="docutils literal notranslate"><span class="pre">u1234</span></code> and the document <code class="docutils literal notranslate"><span class="pre">xayn_cd5604c</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/users/u1234/interactions
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>PATCH<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/interactions&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
 <span class="s1">        &quot;documents&quot;: [</span>
-<span class="s1">           { &quot;id&quot;: &quot;xayn_cd5604c&quot; }</span>
+<span class="s1">             { &quot;id&quot;: &quot;xayn_cd5604c&quot; }</span>
 <span class="s1">        ]</span>
 <span class="s1">    }&#39;</span>
 </pre></div>
@@ -303,25 +312,30 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <p>Please note that if an interaction between a user and a document is added, the document will <strong>not</strong> be part of the documents returned for future calls to the personalised endpoint.</p>
 </div>
 <p>Let’s ask for personalised documents again now:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>https://&lt;url&gt;/users/u1234/personalized_documents?include_properties<span class="o">=</span><span class="nb">true</span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/personalized_documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 <p>As a result, we will get something like:</p>
-<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;documents&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span>
-<span class="w">      </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;xayn_5283ef3&quot;</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.8736</span><span class="p">,</span>
-<span class="w">      </span><span class="nt">&quot;properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">        </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Why every bit matters&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="nt">&quot;link&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://www.xayn.com/blog/why-every-bit-matters&quot;</span><span class="p">,</span>
-<span class="w">        </span><span class="nt">&quot;image&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg&quot;</span>
-<span class="w">      </span><span class="p">}</span>
-<span class="w">    </span><span class="p">},</span>
-<span class="w">    </span><span class="p">{}</span>
-<span class="w">  </span><span class="p">]</span>
-<span class="p">}</span>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span>{
+  &quot;documents&quot;: [
+  {
+      &quot;id&quot;: &quot;xayn_5283ef3&quot;,
+      &quot;score&quot;: 0.8736,
+      &quot;properties&quot;: {
+          &quot;title&quot;: &quot;Why every bit matters&quot;,
+          &quot;link&quot;: &quot;https://www.xayn.com/blog/why-every-bit-matters&quot;,
+          &quot;image&quot;: &quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg&quot;
+      }
+  },
+  { ... },
+    ...
+  ]
+}
 </pre></div>
 </div>
 <p>In the request, we ask the system to include the properties of the returned documents. We can use this data to implement a ‘more like this’ section.</p>
@@ -333,11 +347,12 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <section id="similar-documents">
 <h2>Similar documents<a class="headerlink" href="#similar-documents" title="Permalink to this heading">#</a></h2>
 <p>In this search variant only a <em>document id</em> must be provided to the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code></a> endpoint.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">        &quot;document&quot;: { &quot;id&quot;: &quot;xayn_cd5604c&quot; }</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;document&quot;: { &quot;id&quot;: &quot;xayn_cd5604c&quot; },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
 <span class="s1">    }&#39;</span>
 </pre></div>
 </div>
@@ -346,18 +361,24 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <section id="free-text-search">
 <h2>Free Text search<a class="headerlink" href="#free-text-search" title="Permalink to this heading">#</a></h2>
 <p>Just like <a class="reference internal" href="#similar-documents"><span class="xref myst">Similar documents</span></a> it is also possible to run a free text search.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">        &quot;document&quot;: { &quot;query&quot;: &quot;Privacy and security&quot; }</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;document&quot;: {</span>
+<span class="s1">            &quot;query&quot;: &quot;Privacy and security&quot;</span>
+<span class="s1">        },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
 <span class="s1">    }&#39;</span>
 </pre></div>
 </div>
-<p>The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments">hybrid search option</a> enabled, that combines semantic and bm25 search:</p>
+<p>The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments">hybrid search option</a> enabled, that combines semantic and lexical search:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;document&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Privacy and security&quot;</span><span class="w"> </span><span class="p">},</span>
-<span class="w">  </span><span class="nt">&quot;enable_hybrid_search&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="w">  </span><span class="nt">&quot;enable_hybrid_search&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;document&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Privacy and security&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;include_properties&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span>
 <span class="p">}</span>
 </pre></div>
 </div>
@@ -366,17 +387,18 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <h2>Personalised search<a class="headerlink" href="#personalised-search" title="Permalink to this heading">#</a></h2>
 <p>To personalise search results for a specific user, any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user <code class="docutils literal notranslate"><span class="pre">history</span></code>, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.</p>
 <p>This is how we ask the system for a personalised search result for a <a class="reference internal" href="#recommendations-personalised-documents"><span class="xref myst">user</span></a>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span>https://&lt;url&gt;/semantic_search
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;authorizationToken: &lt;front_office_token&gt;&quot;</span>
-<span class="w">    </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
-<span class="w">    </span>-d<span class="w"> </span><span class="s1">&#39;{</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
 <span class="s1">        &quot;document&quot;: { &quot;query&quot;: &quot;Privacy and security&quot; },</span>
 <span class="s1">        &quot;personalize&quot;: {</span>
 <span class="s1">            &quot;exclude_seen&quot;: true,</span>
 <span class="s1">            &quot;user&quot;: {</span>
-<span class="s1">                &quot;id&quot;: &quot;u1234&quot;,</span>
+<span class="s1">                &quot;id&quot;: &quot;u1234&quot;</span>
 <span class="s1">            }</span>
-<span class="s1">        }</span>
+<span class="s1">        },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
 <span class="s1">    }&#39;</span>
 </pre></div>
 </div>
@@ -385,16 +407,16 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;personalize&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="nt">&quot;exclude_seen&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
 <span class="w">    </span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">       </span><span class="nt">&quot;history&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">            </span><span class="p">{</span>
-<span class="w">                </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id1&quot;</span><span class="p">,</span>
-<span class="w">                </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-14T20:22:50Z&quot;</span>
-<span class="w">            </span><span class="p">},</span>
-<span class="w">            </span><span class="p">{</span>
-<span class="w">                </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id2&quot;</span><span class="p">,</span>
-<span class="w">                </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-15T20:22:50Z&quot;</span>
-<span class="w">            </span><span class="p">}</span>
-<span class="w">        </span><span class="p">]</span>
+<span class="w">         </span><span class="nt">&quot;history&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">             </span><span class="p">{</span>
+<span class="w">                 </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id1&quot;</span><span class="p">,</span>
+<span class="w">                 </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-14T20:22:50Z&quot;</span>
+<span class="w">             </span><span class="p">},</span>
+<span class="w">             </span><span class="p">{</span>
+<span class="w">                 </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id2&quot;</span><span class="p">,</span>
+<span class="w">                 </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-15T20:22:50Z&quot;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">         </span><span class="p">]</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
@@ -420,8 +442,8 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <section id="indexing-a-filter-property">
 <h2>Indexing a filter property<a class="headerlink" href="#indexing-a-filter-property" title="Permalink to this heading">#</a></h2>
 <p>First lets check which properties are already indexed:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/documents/_indexed_properties&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;back_office_token&gt;&gt;&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents/_indexed_properties&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span>
 </pre></div>
 </div>
 <p>This returns just the <code class="docutils literal notranslate"><span class="pre">publication_date</span></code>, which is indexed by default.</p>
@@ -435,16 +457,16 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 </pre></div>
 </div>
 <p>Next, we can proceed to include our desired property, specifically the <code class="docutils literal notranslate"><span class="pre">tags</span></code> field, in the index. To accomplish this, we need to provide the name and type of the property. The available types for indexing are <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/property-indexing/operation/createIndexedProperties"><code class="docutils literal notranslate"><span class="pre">keyword,</span> <span class="pre">keyword[],</span> <span class="pre">boolean,</span> <span class="pre">date,</span> <span class="pre">number</span></code></a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/documents/_indexed_properties&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;back_office_token&gt;&#39;</span><span class="w"> </span><span class="se">\</span>
---data<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;properties&quot;: {</span>
-<span class="s1">        &quot;location&quot;: {</span>
-<span class="s1">            &quot;type&quot;: &quot;keyword[]&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents/_indexed_properties&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;properties&quot;: {</span>
+<span class="s1">            &quot;location&quot;: {</span>
+<span class="s1">                &quot;type&quot;: &quot;keyword[]&quot;</span>
+<span class="s1">            }</span>
 <span class="s1">        }</span>
-<span class="s1">    }</span>
-<span class="s1">}&#39;</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 <p>After a short indexing period, depending on the number of ingested documents, we can apply filters to our requests.</p>
@@ -454,37 +476,42 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <p>Applying a filter then just requires to use the <code class="docutils literal notranslate"><span class="pre">filter</span></code> property in the <code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code> or <code class="docutils literal notranslate"><span class="pre">/users/{user_id}/personalized_documents</span></code> query parameter. In the following two examples we simply filter for the tag <code class="docutils literal notranslate"><span class="pre">conference</span></code>.</p>
 <div class="literal-block-wrapper docutils container" id="id1">
 <div class="code-block-caption"><span class="caption-text">/semantic_search</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/semantic_search&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;front_office_token&gt;&#39;</span><span class="w"> </span><span class="se">\</span>
---data<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;filter&quot;: {</span>
-<span class="s1">        &quot;location&quot;: {</span>
-<span class="s1">            &quot;$in&quot;: [</span>
-<span class="s1">                &quot;conference&quot;</span>
-<span class="s1">            ]</span>
-<span class="s1">        }</span>
-<span class="s1">    },</span>
-<span class="s1">    &quot;document&quot;: {</span>
-<span class="s1">        &quot;query&quot;: &quot;Privacy and security&quot;</span>
-<span class="s1">    }</span>
-<span class="s1">}&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;filter&quot;: {</span>
+<span class="s1">            &quot;location&quot;: {</span>
+<span class="s1">                &quot;$in&quot;: [</span>
+<span class="s1">                    &quot;conference&quot;,</span>
+<span class="s1">                    &quot;hamburg&quot;</span>
+<span class="s1">                ]</span>
+<span class="s1">            }</span>
+<span class="s1">        },</span>
+<span class="s1">        &quot;document&quot;: {</span>
+<span class="s1">            &quot;query&quot;: &quot;Privacy and security&quot;</span>
+<span class="s1">        },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 </div>
 <p>In <code class="docutils literal notranslate"><span class="pre">personalized_documents</span></code> the filter is applied in a similar way:</p>
 <div class="literal-block-wrapper docutils container" id="id2">
 <div class="code-block-caption"><span class="caption-text">/users/{user_id}/personalized_documents</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/users/&lt;user_id&gt;/personalized_documents&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;front_office_token&gt;&#39;</span>
---data<span class="w"> </span><span class="s1">&#39;{ &quot;filter&quot;: {</span>
-<span class="s1">    &quot;location&quot;: {</span>
-<span class="s1">        &quot;$in&quot;: [</span>
-<span class="s1">            &quot;conference&quot;</span>
-<span class="s1">        ]</span>
-<span class="s1">    }</span>
-<span class="s1">}}&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/personalized_documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;filter&quot;: {</span>
+<span class="s1">            &quot;location&quot;: {</span>
+<span class="s1">                &quot;$in&quot;: [</span>
+<span class="s1">                    &quot;conference&quot;</span>
+<span class="s1">                ]</span>
+<span class="s1">            }</span>
+<span class="s1">        },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 </div>
@@ -494,18 +521,22 @@ As our API expects all request bodies to be JSON encoded, we also need to set th
 <h1>Candidates<a class="headerlink" href="#candidates" title="Permalink to this heading">#</a></h1>
 <p>The <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/candidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a> api is a set back-office requests that allows to globally define the documents that all apis can recommend or generate search results from.  Documents that are not part of the candidates set will not be included in search results or recommendations, but interactions with these documents are still stored and can still be recorded.</p>
 <p>After ingesting documents we can check the candidates:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span><span class="s1">&#39;https://&lt;url&gt;/documents/candidates&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;authorizationToken: &lt;back_office_token&gt;&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents/candidates&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span>
 </pre></div>
 </div>
 <p>This returns a list with all documents ids. By default all newly ingested documents are set to be candidates. This behavior can be changed by passing <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">is_candidate</span></code></a> or <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">default_is_candidate</span></code></a> in the ingestion request.</p>
 <p>Then we can <strong>change</strong> the candidates by sending a list of document-ids to the <code class="docutils literal notranslate"><span class="pre">candidates</span></code> endpoint:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>--location<span class="w"> </span>--request<span class="w"> </span>PUT<span class="w"> </span><span class="s1">&#39;https://164pz0ca24.execute-api.eu-central-1.amazonaws.com/default/documents/candidates&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;Content-Type: application/json&#39;</span><span class="w"> </span><span class="se">\</span>
---header<span class="w"> </span><span class="s1">&#39;authorizationToken: R8yTEtBCuIYqxLXFVnbZ2HVj1DH1fNx5BQwQpih7&#39;</span><span class="w"> </span><span class="se">\</span>
---data<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">    &quot;documents&quot; :[{ &quot;id&quot;: &quot;u1234}, { &quot;id&quot;: &quot;u1232}, { &quot;id&quot;: &quot;u1231}]</span>
-<span class="s1">}&#39;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>PUT<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents/candidates&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;documents&quot;: [</span>
+<span class="s1">            { &quot;id&quot;: &quot;xayn_cd5604c&quot; },</span>
+<span class="s1">            { &quot;id&quot;: &quot;xayn_5283ef3&quot; },</span>
+<span class="s1">            { &quot;id&quot;: &quot;xayn_97afa2a&quot; }</span>
+<span class="s1">        ]</span>
+<span class="s1">    }&#39;</span>
 </pre></div>
 </div>
 <div class="admonition note">
