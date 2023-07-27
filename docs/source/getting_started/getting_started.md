@@ -19,7 +19,7 @@ To authenticate, we need to set the `authenticationToken` header to one of them,
 As our API expects all request bodies to be JSON encoded, we also need to set the `Content-Type` header to `application/json`.
 
 In the following examples, we are going to use three environment variables: `$URL`, `$BACKOFFICE_TOKEN`, and `$FRONTOFFICE_TOKEN`.
-To try the examples you need first to set them to the values for your system:
+To try the examples you need to set them to the values for your system beforehand:
 
 ```bash
 export URL="<url>"
@@ -35,8 +35,8 @@ We will ingest a document that represents this article: [https://xayn.com/blog/t
 
 ```bash
 curl -X POST "$URL/documents" \
-    -H "authorizationToken: $BACKOFFICE_TOKEN" \
-    -H "Content-Type: application/json" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
     -d '{
         "documents": [
             {
@@ -100,8 +100,8 @@ We can add an [interaction](https://docs.xayn.com/front_office.html#tag/interact
 
 ```bash
 curl -X PATCH "$URL/users/u1234/interactions" \
-    -H "authorizationToken: $FRONTOFFICE_TOKEN" \
-    -H "Content-Type: application/json" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
     -d '{
         "documents": [
              { "id": "xayn_cd5604c" }
@@ -117,8 +117,8 @@ Let's ask for personalised documents again now:
 
 ```bash
 curl -X POST "$URL/users/u1234/personalized_documents" \
-    -H "Content-Type: application/json" \
-    -H "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     -d '{
         "include_properties": true
     }'
@@ -158,8 +158,8 @@ In this search variant only a _document id_ must be provided to the [`/semantic_
 
 ```bash
 curl -X POST "$URL/semantic_search" \
-    -H "authorizationToken: <front_office_token>" \
-    -H "Content-Type: application/json" \
+    --header "authorizationToken: <front_office_token>" \
+    --header "Content-Type: application/json" \
     -d '{
         "document": { "id": "xayn_cd5604c" },
         "include_properties": true
@@ -174,8 +174,8 @@ Just like [Similar documents](#similar-documents) it is also possible to run a f
 
 ```bash
 curl -X POST "$URL/semantic_search" \
-    -H "authorizationToken: $FRONTOFFICE_TOKEN" \
-    -H "Content-Type: application/json" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
     -d '{
         "document": {
             "query": "Privacy and security"
@@ -184,7 +184,7 @@ curl -X POST "$URL/semantic_search" \
     }'
 ```
 
-The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the [hybrid search option](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) enabled, that combines semantic and term search:
+The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the [hybrid search option](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) enabled, that combines semantic and lexical search:
 
 ```json
 {
@@ -204,8 +204,8 @@ This is how we ask the system for a personalised search result for a [user](#rec
 
 ```bash
 curl -X POST "$URL/semantic_search" \
-    -H "authorizationToken: $FRONTOFFICE_TOKEN" \
-    -H "Content-Type: application/json" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
     -d '{
         "document": { "query": "Privacy and security" },
         "personalize": {
