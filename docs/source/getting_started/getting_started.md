@@ -37,7 +37,7 @@ We will ingest a document that represents this article: [https://xayn.com/blog/t
 curl -X POST "$URL/documents" \
     --header "authorizationToken: $BACKOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
-    -d '{
+    --data '{
         "documents": [
             {
                 "id": "xayn_cd5604c",
@@ -83,7 +83,8 @@ We ask the system for [personalised documents](https://docs.xayn.com/front_offic
 
 ```bash
 curl -X POST "$URL/users/u1234/personalized_documents" \
-    -H "authorizationToken: $FRONTOFFICE_TOKEN"
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json"
 ```
 
 As we can see, this returns with `409` status code and the following body:
@@ -102,7 +103,7 @@ We can add an [interaction](https://docs.xayn.com/front_office.html#tag/interact
 curl -X PATCH "$URL/users/u1234/interactions" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
-    -d '{
+    --data '{
         "documents": [
              { "id": "xayn_cd5604c" }
         ]
@@ -117,9 +118,9 @@ Let's ask for personalised documents again now:
 
 ```bash
 curl -X POST "$URL/users/u1234/personalized_documents" \
-    --header "Content-Type: application/json" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
-    -d '{
+    --header "Content-Type: application/json" \
+    --data '{
         "include_properties": true
     }'
 ```
@@ -158,9 +159,9 @@ In this search variant only a _document id_ must be provided to the [`/semantic_
 
 ```bash
 curl -X POST "$URL/semantic_search" \
-    --header "authorizationToken: <front_office_token>" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
-    -d '{
+    --data '{
         "document": { "id": "xayn_cd5604c" },
         "include_properties": true
     }'
@@ -176,7 +177,7 @@ Just like [Similar documents](#similar-documents) it is also possible to run a f
 curl -X POST "$URL/semantic_search" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
-    -d '{
+    --data '{
         "document": {
             "query": "Privacy and security"
         },
@@ -206,7 +207,7 @@ This is how we ask the system for a personalised search result for a [user](#rec
 curl -X POST "$URL/semantic_search" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
-    -d '{
+    --data '{
         "document": { "query": "Privacy and security" },
         "personalize": {
             "exclude_seen": true,
@@ -282,9 +283,9 @@ Next, we can proceed to include our desired property, specifically the `tags` fi
 
 ```bash
 curl -X POST "$URL/documents/_indexed_properties" \
-    --header "Content-Type: application/json" \
     --header "authorizationToken: $BACKOFFICE_TOKEN" \
-    -d '{
+    --header "Content-Type: application/json" \
+    --data '{
         "properties": {
             "location": {
                 "type": "keyword[]"
@@ -303,9 +304,9 @@ Applying a filter then just requires to use the `filter` property in the `/seman
 :caption: /semantic_search
 
 curl -X POST "$URL/semantic_search" \
-    --header "Content-Type: application/json" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
-    -d '{
+    --header "Content-Type: application/json" \
+    --data '{
         "filter": {
             "location": {
                 "$in": [
@@ -327,9 +328,9 @@ In `personalized_documents` the filter is applied in a similar way:
 :caption: /users/{user_id}/personalized_documents
 
 curl -X POST "$URL/users/u1234/personalized_documents" \
-    --header "Content-Type: application/json" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
-    -d '{
+    --header "Content-Type: application/json" \
+    --data '{
         "filter": {
             "location": {
                 "$in": [
@@ -358,9 +359,9 @@ Then we can __change__ the candidates by sending a list of document-ids to the `
 
 ```bash
 curl -X PUT "$URL/documents/candidates" \
-    --header "Content-Type: application/json" \
     --header "authorizationToken: $BACKOFFICE_TOKEN" \
-    -d '{
+    --header "Content-Type: application/json" \
+    --data '{
         "documents": [
             { "id": "xayn_cd5604c" },
             { "id": "xayn_5283ef3" },
