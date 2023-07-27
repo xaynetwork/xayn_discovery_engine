@@ -583,7 +583,7 @@ mod tests {
         ] {
             for number in [json!(42_u64), json!(-42_i64), json!(42_f64)] {
                 assert_eq!(
-                    serde_json::from_str::<CompareWith>(&format!(r#"{{ "{op}": {number} }}"#))
+                    serde_json::from_str::<CompareWith>(&json!({ op: number }).to_string())
                         .unwrap(),
                     CompareWith {
                         operation,
@@ -601,7 +601,7 @@ mod tests {
     #[test]
     fn test_compare_with_date() {
         assert_eq!(
-            serde_json::from_str::<CompareWith>(&format!(r#"{{ "$eq": "{DATE}" }}"#)).unwrap(),
+            serde_json::from_str::<CompareWith>(&json!({ "$eq": DATE }).to_string()).unwrap(),
             CompareWith {
                 operation: CompareOp::Eq,
                 value: json!(DATE).try_into().unwrap(),
@@ -614,7 +614,7 @@ mod tests {
             ("$lte", CompareOp::Lte),
         ] {
             assert_eq!(
-                serde_json::from_str::<CompareWith>(&format!(r#"{{ "{op}": "{DATE}" }}"#)).unwrap(),
+                serde_json::from_str::<CompareWith>(&json!({ op: DATE }).to_string()).unwrap(),
                 CompareWith {
                     operation,
                     value: json!(DATE).try_into().unwrap(),
@@ -624,9 +624,9 @@ mod tests {
         assert_invalid_len::<CompareWith>("{}", 0, 2);
         assert_invalid_len::<CompareWith>(&json!({ "$gt": DATE, "$lt": DATE }).to_string(), 2, 59);
         assert_invalid_type(
-            &format!(r#"{{ "$in": "{DATE}" }}"#),
+            &json!({ "$in": DATE }).to_string(),
             &format!(r#"string "{DATE}""#),
-            33,
+            30,
         );
     }
 
@@ -665,7 +665,7 @@ mod tests {
             },
         );
         assert_eq!(
-            serde_json::from_str::<Compare>(&format!(r#"{{ "prop": {{ "$gt": "{DATE}" }} }}"#))
+            serde_json::from_str::<Compare>(&json!({ "prop": { "$gt": DATE } }).to_string())
                 .unwrap(),
             Compare {
                 operation: CompareOp::Gt,
@@ -930,7 +930,7 @@ mod tests {
         let schema = IndexedPropertiesSchema::from(HashMap::new());
         let assert_unindexed = |op: &str, value: Value| {
             let filter =
-                serde_json::from_str::<Filter>(&format!(r#"{{ "{id}": {{ "{op}": {value} }} }}"#))
+                serde_json::from_str::<Filter>(&json!({ id.as_str(): { op: value } }).to_string())
                     .unwrap();
             let error = InvalidDocumentProperty {
                 property_id: id.clone(),
@@ -954,7 +954,7 @@ mod tests {
         expected: IndexedPropertyType,
     ) {
         let filter =
-            serde_json::from_str::<Filter>(&format!(r#"{{ "{id}": {{ "{op}": {value} }} }}"#))
+            serde_json::from_str::<Filter>(&json!({ id.as_str(): { op: value } }).to_string())
                 .unwrap();
         let schema =
             HashMap::from([(id.clone(), IndexedPropertyDefinition { r#type: expected })]).into();
@@ -968,7 +968,7 @@ mod tests {
         expected: IndexedPropertyType,
     ) {
         let filter =
-            serde_json::from_str::<Filter>(&format!(r#"{{ "{id}": {{ "{op}": {value} }} }}"#))
+            serde_json::from_str::<Filter>(&json!({ id.as_str(): { op: value } }).to_string())
                 .unwrap();
         let schema =
             HashMap::from([(id.clone(), IndexedPropertyDefinition { r#type: expected })]).into();
@@ -1036,7 +1036,7 @@ mod tests {
 
         let value = json!("abc");
         let filter =
-            serde_json::from_str::<Filter>(&format!(r#"{{ "{id}": {{ "$eq": {value} }} }}"#))
+            serde_json::from_str::<Filter>(&json!({ id.as_str(): { "$eq": value } }).to_string())
                 .unwrap();
         let schema =
             HashMap::from([(id.clone(), IndexedPropertyDefinition { r#type: expected })]).into();
