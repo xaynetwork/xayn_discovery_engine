@@ -14,7 +14,6 @@ lindera-core = "0.25.0"
 lindera-dictionary = "0.25.0"
 lindera-tokenizer = "0.25.0"
 ndarray = { workspace = true, features = ["serde"] }
-onnxruntime = {version = ">=0.0.2", features = ["model-fetching"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true, optional = true }
@@ -27,6 +26,9 @@ xayn-test-utils = { path = "../test-utils" }
 criterion = { workspace = true }
 csv = { workspace = true }
 indicatif = "0.17.5"
+onnxruntime = {version = ">=0.0.2", features = ["model-fetching"] }
+ort = {version = "1.15.2", features = ["download-binaries"] }
+rand = "0.8.5"
 
 [[example]]
 name = "bert"
