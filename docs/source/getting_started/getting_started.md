@@ -18,6 +18,15 @@ We have two authentication tokens, one to connect to the back office and one to 
 To authenticate, we need to set the `authenticationToken` header to one of them, depending on what we need to do.
 As our API expects all request bodies to be JSON encoded, we also need to set the `Content-Type` header to `application/json`.
 
+In the following examples, we are going to use three environment variables: `$URL`, `$BACKOFFICE_TOKEN`, and `$FRONTOFFICE_TOKEN`.
+To try the examples you need to set them to the values for your system beforehand:
+
+```bash
+export URL="<url>"
+export BACKOFFICE_TOKEN="<backoffice_token>"
+export FRONTOFFICE_TOKEN="<frontoffice_token>"
+```
+
 # Ingest
 
 We can use the back office endpoint [`/documents`](https:/docs.xayn.com/back_office.html#operation/createDocuments) to ingest documents.
@@ -25,25 +34,27 @@ We can use the back office endpoint [`/documents`](https:/docs.xayn.com/back_off
 We will ingest a document that represents this article: [https://xayn.com/blog/the-initial-challenge](https://xayn.com/blog/the-initial-challenge).
 
 ```bash
-curl -X POST https://<url>/documents
-    -H "authorizationToken: <back_office_token>"
-    -H "Content-Type: application/json"
-    -d '{
+curl -X POST "$URL/documents" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
         "documents": [
             {
                 "id": "xayn_cd5604c",
-                "snippet": "The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there's a backlash towards these practices. At Xayn, our mission is to provide personalisation without user data leaving the device, maintaining absolute privacy. We use semantic similarity and centers of interest to understand user preferences and present better matching articles. With our model Xaynia, we offer semantic similarity and search with minimal energy consumption and at a low price, making it highly energy-efficient compared to other transformer models.",
-                summarize: false,
-
+                "snippet": "The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there is a backlash towards these practices. At Xayn, our mission is to pr
+ovide personalisation without user data leaving the device, maintaining absolute privacy. We use semantic similarity and centers of interest to understand user preferences and present better matching articles. Wit
+h our model Xaynia, we offer semantic similarity and search with minimal energy consumption and at a low price, making it highly energy-efficient compared to other transformer models.",
+                "summarize": false,
                 "properties": {
                     "title": "The initial challange",
                     "link": "https://xayn.com/blog/the-initial-challenge",
                     "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
-                    "location" : ["germany", "berlin", "conference"],
+                    "location" : ["germany", "berlin", "conference"]
                 }
             }
         ]
     }'
+
 ```
 
 The endpoint takes a list of documents to ingest.
@@ -71,8 +82,9 @@ Let's use `u1234` as the user ID for our example.
 We ask the system for [personalised documents](https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments) for this user.
 
 ```bash
-curl https://<url>/users/u1234/personalized_documents
-    -H "authorizationToken: <front_office_token>"
+curl -X POST "$URL/users/u1234/personalized_documents" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json"
 ```
 
 As we can see, this returns with `409` status code and the following body:
@@ -88,15 +100,14 @@ In this case, we have 'NotEnoughInteractions'. This means that the system needs 
 We can add an [interaction](https://docs.xayn.com/front_office.html#tag/interaction) between our user `u1234` and the document `xayn_cd5604c`:
 
 ```bash
-curl -X POST https://<url>/users/u1234/interactions
-    -H "authorizationToken: <front_office_token>"
-    -H "Content-Type: application/json"
-    -d '{
+curl -X PATCH "$URL/users/u1234/interactions" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
         "documents": [
-           { "id": "xayn_cd5604c" }
+             { "id": "xayn_cd5604c" }
         ]
     }'
-
 ```
 
 ```{note}
@@ -106,8 +117,12 @@ Please note that if an interaction between a user and a document is added, the d
 Let's ask for personalised documents again now:
 
 ```bash
-curl https://<url>/users/u1234/personalized_documents?include_properties=true
-    -H "authorizationToken: <front_office_token>"
+curl -X POST "$URL/users/u1234/personalized_documents" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "include_properties": true
+    }'
 ```
 
 As a result, we will get something like:
@@ -115,16 +130,17 @@ As a result, we will get something like:
 ```json
 {
   "documents": [
-    {
+  {
       "id": "xayn_5283ef3",
       "score": 0.8736,
       "properties": {
-        "title": "Why every bit matters",
-        "link": "https://www.xayn.com/blog/why-every-bit-matters",
-        "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg"
+          "title": "Why every bit matters",
+          "link": "https://www.xayn.com/blog/why-every-bit-matters",
+          "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg"
       }
-    },
-    {}
+  },
+  { ... },
+    ...
   ]
 }
 ```
@@ -142,11 +158,12 @@ Depending on the use-case searching for documents can be achieved as a search fo
 In this search variant only a _document id_ must be provided to the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) endpoint.
 
 ```bash
-curl -X POST https://<url>/semantic_search
-    -H "authorizationToken: <front_office_token>"
-    -H "Content-Type: application/json"
-    -d '{
-        "document": { "id": "xayn_cd5604c" }
+curl -X POST "$URL/semantic_search" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "document": { "id": "xayn_cd5604c" },
+        "include_properties": true
     }'
 ```
 
@@ -157,20 +174,26 @@ The result contains a list of documents that are similar to the provided documen
 Just like [Similar documents](#similar-documents) it is also possible to run a free text search.
 
 ```bash
-curl -X POST https://<url>/semantic_search
-    -H "authorizationToken: <front_office_token>"
-    -H "Content-Type: application/json"
-    -d '{
-        "document": { "query": "Privacy and security" }
+curl -X POST "$URL/semantic_search" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "document": {
+            "query": "Privacy and security"
+        },
+        "include_properties": true
     }'
 ```
 
-The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the [hybrid search option](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) enabled, that combines semantic and bm25 search:
+The quality of the results can vary on the length of the provided query. Short queries usually yield better results with the [hybrid search option](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) enabled, that combines semantic and lexical search:
 
 ```json
 {
-  "document": { "query": "Privacy and security" },
-  "enable_hybrid_search": true
+  "enable_hybrid_search": true,
+  "document": {
+      "query": "Privacy and security"
+  },
+  "include_properties": true
 }
 ```
 
@@ -181,17 +204,18 @@ To personalise search results for a specific user, any search can also be combin
 This is how we ask the system for a personalised search result for a [user](#recommendations-personalised-documents):
 
 ```bash
-curl -X POST https://<url>/semantic_search
-    -H "authorizationToken: <front_office_token>"
-    -H "Content-Type: application/json"
-    -d '{
+curl -X POST "$URL/semantic_search" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
         "document": { "query": "Privacy and security" },
         "personalize": {
             "exclude_seen": true,
             "user": {
-                "id": "u1234",
+                "id": "u1234"
             }
-        }
+        },
+        "include_properties": true
     }'
 ```
 
@@ -203,16 +227,16 @@ Alternatively a history of interactions can be used instead of a user id to ask 
 "personalize": {
     "exclude_seen": true,
     "user": {
-       "history": [
-            {
-                "id": "valid_doc_id1",
-                "timestamp": "2000-05-14T20:22:50Z"
-            },
-            {
-                "id": "valid_doc_id2",
-                "timestamp": "2000-05-15T20:22:50Z"
-            }
-        ]
+         "history": [
+             {
+                 "id": "valid_doc_id1",
+                 "timestamp": "2000-05-14T20:22:50Z"
+             },
+             {
+                 "id": "valid_doc_id2",
+                 "timestamp": "2000-05-15T20:22:50Z"
+             }
+         ]
     }
 }
 ```
@@ -239,8 +263,8 @@ Please note that the __first step__ is necessary to leverage the filtering at al
 First lets check which properties are already indexed: 
 
 ```bash
-curl --location 'https://<url>/documents/_indexed_properties' \
---header 'authorizationToken: <back_office_token>>'
+curl -X GET "$URL/documents/_indexed_properties" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN"
 ```
 
 This returns just the `publication_date`, which is indexed by default.
@@ -258,17 +282,16 @@ This returns just the `publication_date`, which is indexed by default.
 Next, we can proceed to include our desired property, specifically the `tags` field, in the index. To accomplish this, we need to provide the name and type of the property. The available types for indexing are [`keyword, keyword[], boolean, date, number`](https://docs.xayn.com/back_office.html#tag/property-indexing/operation/createIndexedProperties).
 
 ```bash
-curl --location 'https://<url>/documents/_indexed_properties' \
---header 'Content-Type: application/json' \
---header 'authorizationToken: <back_office_token>' \
---data '{
-    "properties": {
-        "location": {
-            "type": "keyword[]"
+curl -X POST "$URL/documents/_indexed_properties" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "properties": {
+            "location": {
+                "type": "keyword[]"
+            }
         }
-    }
-}'
-
+    }'
 ```
 
 After a short indexing period, depending on the number of ingested documents, we can apply filters to our requests.
@@ -280,21 +303,23 @@ Applying a filter then just requires to use the `filter` property in the `/seman
 ```{code-block} bash
 :caption: /semantic_search
 
-curl --location 'https://<url>/semantic_search' \
---header 'Content-Type: application/json' \
---header 'authorizationToken: <front_office_token>' \
---data '{
-    "filter": {
-        "location": {
-            "$in": [
-                "conference"
-            ]
-        }
-    },
-    "document": {
-        "query": "Privacy and security"
-    }
-}'
+curl -X POST "$URL/semantic_search" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "filter": {
+            "location": {
+                "$in": [
+                    "conference",
+                    "hamburg"
+                ]
+            }
+        },
+        "document": {
+            "query": "Privacy and security"
+        },
+        "include_properties": true
+    }'
 ```
 
 In `personalized_documents` the filter is applied in a similar way: 
@@ -302,16 +327,19 @@ In `personalized_documents` the filter is applied in a similar way:
 ```{code-block} bash
 :caption: /users/{user_id}/personalized_documents
 
-curl --location 'https://<url>/users/<user_id>/personalized_documents' \
---header 'Content-Type: application/json' \
---header 'authorizationToken: <front_office_token>'
---data '{ "filter": {
-    "location": {
-        "$in": [
-            "conference"
-        ]
-    }
-}}'
+curl -X POST "$URL/users/u1234/personalized_documents" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "filter": {
+            "location": {
+                "$in": [
+                    "conference"
+                ]
+            }
+        },
+        "include_properties": true
+    }'
 ```
 
 # Candidates
@@ -321,8 +349,8 @@ The [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates) api i
 After ingesting documents we can check the candidates:
 
 ```bash
-curl --location 'https://<url>/documents/candidates' \
---header 'authorizationToken: <back_office_token>'
+curl -X GET "$URL/documents/candidates" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN"
 ```
 
 This returns a list with all documents ids. By default all newly ingested documents are set to be candidates. This behavior can be changed by passing [`is_candidate`](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) or [`default_is_candidate`](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) in the ingestion request.
@@ -330,12 +358,16 @@ This returns a list with all documents ids. By default all newly ingested docume
 Then we can __change__ the candidates by sending a list of document-ids to the `candidates` endpoint:
 
 ```bash
-curl --location --request PUT 'https://164pz0ca24.execute-api.eu-central-1.amazonaws.com/default/documents/candidates' \
---header 'Content-Type: application/json' \
---header 'authorizationToken: R8yTEtBCuIYqxLXFVnbZ2HVj1DH1fNx5BQwQpih7' \
---data '{
-    "documents" :[{ "id": "u1234}, { "id": "u1232}, { "id": "u1231}]
-}'
+curl -X PUT "$URL/documents/candidates" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "documents": [
+            { "id": "xayn_cd5604c" },
+            { "id": "xayn_5283ef3" },
+            { "id": "xayn_97afa2a" }
+        ]
+    }'
 ```
 
 ```{note}
