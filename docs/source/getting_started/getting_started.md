@@ -309,7 +309,8 @@ curl -X POST "$URL/semantic_search" \
         "filter": {
             "location": {
                 "$in": [
-                    "conference"
+                    "conference",
+                    "hamburg"
                 ]
             }
         },
