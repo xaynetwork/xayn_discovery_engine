@@ -323,7 +323,7 @@ fn test_check_new_property_values_against_schema() {
                                 }
                             },
                             "invalid_value": bad_value,
-                            "property": property,
+                            "property_id": property,
                         }
                     }])
                 );
@@ -356,7 +356,7 @@ fn test_check_new_property_values_against_schema() {
                 assert_eq!(
                     &res["details"],
                     &json!({
-                        "property": property,
+                        "property_id": property,
                         "invalid_reason": {
                             "IncompatibleType": {
                                 "expected": expected_type
@@ -398,7 +398,7 @@ fn test_check_new_property_values_against_schema() {
                 assert_eq!(
                     &res["details"],
                     &json!({
-                        "property": property,
+                        "property_id": property,
                         "invalid_reason": {
                             "IncompatibleType": {
                                 "expected": expected_type

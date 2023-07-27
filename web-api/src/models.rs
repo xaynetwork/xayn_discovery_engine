@@ -191,7 +191,7 @@ impl DocumentProperty {
             Value::String(string) => {
                 if validate_string(string).is_err() {
                     return Err(InvalidDocumentProperty {
-                        property: property_id.clone(),
+                        property_id: property_id.clone(),
                         invalid_value: value,
                         invalid_reason: InvalidDocumentPropertyReason::InvalidString,
                     });
@@ -200,7 +200,7 @@ impl DocumentProperty {
             Value::Array(array) => {
                 if array.len() > 100 {
                     return Err(InvalidDocumentProperty {
-                        property: property_id.clone(),
+                        property_id: property_id.clone(),
                         invalid_value: value.clone(),
                         invalid_reason: InvalidDocumentPropertyReason::InvalidArray,
                     });
@@ -208,7 +208,7 @@ impl DocumentProperty {
                 for value in array {
                     let Value::String(ref mut string) = value else {
                         return Err(InvalidDocumentProperty {
-                            property: property_id.clone(),
+                            property_id: property_id.clone(),
                             invalid_value: value.clone(),
                             invalid_reason: InvalidDocumentPropertyReason::IncompatibleType {
                                 expected: IndexedPropertyType::Keyword,
@@ -218,7 +218,7 @@ impl DocumentProperty {
                     trim(string);
                     if validate_string(string).is_err() {
                         return Err(InvalidDocumentProperty {
-                            property: property_id.clone(),
+                            property_id: property_id.clone(),
                             invalid_value: value.clone(),
                             invalid_reason: InvalidDocumentPropertyReason::InvalidString,
                         });
@@ -227,7 +227,7 @@ impl DocumentProperty {
             }
             Value::Object(_) => {
                 return Err(InvalidDocumentProperty {
-                    property: property_id.clone(),
+                    property_id: property_id.clone(),
                     invalid_value: value.clone(),
                     invalid_reason: InvalidDocumentPropertyReason::UnsupportedType,
                 });

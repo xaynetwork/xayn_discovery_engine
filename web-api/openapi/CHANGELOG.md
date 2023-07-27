@@ -1,3 +1,7 @@
+# 2.4.1 - 2023-07-31
+
+- Clarify requirements for filters regarding the indexed document properties
+
 # 2.4.0 - 2023-07-20
 
 - Add property filters to the `/users/{id}/personalized_documents` and `/semantic_search` front-office endpoints:

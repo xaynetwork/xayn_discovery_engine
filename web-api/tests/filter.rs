@@ -918,6 +918,7 @@ fn test_filter_no_value() {
             )
             .await?;
 
+            // TODO: move to ingestion validation unit tests
             let bad_request = send_assert_json::<BadRequest>(
                 &client,
                 client
@@ -969,22 +970,6 @@ fn test_filter_no_value() {
                         "filter": { "p1": { "$in": [] } }
                     }))
                     .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert!(documents.is_empty());
-
-            let documents = send_assert_json::<SemanticSearchResponse>(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "zero" },
-                        "filter": { "p2": { "$eq": true } }
-                    }))
-                    .build()?,
-                // TODO: change to BAD_REQUEST once filters are validated against indexed properties schema
                 StatusCode::OK,
                 false,
             )
