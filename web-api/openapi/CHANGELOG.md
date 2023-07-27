@@ -1,3 +1,7 @@
+# 2.5.0 - 2023-07-31
+
+- Generalize scores in search results
+
 # 2.4.1 - 2023-07-31
 
 - Clarify requirements for filters regarding the indexed document properties
