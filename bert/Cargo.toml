@@ -26,7 +26,7 @@ xayn-test-utils = { path = "../test-utils" }
 criterion = { workspace = true }
 csv = { workspace = true }
 indicatif = "0.17.5"
-onnxruntime = {version = ">=0.0.2", features = ["model-fetching"] }
+# onnxruntime = {version = ">=0.0.2", features = ["model-fetching"] }
 ort = {version = "1.15.2", features = ["download-binaries"] }
 rand = "0.8.5"
 
