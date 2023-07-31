@@ -12,15 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Serialize};
+use std::str;
+
 // use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_sagemakerruntime::{primitives::Blob, Client};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use xayn_ai_bert::NormalizedEmbedding;
-use std::str;
+use tracing_subscriber::fmt::format;
+use xayn_ai_bert::{Embedding1, NormalizedEmbedding};
 
-use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
+use crate::{app::SetupError, error::common::InternalError};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -33,7 +35,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             token_size: 250,
-            sagemaker_endpoint_name: "".to_string(),
+            sagemaker_endpoint_name: String::new(),
         }
     }
 }
@@ -75,13 +77,8 @@ impl Embedder {
     }
 
     pub(crate) async fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
-        // self.embedder
-        //     .run(sequence)
-        //     .map_err(InternalError::from_std)?
-        //     .normalize()
-        //     .map_err(InternalError::from_std)
         let input = json!({
-            "inputs": sequence,
+            "inputs": [sequence],
         });
         let res = self
             .client
@@ -92,8 +89,21 @@ impl Embedder {
             .send()
             .await
             .unwrap();
-        let msg = String::from_utf8(res.body().unwrap().to_owned().into_inner()).unwrap();
-        Err(InternalError::from_message(msg))
+        let body = res.body().ok_or(InternalError::from_message(
+            "Received sagemaker response without body.",
+        ))?;
+        let mut embeddings: Vec<Vec<Vec<Embedding1>>> = serde_json::from_slice(body.as_ref())
+            .map_err(|e| {
+                InternalError::from_message(format!("Failed to deserialize sagemaker response body. Error: {}", e))
+            })?;
+        embeddings
+            .pop()
+            .and_then(|mut inner| inner.pop())
+            .and_then(|mut inner| inner.pop())
+            .and_then(|e| e.normalize().ok())
+            .ok_or(InternalError::from_message(
+                "Missing embedding in sagemaker response.",
+            ))
     }
 
     pub(crate) fn embedding_size(&self) -> usize {
@@ -111,8 +121,8 @@ mod tests {
     #[tokio::test]
     async fn test_embedder() {
         let config = Config {
-           token_size: 250,
-           sagemaker_endpoint_name : "e5-small-v2-endpoint".to_string()
+            token_size: 250,
+            sagemaker_endpoint_name: "e5-small-v2-endpoint".to_string(),
         };
         let embedder = Embedder::load(&config).await.unwrap();
         embedder.run("test").await.unwrap();

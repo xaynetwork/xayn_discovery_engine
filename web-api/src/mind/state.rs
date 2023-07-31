@@ -14,9 +14,9 @@
 
 use std::collections::HashMap;
 
-use futures_util::stream::{FuturesOrdered, StreamExt};
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut};
+use futures_util::{stream::FuturesOrdered, TryStreamExt};
 use itertools::Itertools;
 use serde::Serialize;
 use xayn_ai_bert::NormalizedEmbedding;
@@ -47,7 +47,8 @@ impl State {
         let embedder = Embedder::load(&embedding::Config {
             // directory: "../assets/xaynia_v0002".into(),
             ..embedding::Config::default()
-        }).await
+        })
+        .await
         .map_err(|error| Panic::from(&*error))?;
 
         let coi = config.coi.build();
@@ -68,12 +69,11 @@ impl State {
     }
 
     pub(super) async fn insert(&self, documents: Vec<Document>) -> Result<(), Panic> {
-            let documents_len = documents.len();
         let documents = documents
             .into_iter()
-            .map(|document| async {
+            .map(|document| async move {
                 let embedding = self.embedder.run(&document.snippet).await?;
-                Ok(IngestedDocument {
+                Ok::<IngestedDocument, Panic>(IngestedDocument {
                     id: document.id,
                     snippet: document.snippet,
                     is_summarized: false,
@@ -84,11 +84,9 @@ impl State {
                 })
             })
             .collect::<FuturesOrdered<_>>()
-            .fold((Vec::with_capacity(documents_len), Vec::new()),|a| {
-                a
-            }).await;
-            // .try_collect::<FuturesOrdered<_>>()
-            // .try_collect::<_, _, Panic>()?;
+            .try_collect()
+            .await?;
+
         storage::Document::insert(&self.storage, documents).await?;
 
         Ok(())
