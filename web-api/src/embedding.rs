@@ -14,12 +14,9 @@
 
 use std::str;
 
-// use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
-use aws_config::meta::region::RegionProviderChain;
-use aws_sdk_sagemakerruntime::{primitives::Blob, Client};
+use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tracing_subscriber::fmt::format;
 use xayn_ai_bert::{Embedding1, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError};
@@ -29,6 +26,8 @@ use crate::{app::SetupError, error::common::InternalError};
 pub struct Config {
     pub(crate) token_size: usize,
     pub(crate) sagemaker_endpoint_name: String,
+    pub(crate) aws_region: Option<String>,
+    pub(crate) aws_profile: Option<String>,
 }
 
 impl Default for Config {
@@ -36,12 +35,13 @@ impl Default for Config {
         Self {
             token_size: 250,
             sagemaker_endpoint_name: String::new(),
+            aws_region: None,
+            aws_profile: None,
         }
     }
 }
 
 pub(crate) struct Embedder {
-    // embedder: AvgEmbedder,
     embedding_dim: usize,
     client: Client,
     sagemaker_endpoint_name: String,
@@ -49,29 +49,21 @@ pub(crate) struct Embedder {
 
 impl Embedder {
     pub(crate) async fn load(config: &Config) -> Result<Self, SetupError> {
-        // let config = EmbedderConfig::new(config.directory.relative())?
-        //     .with_token_size(config.token_size)?
-        //     .with_pooler();
-        // config.validate()?;
-        // let embedder = config.build()?;
+        let mut config_loader = aws_config::from_env();
 
-        let region_provider = RegionProviderChain::default_provider().or_else("eu-central-1");
-        let sdk_config = aws_config::from_env()
-            .credentials_provider(
-                aws_config::profile::ProfileFileCredentialsProvider::builder()
-                    // If you need a specific profile, uncomment this line:
-                    .profile_name("AdministratorAccess-917039226361")
-                    .build(),
-            )
-            .region(region_provider)
-            .load()
-            .await;
-        // let sdk_config = aws_config::from_env().region(region_provider).load().await;
+        if let Some(region) = &config.aws_region {
+            config_loader = config_loader.region(Region::new(region.clone()));
+        }
+        if let Some(profile) = &config.aws_profile {
+            config_loader = config_loader.profile_name(profile.clone());
+        }
+
+        let sdk_config = config_loader.load().await;
         let client = Client::new(&sdk_config);
 
         Ok(Self {
             embedding_dim: 384,
-            client: client,
+            client,
             sagemaker_endpoint_name: config.sagemaker_endpoint_name.clone(),
         })
     }
@@ -94,7 +86,9 @@ impl Embedder {
         ))?;
         let mut embeddings: Vec<Vec<Vec<Embedding1>>> = serde_json::from_slice(body.as_ref())
             .map_err(|e| {
-                InternalError::from_message(format!("Failed to deserialize sagemaker response body. Error: {}", e))
+                InternalError::from_message(format!(
+                    "Failed to deserialize sagemaker response body. Error: {e}"
+                ))
             })?;
         embeddings
             .pop()
@@ -123,6 +117,8 @@ mod tests {
         let config = Config {
             token_size: 250,
             sagemaker_endpoint_name: "e5-small-v2-endpoint".to_string(),
+            aws_profile: Some("AdministratorAccess-917039226361".to_string()),
+            aws_region: Some("eu-central-1".to_string()),
         };
         let embedder = Embedder::load(&config).await.unwrap();
         embedder.run("test").await.unwrap();
