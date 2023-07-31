@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 
+use futures_util::stream::{FuturesOrdered, StreamExt};
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
@@ -67,22 +68,28 @@ impl State {
     }
 
     pub(super) async fn insert(&self, documents: Vec<Document>) -> Result<(), Panic> {
-        // let documents = documents
-        //     .into_iter()
-        //     .map(|document| async {
-        //         let embedding = self.embedder.run(&document.snippet).await?;
-        //         Ok(IngestedDocument {
-        //             id: document.id,
-        //             snippet: document.snippet,
-        //             is_summarized: false,
-        //             properties: DocumentProperties::default(),
-        //             tags: vec![document.category, document.subcategory].try_into()?,
-        //             embedding,
-        //             is_candidate: true,
-        //         })
-        //     })
-        //     .try_collect::<_, _, Panic>()?;
-        // storage::Document::insert(&self.storage, documents).await?;
+            let documents_len = documents.len();
+        let documents = documents
+            .into_iter()
+            .map(|document| async {
+                let embedding = self.embedder.run(&document.snippet).await?;
+                Ok(IngestedDocument {
+                    id: document.id,
+                    snippet: document.snippet,
+                    is_summarized: false,
+                    properties: DocumentProperties::default(),
+                    tags: vec![document.category, document.subcategory].try_into()?,
+                    embedding,
+                    is_candidate: true,
+                })
+            })
+            .collect::<FuturesOrdered<_>>()
+            .fold((Vec::with_capacity(documents_len), Vec::new()),|a| {
+                a
+            }).await;
+            // .try_collect::<FuturesOrdered<_>>()
+            // .try_collect::<_, _, Panic>()?;
+        storage::Document::insert(&self.storage, documents).await?;
 
         Ok(())
     }
