@@ -17,6 +17,8 @@ use std::str;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tokio::time::Instant;
+use tracing::info;
 use xayn_ai_bert::{Embedding1, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError};
@@ -77,6 +79,7 @@ impl Embedder {
         let input = json!({
             "inputs": [sequence],
         });
+        let start = Instant::now();
         let res = self
             .client
             .invoke_endpoint()
@@ -85,7 +88,15 @@ impl Embedder {
             .body(Blob::new(input.to_string()))
             .send()
             .await
-            .unwrap();
+            .map_err(|e| {
+                InternalError::from_message(format!(
+                    "Failed to request sagemaker endpoint. Error: {e}"
+                ))
+            })?;
+        info!(
+            { embedder_time = start.elapsed().as_millis() },
+            "embedder run"
+        );
         let body = res.body().ok_or(InternalError::from_message(
             "Received sagemaker response without body.",
         ))?;
