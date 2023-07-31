@@ -41,6 +41,11 @@ impl Default for Config {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+struct Response {
+    embeddings: Vec<Embedding1>,
+}
+
 pub(crate) struct Embedder {
     embedding_dim: usize,
     client: Client,
@@ -84,16 +89,14 @@ impl Embedder {
         let body = res.body().ok_or(InternalError::from_message(
             "Received sagemaker response without body.",
         ))?;
-        let mut embeddings: Vec<Vec<Vec<Embedding1>>> = serde_json::from_slice(body.as_ref())
-            .map_err(|e| {
-                InternalError::from_message(format!(
-                    "Failed to deserialize sagemaker response body. Error: {e}"
-                ))
-            })?;
+        let mut embeddings: Response = serde_json::from_slice(body.as_ref()).map_err(|e| {
+            InternalError::from_message(format!(
+                "Failed to deserialize sagemaker response body. Error: {e}"
+            ))
+        })?;
         embeddings
+            .embeddings
             .pop()
-            .and_then(|mut inner| inner.pop())
-            .and_then(|mut inner| inner.pop())
             .and_then(|e| e.normalize().ok())
             .ok_or(InternalError::from_message(
                 "Missing embedding in sagemaker response.",
