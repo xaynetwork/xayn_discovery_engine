@@ -187,7 +187,7 @@ impl DocumentProperty {
         let validate_string = |value: &str| {
             validate_string(
                 value,
-                0..=(max_properties_string_size),
+                0..=max_properties_string_size,
                 &GENERIC_STRING_SYNTAX,
             )
         };
