@@ -47,7 +47,8 @@ stdout = """
       "method": "background"
     },
     "max_snippet_size": 2048,
-    "max_properties_size": 2560
+    "max_properties_size": 2560,
+    "max_properties_string_size": 2048
   },
   "embedding": {
     "directory": "assets",

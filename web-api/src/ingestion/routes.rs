@@ -178,12 +178,13 @@ async fn validate_document_properties(
     properties: impl IntoIterator<Item = (String, Value)>,
     storage: &(impl storage::Size + storage::IndexedProperties),
     max_size: usize,
+    max_property_string_size: usize,
 ) -> Result<DocumentProperties, Error> {
     let properties = properties
         .into_iter()
         .map(|(property_id, property)| {
             let property_id = DocumentPropertyId::try_from(property_id)?;
-            let property = DocumentProperty::try_from_value(&property_id, property)?;
+            let property = DocumentProperty::try_from_value(&property_id, property, max_property_string_size)?;
             Ok((property_id, property))
         })
         .try_collect::<_, HashMap<_, _>, Error>()?;
@@ -218,7 +219,7 @@ impl UnvalidatedIngestedDocument {
         });
 
         let properties =
-            validate_document_properties(self.properties, storage, config.max_properties_size)
+            validate_document_properties(self.properties, storage, config.max_properties_size, config.max_properties_string_size)
                 .await?;
         let tags = self
             .tags
@@ -554,6 +555,7 @@ async fn put_document_properties(
         properties.properties,
         &storage,
         state.config.ingestion.max_properties_size,
+        state.config.ingestion.max_properties_string_size,
     )
     .await?;
     storage::DocumentProperties::put(&storage, &document_id, &properties)
@@ -612,7 +614,7 @@ async fn put_document_property(
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
     let property_id = DocumentPropertyId::try_from(property_id)?;
-    let property = DocumentProperty::try_from_value(&property_id, body.property)?;
+    let property = DocumentProperty::try_from_value(&property_id, body.property, state.config.ingestion.max_properties_string_size)?;
 
     let properties = storage::DocumentProperties::get(&storage, &document_id)
         .await?
@@ -625,6 +627,7 @@ async fn put_document_property(
         properties,
         &storage,
         state.config.ingestion.max_properties_size,
+        state.config.ingestion.max_properties_string_size,
     )
     .await?;
 

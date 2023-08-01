@@ -362,9 +362,11 @@ impl Filter {
     ) -> Option<Self> {
         if let Some(published_after) = published_after {
             let field = "publication_date".try_into().unwrap(/* valid property id */);
+            let date = published_after.to_rfc3339();
             let value = DocumentProperty::try_from_value(
                 &field,
-                json!(published_after.to_rfc3339()),
+                json!(date),
+                date.len()
             ).unwrap(/* valid property */);
             let published_after = Self::Compare(Compare {
                 operation: CompareOp::Gte,
