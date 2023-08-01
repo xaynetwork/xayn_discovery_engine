@@ -17,7 +17,6 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
-use toml::toml;
 use xayn_integration_tests::{
     send_assert,
     send_assert_json,
