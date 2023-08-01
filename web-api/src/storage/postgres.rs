@@ -26,6 +26,7 @@ use either::Either;
 use itertools::Itertools;
 use serde_json::Value;
 use sqlx::{
+    postgres::PgRow,
     types::{
         chrono::{DateTime, Utc},
         Json,
@@ -34,6 +35,7 @@ use sqlx::{
     FromRow,
     Postgres,
     QueryBuilder,
+    Row,
     Transaction,
 };
 use tracing::{info, instrument};
@@ -249,14 +251,16 @@ impl Database {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
         scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
         include_properties: bool,
+        include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut builder = QueryBuilder::new(format!(
-            "SELECT document_id, embedding, tags {}
+            "SELECT document_id, embedding, tags {}{}
             FROM document
             WHERE document_id IN ",
             include_properties
                 .then_some(", properties")
                 .unwrap_or_default(),
+            include_snippet.then_some(", snippet").unwrap_or_default(),
         ));
         let ids = ids.into_iter();
         let mut documents = Vec::with_capacity(ids.len());
@@ -267,18 +271,20 @@ impl Database {
                     .reset()
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
-                    .try_map(|row| {
-                        let (id, embedding, tags, properties) = if include_properties {
-                            FromRow::from_row(&row).map(
-                                |(id, embedding, tags, Json(properties))| {
-                                    (id, embedding, tags, properties)
-                                },
-                            )
+                    .try_map(|row: PgRow| {
+                        let id = row.try_get("document_id")?;
+                        let embedding = row.try_get("embedding")?;
+                        let tags = row.try_get("tags")?;
+                        let properties = if include_properties {
+                            Some(row.try_get::<Json<_>, _>("properties")?.0)
                         } else {
-                            FromRow::from_row(&row).map(|(id, embedding, tags)| {
-                                (id, embedding, tags, DocumentProperties::default())
-                            })
-                        }?;
+                            None
+                        };
+                        let snippet = if include_snippet {
+                            Some(row.try_get("snippet")?)
+                        } else {
+                            None
+                        };
                         let score = scores(&id).unwrap(/* filtered ids */);
 
                         Ok(PersonalizedDocument {
@@ -286,6 +292,7 @@ impl Database {
                             score,
                             embedding,
                             properties,
+                            snippet,
                             tags,
                         })
                     })
@@ -770,10 +777,17 @@ impl storage::Document for Storage {
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
         include_properties: bool,
+        include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
-        let documents =
-            Database::get_personalized(&mut tx, ids, |_| Some(1.0), include_properties).await?;
+        let documents = Database::get_personalized(
+            &mut tx,
+            ids,
+            |_| Some(1.0),
+            include_properties,
+            include_snippet,
+        )
+        .await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -805,12 +819,14 @@ impl storage::Document for Storage {
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
         let include_properties = params.include_properties;
+        let include_snippet = params.include_snippet;
         let scores = self.elastic.get_by_embedding(params).await?;
         let documents = Database::get_personalized(
             &mut tx,
             scores.keys(),
             |id| scores.get(id).copied(),
             include_properties,
+            include_snippet,
         )
         .await?;
         tx.commit().await?;

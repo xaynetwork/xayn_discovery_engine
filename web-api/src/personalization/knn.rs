@@ -38,6 +38,7 @@ pub(super) struct CoiSearch<'a, I> {
     pub(super) num_candidates: usize,
     pub(super) time: DateTime<Utc>,
     pub(super) include_properties: bool,
+    pub(super) include_snippet: bool,
     pub(super) filter: Option<&'a Filter>,
 }
 
@@ -77,6 +78,7 @@ where
                         num_candidates,
                         strategy: SearchStrategy::Knn,
                         include_properties: self.include_properties,
+                        include_snippet: self.include_snippet,
                         filter: self.filter,
                     },
                 )
@@ -155,6 +157,7 @@ mod tests {
             num_candidates: 10,
             time: Utc::now(),
             include_properties: false,
+            include_snippet: false,
             filter: None,
         }
         .run_on(&storage)
