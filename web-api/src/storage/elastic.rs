@@ -200,49 +200,35 @@ impl Client {
 
     pub(super) async fn insert_document_properties(
         &self,
-        id: &DocumentId,
+        document_id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json!({
                 "source": "ctx._source.properties = params.properties",
                 "params": {
                     "properties": properties
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn delete_document_properties(
         &self,
-        id: &DocumentId,
+        document_id: &DocumentId,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json!({
                 "source": "ctx._source.properties = params.properties",
                 "params": {
                     "properties": DocumentProperties::default()
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn insert_document_property(
@@ -251,64 +237,62 @@ impl Client {
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json!({
                 "source": "ctx._source.properties.put(params.prop_id, params.property)",
                 "params": {
                     "prop_id": property_id,
                     "property": property
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn delete_document_property(
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
-    ) -> Result<Option<Option<()>>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+    ) -> Result<Option<()>, Error> {
+        self.document_update(
+            document_id,
+            json!({
                 "source": "ctx._source.properties.remove(params.prop_id)",
                 "params": {
                     "prop_id": property_id
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| Some(())))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn insert_document_tags(
         &self,
-        id: &DocumentId,
+        document_id: &DocumentId,
         tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json!({
                 "source": "ctx._source.tags = params.tags",
                 "params": {
                     "tags": tags
                 }
-            },
+            }),
+        )
+        .await
+    }
+
+    async fn document_update(
+        &self,
+        document_id: &DocumentId,
+        update_script: Value,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
+        let body = Some(json!({
+            "script": update_script,
             "_source": false
         }));
 
