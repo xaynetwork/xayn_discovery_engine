@@ -184,7 +184,8 @@ async fn validate_document_properties(
         .into_iter()
         .map(|(property_id, property)| {
             let property_id = DocumentPropertyId::try_from(property_id)?;
-            let property = DocumentProperty::try_from_value(&property_id, property, max_property_string_size)?;
+            let property =
+                DocumentProperty::try_from_value(&property_id, property, max_property_string_size)?;
             Ok((property_id, property))
         })
         .try_collect::<_, HashMap<_, _>, Error>()?;
@@ -218,9 +219,13 @@ impl UnvalidatedIngestedDocument {
             )
         });
 
-        let properties =
-            validate_document_properties(self.properties, storage, config.max_properties_size, config.max_properties_string_size)
-                .await?;
+        let properties = validate_document_properties(
+            self.properties,
+            storage,
+            config.max_properties_size,
+            config.max_properties_string_size,
+        )
+        .await?;
         let tags = self
             .tags
             .into_iter()
@@ -614,7 +619,11 @@ async fn put_document_property(
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
     let property_id = DocumentPropertyId::try_from(property_id)?;
-    let property = DocumentProperty::try_from_value(&property_id, body.property, state.config.ingestion.max_properties_string_size)?;
+    let property = DocumentProperty::try_from_value(
+        &property_id,
+        body.property,
+        state.config.ingestion.max_properties_string_size,
+    )?;
 
     let properties = storage::DocumentProperties::get(&storage, &document_id)
         .await?
