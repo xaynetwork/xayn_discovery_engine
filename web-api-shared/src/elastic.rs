@@ -419,7 +419,7 @@ impl Client {
             .await
     }
 
-    pub async fn search_request<I>(&self, mut body: JsonObject) -> Result<HashMap<I, f32>, Error>
+    pub async fn search_request<I>(&self, mut body: JsonObject) -> Result<ScoreMap<I>, Error>
     where
         I: DeserializeOwned + Eq + Hash,
     {
@@ -428,6 +428,7 @@ impl Client {
         }
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
+
         self.query_with_json::<_, SearchResponse<I>>(
             Method::POST,
             self.create_url(["_search"], None),
@@ -436,15 +437,11 @@ impl Client {
         .await
         .map(|response| {
             response
-                .map(|response| {
-                    response
-                        .hits
-                        .hits
-                        .into_iter()
-                        .map(|hit| (hit.id, hit.score))
-                        .collect()
-                })
-                .unwrap_or_default()
+                .hits
+                .hits
+                .into_iter()
+                .map(|hit| (hit.id, hit.score))
+                .collect()
         })
     }
 
@@ -507,7 +504,7 @@ impl Client {
         method: Method,
         url: Url,
         body: Option<B>,
-    ) -> Result<Option<T>, Error>
+    ) -> Result<T, Error>
     where
         B: Serialize,
         T: DeserializeOwned,
@@ -524,6 +521,8 @@ impl Client {
         self.query_with_bytes(method, url, post_data).await
     }
 }
+
+pub type ScoreMap<Id> = HashMap<Id, f32>;
 
 #[derive(Debug, Error, displaydoc::Display, From)]
 pub enum Error {

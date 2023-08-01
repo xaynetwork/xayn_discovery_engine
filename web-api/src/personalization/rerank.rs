@@ -18,6 +18,7 @@ use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiSystem};
+use xayn_web_api_shared::elastic::ScoreMap;
 
 use crate::{
     models::{DocumentId, DocumentTag, PersonalizedDocument},
@@ -29,7 +30,7 @@ fn rerank_by_interest<'a>(
     documents: &'a [PersonalizedDocument],
     interests: &[Coi],
     time: DateTime<Utc>,
-) -> HashMap<&'a DocumentId, f32> {
+) -> ScoreMap<&'a DocumentId> {
     coi_system
         .score(documents, interests, time)
         .map(|scores| {
@@ -45,7 +46,7 @@ fn rerank_by_interest<'a>(
 fn rerank_by_tag_weight<'a>(
     documents: &'a [PersonalizedDocument],
     tag_weights: &HashMap<DocumentTag, usize>,
-) -> HashMap<&'a DocumentId, f32> {
+) -> ScoreMap<&'a DocumentId> {
     let total_tag_weight = tag_weights.values().sum::<usize>();
     if total_tag_weight == 0 {
         return HashMap::new();
