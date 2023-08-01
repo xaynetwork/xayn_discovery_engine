@@ -26,7 +26,6 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
-use xayn_summarizer::{summarize, Config, Source, Summarizer};
 use xayn_web_api_db_ctrl::{Operation, Silo};
 
 use super::AppState;
@@ -108,7 +107,7 @@ pub(super) fn configure_ops_service(config: &mut ServiceConfig) {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct UnvalidatedIngestedDocument {
+struct UnvalidatedDocumentForIngestion {
     id: String,
     snippet: String,
     #[serde(default)]
@@ -124,10 +123,10 @@ struct UnvalidatedIngestedDocument {
 }
 
 #[derive(Debug)]
-struct IngestedDocument {
+struct DocumentForIngestion {
     id: DocumentId,
     snippet: DocumentSnippet,
-    summary: Option<String>,
+    preprocessing_step: PreprocessingStep,
     properties: DocumentProperties,
     tags: DocumentTags,
     is_candidate_op: IsCandidateOp,
@@ -201,25 +200,22 @@ async fn validate_document_properties(
     DocumentProperties::new(properties, size, max_size).map_err(Into::into)
 }
 
-impl UnvalidatedIngestedDocument {
+impl UnvalidatedDocumentForIngestion {
     async fn validate(
         self,
         config: &impl AsRef<IngestionConfig>,
         storage: &(impl storage::Size + storage::IndexedProperties),
-    ) -> Result<IngestedDocument, Error> {
+    ) -> Result<DocumentForIngestion, Error> {
         let config = config.as_ref();
 
         let id = self.id.as_str().try_into()?;
         let snippet = DocumentSnippet::new(self.snippet, config.max_snippet_size)?;
-        let summary = self.summarize.then(|| {
-            summarize(
-                &Summarizer::Naive,
-                &Source::PlainText {
-                    text: snippet.as_str().to_owned(),
-                },
-                &Config::default(),
-            )
-        });
+
+        let preprocessing_step = if self.summarize {
+            PreprocessingStep::Summarize
+        } else {
+            PreprocessingStep::None
+        };
 
         let properties = validate_document_properties(
             self.properties,
@@ -247,10 +243,10 @@ impl UnvalidatedIngestedDocument {
             }
         };
 
-        Ok(IngestedDocument {
+        Ok(DocumentForIngestion {
             id,
             snippet,
-            summary,
+            preprocessing_step,
             properties,
             tags,
             is_candidate_op,
@@ -262,7 +258,7 @@ impl UnvalidatedIngestedDocument {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct IngestionRequestBody {
-    documents: Vec<UnvalidatedIngestedDocument>,
+    documents: Vec<UnvalidatedDocumentForIngestion>,
 }
 
 #[instrument(skip_all)]
@@ -322,7 +318,7 @@ async fn upsert_documents(
                     document.id,
                     (
                         document.snippet,
-                        document.is_summarized,
+                        document.preprocessing_step,
                         document.properties,
                         document.tags,
                         document.is_candidate,
@@ -337,13 +333,18 @@ async fn upsert_documents(
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|document| {
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
-                .map(|(snippet, is_summarized, properties, tags, is_candidate)| {
-                    ((snippet, is_summarized, properties, tags), *is_candidate)
-                })
+                .map(
+                    |(snippet, preprocessing_step, properties, tags, is_candidate)| {
+                        (
+                            (snippet, preprocessing_step, properties, tags),
+                            *is_candidate,
+                        )
+                    },
+                )
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(snippet, is_summarized, _, _)| {
-                snippet != &document.snippet || *is_summarized != document.summary.is_some()
+            let new_snippet = data.map_or(true, |(snippet, preprocessing_step, _, _)| {
+                snippet != &document.snippet || *preprocessing_step != document.preprocessing_step
             });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
 
@@ -395,17 +396,12 @@ async fn upsert_documents(
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
-            // TODO[pmk/now]  change is_summarized into preprocessing_step in db and other parts of the code
-            let preprocessing_step = if document.summary.is_some() {
-                PreprocessingStep::Summarize
-            } else {
-                PreprocessingStep::None
-            };
+            let preprocessing_step = document.preprocessing_step;
             match preprocess_document(&state.embedder, document.snippet, preprocessing_step) {
                 Ok((snippet, embedding)) => Either::Left(models::IngestedDocument {
                     id: document.id,
                     snippet,
-                    is_summarized: document.summary.is_some(),
+                    preprocessing_step,
                     properties: document.properties,
                     tags: document.tags,
                     embedding,

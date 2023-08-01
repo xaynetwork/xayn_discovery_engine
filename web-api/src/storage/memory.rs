@@ -52,6 +52,7 @@ use crate::{
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
+        PreprocessingStep,
         UserId,
     },
     storage::{self, KnnSearchParams, Warning},
@@ -61,7 +62,7 @@ use crate::{
 #[serde(deny_unknown_fields)]
 struct Document {
     snippet: DocumentSnippet,
-    is_summarized: bool,
+    preprocessing_step: PreprocessingStep,
     properties: DocumentProperties,
     tags: DocumentTags,
     is_candidate: bool,
@@ -298,7 +299,7 @@ impl storage::Document for Storage {
                 documents.0.get(id).map(|document| ExcerptedDocument {
                     id: id.clone(),
                     snippet: document.snippet.clone(),
-                    is_summarized: document.is_summarized,
+                    preprocessing_step: document.preprocessing_step,
                     properties: document.properties.clone(),
                     tags: document.tags.clone(),
                     is_candidate: document.is_candidate,
@@ -369,7 +370,7 @@ impl storage::Document for Storage {
                 document.id.clone(),
                 Document {
                     snippet: document.snippet,
-                    is_summarized: document.is_summarized,
+                    preprocessing_step: document.preprocessing_step,
                     properties: document.properties,
                     tags: document.tags,
                     is_candidate: document.is_candidate,
@@ -709,7 +710,7 @@ mod tests {
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::storage::SearchStrategy;
+    use crate::{models::PreprocessingStep, storage::SearchStrategy};
 
     #[tokio::test]
     async fn test_knn_search() {
@@ -727,7 +728,7 @@ mod tests {
             .map(|(id, embedding)| IngestedDocument {
                 id: id.clone(),
                 snippet: DocumentSnippet::new("snippet", 100).unwrap(),
-                is_summarized: false,
+                preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: DocumentTags::default(),
                 embedding,
@@ -793,7 +794,7 @@ mod tests {
             vec![IngestedDocument {
                 id: doc_id.clone(),
                 snippet: snippet.clone(),
-                is_summarized: false,
+                preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
                 embedding: embedding.clone(),
