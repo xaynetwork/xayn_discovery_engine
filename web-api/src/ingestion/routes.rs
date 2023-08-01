@@ -42,7 +42,7 @@ use crate::{
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
     },
-    ingestion::IngestionConfig,
+    ingestion::{preprocess_document::preprocess_document, IngestionConfig},
     models::{
         self,
         DocumentId,
@@ -51,6 +51,7 @@ use crate::{
         DocumentPropertyId,
         DocumentSnippet,
         DocumentTags,
+        PreprocessingStep,
     },
     storage::{self, property_filter::IndexedPropertiesSchemaUpdate},
     utils::deprecate,
@@ -394,11 +395,16 @@ async fn upsert_documents(
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
-            let short_text = document.summary.as_deref().unwrap_or(&document.snippet);
-            match state.embedder.run(short_text) {
-                Ok(embedding) => Either::Left(models::IngestedDocument {
+            // TODO[pmk/now]  change is_summarized into preprocessing_step in db and other parts of the code
+            let preprocessing_step = if document.summary.is_some() {
+                PreprocessingStep::Summarize
+            } else {
+                PreprocessingStep::None
+            };
+            match preprocess_document(&state.embedder, document.snippet, preprocessing_step) {
+                Ok((snippet, embedding)) => Either::Left(models::IngestedDocument {
                     id: document.id,
-                    snippet: document.snippet,
+                    snippet,
                     is_summarized: document.summary.is_some(),
                     properties: document.properties,
                     tags: document.tags,
@@ -407,7 +413,7 @@ async fn upsert_documents(
                 }),
                 Err(error) => {
                     error!("Failed to embed document '{}': {:#?}", document.id, error);
-                    Either::Right(DocumentInBatchError::new(document.id, &error))
+                    Either::Right(DocumentInBatchError::new(document.id, &*error))
                 }
             }
         });

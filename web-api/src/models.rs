@@ -405,6 +405,14 @@ pub(crate) struct ExcerptedDocument {
     pub(crate) is_candidate: bool,
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "preprocessing_step", rename_all = "snake_case")]
+pub(crate) enum PreprocessingStep {
+    None,
+    Summarize,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
