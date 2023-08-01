@@ -186,14 +186,18 @@ impl Client {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "lowercase")]
-pub enum BulkInstruction<'a, I> {
+pub enum BulkInstruction<I> {
     Index {
         #[serde(rename = "_id")]
-        id: &'a I,
+        id: I,
     },
     Delete {
         #[serde(rename = "_id")]
-        id: &'a I,
+        id: I,
+    },
+    Update {
+        #[serde(rename = "_id")]
+        id: I,
     },
 }
 

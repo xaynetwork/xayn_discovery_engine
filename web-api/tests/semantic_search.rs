@@ -18,11 +18,7 @@ use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
 use xayn_integration_tests::{
-    send_assert,
-    send_assert_json,
-    test_two_apps,
-    with_dev_options,
-    UNCHANGED_CONFIG,
+    send_assert, send_assert_json, test_two_apps, with_dev_options, UNCHANGED_CONFIG,
 };
 use xayn_web_api::{Ingestion, Personalization};
 
