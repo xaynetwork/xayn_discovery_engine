@@ -15,7 +15,7 @@
 mod client;
 mod filter;
 
-use std::{collections::HashMap, convert::identity, hash::Hash, ops::AddAssign};
+use std::{collections::HashMap, convert::identity, ops::AddAssign};
 
 use anyhow::bail;
 pub(crate) use client::{Client, ClientBuilder};
@@ -54,11 +54,13 @@ use crate::{
     Error,
 };
 
+type ScoreMap = HashMap<DocumentId, f32>;
+
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
+    ) -> Result<ScoreMap, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::Hybrid { query } => {
@@ -86,10 +88,7 @@ impl Client {
         }
     }
 
-    async fn knn_search<'a>(
-        &self,
-        params: KnnSearchParams<'a>,
-    ) -> Result<HashMap<DocumentId, f32>, Error> {
+    async fn knn_search<'a>(&self, params: KnnSearchParams<'a>) -> Result<ScoreMap, Error> {
         let KnnSearchParts {
             knn_object,
             generic_parameters,
@@ -97,8 +96,9 @@ impl Client {
         } = params.create_common_knn_search_parts();
 
         let request = merge_json_objects([knn_object, generic_parameters]);
+        let scores = self.search_request(request).await?;
 
-        Ok(self.search_request(request).await?)
+        Ok(rescale_knn_scores(scores))
     }
 
     async fn hybrid_search(
@@ -118,7 +118,7 @@ impl Client {
         } = params.create_common_knn_search_parts();
 
         let knn_request = merge_json_objects([knn_object, generic_parameters.clone()]);
-
+        // don't rescale the knn_scores since they would need to be immediately normalized again to be fed into normalize_knn()
         let knn_scores = self.search_request(knn_request).await?;
 
         let bm_25 = merge_json_objects([
@@ -500,27 +500,32 @@ impl KnnSearchParams<'_> {
     }
 }
 
-fn normalize_scores<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+// https://www.elastic.co/guide/en/elasticsearch/reference/current/dense-vector.html#dense-vector-similarity
+fn rescale_knn_scores(mut scores: ScoreMap) -> ScoreMap {
+    for score in scores.values_mut() {
+        *score = *score * 2. - 1.;
+    }
+
+    scores
+}
+
+fn normalize_scores(mut scores: ScoreMap) -> ScoreMap {
     let max_score = scores
         .values()
         .max_by(|l, r| l.total_cmp(r))
         .copied()
         .unwrap_or_default();
 
-    for score in scores.values_mut() {
-        *score /= max_score;
+    if max_score != 0. {
+        for score in scores.values_mut() {
+            *score /= max_score;
+        }
     }
 
     scores
 }
 
-fn normalize_scores_if_max_gt_1<K>(mut scores: HashMap<K, f32>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn normalize_scores_if_max_gt_1(mut scores: ScoreMap) -> ScoreMap {
     let max_score = scores
         .values()
         .max_by(|l, r| l.total_cmp(r))
@@ -535,13 +540,7 @@ where
     scores
 }
 
-fn merge_scores_average_duplicates_only<K>(
-    mut scores_1: HashMap<K, f32>,
-    scores_2: HashMap<K, f32>,
-) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn merge_scores_average_duplicates_only(mut scores_1: ScoreMap, scores_2: ScoreMap) -> ScoreMap {
     for (key, value) in scores_2 {
         scores_1
             .entry(key)
@@ -551,12 +550,7 @@ where
     scores_1
 }
 
-fn merge_scores_weighted<K>(
-    scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>,
-) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn merge_scores_weighted(scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> ScoreMap {
     let weighted = scores.into_iter().flat_map(|(weight, mut scores)| {
         for score in scores.values_mut() {
             *score *= weight;
@@ -567,10 +561,7 @@ where
 }
 
 /// Reciprocal Rank Fusion
-fn rrf<K>(k: f32, scores: impl IntoIterator<Item = (f32, HashMap<K, f32>)>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn rrf(k: f32, scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> ScoreMap {
     let rrf_scores = scores.into_iter().flat_map(|(weight, scores)| {
         scores
             .into_iter()
@@ -584,22 +575,16 @@ where
     collect_summing_repeated(rrf_scores)
 }
 
-fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn collect_summing_repeated(scores: impl IntoIterator<Item = (DocumentId, f32)>) -> ScoreMap {
     scores
         .into_iter()
-        .fold(HashMap::new(), |mut acc, (key, value)| {
+        .fold(ScoreMap::new(), |mut acc, (key, value)| {
             acc.entry(key).or_default().add_assign(value);
             acc
         })
 }
 
-fn take_highest_n_scores<K>(n: usize, scores: HashMap<K, f32>) -> HashMap<K, f32>
-where
-    K: Eq + Hash,
-{
+fn take_highest_n_scores(n: usize, scores: ScoreMap) -> ScoreMap {
     if scores.len() <= n {
         return scores;
     }
@@ -610,8 +595,6 @@ where
         .take(n)
         .collect()
 }
-
-type ScoreMap = HashMap<DocumentId, f32>;
 
 impl NormalizationFn {
     fn to_fn(self) -> Box<dyn Fn(ScoreMap) -> ScoreMap> {
@@ -658,36 +641,28 @@ mod tests {
 
     #[test]
     fn test_rrf_parameters_are_used() {
-        let left = [("foo", 2.), ("bar", 1.), ("baz", 3.)]
-            .into_iter()
-            .collect::<HashMap<_, _>>();
-
-        let right = [("baz", 5.), ("dodo", 1.2)]
-            .into_iter()
-            .collect::<HashMap<_, _>>();
-
+        let id = |id: &str| id.try_into().unwrap();
+        let left: ScoreMap = [(id("foo"), 2.), (id("bar"), 1.), (id("baz"), 3.)].into();
+        let right: ScoreMap = [(id("baz"), 5.), (id("dodo"), 1.2)].into();
         assert_eq!(
             rrf(80., [(1., left.clone()), (1., right.clone())]),
             [
-                ("foo", 1. / (80. + 2.)),
-                ("bar", 1. / (80. + 3.)),
-                ("baz", 1. / (80. + 1.) + 1. / (80. + 1.)),
-                ("dodo", 1. / (80. + 2.)),
+                (id("foo"), 1. / (80. + 2.)),
+                (id("bar"), 1. / (80. + 3.)),
+                (id("baz"), 1. / (80. + 1.) + 1. / (80. + 1.)),
+                (id("dodo"), 1. / (80. + 2.)),
             ]
-            .into_iter()
-            .collect()
+            .into(),
         );
-
         assert_eq!(
-            rrf(80., [(0.2, left.clone()), (8., right.clone())]),
+            rrf(80., [(0.2, left), (8., right)]),
             [
-                ("foo", 0.2 / (80. + 2.)),
-                ("bar", 0.2 / (80. + 3.)),
-                ("baz", 0.2 / (80. + 1.) + 8. / (80. + 1.)),
-                ("dodo", 8. / (80. + 2.)),
+                (id("foo"), 0.2 / (80. + 2.)),
+                (id("bar"), 0.2 / (80. + 3.)),
+                (id("baz"), 0.2 / (80. + 1.) + 8. / (80. + 1.)),
+                (id("dodo"), 8. / (80. + 2.)),
             ]
-            .into_iter()
-            .collect()
+            .into(),
         );
     }
 

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Front Office API
-  version: 2.4.1
+  version: 2.5.0
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -58,7 +58,7 @@ paths:
       summary: Personalize documents for the user
       description: |-
         Get a list of documents personalized for the given `user_id`.
-        Each document contains the id and the score, which is a value between 0 and 1 where a higher value means that the document matches the preferences of the user better.
+        Each document contains the id and the score, where a higher value means that the document matches the preferences of the user better. Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
         The documents also contain their properties if this is requested and the properties are not empty.
         Documents that have been interacted with by the user are filtered out from the result.
         Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
@@ -178,7 +178,7 @@ paths:
         When a `query` is provided, the system will return documents that are similar to the query.
         If `enable_hybrid_search` is passed, then the system will also perform keyword matching between the query and the documents.
         It is possible to personalize the result by passing a user id or history. In this case, the system will consider the user's interests to rank the documents.
-        Each document contains the `id` and the `score`, which is a value between 0 and 1 where a higher value means that the document is more similar to the input.
+        Each document contains the `id` and the `score`, where a higher value means that the document is more similar to the input. Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
         The documents also contain their `properties` if this is requested and the properties are not empty.
       operationId: getSimilarDocuments
       requestBody:
@@ -303,7 +303,7 @@ components:
         id:
           $ref: './schemas/document.yml#/DocumentId'
         score:
-          description: A number in the interval `[0, 1]` where higher means better.
+          description: A number where higher means better.
           type: number
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
