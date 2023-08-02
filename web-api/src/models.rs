@@ -182,9 +182,15 @@ impl DocumentProperty {
     pub(crate) fn try_from_value(
         property_id: &DocumentPropertyId,
         mut value: Value,
+        max_properties_string_size: usize,
     ) -> Result<Self, InvalidDocumentProperty> {
-        let validate_string =
-            |value: &str| validate_string(value, 0..=2_048, &GENERIC_STRING_SYNTAX);
+        let validate_string = |value: &str| {
+            validate_string(
+                value,
+                0..=max_properties_string_size,
+                &GENERIC_STRING_SYNTAX,
+            )
+        };
 
         match &mut value {
             Value::Bool(_) | Value::Number(_) | Value::Null => {}
@@ -400,7 +406,7 @@ mod tests {
         type Error = InvalidDocumentProperty;
 
         fn try_from(value: Value) -> Result<Self, Self::Error> {
-            DocumentProperty::try_from_value(&"p".try_into().unwrap(), value)
+            DocumentProperty::try_from_value(&"p".try_into().unwrap(), value, 128)
         }
     }
 

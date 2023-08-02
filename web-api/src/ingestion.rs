@@ -74,6 +74,7 @@ pub struct IngestionConfig {
     pub(crate) index_update: IndexUpdateConfig,
     pub(crate) max_snippet_size: usize,
     pub(crate) max_properties_size: usize,
+    pub(crate) max_properties_string_size: usize,
 }
 
 impl Default for IngestionConfig {
@@ -85,6 +86,7 @@ impl Default for IngestionConfig {
             index_update: IndexUpdateConfig::default(),
             max_snippet_size: 2_048,
             max_properties_size: 2_560,
+            max_properties_string_size: 2_048,
         }
     }
 }
