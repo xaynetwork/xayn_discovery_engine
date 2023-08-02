@@ -4715,6 +4715,7 @@ dependencies = [
  "derive_more",
  "displaydoc",
  "futures-retry-policies",
+ "itertools 0.10.5",
  "once_cell",
  "rand",
  "regex",

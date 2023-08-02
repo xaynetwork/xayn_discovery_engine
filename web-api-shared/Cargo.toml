@@ -12,6 +12,7 @@ bytes = "1.4.0"
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 futures-retry-policies = { version = "0.2.3", features = [ "tokio" ] }
+itertools = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }

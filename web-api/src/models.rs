@@ -12,7 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{borrow::Borrow, collections::HashMap, ops::RangeInclusive};
+use std::{
+    borrow::{Borrow, Cow},
+    collections::HashMap,
+    ops::RangeInclusive,
+    str::FromStr,
+};
 
 use chrono::DateTime;
 use derive_more::{Deref, DerefMut, Display, Into};
@@ -30,6 +35,7 @@ use xayn_ai_coi::Document as AiDocument;
 
 use crate::{
     error::common::{
+        InternalError,
         InvalidDocumentId,
         InvalidDocumentProperties,
         InvalidDocumentProperty,
@@ -43,6 +49,7 @@ use crate::{
         InvalidUserId,
     },
     storage::property_filter::IndexedPropertyType,
+    Error,
 };
 
 fn trim(string: &mut String) {
@@ -117,6 +124,14 @@ macro_rules! string_wrapper {
                 }
             }
 
+            impl FromStr for $name {
+                type Err = $error;
+
+                fn from_str(s: &str) -> Result<Self, Self::Err> {
+                    s.try_into()
+                }
+            }
+
             impl PgHasArrayType for $name {
                 fn array_type_info() -> PgTypeInfo {
                     <String as PgHasArrayType>::array_type_info()
@@ -151,6 +166,68 @@ string_wrapper! {
     pub(crate) DocumentTag, InvalidDocumentTag, GENERIC_STRING_SYNTAX, 1..=256;
     /// A document query.
     pub(crate) DocumentQuery, InvalidDocumentQuery, GENERIC_STRING_SYNTAX, 1..=512;
+}
+
+/// Id pointing to a specific snippet in a document.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+pub(crate) struct SnippetId {
+    document_id: DocumentId,
+    snippet_idx: usize,
+}
+
+impl SnippetId {
+    pub(crate) fn new(document_id: DocumentId, snippet_idx: usize) -> Self {
+        Self {
+            document_id,
+            snippet_idx,
+        }
+    }
+
+    pub(crate) fn document_id(&self) -> &DocumentId {
+        &self.document_id
+    }
+
+    pub(crate) fn into_document_id(self) -> DocumentId {
+        self.document_id
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn snippet_idx(&self) -> usize {
+        self.snippet_idx
+    }
+
+    const ES_SNIPPET_ID_PREFIX: &str = "_s.";
+
+    pub(crate) fn try_from_es_id(es_id: impl AsRef<str>) -> Result<Self, Error> {
+        let es_id = es_id.as_ref();
+        if let Some(suffix) = es_id.strip_prefix(Self::ES_SNIPPET_ID_PREFIX) {
+            let Some((snippet_idx, document_id)) = suffix.split_once('.') else {
+                return Err(InternalError::from_message(format!("failed to split child id: {suffix}")).into());
+            };
+            let Ok(snippet_idx) = snippet_idx.parse() else {
+                return Err(InternalError::from_message(format!("failed to parse child idx: {snippet_idx}")).into());
+            };
+            let Ok(document_id) = document_id.parse() else {
+                return Err(InternalError::from_message(format!("failed to parse parents document id: {document_id}")).into());
+            };
+            Ok(Self::new(document_id, snippet_idx))
+        } else {
+            Ok(Self::new(es_id.parse()?, 0))
+        }
+    }
+
+    pub(crate) fn to_es_id(&self) -> Cow<'_, str> {
+        if self.snippet_idx == 0 {
+            Cow::Borrowed(&self.document_id)
+        } else {
+            Cow::Owned(format!(
+                "{}{}.{}",
+                Self::ES_SNIPPET_ID_PREFIX,
+                self.snippet_idx,
+                self.document_id,
+            ))
+        }
+    }
 }
 
 /// A document snippet.
@@ -336,7 +413,7 @@ pub(crate) struct InteractedDocument {
 #[derive(Clone, Debug)]
 pub(crate) struct PersonalizedDocument {
     /// Unique identifier of the document.
-    pub(crate) id: DocumentId,
+    pub(crate) id: SnippetId,
 
     /// Similarity score of the personalized document.
     pub(crate) score: f32,
@@ -359,7 +436,7 @@ pub(crate) struct PersonalizedDocument {
 }
 
 impl AiDocument for PersonalizedDocument {
-    type Id = DocumentId;
+    type Id = SnippetId;
 
     fn id(&self) -> &Self::Id {
         &self.id

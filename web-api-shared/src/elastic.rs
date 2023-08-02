@@ -25,6 +25,7 @@ use std::{
 use bytes::Bytes;
 use derive_more::From;
 use futures_retry_policies::tokio::retry;
+use itertools::Itertools;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
     Body,
@@ -419,9 +420,15 @@ impl Client {
             .await
     }
 
-    pub async fn search_request<I>(&self, mut body: JsonObject) -> Result<ScoreMap<I>, Error>
+    pub async fn search_request<I, E, F>(
+        &self,
+        mut body: JsonObject,
+        parse_id: F,
+    ) -> Result<ScoreMap<I>, E>
     where
-        I: DeserializeOwned + Eq + Hash,
+        F: Fn(String) -> Result<I, E>,
+        I: Eq + Hash,
+        E: From<Error>,
     {
         if body.get("size") == Some(&json!(0)) {
             return Ok(HashMap::new());
@@ -429,20 +436,22 @@ impl Client {
         body.insert("_source".into(), json!(false));
         body.insert("track_total_hits".into(), json!(false));
 
-        self.query_with_json::<_, SearchResponse<I>>(
-            Method::POST,
-            self.create_url(["_search"], None),
-            Some(body),
-        )
-        .await
-        .map(|response| {
-            response
-                .hits
-                .hits
-                .into_iter()
-                .map(|hit| (hit.id, hit.score))
-                .collect()
-        })
+        let response = self
+            .query_with_json::<_, SearchResponse<String>>(
+                Method::POST,
+                self.create_url(["_search"], None),
+                Some(body),
+            )
+            .await?;
+
+        let scores = response
+            .hits
+            .hits
+            .into_iter()
+            .map(|hit| Ok((parse_id(hit.id)?, hit.score)))
+            .try_collect::<_, _, E>()?;
+
+        Ok(scores)
     }
 
     pub async fn query_with_bytes<T>(
