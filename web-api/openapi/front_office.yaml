@@ -178,7 +178,7 @@ paths:
         When a `query` is provided, the system will return documents that are similar to the query.
         If `enable_hybrid_search` is passed, then the system will also perform keyword matching between the query and the documents.
         It is possible to personalize the result by passing a user id or history. In this case, the system will consider the user's interests to rank the documents.
-        Each document contains the `id` and the `score`, where a higher value means that the document is more similar to the input.
+        Each document contains the `id` and the `score`, where a higher value means that the document is more similar to the input. Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
         The documents also contain their `properties` if this is requested and the properties are not empty.
       operationId: getSimilarDocuments
       requestBody:
