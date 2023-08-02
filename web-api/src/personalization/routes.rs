@@ -24,7 +24,8 @@ use actix_web::{
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use tracing::instrument;
+use tokio::time::Instant;
+use tracing::{debug, instrument};
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 use super::{
@@ -664,7 +665,12 @@ async fn semantic_search(
             (embedding, None)
         }
         InputDocument::Query(ref query) => {
+            let start = Instant::now();
             let embedding = state.embedder.run(query).await?;
+            debug!(
+                "embedding calculated in {} seconds",
+                start.elapsed().as_secs(),
+            );
             (embedding, Some(query))
         }
     };

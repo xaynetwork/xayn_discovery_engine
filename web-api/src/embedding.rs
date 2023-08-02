@@ -17,9 +17,7 @@ use std::str;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use tokio::time::Instant;
-use tracing::info;
-use xayn_ai_bert::{Embedding1, NormalizedEmbedding};
+use xayn_ai_bert::NormalizedEmbedding;
 
 use crate::{app::SetupError, error::common::InternalError};
 
@@ -45,7 +43,7 @@ impl Default for Config {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Response {
-    embeddings: Vec<Embedding1>,
+    embeddings: Vec<NormalizedEmbedding>,
 }
 
 pub(crate) struct Embedder {
@@ -79,7 +77,6 @@ impl Embedder {
         let input = json!({
             "inputs": [sequence],
         });
-        let start = Instant::now();
         let res = self
             .client
             .invoke_endpoint()
@@ -93,10 +90,6 @@ impl Embedder {
                     "Failed to request sagemaker endpoint. Error: {e}"
                 ))
             })?;
-        info!(
-            { embedder_time = start.elapsed().as_millis() },
-            "embedder run"
-        );
         let body = res.body().ok_or(InternalError::from_message(
             "Received sagemaker response without body.",
         ))?;
@@ -108,7 +101,6 @@ impl Embedder {
         embeddings
             .embeddings
             .pop()
-            .and_then(|e| e.normalize().ok())
             .ok_or(InternalError::from_message(
                 "Missing embedding in sagemaker response.",
             ))
