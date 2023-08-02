@@ -166,8 +166,16 @@ impl Silo {
         &self.postgres_config
     }
 
+    pub fn postgres_client(&self) -> &PgClient {
+        &self.postgres
+    }
+
     pub fn elastic_config(&self) -> &EsConfig {
         &self.elastic_config
+    }
+
+    pub fn elastic_client(&self) -> &EsClient {
+        &self.elastic
     }
 }
 

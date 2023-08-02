@@ -153,15 +153,13 @@ impl Client {
         let response = self
             .bulk_request(documents.flat_map(|document| {
                 [
-                    serde_json::to_value(BulkInstruction::Index { id: &document.id })
-                        .map_err(Into::into),
+                    serde_json::to_value(BulkInstruction::Index { id: &document.id }),
                     serde_json::to_value(IngestedDocument {
                         snippet: &document.snippet,
                         properties: &document.properties,
                         embedding: &document.embedding,
                         tags: &document.tags,
-                    })
-                    .map_err(Into::into),
+                    }),
                 ]
             }))
             .await?;
