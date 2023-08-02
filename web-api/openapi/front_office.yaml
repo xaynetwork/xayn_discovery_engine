@@ -58,7 +58,7 @@ paths:
       summary: Personalize documents for the user
       description: |-
         Get a list of documents personalized for the given `user_id`.
-        Each document contains the id and the score, where a higher value means that the document matches the preferences of the user better.
+        Each document contains the id and the score, where a higher value means that the document matches the preferences of the user better. Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
         The documents also contain their properties if this is requested and the properties are not empty.
         Documents that have been interacted with by the user are filtered out from the result.
         Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
