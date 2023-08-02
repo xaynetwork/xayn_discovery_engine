@@ -54,6 +54,7 @@ use crate::{
         PersonalizedDocument,
         PreprocessingStep,
         SnippetId,
+        SnippetOrDocumentId,
         UserId,
     },
     storage::{self, KnnSearchParams, Warning},
@@ -624,11 +625,16 @@ impl storage::Interaction for Storage {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        interactions: Vec<SnippetOrDocumentId>,
         store_user_history: bool,
         time: DateTime<Utc>,
         mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
     ) -> Result<(), Error> {
+        // TODO[pmk/ET-4756-5] properly support snippet id
+        let interactions = interactions.iter().map(|id| match id {
+            SnippetOrDocumentId::DocumentId(id) => id,
+            SnippetOrDocumentId::SnippetId(id) => id.document_id(),
+        });
         // Note: This doesn't has the exact same concurrency semantics as the postgres version
         let documents = self.get_interacted(interactions).await?;
         let mut interests = self.interests.write().await;
@@ -821,7 +827,9 @@ mod tests {
         storage::Interaction::update_interactions(
             &storage,
             &user_id,
-            [doc_id.document_id()],
+            vec![SnippetOrDocumentId::DocumentId(
+                doc_id.document_id().clone(),
+            )],
             true,
             Utc::now(),
             |context| {

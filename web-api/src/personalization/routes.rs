@@ -40,8 +40,14 @@ use crate::{
         warning::Warning,
     },
     models::{
-        DocumentId, DocumentProperties, DocumentQuery, DocumentSnippet, PersonalizedDocument,
-        SnippetId, UserId,
+        DocumentId,
+        DocumentProperties,
+        DocumentQuery,
+        DocumentSnippet,
+        PersonalizedDocument,
+        SnippetId,
+        SnippetOrDocumentId,
+        UserId,
     },
     storage::{self, Exclusions, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
     tenants,
@@ -67,34 +73,38 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct UserInteractionRequest {
-    documents: Vec<UserInteractionData>,
+struct UnvalidatedUserInteractionRequest {
+    documents: Vec<UnvalidatedUserInteraction>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct UserInteractionData {
-    #[serde(rename = "id")]
-    document_id: String,
+struct UnvalidatedUserInteraction {
+    id: UnvalidatedDocumentOrSnippetId,
+}
+
+impl UnvalidatedUserInteractionRequest {
+    fn validate(self) -> Result<Vec<SnippetOrDocumentId>, Error> {
+        self.documents
+            .into_iter()
+            .map(|document| document.id.validate())
+            .try_collect()
+    }
 }
 
 async fn interactions(
     state: Data<AppState>,
     user_id: Path<String>,
-    Json(body): Json<UserInteractionRequest>,
+    Json(body): Json<UnvalidatedUserInteractionRequest>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
-    let interactions = body
-        .documents
-        .into_iter()
-        .map(|data| data.document_id.try_into())
-        .try_collect::<_, Vec<_>, _>()?;
+    let interactions = body.validate()?;
     update_interactions(
         &storage,
         &state.coi,
         &user_id,
-        &interactions,
+        interactions,
         state.config.personalization.store_user_history,
         Utc::now(),
     )
@@ -107,7 +117,7 @@ pub(crate) async fn update_interactions(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi: &CoiSystem,
     user_id: &UserId,
-    interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    interactions: Vec<SnippetOrDocumentId>,
     store_user_history: bool,
     time: DateTime<Utc>,
 ) -> Result<(), Error> {
@@ -585,8 +595,17 @@ enum UnvalidatedDocumentOrSnippetId {
     },
 }
 
+impl From<SnippetOrDocumentId> for InputDocument {
+    fn from(value: SnippetOrDocumentId) -> Self {
+        match value {
+            SnippetOrDocumentId::SnippetId(id) => InputDocument::SnippetId(id),
+            SnippetOrDocumentId::DocumentId(id) => InputDocument::DocumentId(id),
+        }
+    }
+}
+
 impl UnvalidatedDocumentOrSnippetId {
-    fn validate(self) -> Result<InputDocument, Error> {
+    fn validate(self) -> Result<SnippetOrDocumentId, Error> {
         let (document_id, snippet_idx) = match self {
             UnvalidatedDocumentOrSnippetId::DocumentId(document_id) => (document_id, None),
             UnvalidatedDocumentOrSnippetId::PotentialSnippetId {
@@ -596,12 +615,12 @@ impl UnvalidatedDocumentOrSnippetId {
         };
         let document_id = document_id.try_into()?;
         if let Some(snippet_idx) = snippet_idx {
-            Ok(InputDocument::SnippetId(SnippetId::new(
+            Ok(SnippetOrDocumentId::SnippetId(SnippetId::new(
                 document_id,
                 snippet_idx,
             )))
         } else {
-            Ok(InputDocument::DocumentId(document_id))
+            Ok(SnippetOrDocumentId::DocumentId(document_id))
         }
     }
 }
@@ -616,7 +635,7 @@ impl UnvalidatedInputDocument {
     fn validate(self) -> Result<InputDocument, Error> {
         let id = self
             .id
-            .map(UnvalidatedDocumentOrSnippetId::validate)
+            .map(|id| id.validate().map(InputDocument::from))
             .transpose()?;
         match (id, self.query) {
             (Some(_), Some(_)) => Err(BadRequest::from(

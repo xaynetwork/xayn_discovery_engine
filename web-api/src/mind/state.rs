@@ -22,7 +22,14 @@ use xayn_test_utils::error::Panic;
 use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
-    models::{DocumentId, DocumentProperties, IngestedDocument, PreprocessingStep, UserId},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        IngestedDocument,
+        PreprocessingStep,
+        SnippetOrDocumentId,
+        UserId,
+    },
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -87,14 +94,14 @@ impl State {
     pub(super) async fn interact(
         &self,
         user: &UserId,
-        documents: impl IntoIterator<Item = (&DocumentId, DateTime<Utc>)>,
+        documents: impl IntoIterator<Item = (SnippetOrDocumentId, DateTime<Utc>)>,
     ) -> Result<(), Panic> {
         for (id, time) in documents {
             update_interactions(
                 &self.storage,
                 &self.coi,
                 user,
-                [id],
+                vec![id],
                 self.personalization.store_user_history,
                 time,
             )

@@ -47,6 +47,7 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         SnippetId,
+        SnippetOrDocumentId,
         UserId,
     },
     personalization::filter::Filter,
@@ -257,7 +258,7 @@ pub(crate) trait Interaction {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        interactions: Vec<SnippetOrDocumentId>,
         store_user_history: bool,
         time: DateTime<Utc>,
         update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,

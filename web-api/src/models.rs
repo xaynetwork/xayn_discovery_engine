@@ -230,6 +230,11 @@ impl SnippetId {
     }
 }
 
+pub(crate) enum SnippetOrDocumentId {
+    SnippetId(SnippetId),
+    DocumentId(DocumentId),
+}
+
 /// A document snippet.
 #[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize, Type)]
 #[serde(transparent)]

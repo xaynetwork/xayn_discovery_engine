@@ -32,7 +32,7 @@ use crate::{
         data::{read, DocumentProvider, Impression, Ndcg, SpecificTopics, Users},
         state::{SaturationIteration, SaturationResult, SaturationTopicResult, State},
     },
-    models::UserId,
+    models::{SnippetOrDocumentId, UserId},
     personalization::routes::PersonalizeBy,
     storage::memory::Storage,
 };
@@ -57,21 +57,18 @@ async fn run_persona_benchmark() -> Result<(), Panic> {
     let mut rng = StdRng::seed_from_u64(42);
     for (idx, (user_id, interests)) in users_interests.iter().enumerate() {
         let interesting_documents = document_provider.get_all_interest(interests);
+        let interactions = interesting_documents
+            .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
+            .map(|doc| {
+                (
+                    SnippetOrDocumentId::DocumentId(doc.id.clone()),
+                    // TODO: set some meaningful value for the interaction time
+                    state.time - Duration::days(0),
+                )
+            })
+            .collect_vec();
         // prepare reranker by interacting with documents to prepare
-        state
-            .interact(
-                user_id,
-                interesting_documents
-                    .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
-                    .map(|doc| {
-                        (
-                            &doc.id,
-                            // TODO: set some meaningful value for the interaction time
-                            state.time - Duration::days(0),
-                        )
-                    }),
-            )
-            .await?;
+        state.interact(user_id, interactions).await?;
 
         for iter in 0..benchmark_config.iterations {
             let personalised_documents = state
@@ -102,7 +99,7 @@ async fn run_persona_benchmark() -> Result<(), Panic> {
                         })
                         .map(|(id, _)| {
                             (
-                                id,
+                                SnippetOrDocumentId::DocumentId(id.clone()),
                                 // TODO: set some meaningful value for the interaction time
                                 state.time - Duration::days(0),
                             )
@@ -142,7 +139,7 @@ async fn run_user_benchmark() -> Result<(), Panic> {
                         &user,
                         clicks.iter().map(|document| {
                             (
-                                document,
+                                SnippetOrDocumentId::DocumentId(document.clone()),
                                 // TODO: set some meaningful value for the interaction time
                                 state.time - Duration::days(0),
                             )
@@ -223,7 +220,13 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
 
         // interact with the document
         state
-            .interact(&user_id, [(&document.id, state.time - Duration::days(0))])
+            .interact(
+                &user_id,
+                [(
+                    SnippetOrDocumentId::DocumentId(document.id.clone()),
+                    state.time - Duration::days(0),
+                )],
+            )
             .await?;
 
         for _ in 0..benchmark_config.iterations {
@@ -254,9 +257,12 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
             state
                 .interact(
                     &user_id,
-                    to_be_clicked
-                        .iter()
-                        .map(|id| (id, state.time - Duration::days(0))),
+                    to_be_clicked.iter().map(|id| {
+                        (
+                            SnippetOrDocumentId::DocumentId(id.clone()),
+                            state.time - Duration::days(0),
+                        )
+                    }),
                 )
                 .await?;
 
@@ -300,7 +306,12 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
                 user_id,
                 interesting_documents
                     .choose_multiple(&mut rng, benchmark_config.amount_of_doc_used_to_prepare)
-                    .map(|doc| (&doc.id, state.time - Duration::days(0))),
+                    .map(|doc| {
+                        (
+                            SnippetOrDocumentId::DocumentId(doc.id.clone()),
+                            state.time - Duration::days(0),
+                        )
+                    }),
             )
             .await?;
 
@@ -315,7 +326,12 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
                     hot_news.iter().filter_map(|doc| {
                         (doc.is_interesting(interests)
                             && rng.gen_bool(benchmark_config.click_probability))
-                        .then(|| (&doc.id, state.time - Duration::days(0)))
+                        .then(|| {
+                            (
+                                SnippetOrDocumentId::DocumentId(doc.id.clone()),
+                                state.time - Duration::days(0),
+                            )
+                        })
                     }),
                 )
                 .await?;
@@ -345,7 +361,12 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
                         .filter_map(|(id, score)| {
                             ((score - 2.0).abs() < 0.001
                                 && rng.gen_bool(benchmark_config.click_probability))
-                            .then(|| (id, state.time - Duration::days(0)))
+                            .then(|| {
+                                (
+                                    SnippetOrDocumentId::DocumentId(id.clone()),
+                                    state.time - Duration::days(0),
+                                )
+                            })
                         }),
                 )
                 .await?;
@@ -388,7 +409,12 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
                     user_id,
                     interesting_documents
                         .choose_multiple(&mut rng, state.coi.config().min_cois())
-                        .map(|doc| (&doc.id, state.time - Duration::days(0))),
+                        .map(|doc| {
+                            (
+                                SnippetOrDocumentId::DocumentId(doc.id.clone()),
+                                state.time - Duration::days(0),
+                            )
+                        }),
                 )
                 .await?;
 
@@ -422,7 +448,10 @@ async fn grid_search_for_best_parameters() -> Result<(), Panic> {
                             .filter_map(|(id, score)| {
                                 ((score - 2.0).abs() < 0.001
                                     && rng.gen_bool(grid_search_config.click_probability))
-                                .then_some((id, state.time))
+                                .then_some((
+                                    SnippetOrDocumentId::DocumentId(id.clone()),
+                                    state.time,
+                                ))
                             }),
                     )
                     .await?;

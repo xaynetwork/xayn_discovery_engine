@@ -67,6 +67,7 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         SnippetId,
+        SnippetOrDocumentId,
         UserId,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
@@ -1156,7 +1157,7 @@ impl storage::Interaction for Storage {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        interactions: Vec<SnippetOrDocumentId>,
         store_user_history: bool,
         time: DateTime<Utc>,
         mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
@@ -1164,7 +1165,11 @@ impl storage::Interaction for Storage {
         let mut tx = self.postgres.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
-        let interactions = interactions.into_iter();
+        // TODO[pmk/ET-4756-5] properly support SnippetId
+        let interactions = interactions.iter().map(|id| match id {
+            SnippetOrDocumentId::DocumentId(id) => id,
+            SnippetOrDocumentId::SnippetId(id) => id.document_id(),
+        });
         let documents = Database::get_interacted(&mut tx, interactions.clone()).await?;
         let document_map = documents
             .iter()
