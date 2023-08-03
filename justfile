@@ -151,11 +151,11 @@ web-dev-up:
         ln -s "./assets/xaynia_v0002" "./web-api/assets"
     fi
     export HOST_PORT_SCOPE=30
-    docker-compose -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
+    podman-compose -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
 
 web-dev-down:
     #!/usr/bin/env -S bash -eu -o pipefail
-    docker-compose -p web-dev -f "./web-api/compose.db.yml" down
+    podman-compose -p web-dev -f "./web-api/compose.db.yml" down
 
 build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
     #!/usr/bin/env -S bash -eux -o pipefail
@@ -189,7 +189,7 @@ compose-all-up *args:
         exit 1
     fi
     export HOST_PORT_SCOPE=40
-    docker-compose \
+    podman-compose \
         -p "$PROJECT" \
         -f "./web-api/compose.db.yml" \
         -f "./web-api/compose.personalization.yml" \
@@ -199,7 +199,7 @@ compose-all-up *args:
 
 compose-all-down *args:
     #!/usr/bin/env -S bash -eux -o pipefail
-    docker-compose \
+    podman-compose \
         -p "compose-all" \
         -f "./web-api/compose.db.yml" \
         -f "./web-api/compose.personalization.yml" \

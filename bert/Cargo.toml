@@ -11,6 +11,7 @@ derive_more = { workspace = true }
 displaydoc = { workspace = true }
 figment = { workspace = true }
 ndarray = { workspace = true, features = ["serde"] }
+ort = { version = "1.15.2" }
 serde = { workspace = true }
 sqlx = { workspace = true, optional = true }
 thiserror = { workspace = true }

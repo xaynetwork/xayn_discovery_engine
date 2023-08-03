@@ -44,7 +44,7 @@ pub enum PipelineError {
     /// Failed to run the tokenizer: {0}
     Tokenizer(#[from] tokenizers::Error),
     /// Failed to run the model: {0}
-    Model(#[from] tract_onnx::prelude::TractError),
+    Model(#[from] anyhow::Error),
 }
 
 impl Pipeline<NonePooler> {

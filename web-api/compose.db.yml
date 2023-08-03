@@ -8,9 +8,7 @@ services:
       POSTGRES_PASSWORD: pw
       POSTGRES_DB: xayn
     ports:
-      - "${HOST_PORT_SCOPE:-30}54:5432"
-    networks:
-      - internal
+      - "5432:5432"
     healthcheck:
       test: pg_isready
       interval: 10s
@@ -25,9 +23,7 @@ services:
       - discovery.type=single-node
       - xpack.security.enabled=false
     ports:
-      - "${HOST_PORT_SCOPE:-30}92:9200"
-    networks:
-      - internal
+      - "9200:9200"
     healthcheck:
       test: curl --fail 'http://localhost:9200/_cluster/health'
       interval: 10s
@@ -61,6 +57,3 @@ services:
   #     - elasticsearch
   #   networks:
   #     - internal
-
-networks:
-  internal:

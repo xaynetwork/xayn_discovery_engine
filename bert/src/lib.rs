@@ -44,6 +44,7 @@ mod tokenizer;
 
 pub use crate::{
     config::Config,
+    model::RuntimeKind,
     pipeline::{Pipeline, PipelineError},
     pooler::{
         AveragePooler,

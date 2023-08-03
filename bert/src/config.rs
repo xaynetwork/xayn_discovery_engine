@@ -22,7 +22,7 @@ use figment::{
 use serde::Deserialize;
 
 use crate::{
-    model::Model,
+    model::{Model, RuntimeKind},
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
     tokenizer::Tokenizer,
@@ -82,12 +82,20 @@ pub struct Config<P> {
     pub(crate) dir: PathBuf,
     toml: Figment,
     pub(crate) token_size: usize,
+    pub(crate) runtime_kind: RuntimeKind,
     pooler: PhantomData<P>,
 }
 
 impl Config<NonePooler> {
     /// Creates a pipeline configuration.
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
+        Self::new_with_runtime(dir, RuntimeKind::Tract)
+    }
+
+    pub fn new_with_runtime(
+        dir: impl Into<PathBuf>,
+        runtime_kind: RuntimeKind,
+    ) -> Result<Self, Error> {
         let dir = dir.into();
         if !dir.exists() {
             return Err(Error::from(Kind::Message(format!(
@@ -112,6 +120,7 @@ impl Config<NonePooler> {
             dir,
             toml,
             token_size,
+            runtime_kind,
             pooler: PhantomData,
         })
     }
@@ -154,6 +163,15 @@ impl<P> Config<P> {
         Ok(self)
     }
 
+    /// Sets the runtime to use (tract or ort).
+    ///
+    /// Defaults to tract.
+    pub fn with_runtime(mut self, kind: RuntimeKind) -> Self {
+        self.runtime_kind = kind;
+
+        self
+    }
+
     /// Sets the pooler for the model.
     ///
     /// Defaults to `NonePooler`.
@@ -162,6 +180,7 @@ impl<P> Config<P> {
             dir: self.dir,
             toml: self.toml,
             token_size: self.token_size,
+            runtime_kind: self.runtime_kind,
             pooler: PhantomData,
         }
     }

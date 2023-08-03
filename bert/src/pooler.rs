@@ -31,7 +31,6 @@ use sqlx::{
     Type,
 };
 use thiserror::Error;
-use tract_onnx::prelude::TractError;
 use xayn_test_utils::ApproxEqIter;
 
 use crate::{model::Prediction, tokenizer::AttentionMask};
@@ -205,7 +204,7 @@ pub struct NonePooler;
 
 impl NonePooler {
     /// Passes through the prediction.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding2, TractError> {
+    pub(crate) fn pool(prediction: &Prediction) -> anyhow::Result<Embedding2> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, .., ..])
@@ -221,7 +220,7 @@ pub struct FirstPooler;
 
 impl FirstPooler {
     /// Pools the prediction over its first token.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, TractError> {
+    pub(crate) fn pool(prediction: &Prediction) -> anyhow::Result<Embedding1> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, 0, ..])
@@ -240,7 +239,7 @@ impl AveragePooler {
     pub(crate) fn pool(
         prediction: &Prediction,
         attention_mask: &AttentionMask,
-    ) -> Result<Embedding1, TractError> {
+    ) -> anyhow::Result<Embedding1> {
         let attention_mask: Array1<f32> = attention_mask.slice(s![0, ..]).mapv(
             #[allow(clippy::cast_precision_loss)] // values are only 0 or 1
             |mask| mask as f32,
