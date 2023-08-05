@@ -20,10 +20,10 @@ use serde::Deserialize;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiSystem};
 
-use super::PersonalizationConfig;
+use super::{routes::UnvalidatedDocumentOrSnippetId, PersonalizationConfig};
 use crate::{
     error::{common::HistoryTooSmall, warning::Warning},
-    models::{DocumentId, DocumentTags},
+    models::{DocumentTags, SnippetForInteraction, SnippetId, SnippetOrDocumentId},
     storage::{self, TagWeights},
     Error,
 };
@@ -31,15 +31,14 @@ use crate::{
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct UnvalidatedHistoryEntry {
-    id: String,
+    id: UnvalidatedDocumentOrSnippetId,
     #[serde(default)]
     timestamp: Option<DateTime<Utc>>,
 }
 
-#[derive(Deserialize, PartialEq, Debug)]
-#[serde(deny_unknown_fields)]
+#[derive(PartialEq, Debug)]
 pub(super) struct HistoryEntry {
-    pub(super) id: DocumentId,
+    pub(super) id: SnippetOrDocumentId,
     pub(super) timestamp: DateTime<Utc>,
 }
 
@@ -70,10 +69,12 @@ pub(super) fn validate_history(
         .rev()
         .take(max_history_len)
         .map(|unchecked| {
-            let id = DocumentId::try_from(unchecked.id)?;
+            let id = unchecked.id.validate()?;
             let timestamp = unchecked.timestamp.unwrap_or(most_recent_time);
             if timestamp > most_recent_time {
-                warnings.push(format!("inconsistent history ordering around document {id}").into());
+                let document_id = id.document_id();
+                let snippet_idx = id.snippet_idx();
+                warnings.push(format!("inconsistent history ordering around document {document_id} snippet {snippet_idx:?}").into());
             }
             most_recent_time = timestamp;
             Ok(HistoryEntry { id, timestamp })
@@ -97,26 +98,38 @@ pub(super) async fn load_history(
     storage: &impl storage::Document,
     history: Vec<HistoryEntry>,
 ) -> Result<Vec<LoadedHistoryEntry>, Error> {
-    let mut loaded =
-        storage::Document::get_interacted(storage, history.iter().map(|entry| &entry.id))
-            .await?
-            .into_iter()
-            .map(|document| (document.id, (document.embedding, document.tags)))
-            .collect::<HashMap<_, _>>();
-
-    Ok(history
+    let history = history
         .into_iter()
-        // filter ignores documents which don't exist in our database (i.e. have
-        // been deleted)
-        .filter_map(|HistoryEntry { id, timestamp }| {
-            loaded
-                .remove(&id)
-                .map(|(embedding, tags)| LoadedHistoryEntry {
+        .map(|entry| {
+            // TODO[pmk/soon] properly support history of documents with multiple snippets
+            let id = match entry.id {
+                SnippetOrDocumentId::SnippetId(id) => id,
+                SnippetOrDocumentId::DocumentId(id) => SnippetId::new(id, 0),
+            };
+            (id, entry.timestamp)
+        })
+        .collect::<HashMap<_, _>>();
+
+    let loaded = storage::Document::get_snippets_for_interaction(storage, history.keys())
+        .await?
+        .into_iter();
+
+    Ok(loaded
+        .into_iter()
+        .map(
+            |SnippetForInteraction {
+                 id,
+                 embedding,
+                 tags,
+             }| {
+                let timestamp = history[&id];
+                LoadedHistoryEntry {
                     timestamp,
                     embedding,
                     tags,
-                })
-        })
+                }
+            },
+        )
         .collect())
 }
 
@@ -182,6 +195,14 @@ mod tests {
         assert!(warnings.is_empty());
     }
 
+    fn unvalidated_doc_id(id: &str) -> UnvalidatedDocumentOrSnippetId {
+        UnvalidatedDocumentOrSnippetId::DocumentId(id.to_owned())
+    }
+
+    fn doc_id(id: &str) -> SnippetOrDocumentId {
+        SnippetOrDocumentId::DocumentId(id.try_into().unwrap())
+    }
+
     #[test]
     fn test_validating_to_large_history_warns() -> Result<(), Panic> {
         let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
@@ -193,7 +214,7 @@ mod tests {
 
         validate_history(
             vec![UnvalidatedHistoryEntry {
-                id: "doc-1".into(),
+                id: unvalidated_doc_id("doc-1"),
                 timestamp: Some(now - Duration::days(1)),
             }],
             &config,
@@ -206,11 +227,11 @@ mod tests {
         let documents = validate_history(
             vec![
                 UnvalidatedHistoryEntry {
-                    id: "doc-1".into(),
+                    id: unvalidated_doc_id("doc-1"),
                     timestamp: Some(now - Duration::days(2)),
                 },
                 UnvalidatedHistoryEntry {
-                    id: "doc-2".into(),
+                    id: unvalidated_doc_id("doc-2"),
                     timestamp: Some(now - Duration::days(1)),
                 },
             ],
@@ -224,7 +245,7 @@ mod tests {
         assert_eq!(
             documents,
             vec![HistoryEntry {
-                id: "doc-2".try_into()?,
+                id: SnippetOrDocumentId::DocumentId("doc-2".try_into()?),
                 timestamp: now - Duration::days(1)
             }]
         );
@@ -241,23 +262,23 @@ mod tests {
         let documents = validate_history(
             vec![
                 UnvalidatedHistoryEntry {
-                    id: "doc-1".into(),
+                    id: unvalidated_doc_id("doc-1"),
                     timestamp: Some(now - Duration::days(2)),
                 },
                 UnvalidatedHistoryEntry {
-                    id: "doc-2".into(),
+                    id: unvalidated_doc_id("doc-2"),
                     timestamp: None,
                 },
                 UnvalidatedHistoryEntry {
-                    id: "doc-3".into(),
+                    id: unvalidated_doc_id("doc-3"),
                     timestamp: None,
                 },
                 UnvalidatedHistoryEntry {
-                    id: "doc-4".into(),
+                    id: unvalidated_doc_id("doc-4"),
                     timestamp: Some(now - Duration::days(1)),
                 },
                 UnvalidatedHistoryEntry {
-                    id: "doc-5".into(),
+                    id: unvalidated_doc_id("doc-5"),
                     timestamp: None,
                 },
             ],
@@ -272,23 +293,23 @@ mod tests {
             documents,
             vec![
                 HistoryEntry {
-                    id: "doc-1".try_into()?,
+                    id: doc_id("doc-1"),
                     timestamp: now - Duration::days(2),
                 },
                 HistoryEntry {
-                    id: "doc-2".try_into()?,
+                    id: doc_id("doc-2"),
                     timestamp: now - Duration::days(1),
                 },
                 HistoryEntry {
-                    id: "doc-3".try_into()?,
+                    id: doc_id("doc-3"),
                     timestamp: now - Duration::days(1),
                 },
                 HistoryEntry {
-                    id: "doc-4".try_into()?,
+                    id: doc_id("doc-4"),
                     timestamp: now - Duration::days(1),
                 },
                 HistoryEntry {
-                    id: "doc-5".try_into()?,
+                    id: doc_id("doc-5"),
                     timestamp: now,
                 },
             ],
@@ -305,15 +326,15 @@ mod tests {
         validate_history(
             vec![
                 UnvalidatedHistoryEntry {
-                    id: "doc-1".into(),
+                    id: unvalidated_doc_id("doc-1"),
                     timestamp: Some(now + Duration::days(2)),
                 },
                 UnvalidatedHistoryEntry {
-                    id: "doc-4".into(),
+                    id: unvalidated_doc_id("doc-4"),
                     timestamp: Some(now + Duration::days(1)),
                 },
                 UnvalidatedHistoryEntry {
-                    id: "doc-5".into(),
+                    id: unvalidated_doc_id("doc-5"),
                     timestamp: None,
                 },
             ],
@@ -386,19 +407,19 @@ mod tests {
     }
 
     #[test]
-    fn test_history_trimming_trims_new_documents() -> Result<(), Panic> {
+    fn test_history_trimming_trims_new_documents() {
         let now = Utc.with_ymd_and_hms(2000, 10, 20, 3, 4, 5).unwrap();
         let history = vec![
             HistoryEntry {
-                id: "doc-1".try_into()?,
+                id: doc_id("doc-1"),
                 timestamp: now - Duration::days(4),
             },
             HistoryEntry {
-                id: "doc-2".try_into()?,
+                id: doc_id("doc-2"),
                 timestamp: now - Duration::days(3),
             },
             HistoryEntry {
-                id: "doc-3".try_into()?,
+                id: doc_id("doc-3"),
                 timestamp: now - Duration::days(2),
             },
         ];
@@ -407,15 +428,14 @@ mod tests {
             history,
             vec![
                 HistoryEntry {
-                    id: "doc-2".try_into()?,
+                    id: doc_id("doc-2"),
                     timestamp: now - Duration::days(3),
                 },
                 HistoryEntry {
-                    id: "doc-3".try_into()?,
+                    id: doc_id("doc-3"),
                     timestamp: now - Duration::days(2),
                 },
             ]
         );
-        Ok(())
     }
 }

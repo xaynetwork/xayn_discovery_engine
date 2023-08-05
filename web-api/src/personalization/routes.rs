@@ -594,7 +594,7 @@ impl UnvalidatedSemanticSearchRequest {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
-enum UnvalidatedSnippetOrDocumentId {
+pub(super) enum UnvalidatedSnippetOrDocumentId {
     DocumentId(String),
     SnippetId { document_id: String, sub_id: u32 },
 }
@@ -609,7 +609,7 @@ impl From<SnippetOrDocumentId> for InputDocument {
 }
 
 impl UnvalidatedSnippetOrDocumentId {
-    fn validate(self) -> Result<SnippetOrDocumentId, Error> {
+    pub(super) fn validate(self) -> Result<SnippetOrDocumentId, Error> {
         Ok(match self {
             UnvalidatedSnippetOrDocumentId::DocumentId(document_id) => {
                 SnippetOrDocumentId::DocumentId(document_id.try_into()?)
@@ -824,10 +824,19 @@ async fn personalized_exclusions(
                 Exclusions::default()
             }
         }
-        InputUser::Inline { history } => Exclusions {
-            documents: history.iter().map(|entry| entry.id.clone()).collect(),
-            snippets: Vec::new(),
-        },
+        InputUser::Inline { history } => {
+            let (documents, snippets) =
+                history
+                    .iter()
+                    .partition_map(|entry| match entry.id.clone() {
+                        SnippetOrDocumentId::SnippetId(id) => either::Either::Right(id),
+                        SnippetOrDocumentId::DocumentId(id) => either::Either::Left(id),
+                    });
+            Exclusions {
+                documents,
+                snippets,
+            }
+        }
     })
 }
 

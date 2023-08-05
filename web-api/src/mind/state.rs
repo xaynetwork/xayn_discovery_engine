@@ -23,9 +23,9 @@ use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
     models::{
+        DocumentForIngestion,
         DocumentId,
         DocumentProperties,
-        IngestedDocument,
         PreprocessingStep,
         SnippetOrDocumentId,
         UserId,
@@ -75,13 +75,13 @@ impl State {
             .into_iter()
             .map(|document| {
                 let embedding = self.embedder.run(&document.snippet)?;
-                Ok(IngestedDocument {
+                Ok(DocumentForIngestion {
                     id: document.id,
-                    snippet: document.snippet,
+                    raw_document: document.snippet.as_str().to_owned(),
+                    snippets: vec![(document.snippet, embedding)],
                     preprocessing_step: PreprocessingStep::None,
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory].try_into()?,
-                    embedding,
                     is_candidate: true,
                 })
             })

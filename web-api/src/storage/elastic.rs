@@ -150,7 +150,7 @@ impl Client {
     pub(super) async fn insert_documents(
         &self,
         documents: impl IntoIterator<
-            IntoIter = impl ExactSizeIterator<Item = &models::IngestedDocument>,
+            IntoIter = impl ExactSizeIterator<Item = &models::DocumentForIngestion>,
         >,
     ) -> Result<Warning<DocumentId>, Error> {
         let documents = documents.into_iter();
@@ -163,9 +163,11 @@ impl Client {
                 [
                     serde_json::to_value(BulkInstruction::Index { id: &document.id }),
                     serde_json::to_value(IngestedDocument {
-                        snippet: &document.snippet,
+                        // TODO[pmk/ET-4756-7]
+                        snippet: &document.snippets[0].0,
                         properties: &document.properties,
-                        embedding: &document.embedding,
+                        // TODO[pmk/ET-4756-7]
+                        embedding: &document.snippets[0].1,
                         tags: &document.tags,
                     }),
                 ]

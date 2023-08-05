@@ -37,15 +37,15 @@ use crate::{
     ingestion::IngestionConfig,
     models::{
         self,
+        DocumentForIngestion,
         DocumentId,
         DocumentPropertyId,
         DocumentQuery,
         DocumentTag,
         DocumentTags,
         ExcerptedDocument,
-        IngestedDocument,
-        InteractedDocument,
         PersonalizedDocument,
+        SnippetForInteraction,
         SnippetId,
         SnippetOrDocumentId,
         UserId,
@@ -143,10 +143,10 @@ impl<T> FromIterator<T> for Warning<T> {
 
 #[async_trait(?Send)]
 pub(crate) trait Document {
-    async fn get_interacted(
+    async fn get_snippets_for_interaction(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<InteractedDocument>, Error>;
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
+    ) -> Result<Vec<SnippetForInteraction>, Error>;
 
     //FIXME this is only used by (view) tests and dead code, consider removing it
     async fn get_personalized(
@@ -158,7 +158,7 @@ pub(crate) trait Document {
 
     async fn get_excerpted(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId> + Clone>,
     ) -> Result<Vec<ExcerptedDocument>, Error>;
 
     async fn get_embedding(&self, id: &SnippetId) -> Result<Option<NormalizedEmbedding>, Error>;
@@ -169,7 +169,10 @@ pub(crate) trait Document {
     ) -> Result<Vec<PersonalizedDocument>, Error>;
 
     /// Inserts the documents and reports failed ids.
-    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Warning<DocumentId>, Error>;
+    async fn insert(
+        &self,
+        documents: Vec<DocumentForIngestion>,
+    ) -> Result<Warning<DocumentId>, Error>;
 
     /// Deletes the documents and reports failed ids.
     async fn delete(
@@ -243,7 +246,7 @@ pub(crate) trait Interest {
 }
 
 pub(crate) struct InteractionUpdateContext<'s, 'l> {
-    pub(crate) document: &'s InteractedDocument,
+    pub(crate) document: &'s SnippetForInteraction,
     pub(crate) tag_weight_diff: &'s mut HashMap<&'l DocumentTag, i32>,
     pub(crate) interests: &'s mut Vec<Coi>,
     pub(crate) time: DateTime<Utc>,

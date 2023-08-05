@@ -21,27 +21,27 @@ use crate::{
     Error,
 };
 
-pub(super) type DocumentContent = (DocumentSnippet, NormalizedEmbedding);
+pub(super) type DocumentContent = Vec<(DocumentSnippet, NormalizedEmbedding)>;
 
 pub(super) fn preprocess_document(
     embedder: &Embedder,
-    raw_text: DocumentSnippet,
+    raw_document: &DocumentSnippet,
     preprocessing_step: PreprocessingStep,
 ) -> Result<DocumentContent, Error> {
     Ok(match preprocessing_step {
-        PreprocessingStep::None => embed_whole(embedder, raw_text)?,
-        PreprocessingStep::Summarize => embed_with_summarizer(embedder, raw_text)?,
+        PreprocessingStep::None => embed_whole(embedder, raw_document)?,
+        PreprocessingStep::Summarize => embed_with_summarizer(embedder, raw_document)?,
     })
 }
 
-fn embed_whole(embedder: &Embedder, snippet: DocumentSnippet) -> Result<DocumentContent, Error> {
-    let embedding = embedder.run(&snippet)?;
-    Ok((snippet, embedding))
+fn embed_whole(embedder: &Embedder, snippet: &DocumentSnippet) -> Result<DocumentContent, Error> {
+    let embedding = embedder.run(snippet)?;
+    Ok(vec![(snippet.clone(), embedding)])
 }
 
 fn embed_with_summarizer(
     embedder: &Embedder,
-    snippet: DocumentSnippet,
+    snippet: &DocumentSnippet,
 ) -> Result<DocumentContent, Error> {
     let summary = summarize(
         &Summarizer::Naive,
@@ -51,5 +51,5 @@ fn embed_with_summarizer(
         &Config::default(),
     );
     let embedding = embedder.run(&summary)?;
-    Ok((snippet, embedding))
+    Ok(vec![(snippet.clone(), embedding)])
 }

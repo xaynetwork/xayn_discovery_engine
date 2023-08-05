@@ -15,7 +15,7 @@
 mod client;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     slice,
     time::Duration,
 };
@@ -23,6 +23,7 @@ use std::{
 use async_trait::async_trait;
 pub(crate) use client::{Database, DatabaseBuilder};
 use either::Either;
+use futures_util::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use serde_json::Value;
 use sqlx::{
@@ -50,23 +51,24 @@ use super::{
         IndexedPropertyDefinition,
         IndexedPropertyType,
     },
-    utils::IterAsTuple,
+    utils::{IterAsTuple, SqlBitCastU32},
     InteractionUpdateContext,
     TagWeights,
 };
 use crate::{
     ingestion::IngestionConfig,
     models::{
+        DocumentForIngestion,
         DocumentId,
         DocumentProperties,
         DocumentProperty,
         DocumentPropertyId,
+        DocumentSnippet,
         DocumentTag,
         DocumentTags,
         ExcerptedDocument,
-        IngestedDocument,
-        InteractedDocument,
         PersonalizedDocument,
+        SnippetForInteraction,
         SnippetId,
         SnippetOrDocumentId,
         UserId,
@@ -79,13 +81,6 @@ use crate::{
 struct QueriedDeletedDocument {
     document_id: DocumentId,
     is_candidate: bool,
-}
-
-#[derive(FromRow)]
-struct QueriedInteractedDocument {
-    document_id: DocumentId,
-    tags: DocumentTags,
-    embedding: NormalizedEmbedding,
 }
 
 #[derive(FromRow)]
@@ -105,49 +100,93 @@ impl Database {
 
     pub(super) async fn insert_documents(
         &self,
-        documents: impl IntoIterator<Item = &IngestedDocument>,
+        documents: &[DocumentForIngestion],
     ) -> Result<(), Error> {
         let mut tx = self.begin().await?;
 
         let mut builder = QueryBuilder::new(
             "INSERT INTO document (
                 document_id,
-                snippet,
+                raw_document,
                 preprocessing_step,
                 properties,
                 tags,
-                embedding,
                 is_candidate
             ) ",
         );
-        let mut documents = documents.into_iter().peekable();
-        while documents.peek().is_some() {
+        for chunk in documents.chunks(Self::BIND_LIMIT / 5) {
             builder
                 .reset()
-                .push_values(
-                    documents.by_ref().take(Self::BIND_LIMIT / 6),
-                    |mut builder, document| {
-                        builder
-                            .push_bind(&document.id)
-                            .push_bind(&document.snippet)
-                            .push_bind(document.preprocessing_step)
-                            .push_bind(Json(&document.properties))
-                            .push_bind(&document.tags)
-                            .push_bind(&document.embedding)
-                            .push_bind(document.is_candidate);
-                    },
-                )
+                .push_values(chunk, |mut builder, document| {
+                    builder
+                        .push_bind(&document.id)
+                        .push_bind(&document.raw_document)
+                        .push_bind(document.preprocessing_step)
+                        .push_bind(Json(&document.properties))
+                        .push_bind(&document.tags)
+                        .push_bind(document.is_candidate);
+                })
                 .push(
                     " ON CONFLICT (document_id) DO UPDATE SET
-                        snippet = EXCLUDED.snippet,
+                        raw_document = EXCLUDED.raw_document,
                         preprocessing_step = EXCLUDED.preprocessing_step,
                         properties = EXCLUDED.properties,
                         tags = EXCLUDED.tags,
-                        embedding = EXCLUDED.embedding,
                         is_candidate = EXCLUDED.is_candidate;",
                 )
                 .build()
                 .persistent(false)
+                .execute(&mut tx)
+                .await?;
+        }
+
+        let mut snippets = documents
+            .iter()
+            .flat_map(|document| {
+                document
+                    .snippets
+                    .iter()
+                    .enumerate()
+                    .map(|(sub_id, (snippet, embedding))| {
+                        (
+                            &document.id,
+                            #[allow(clippy::cast_possible_truncation)]
+                            SqlBitCastU32::from(sub_id as u32),
+                            snippet,
+                            embedding,
+                        )
+                    })
+            })
+            .peekable();
+
+        let mut builder = QueryBuilder::new(
+            "INSERT INTO snippet (
+                        document_id,
+                        sub_id,
+                        snippet,
+                        embedding
+                    ) ",
+        );
+
+        while snippets.peek().is_some() {
+            builder
+                .reset()
+                .push_values(
+                    snippets.by_ref().take(Self::BIND_LIMIT / 4),
+                    |mut builder, (document_id, sub_id, snippet, embedding)| {
+                        builder
+                            .push_bind(document_id)
+                            .push_bind(sub_id)
+                            .push_bind(snippet)
+                            .push_bind(embedding);
+                    },
+                )
+                .push(
+                    " ON CONFLICT (document_id, sub_id) DO UPDATE SET
+                    snippet = EXCLUDED.snippet,
+                    embedding = EXCLUDED.embedding;",
+                )
+                .build()
                 .execute(&mut tx)
                 .await?;
         }
@@ -209,7 +248,7 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         id: &DocumentId,
     ) -> Result<bool, Error> {
-        sqlx::query("SELECT 1 FROM document WHERE document_id = $1;")
+        sqlx::query("SELECT FROM document WHERE document_id = $1;")
             .bind(id)
             .execute(tx)
             .await
@@ -217,30 +256,35 @@ impl Database {
             .map_err(Into::into)
     }
 
-    async fn get_interacted(
+    async fn get_snippets_for_interaction(
         tx: &mut Transaction<'_, Postgres>,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<InteractedDocument>, Error> {
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
+    ) -> Result<Vec<SnippetForInteraction>, Error> {
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, tags, embedding
-            FROM document
-            WHERE document_id IN ",
+            "SELECT s.document_id, s.snippet_idx, s.embedding, d.tags
+            FROM snippet s JOIN document d USING (document_id)
+            WHERE (document_id, snippet_idx) IN ",
         );
-        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids);
+        let mut chunks = IterAsTuple::chunks(
+            Self::BIND_LIMIT,
+            ids.into_iter()
+                .map(|s| (s.document_id(), SqlBitCastU32::from(s.snippet_idx()))),
+        );
         let mut documents = Vec::with_capacity(chunks.element_count());
         while let Some(ids) = chunks.next() {
             documents.extend(
                 builder
                     .reset()
-                    .push_tuple(ids)
+                    .push_nested_tuple(ids)
                     .build()
-                    .try_map(|row| {
-                        QueriedInteractedDocument::from_row(&row).map(|document| {
-                            InteractedDocument {
-                                id: document.document_id,
-                                embedding: document.embedding,
-                                tags: document.tags,
-                            }
+                    .try_map(|row: PgRow| {
+                        let document_id = row.try_get("document_id")?;
+                        let snippet_idx = row.try_get::<SqlBitCastU32, _>("snippet_idx")?;
+                        let id = SnippetId::new(document_id, snippet_idx.into());
+                        Ok(SnippetForInteraction {
+                            id,
+                            embedding: row.try_get("embedding")?,
+                            tags: row.try_get("tags")?,
                         })
                     })
                     .fetch_all(&mut *tx)
@@ -257,40 +301,48 @@ impl Database {
         include_properties: bool,
         include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
-        let mut builder = QueryBuilder::new(format!(
-            "SELECT document_id, embedding, tags {}{}
-            FROM document
-            WHERE document_id IN ",
-            include_properties
-                .then_some(", properties")
-                .unwrap_or_default(),
-            include_snippet.then_some(", snippet").unwrap_or_default(),
-        ));
         let mut documents = Vec::with_capacity(scores.len());
-        let mut chunks =
-            IterAsTuple::chunks(Self::BIND_LIMIT, scores.keys().map(SnippetId::document_id));
+
+        let mut builder = QueryBuilder::new(format!(
+            "SELECT
+                d.document_id, d.tags {properties},
+                s.sub_id, s.embedding {snippet}
+            FROM document d JOIN snippet s USING (document_id)
+            WHERE (document_id, sub_id) IN ",
+            properties = include_properties
+                .then_some(", d.properties")
+                .unwrap_or_default(),
+            snippet = include_snippet.then_some(", s.snippet").unwrap_or_default(),
+        ));
+        let mut chunks = IterAsTuple::chunks(
+            Self::BIND_LIMIT / 2,
+            scores
+                .keys()
+                .map(|id| (id.document_id(), SqlBitCastU32::from(id.sub_id()))),
+        );
         while let Some(ids) = chunks.next() {
             documents.extend(
                 builder
                     .reset()
-                    .push_tuple(ids)
+                    .push_nested_tuple(ids)
                     .build()
                     .try_map(|row: PgRow| {
-                        // TODO[pmk/now] for this PR we blindly assume sub_id==0, this function
-                        //               will change majorly in the followup PR anyway
-                        let id = SnippetId::new(row.try_get("document_id")?, 0);
-                        let embedding = row.try_get("embedding")?;
+                        let document_id = row.try_get("document_id")?;
+                        let sub_id = u32::from(row.try_get::<SqlBitCastU32, _>("sub_id")?);
+                        let id = SnippetId::new(document_id, sub_id);
                         let tags = row.try_get("tags")?;
                         let properties = if include_properties {
                             Some(row.try_get::<Json<_>, _>("properties")?.0)
                         } else {
                             None
                         };
+                        let embedding = row.try_get("embedding")?;
                         let snippet = if include_snippet {
                             Some(row.try_get("snippet")?)
                         } else {
                             None
                         };
+
                         let score = scores[&id];
 
                         Ok(PersonalizedDocument {
@@ -316,34 +368,28 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<ExcerptedDocument>, Error> {
+        let ids = ids.into_iter();
+
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, snippet, preprocessing_step, properties, tags, is_candidate
+            "SELECT document_id, raw_document, preprocessing_step, properties, tags, is_candidate
             FROM document
             WHERE document_id IN ",
         );
+        let mut documents = Vec::with_capacity(ids.len());
         let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids);
-        let mut documents = Vec::with_capacity(chunks.element_count());
         while let Some(ids) = chunks.next() {
-            documents.extend(
-                builder
-                    .reset()
-                    .push_tuple(ids)
-                    .build()
-                    .try_map(|row| {
-                        let (id, snippet, preprocessing_step, Json(properties), tags, is_candidate) =
-                            FromRow::from_row(&row)?;
-                        Ok(ExcerptedDocument {
-                            id,
-                            snippet,
-                            preprocessing_step,
-                            properties,
-                            tags,
-                            is_candidate,
-                        })
-                    })
-                    .fetch_all(&mut *tx)
-                    .await?,
-            );
+            let mut rows = builder.reset().push_tuple(ids).build().fetch(&mut *tx);
+
+            while let Some(row) = rows.next().await.transpose()? {
+                documents.push(ExcerptedDocument {
+                    id: row.try_get("document_id")?,
+                    raw_document: row.try_get("raw_document")?,
+                    preprocessing_step: row.try_get("preprocessing_step")?,
+                    properties: row.try_get::<Json<_>, _>("properties")?.0,
+                    tags: row.try_get("tags")?,
+                    is_candidate: row.try_get("is_candidate")?,
+                });
+            }
         }
 
         Ok(documents)
@@ -353,9 +399,9 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         id: &SnippetId,
     ) -> Result<Option<NormalizedEmbedding>, Error> {
-        // TODO[pmk/ET-4756-5] handle snippet idx
-        sqlx::query_as("SELECT embedding FROM document WHERE document_id = $1;")
+        sqlx::query_as("SELECT embedding FROM snippet WHERE document_id = $1 AND sub_id = $2;")
             .bind(id.document_id())
+            .bind(SqlBitCastU32::from(id.sub_id()))
             .fetch_optional(tx)
             .await
             .map_err(Into::into)
@@ -364,7 +410,14 @@ impl Database {
     async fn set_candidates(
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
-    ) -> Result<(Vec<DocumentId>, Vec<IngestedDocument>, Warning<DocumentId>), Error> {
+    ) -> Result<
+        (
+            Vec<DocumentId>,
+            Vec<DocumentForIngestion>,
+            Warning<DocumentId>,
+        ),
+        Error,
+    > {
         let mut tx = self.begin().await?;
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
@@ -393,56 +446,96 @@ impl Database {
                 .await?;
         }
 
-        let mut builder = QueryBuilder::new(
-            "UPDATE document
-            SET is_candidate = TRUE
-            WHERE document_id IN ",
-        );
-        let mut ingested = Vec::with_capacity(ingestable.len());
-        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ingestable.iter());
-        while let Some(ids) = chunks.next() {
-            ingested.extend(
-                builder
-                    .reset()
-                    .push_tuple(ids)
-                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embedding;")
-                    .build()
-                    .try_map(|row| {
-                        let (id, snippet, preprocessing_step, Json(properties), tags, embedding) =
-                            FromRow::from_row(&row)?;
-                        Ok(IngestedDocument {
-                            id,
-                            snippet,
-                            preprocessing_step,
-                            properties,
-                            tags,
-                            embedding,
-                            is_candidate: true,
-                        })
-                    })
-                    .fetch_all(&mut tx)
-                    .await?,
-            );
-        }
+        let needs_ingestion =
+            Self::set_is_candidate_and_return_for_ingestion(&mut tx, ingestable.iter().copied())
+                .await?;
 
         tx.commit().await?;
 
-        let failed = (ingested.len() < ingestable.len())
+        let failed = (needs_ingestion.len() < ingestable.len())
             .then(|| {
-                for document in &ingested {
+                for document in &needs_ingestion {
                     ingestable.remove(&document.id);
                 }
                 ingestable.into_iter().cloned().collect()
             })
             .unwrap_or_default();
 
-        Ok((unchanged, ingested, failed))
+        Ok((unchanged, needs_ingestion, failed))
+    }
+
+    async fn set_is_candidate_and_return_for_ingestion(
+        tx: &mut Transaction<'_, Postgres>,
+        ids: impl ExactSizeIterator<Item = &DocumentId> + Clone,
+    ) -> Result<Vec<DocumentForIngestion>, Error> {
+        let mut builder = QueryBuilder::new(
+            "SELECT document_id, sub_id, snippet, embedding
+            FROM snippet
+            WHERE document_id IN ",
+        );
+        let mut snippets = HashMap::<_, BTreeMap<_, _>>::new();
+        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids.clone());
+        while let Some(ids) = chunks.next() {
+            let mut chunk = builder
+                .reset()
+                .push_tuple(ids)
+                .build_query_as::<SqlSnippet>()
+                .fetch(&mut *tx);
+
+            while let Some(snippet) = chunk.next().await.transpose()? {
+                snippets.entry(snippet.document_id).or_default().insert(
+                    u32::from(snippet.sub_id),
+                    (snippet.snippet, snippet.embedding),
+                );
+            }
+        }
+
+        let mut builder = QueryBuilder::new(
+            "UPDATE document
+            SET is_candidate = TRUE
+            WHERE document_id IN ",
+        );
+        let mut needs_ingestion = Vec::with_capacity(ids.len());
+        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids);
+        while let Some(ids) = chunks.next() {
+            let mut rows = builder
+                .reset()
+                .push_tuple(ids)
+                .push(" RETURNING document_id, preprocessing_step, properties, tags;")
+                .build()
+                .fetch(&mut *tx);
+
+            while let Some(row) = rows.next().await.transpose()? {
+                let document_id = row.try_get("document_id")?;
+                //Hint: We currently assume there are no gaps
+                let snippets = snippets
+                    .remove(&document_id)
+                    .unwrap_or_default()
+                    .into_values()
+                    .map(|(snippet, embedding)| (snippet, embedding))
+                    .collect();
+
+                needs_ingestion.push(DocumentForIngestion {
+                    id: document_id,
+                    //FIXME clearly separate PG and ES
+                    // we don't put raw document onto ES
+                    raw_document: String::new(),
+                    snippets,
+                    preprocessing_step: row.try_get("preprocessing_step")?,
+                    properties: row.try_get::<Json<_>, _>("properties")?.0,
+                    tags: row.try_get("tags")?,
+                    is_candidate: true,
+                });
+            }
+        }
+
+        Ok(needs_ingestion)
     }
 
     async fn add_candidates(
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
-    ) -> Result<(Vec<IngestedDocument>, Warning<DocumentId>), Error> {
+    ) -> Result<(Vec<DocumentForIngestion>, Warning<DocumentId>), Error> {
         let mut tx = self.begin().await?;
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
@@ -468,50 +561,22 @@ impl Database {
             ingestable.remove(id);
         }
 
-        let mut builder = QueryBuilder::new(
-            "UPDATE document
-            SET is_candidate = TRUE
-            WHERE document_id IN ",
-        );
-        let mut ingested = Vec::with_capacity(ingestable.len());
-        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ingestable.iter());
-        while let Some(ids) = chunks.next() {
-            ingested.extend(
-                builder
-                    .reset()
-                    .push_tuple(ids)
-                    .push(" RETURNING document_id, snippet, preprocessing_step, properties, tags, embedding;")
-                    .build()
-                    .try_map(|row| {
-                        let (id, snippet, preprocessing_step, Json(properties), tags, embedding) =
-                            FromRow::from_row(&row)?;
-                        Ok(IngestedDocument {
-                            id,
-                            snippet,
-                            preprocessing_step,
-                            properties,
-                            tags,
-                            embedding,
-                            is_candidate: true,
-                        })
-                    })
-                    .fetch_all(&mut tx)
-                    .await?,
-            );
-        }
+        let needs_ingestion =
+            Self::set_is_candidate_and_return_for_ingestion(&mut tx, ingestable.iter().copied())
+                .await?;
 
         tx.commit().await?;
 
-        let failed = (ingested.len() < ingestable.len())
+        let failed = (needs_ingestion.len() < ingestable.len())
             .then(|| {
-                for document in &ingested {
+                for document in &needs_ingestion {
                     ingestable.remove(&document.id);
                 }
                 ingestable.into_iter().cloned().collect()
             })
             .unwrap_or_default();
 
-        Ok((ingested, failed))
+        Ok((needs_ingestion, failed))
     }
 
     async fn remove_candidates(
@@ -687,22 +752,24 @@ impl Database {
         tx: &mut Transaction<'_, Postgres>,
         user_id: &UserId,
         time: DateTime<Utc>,
-        interactions: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        interactions: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
     ) -> Result<(), Error> {
         let mut interactions = interactions.into_iter().peekable();
         //FIXME micro benchmark and chunking+persist abstraction
         let persist = interactions.len() < 10;
 
-        let mut builder =
-            QueryBuilder::new("INSERT INTO interaction (doc_id, user_id, time_stamp) ");
+        let mut builder = QueryBuilder::new(
+            "INSERT INTO interaction (document_id, snippet_idx, user_id, time_stamp) ",
+        );
         while interactions.peek().is_some() {
             builder
                 .reset()
                 .push_values(
                     interactions.by_ref().take(Database::BIND_LIMIT / 3),
-                    |mut builder, document_id| {
+                    |mut builder, snippet_id| {
                         builder
-                            .push_bind(document_id)
+                            .push_bind(snippet_id.document_id())
+                            .push_bind(SqlBitCastU32::from(snippet_id.snippet_idx()))
                             .push_bind(user_id)
                             .push_bind(time);
                     },
@@ -764,14 +831,22 @@ impl Database {
     }
 }
 
+#[derive(FromRow)]
+struct SqlSnippet {
+    document_id: DocumentId,
+    sub_id: SqlBitCastU32,
+    snippet: DocumentSnippet,
+    embedding: NormalizedEmbedding,
+}
+
 #[async_trait(?Send)]
 impl storage::Document for Storage {
-    async fn get_interacted(
+    async fn get_snippets_for_interaction(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<InteractedDocument>, Error> {
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
+    ) -> Result<Vec<SnippetForInteraction>, Error> {
         let mut tx = self.postgres.begin().await?;
-        let documents = Database::get_interacted(&mut tx, ids).await?;
+        let documents = Database::get_snippets_for_interaction(&mut tx, ids).await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -828,7 +903,10 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
-    async fn insert(&self, documents: Vec<IngestedDocument>) -> Result<Warning<DocumentId>, Error> {
+    async fn insert(
+        &self,
+        documents: Vec<DocumentForIngestion>,
+    ) -> Result<Warning<DocumentId>, Error> {
         self.postgres.insert_documents(&documents).await?;
         let (candidates, noncandidates) = documents
             .into_iter()
@@ -1111,35 +1189,25 @@ impl storage::Interest for Storage {
     }
 }
 
-#[derive(FromRow)]
-struct QueriedInteractedDocumentId {
-    //FIXME this should be called `document_id`
-    doc_id: DocumentId,
-}
-
-impl From<QueriedInteractedDocumentId> for DocumentId {
-    fn from(document_id: QueriedInteractedDocumentId) -> Self {
-        document_id.doc_id
-    }
-}
-
 #[async_trait(?Send)]
 impl storage::Interaction for Storage {
     async fn get(&self, user_id: &UserId) -> Result<Vec<DocumentId>, Error> {
         let mut tx = self.postgres.begin().await?;
 
-        let documents = sqlx::query_as::<_, QueriedInteractedDocumentId>(
-            "SELECT DISTINCT doc_id
+        let documents = sqlx::query_as::<_, (DocumentId,)>(
+            "SELECT DISTINCT document_id
             FROM interaction
             WHERE user_id = $1;",
         )
         .bind(user_id)
-        .fetch_all(&mut tx)
+        .fetch(&mut tx)
+        .map_ok(|(id,)| id)
+        .try_collect()
         .await?;
 
         tx.commit().await?;
 
-        Ok(documents.into_iter().map_into().collect())
+        Ok(documents)
     }
 
     async fn user_seen(&self, id: &UserId, time: DateTime<Utc>) -> Result<(), Error> {
@@ -1168,17 +1236,21 @@ impl storage::Interaction for Storage {
         let mut tx = self.postgres.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
-        // TODO[pmk/ET-4756-5] properly support SnippetId
-        let interactions = interactions.iter().map(|id| match id {
-            SnippetOrDocumentId::DocumentId(id) => id,
-            SnippetOrDocumentId::SnippetId(id) => id.document_id(),
-        });
-        let documents = Database::get_interacted(&mut tx, interactions.clone()).await?;
-        let document_map = documents
+        // TODO[pmk/soon] proper support for interaction with multi-snippet documents
+        let interactions = interactions
+            .into_iter()
+            .map(|id| match id {
+                SnippetOrDocumentId::SnippetId(id) => id,
+                SnippetOrDocumentId::DocumentId(id) => SnippetId::new(id, 0),
+            })
+            .collect_vec();
+
+        let snippets = Database::get_snippets_for_interaction(&mut tx, interactions.iter()).await?;
+        let snippet_map = snippets
             .iter()
             .map(|document| (&document.id, document))
             .collect::<HashMap<_, _>>();
-        let mut tag_weight_diff = documents
+        let mut tag_weight_diff = snippets
             .iter()
             .flat_map(|document| &document.tags)
             .map(|tag| (tag, 0))
@@ -1187,7 +1259,7 @@ impl storage::Interaction for Storage {
         let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
         let mut updates = HashMap::new();
         for document_id in interactions {
-            if let Some(document) = document_map.get(document_id) {
+            if let Some(document) = snippet_map.get(&document_id) {
                 let updated_coi = update_logic(InteractionUpdateContext {
                     document,
                     tag_weight_diff: &mut tag_weight_diff,
@@ -1198,13 +1270,13 @@ impl storage::Interaction for Storage {
                 // if we do we only want to keep the latest update.
                 updates.insert(updated_coi.id, updated_coi);
             } else {
-                info!(%document_id, "interacted document doesn't exist");
+                info!(?document_id, "interacted snippet doesn't exist");
             }
         }
 
         Database::upsert_cois(&mut tx, user_id, time, &updates).await?;
         if store_user_history {
-            Database::upsert_interactions(&mut tx, user_id, time, document_map.keys().copied())
+            Database::upsert_interactions(&mut tx, user_id, time, snippet_map.keys().copied())
                 .await?;
         }
         Database::upsert_tag_weights(&mut tx, user_id, &tag_weight_diff).await?;
