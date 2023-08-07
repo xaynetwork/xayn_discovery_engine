@@ -183,6 +183,24 @@ where
     }
 }
 
+#[derive(Copy, Clone, Debug, Type)]
+#[sqlx(transparent)]
+pub(super) struct SqlBitCastU32(i32);
+
+impl From<u32> for SqlBitCastU32 {
+    fn from(value: u32) -> Self {
+        #![allow(clippy::cast_possible_wrap)]
+        Self(value as i32)
+    }
+}
+
+impl From<SqlBitCastU32> for u32 {
+    fn from(value: SqlBitCastU32) -> Self {
+        #![allow(clippy::cast_sign_loss)]
+        value.0 as u32
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use sqlx::Postgres;
@@ -260,5 +278,12 @@ mod tests {
             builder.push_tuple(chunk);
         }
         assert_eq!(builder.sql(), "-- ");
+    }
+
+    #[test]
+    fn test_sql_bitcast_u32() {
+        assert_eq!(u32::from(SqlBitCastU32::from(u32::MAX)), u32::MAX);
+        assert_eq!(u32::from(SqlBitCastU32::from(100)), 100);
+        assert_eq!(SqlBitCastU32::from(u32::MAX).0, -1);
     }
 }
