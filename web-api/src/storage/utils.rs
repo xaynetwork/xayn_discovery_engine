@@ -175,7 +175,7 @@ where
         IterAsTuple::new(self.iter.by_ref().take(self.chunk_size)).ok()
     }
 
-    pub(super) fn len(&self) -> usize
+    pub(super) fn element_count(&self) -> usize
     where
         I: ExactSizeIterator,
     {

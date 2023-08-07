@@ -166,8 +166,8 @@ impl Database {
         let mut builder = QueryBuilder::new("DELETE FROM document WHERE document_id IN ");
         let all = ids.into_iter();
         let mut deleted = Vec::with_capacity(all.len());
-        let mut ids = all.clone();
-        while let Ok(ids) = IterAsTuple::new(ids.by_ref().take(Self::BIND_LIMIT)) {
+        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, all.clone());
+        while let Some(ids) = chunks.next() {
             deleted.extend(
                 builder
                     .reset()
@@ -227,7 +227,7 @@ impl Database {
             WHERE document_id IN ",
         );
         let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids);
-        let mut documents = Vec::with_capacity(chunks.len());
+        let mut documents = Vec::with_capacity(chunks.element_count());
         while let Some(ids) = chunks.next() {
             documents.extend(
                 builder
@@ -267,8 +267,9 @@ impl Database {
             include_snippet.then_some(", snippet").unwrap_or_default(),
         ));
         let mut documents = Vec::with_capacity(scores.len());
-        let mut ids = scores.keys().map(SnippetId::document_id);
-        while let Ok(ids) = IterAsTuple::new(ids.by_ref().take(Self::BIND_LIMIT)) {
+        let mut chunks =
+            IterAsTuple::chunks(Self::BIND_LIMIT, scores.keys().map(SnippetId::document_id));
+        while let Some(ids) = chunks.next() {
             documents.extend(
                 builder
                     .reset()
@@ -320,9 +321,9 @@ impl Database {
             FROM document
             WHERE document_id IN ",
         );
-        let mut ids = ids.into_iter();
-        let mut documents = Vec::with_capacity(ids.len());
-        while let Ok(ids) = IterAsTuple::new(ids.by_ref().take(Self::BIND_LIMIT)) {
+        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids);
+        let mut documents = Vec::with_capacity(chunks.element_count());
+        while let Some(ids) = chunks.next() {
             documents.extend(
                 builder
                     .reset()
