@@ -19,4 +19,4 @@ ALTER TABLE interaction
     ADD COLUMN snippet_idx INTEGER NOT NULL DEFAULT 0,
     DROP CONSTRAINT interaction_pkey,
     ADD PRIMARY KEY (document_id, snippet_idx, user_id, time_stamp),
-    ADD FOREIGN KEY (document_id, snippet_idx) REFERENCES snippet(document_id, snippet_idx);
+    ADD FOREIGN KEY (document_id, snippet_idx) REFERENCES snippet(document_id, snippet_idx) ON DELETE CASCADE;
