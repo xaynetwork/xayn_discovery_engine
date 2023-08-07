@@ -172,11 +172,11 @@ string_wrapper! {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub(crate) struct SnippetId {
     document_id: DocumentId,
-    sub_id: usize,
+    sub_id: u32,
 }
 
 impl SnippetId {
-    pub(crate) fn new(document_id: DocumentId, sub_id: usize) -> Self {
+    pub(crate) fn new(document_id: DocumentId, sub_id: u32) -> Self {
         Self {
             document_id,
             sub_id,
@@ -192,7 +192,7 @@ impl SnippetId {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn sub_id(&self) -> usize {
+    pub(crate) fn sub_id(&self) -> u32 {
         self.sub_id
     }
 
