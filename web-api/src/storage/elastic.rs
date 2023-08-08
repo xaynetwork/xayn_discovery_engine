@@ -212,7 +212,7 @@ impl Client {
     ) -> Result<Option<()>, Error> {
         self.document_update(
             document_id,
-            json!({
+            json_object!({
                 "source": "ctx._source.properties = params.properties",
                 "params": {
                     "properties": properties
@@ -228,7 +228,7 @@ impl Client {
     ) -> Result<Option<()>, Error> {
         self.document_update(
             document_id,
-            json!({
+            json_object!({
                 "source": "ctx._source.properties = params.properties",
                 "params": {
                     "properties": DocumentProperties::default()
@@ -246,7 +246,7 @@ impl Client {
     ) -> Result<Option<()>, Error> {
         self.document_update(
             document_id,
-            json!({
+            json_object!({
                 "source": "ctx._source.properties.put(params.prop_id, params.property)",
                 "params": {
                     "prop_id": property_id,
@@ -264,7 +264,7 @@ impl Client {
     ) -> Result<Option<()>, Error> {
         self.document_update(
             document_id,
-            json!({
+            json_object!({
                 "source": "ctx._source.properties.remove(params.prop_id)",
                 "params": {
                     "prop_id": property_id
@@ -281,7 +281,7 @@ impl Client {
     ) -> Result<Option<()>, Error> {
         self.document_update(
             document_id,
-            json!({
+            json_object!({
                 "source": "ctx._source.tags = params.tags",
                 "params": {
                     "tags": tags
@@ -294,7 +294,7 @@ impl Client {
     async fn document_update(
         &self,
         document_id: &DocumentId,
-        update_script: Value,
+        update_script: JsonObject,
     ) -> Result<Option<()>, Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
         let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
