@@ -41,7 +41,7 @@ use crate::{
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
     },
-    ingestion::{preprocess_document::preprocess_document, IngestionConfig},
+    ingestion::{preprocess::preprocess_document, IngestionConfig},
     models::{
         self,
         DocumentId,
