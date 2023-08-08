@@ -67,29 +67,23 @@ pub(super) trait SqlxPushAsTuple<'args, DB: Database> {
 }
 
 macro_rules! impl_sqlx_push_as_tuple {
-    (@next $drop:ident, $($arg:ident,)*) => (
-        impl_sqlx_push_as_tuple! { $($arg,)* }
-    );
     () => ();
-    ($($arg:ident,)+) => (
-        impl<'args, DB, $($arg),*> SqlxPushAsTuple<'args, DB> for ($($arg,)+)
+    ($head:ident $(, $tail:ident)* $(,)?) => (
+        impl<'args, DB, $head, $($tail),*> SqlxPushAsTuple<'args, DB> for ($head, $($tail),*)
         where
             DB: Database,
-            $(
-                $arg: 'args + Encode<'args, DB> + Send + Type<DB>,
-            )+
+            $head: 'args + Encode<'args, DB> + Send + Type<DB>,
+            $($tail: 'args + Encode<'args, DB> + Send + Type<DB>),*
         {
             fn push_as_inner_tuple(self, builder: &mut QueryBuilder<'args, DB>) {
-                #![allow(non_snake_case)]
                 let mut separated = builder.separated(", ");
-                let ( $($arg,)+ ) = self;
-                $(
-                    separated.push_bind($arg);
-                )+
+                #[allow(non_snake_case)]
+                let ($head, $($tail),*) = self;
+                separated.push_bind($head);
+                $(separated.push_bind($tail);)*
             }
         }
-
-        impl_sqlx_push_as_tuple! { @next $($arg,)+ }
+        impl_sqlx_push_as_tuple! { $($tail),* }
     );
 }
 
@@ -100,8 +94,8 @@ impl_sqlx_push_as_tuple! {
     T24, T25, T26, T27, T28, T29, T30, T31,
 }
 
-#[derive(Debug, Display, thiserror::Error)]
 /// Empty tuples are not supported by SQL.
+#[derive(Debug, Display, thiserror::Error)]
 pub(super) struct UnsupportedEmptyTuple;
 
 impl From<UnsupportedEmptyTuple> for Error {
@@ -122,11 +116,11 @@ impl<I> IterAsTuple<I>
 where
     I: Iterator,
 {
-    pub(super) fn new<II>(into_iter: II) -> Result<Self, UnsupportedEmptyTuple>
+    pub(super) fn new<II>(iter: II) -> Result<Self, UnsupportedEmptyTuple>
     where
         II: IntoIterator<IntoIter = I>,
     {
-        let mut iter = into_iter.into_iter();
+        let mut iter = iter.into_iter();
         let Some(first) = iter.next() else {
             return Err(UnsupportedEmptyTuple);
         };
