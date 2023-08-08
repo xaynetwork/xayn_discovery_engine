@@ -16,6 +16,7 @@ chrono = { workspace = true }
 clap = { version = "4.3.4", features = ["derive"] }
 const_format = "0.2.31"
 csv = { workspace = true }
+cutters = "0.1.4"
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 dotenvy = "0.15.7"
