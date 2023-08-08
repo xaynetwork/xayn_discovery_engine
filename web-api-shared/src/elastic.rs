@@ -192,6 +192,10 @@ pub enum BulkInstruction<I> {
         #[serde(rename = "_id")]
         id: I,
     },
+    Create {
+        #[serde(rename = "_id")]
+        id: I,
+    },
     Delete {
         #[serde(rename = "_id")]
         id: I,

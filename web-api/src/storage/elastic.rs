@@ -15,7 +15,7 @@
 mod client;
 mod filter;
 
-use std::{convert::identity, hash::Hash, ops::AddAssign};
+use std::{collections::HashSet, convert::identity, hash::Hash, ops::AddAssign};
 
 use anyhow::bail;
 pub(crate) use client::{Client, ClientBuilder};
@@ -42,6 +42,7 @@ use crate::{
     app::SetupError,
     models::{
         self,
+        DocumentContent,
         DocumentId,
         DocumentProperties,
         DocumentProperty,
@@ -147,70 +148,66 @@ impl Client {
         Ok(take_highest_n_scores(count, merged))
     }
 
-    pub(super) async fn insert_documents(
+    pub(super) async fn upsert_documents(
         &self,
-        documents: impl IntoIterator<
-            IntoIter = impl ExactSizeIterator<Item = &models::DocumentForIngestion>,
-        >,
+        documents: &[models::DocumentForIngestion],
     ) -> Result<Warning<DocumentId>, Error> {
-        let documents = documents.into_iter();
-        if documents.len() == 0 {
+        let ids = documents.iter().map(|document| &document.id).collect_vec();
+        self.delete_by_parents(ids).await?;
+        self.freshly_insert_documents(documents).await
+    }
+
+    pub(super) async fn freshly_insert_documents(
+        &self,
+        documents: impl IntoIterator<Item = &models::DocumentForIngestion>,
+    ) -> Result<Warning<DocumentId>, Error> {
+        // TODO[pmk/now] this won't work correctly with upserts id old snippet count > new snippet count
+        let mut snippets = documents
+            .into_iter()
+            .flat_map(|document| {
+                document.snippets.iter().enumerate().flat_map(
+                    |(idx, DocumentContent { snippet, embedding })| {
+                        #[allow(clippy::cast_possible_truncation)]
+                        let id = SnippetId::new(document.id.clone(), idx as _);
+                        let header =
+                            serde_json::to_value(BulkInstruction::Create { id: id.to_es_id() })
+                                .map_err(Into::into);
+                        let data = serde_json::to_value(EsDocument {
+                            snippet,
+                            properties: &document.properties,
+                            embedding,
+                            tags: &document.tags,
+                            parent: id.document_id(),
+                        })
+                        .map_err(Into::into);
+                        [header, data]
+                    },
+                )
+            })
+            .peekable();
+
+        if snippets.peek().is_none() {
             return Ok(Warning::default());
         }
 
-        let response = self
-            .bulk_request(documents.flat_map(|document| {
-                [
-                    serde_json::to_value(BulkInstruction::Index { id: &document.id }),
-                    serde_json::to_value(IngestedDocument {
-                        // TODO[pmk/ET-4756-7]
-                        snippet: &document.snippets[0].snippet,
-                        properties: &document.properties,
-                        // TODO[pmk/ET-4756-7]
-                        embedding: &document.snippets[0].embedding,
-                        tags: &document.tags,
-                    }),
-                ]
-            }))
-            .await?;
+        let response = self.bulk_request(snippets).await?;
         Ok(response.failed_documents("index", false).into())
     }
 
-    pub(super) async fn delete_documents(
+    pub(super) async fn delete_by_parents(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Warning<DocumentId>, Error> {
-        let ids = ids.into_iter();
-        if ids.len() == 0 {
-            return Ok(Warning::default());
-        }
-
-        let response = self
-            .bulk_request(ids.map(|id| Ok(BulkInstruction::Delete { id })))
-            .await?;
-        Ok(response.failed_documents("delete", true).into())
-    }
-
-    pub(super) async fn retain_documents(
-        &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        parents: impl SerializeDocumentIds,
     ) -> Result<(), Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
         let url = self.create_url(["_delete_by_query"], [("refresh", None)]);
         let body = json!({
             "query": {
-                "bool": {
-                    "must_not": {
-                        "ids": {
-                            "values": ids.into_iter().collect_vec()
-                        }
-                    }
+                "terms": {
+                    "parent": parents,
                 }
             }
         });
         self.query_with_json::<_, SerdeDiscard>(Method::POST, url, Some(body))
             .await?;
-
         Ok(())
     }
 
@@ -305,11 +302,15 @@ impl Client {
         document_id: &DocumentId,
         update_script: JsonObject,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update-by-query.html
+        let url = self.create_url(["_update_by_query"], [("refresh", None)]);
         let body = Some(json!({
+            "query": {
+                "term": {
+                    "parent": document_id,
+                }
+            },
             "script": update_script,
-            "_source": false
         }));
 
         Ok(self
@@ -404,6 +405,15 @@ impl Client {
     }
 }
 
+pub(super) trait SerializeDocumentIds: Serialize {}
+impl<T> SerializeDocumentIds for &'_ T where T: SerializeDocumentIds {}
+impl SerializeDocumentIds for [DocumentId] {}
+impl SerializeDocumentIds for [&'_ DocumentId] {}
+impl SerializeDocumentIds for Vec<DocumentId> {}
+impl SerializeDocumentIds for Vec<&'_ DocumentId> {}
+impl SerializeDocumentIds for HashSet<DocumentId> {}
+impl SerializeDocumentIds for HashSet<&'_ DocumentId> {}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 pub(crate) struct IndexUpdateConfig {
@@ -442,10 +452,11 @@ pub(crate) enum IndexUpdateMethod {
 }
 
 #[derive(Debug, Serialize)]
-struct IngestedDocument<'a> {
+struct EsDocument<'a> {
     snippet: &'a DocumentSnippet,
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
+    parent: &'a DocumentId,
     tags: &'a DocumentTags,
 }
 
