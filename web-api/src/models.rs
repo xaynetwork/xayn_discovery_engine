@@ -35,7 +35,6 @@ use xayn_ai_coi::Document as AiDocument;
 
 use crate::{
     error::common::{
-        InternalError,
         InvalidDocumentId,
         InvalidDocumentProperties,
         InvalidDocumentProperty,
@@ -45,6 +44,7 @@ use crate::{
         InvalidDocumentSnippet,
         InvalidDocumentTag,
         InvalidDocumentTags,
+        InvalidEsSnippetIdFormat,
         InvalidString,
         InvalidUserId,
     },
@@ -202,17 +202,20 @@ impl SnippetId {
         let es_id = es_id.as_ref();
         if let Some(suffix) = es_id.strip_prefix(Self::ES_SNIPPET_ID_PREFIX) {
             let Some((snippet_idx, document_id)) = suffix.split_once('.') else {
-                return Err(InternalError::from_message(format!("failed to split child id: {suffix}")).into());
+                return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
             };
             let Ok(snippet_idx) = snippet_idx.parse() else {
-                return Err(InternalError::from_message(format!("failed to parse child idx: {snippet_idx}")).into());
+                return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
             };
             let Ok(document_id) = document_id.parse() else {
-                return Err(InternalError::from_message(format!("failed to parse parents document id: {document_id}")).into());
+                return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
             };
             Ok(Self::new(document_id, snippet_idx))
         } else {
-            Ok(Self::new(es_id.parse()?, 0))
+            let Ok(document_id) = es_id.parse() else {
+                return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
+            };
+            Ok(Self::new(document_id, 0))
         }
     }
 
