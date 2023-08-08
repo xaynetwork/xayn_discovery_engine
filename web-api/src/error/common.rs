@@ -146,6 +146,7 @@ pub(crate) struct InvalidDocumentTags {
 impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
 
 #[derive(Debug, Error, Display, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub(crate) enum InvalidDocumentSnippet {
     /// Malformed document snippet: {0}
     InvalidString(InvalidString),
