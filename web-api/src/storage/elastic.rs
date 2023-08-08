@@ -15,7 +15,7 @@
 mod client;
 mod filter;
 
-use std::{collections::HashMap, convert::identity, ops::AddAssign};
+use std::{convert::identity, hash::Hash, ops::AddAssign};
 
 use anyhow::bail;
 pub(crate) use client::{Client, ClientBuilder};
@@ -33,19 +33,26 @@ use xayn_web_api_shared::{
 
 use self::filter::Clauses;
 use super::{
-    property_filter::IndexedPropertiesSchemaUpdate, MergeFn, NormalizationFn, SearchStrategy,
+    property_filter::IndexedPropertiesSchemaUpdate,
+    MergeFn,
+    NormalizationFn,
+    SearchStrategy,
 };
 use crate::{
     app::SetupError,
     models::{
-        self, DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId, DocumentQuery,
-        DocumentSnippet, DocumentTags,
+        self,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentQuery,
+        DocumentSnippet,
+        DocumentTags,
     },
     storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
 };
-
-type ScoreMap = HashMap<DocumentId, f32>;
 
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
@@ -644,8 +651,8 @@ mod tests {
     #[test]
     fn test_rrf_parameters_are_used() {
         let id = |id: &str| id.try_into().unwrap();
-        let left: ScoreMap = [(id("foo"), 2.), (id("bar"), 1.), (id("baz"), 3.)].into();
-        let right: ScoreMap = [(id("baz"), 5.), (id("dodo"), 1.2)].into();
+        let left: ScoreMap<DocumentId> = [(id("foo"), 2.), (id("bar"), 1.), (id("baz"), 3.)].into();
+        let right: ScoreMap<DocumentId> = [(id("baz"), 5.), (id("dodo"), 1.2)].into();
         assert_eq!(
             rrf(80., [(1., left.clone()), (1., right.clone())]),
             [
