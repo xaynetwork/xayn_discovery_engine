@@ -280,10 +280,16 @@ async fn personalized_documents(
 struct PersonalizedDocumentData {
     id: DocumentId,
     score: f32,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "no_properties")]
     properties: Option<DocumentProperties>,
     #[serde(skip_serializing_if = "Option::is_none")]
     snippet: Option<DocumentSnippet>,
+}
+
+fn no_properties(properties: &Option<DocumentProperties>) -> bool {
+    properties
+        .as_ref()
+        .map_or(true, |properties| properties.is_empty())
 }
 
 impl From<PersonalizedDocument> for PersonalizedDocumentData {

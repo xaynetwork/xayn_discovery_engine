@@ -118,7 +118,7 @@ fn test_semantic_search() {
                 ["d3", "d2"],
                 "unexpected documents: {documents:?}",
             );
-            assert_eq!(documents[0].properties, Some(json!({})));
+            assert_eq!(documents[0].properties, None);
             assert_eq!(documents[1].properties, Some(json!({ "dodo": 4 })));
 
             Ok(())
@@ -164,8 +164,8 @@ fn test_semantic_search_with_query() {
                 ["d1", "d3", "d2"],
                 "unexpected documents: {documents:?}",
             );
-            assert_eq!(documents[0].properties, Some(json!({})));
-            assert_eq!(documents[1].properties, Some(json!({})));
+            assert_eq!(documents[0].properties, None);
+            assert_eq!(documents[1].properties, None);
             assert_eq!(documents[2].properties, Some(json!({ "dodo": 4 })));
 
             let SemanticSearchResponse { documents } = send_assert_json(
@@ -377,7 +377,7 @@ fn test_semantic_search_with_dev_option_candidates() {
 }
 
 #[test]
-fn test_semantic_search_with_snippets() {
+fn test_semantic_search_with_dev_option_snippet() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
