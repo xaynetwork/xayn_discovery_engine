@@ -420,7 +420,7 @@ impl Client {
             .await
     }
 
-    pub async fn search_request<I, E, F>(
+    pub async fn search_request<F, I, E>(
         &self,
         mut body: JsonObject,
         parse_id: F,

@@ -12,20 +12,20 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use serde_json::{json, Error, Value};
+use serde_json::{json, Value};
 use xayn_integration_tests::{test_app, TEST_EMBEDDING_SIZE, UNCHANGED_CONFIG};
 use xayn_test_utils::assert_approx_eq;
 use xayn_web_api::Ingestion;
 use xayn_web_api_shared::{
-    elastic::{BulkInstruction, SerdeDiscard},
+    elastic::{BulkInstruction, Error, SerdeDiscard},
     serde::json_object,
 };
 
-fn id(id: &str) -> Result<Value, Error> {
+fn id(id: &str) -> Result<Value, serde_json::Error> {
     serde_json::to_value(BulkInstruction::Index { id: &id })
 }
 
-fn emb(emb: &[f32]) -> Result<Value, Error> {
+fn emb(emb: &[f32]) -> Result<Value, serde_json::Error> {
     Ok(json!({ "embedding": emb }))
 }
 
@@ -55,15 +55,18 @@ fn test_normalized_es_knn_scores() {
         assert!(!response.errors);
 
         let scores = client
-            .search_request::<String>(json_object!({
-                "knn": {
-                    "field": "embedding",
-                    "query_vector": embedding,
-                    "k": 5,
-                    "num_candidates": 5,
-                },
-                "size": 5
-            }))
+            .search_request::<_, String, Error>(
+                json_object!({
+                    "knn": {
+                        "field": "embedding",
+                        "query_vector": embedding,
+                        "k": 5,
+                        "num_candidates": 5,
+                    },
+                    "size": 5
+                }),
+                Ok,
+            )
             .await
             .unwrap();
         assert_eq!(scores.len(), 3);
