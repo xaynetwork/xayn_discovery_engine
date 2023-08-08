@@ -668,8 +668,8 @@ async fn semantic_search(
             let start = Instant::now();
             let embedding = state.embedder.run(query).await?;
             debug!(
-                "embedding calculated in {} seconds",
-                start.elapsed().as_secs(),
+                "embedding calculated in {} milliseconds",
+                start.elapsed().as_millis(),
             );
             (embedding, Some(query))
         }

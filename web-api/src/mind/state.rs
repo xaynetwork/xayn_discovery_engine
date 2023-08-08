@@ -44,12 +44,9 @@ pub(super) struct State {
 
 impl State {
     pub(super) async fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
-        let embedder = Embedder::load(&embedding::Config {
-            // directory: "../assets/xaynia_v0002".into(),
-            ..embedding::Config::default()
-        })
-        .await
-        .map_err(|error| Panic::from(&*error))?;
+        let embedder = Embedder::load(&embedding::Config::default())
+            .await
+            .map_err(|error| Panic::from(&*error))?;
 
         let coi = config.coi.build();
         let personalization = config.personalization;
