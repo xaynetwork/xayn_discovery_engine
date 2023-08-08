@@ -444,14 +444,12 @@ impl Client {
             )
             .await?;
 
-        let scores = response
+        response
             .hits
             .hits
             .into_iter()
             .map(|hit| Ok((parse_id(hit.id)?, hit.score)))
-            .try_collect::<_, _, E>()?;
-
-        Ok(scores)
+            .try_collect()
     }
 
     pub async fn query_with_bytes<T>(

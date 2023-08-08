@@ -127,8 +127,8 @@ macro_rules! string_wrapper {
             impl FromStr for $name {
                 type Err = $error;
 
-                fn from_str(s: &str) -> Result<Self, Self::Err> {
-                    s.try_into()
+                fn from_str(value: &str) -> Result<Self, Self::Err> {
+                    value.try_into()
                 }
             }
 

@@ -213,7 +213,7 @@ struct Ids<'a, Id: Clone> {
 
 impl<Id> Serialize for Ids<'_, Id>
 where
-    //Hint: a Display bound an a serialize as string helper would be more correct
+    //Hint: a Display bound and a serialize as string helper would be more correct
     Id: Clone + Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>

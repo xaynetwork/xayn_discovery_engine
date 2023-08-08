@@ -80,7 +80,7 @@ struct UnvalidatedUserInteractionRequest {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct UnvalidatedUserInteraction {
-    id: UnvalidatedDocumentOrSnippetId,
+    id: UnvalidatedSnippetOrDocumentId,
 }
 
 impl UnvalidatedUserInteractionRequest {
@@ -378,7 +378,7 @@ pub(crate) async fn personalize_documents_by(
         PersonalizeBy::Documents(documents) => {
             let ids = documents
                 .iter()
-                .map(|id| SnippetId::new((*id).clone(), 0))
+                .map(|&id| SnippetId::new(id.clone(), 0))
                 .collect_vec();
             storage::Document::get_personalized(
                 storage,
@@ -586,7 +586,7 @@ impl UnvalidatedSemanticSearchRequest {
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
-enum UnvalidatedDocumentOrSnippetId {
+enum UnvalidatedSnippetOrDocumentId {
     DocumentId(String),
     PotentialSnippetId {
         document_id: String,
@@ -604,11 +604,11 @@ impl From<SnippetOrDocumentId> for InputDocument {
     }
 }
 
-impl UnvalidatedDocumentOrSnippetId {
+impl UnvalidatedSnippetOrDocumentId {
     fn validate(self) -> Result<SnippetOrDocumentId, Error> {
         let (document_id, snippet_idx) = match self {
-            UnvalidatedDocumentOrSnippetId::DocumentId(document_id) => (document_id, None),
-            UnvalidatedDocumentOrSnippetId::PotentialSnippetId {
+            UnvalidatedSnippetOrDocumentId::DocumentId(document_id) => (document_id, None),
+            UnvalidatedSnippetOrDocumentId::PotentialSnippetId {
                 document_id,
                 snippet_idx,
             } => (document_id, snippet_idx),
@@ -627,7 +627,7 @@ impl UnvalidatedDocumentOrSnippetId {
 
 #[derive(Debug, Deserialize)]
 struct UnvalidatedInputDocument {
-    id: Option<UnvalidatedDocumentOrSnippetId>,
+    id: Option<UnvalidatedSnippetOrDocumentId>,
     query: Option<String>,
 }
 
