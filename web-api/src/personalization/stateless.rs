@@ -20,7 +20,7 @@ use serde::Deserialize;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiSystem};
 
-use super::{routes::UnvalidatedDocumentOrSnippetId, PersonalizationConfig};
+use super::{routes::UnvalidatedSnippetOrDocumentId, PersonalizationConfig};
 use crate::{
     error::{common::HistoryTooSmall, warning::Warning},
     models::{DocumentTags, SnippetForInteraction, SnippetId, SnippetOrDocumentId},
@@ -31,7 +31,7 @@ use crate::{
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct UnvalidatedHistoryEntry {
-    id: UnvalidatedDocumentOrSnippetId,
+    id: UnvalidatedSnippetOrDocumentId,
     #[serde(default)]
     timestamp: Option<DateTime<Utc>>,
 }
@@ -195,8 +195,8 @@ mod tests {
         assert!(warnings.is_empty());
     }
 
-    fn unvalidated_doc_id(id: &str) -> UnvalidatedDocumentOrSnippetId {
-        UnvalidatedDocumentOrSnippetId::DocumentId(id.to_owned())
+    fn unvalidated_doc_id(id: &str) -> UnvalidatedSnippetOrDocumentId {
+        UnvalidatedSnippetOrDocumentId::DocumentId(id.to_owned())
     }
 
     fn doc_id(id: &str) -> SnippetOrDocumentId {
