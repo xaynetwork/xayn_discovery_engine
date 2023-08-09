@@ -40,6 +40,7 @@ pub(crate) enum IncompatibleUpdate {
 
 //Hint: Currently the API and internal definition match so we use the same type.
 #[derive(Debug, Clone, Default, Deref, IntoIterator, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct IndexedPropertiesSchemaUpdate {
     #[into_iterator(owned, ref)]
     properties: HashMap<DocumentPropertyId, IndexedPropertyDefinition>,
@@ -47,6 +48,7 @@ pub(crate) struct IndexedPropertiesSchemaUpdate {
 
 //Hint: Currently the API and internal definition match so we use the same type.
 #[derive(Debug, Clone, Default, Deref, IntoIterator, From, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct IndexedPropertiesSchema {
     #[into_iterator(owned, ref)]
     properties: HashMap<DocumentPropertyId, IndexedPropertyDefinition>,
@@ -166,6 +168,7 @@ impl IndexedPropertiesSchema {
 
 //Hint: Currently the API and internal definition match so we use the same type.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(crate) struct IndexedPropertyDefinition {
     pub(crate) r#type: IndexedPropertyType,
 }

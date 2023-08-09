@@ -42,6 +42,7 @@ where
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct ViewedDocument {
     pub(super) document_id: DocumentId,
     pub(super) was_clicked: bool,
@@ -76,6 +77,7 @@ where
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct Impression {
     #[allow(dead_code)]
     id: String,
@@ -89,6 +91,7 @@ pub(super) struct Impression {
 }
 
 #[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct Document {
     pub(super) id: DocumentId,
     pub(super) category: DocumentTag,

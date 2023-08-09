@@ -29,6 +29,7 @@ use crate::{
 };
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct UnvalidatedHistoryEntry {
     id: String,
     #[serde(default)]
@@ -36,6 +37,7 @@ pub(super) struct UnvalidatedHistoryEntry {
 }
 
 #[derive(Deserialize, PartialEq, Debug)]
+#[serde(deny_unknown_fields)]
 pub(super) struct HistoryEntry {
     pub(super) id: DocumentId,
     pub(super) timestamp: DateTime<Utc>,

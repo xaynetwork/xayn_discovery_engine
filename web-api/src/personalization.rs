@@ -64,7 +64,7 @@ impl Application for Personalization {
 type AppState = app::AppState<Personalization>;
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub(crate) logging: logging::Config,
     pub(crate) net: net::Config,
@@ -77,7 +77,7 @@ pub struct Config {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub(crate) struct PersonalizationConfig {
     /// Max number of documents to return.
     pub(crate) max_number_documents: usize,
@@ -145,7 +145,7 @@ impl PersonalizationConfig {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub(crate) struct SemanticSearchConfig {
     /// Max number of documents to return.
     pub(crate) max_number_documents: usize,

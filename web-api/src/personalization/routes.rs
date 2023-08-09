@@ -73,11 +73,13 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UserInteractionRequest {
     documents: Vec<UserInteractionData>,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UserInteractionData {
     #[serde(rename = "id")]
     document_id: String,
@@ -144,6 +146,7 @@ const fn default_include_properties() -> bool {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UnvalidatedPersonalizedDocumentsRequest {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
@@ -153,6 +156,7 @@ struct UnvalidatedPersonalizedDocumentsRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UnvalidatedPersonalizedDocumentsQuery {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
@@ -383,6 +387,7 @@ pub(crate) async fn personalize_documents_by(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UnvalidatedInputUser {
     id: Option<String>,
     history: Option<Vec<UnvalidatedHistoryEntry>>,
@@ -415,6 +420,7 @@ impl UnvalidatedInputUser {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UnvalidatedSemanticSearchRequest {
     document: UnvalidatedInputDocument,
     count: Option<usize>,
@@ -430,7 +436,7 @@ struct UnvalidatedSemanticSearchRequest {
 }
 
 #[derive(Debug, Default, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 struct DevOption {
     hybrid: Option<DevHybrid>,
     max_number_candidates: Option<usize>,
@@ -448,7 +454,7 @@ impl DevOption {
 }
 
 #[derive(Clone, Copy, Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 enum DevHybrid {
     Customize {
         normalize_knn: NormalizationFn,
@@ -546,6 +552,7 @@ impl UnvalidatedSemanticSearchRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UnvalidatedInputDocument {
     id: Option<String>,
     query: Option<String>,
@@ -572,6 +579,7 @@ const fn default_exclude_seen() -> bool {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UnvalidatedPersonalize {
     #[serde(default = "default_exclude_seen")]
     exclude_seen: bool,

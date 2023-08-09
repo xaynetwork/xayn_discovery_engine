@@ -89,7 +89,7 @@ pub(crate) enum NormalizationFn {
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[serde(deny_unknown_fields, rename_all = "snake_case")]
 pub(crate) enum MergeFn {
     Sum {
         #[serde(default)]
@@ -284,7 +284,7 @@ pub(crate) trait IndexedProperties {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     elastic: elastic::Config,
     postgres: postgres_shared::Config,

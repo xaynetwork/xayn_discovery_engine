@@ -25,7 +25,7 @@ use crate::{
 
 /// Configurations of the coi system.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 #[must_use]
 pub struct Config {
     shift_factor: f32,
