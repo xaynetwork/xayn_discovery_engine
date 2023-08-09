@@ -92,6 +92,7 @@ impl GridSearchConfig {
 
 /// The config of hyperparameters for the persona based benchmark.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct PersonaBasedConfig {
     pub(super) click_probability: f64,
     pub(super) ndocuments: usize,
@@ -117,6 +118,7 @@ impl Default for PersonaBasedConfig {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct SaturationConfig {
     pub(super) click_probability: f64,
     pub(super) ndocuments: usize,

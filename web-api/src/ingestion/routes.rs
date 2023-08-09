@@ -106,6 +106,7 @@ pub(super) fn configure_ops_service(config: &mut ServiceConfig) {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct UnvalidatedIngestedDocument {
     id: String,
     snippet: String,
@@ -258,6 +259,7 @@ impl UnvalidatedIngestedDocument {
 
 /// Represents body of a POST documents request.
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct IngestionRequestBody {
     documents: Vec<UnvalidatedIngestedDocument>,
 }
@@ -477,6 +479,7 @@ async fn delete_documents(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct BatchDeleteRequest {
     documents: Vec<String>,
 }
@@ -495,11 +498,13 @@ async fn get_document_candidates(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DocumentCandidate {
     id: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DocumentCandidatesRequest {
     documents: Vec<DocumentCandidate>,
 }
@@ -544,6 +549,7 @@ pub(crate) async fn get_document_properties(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DocumentPropertiesRequest {
     properties: HashMap<String, Value>,
 }
@@ -605,6 +611,7 @@ async fn get_document_property(
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DocumentPropertyRequest {
     property: Value,
 }
@@ -684,6 +691,7 @@ async fn get_indexed_properties_schema(
 }
 
 #[derive(Deserialize, Debug)]
+#[serde(deny_unknown_fields)]
 struct ManagementRequest {
     operations: Vec<Operation>,
 }

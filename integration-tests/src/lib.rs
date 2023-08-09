@@ -62,7 +62,7 @@ use tracing_subscriber::{
     Layer,
 };
 use xayn_test_utils::env::clear_env;
-use xayn_web_api::{config, start, AppHandle, Application};
+use xayn_web_api::{config, start, AppHandle, Application, Ingestion};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
@@ -622,10 +622,19 @@ pub fn extend_config(current: &mut Table, extension: Table) {
 }
 
 #[instrument(skip_all)]
-pub async fn start_test_application<A>(services: &Services, configure: Table) -> AppHandle
+pub async fn start_test_application<A>(services: &Services, mut configure: Table) -> AppHandle
 where
     A: Application + 'static,
 {
+    if A::NAME == Ingestion::NAME {
+        extend_config(
+            &mut configure,
+            toml! {
+                [ingestion.index_update]
+                method = "danger_wait_for_completion"
+            },
+        );
+    }
     let config = build_test_config_from_parts(
         services.silo.postgres_config(),
         services.silo.elastic_config(),
@@ -669,9 +678,6 @@ pub fn build_test_config_from_parts_and_model(
         .to_string();
 
     let mut config = toml! {
-        [ingestion.index_update]
-        method = "danger_wait_for_completion"
-
         [storage]
         postgres = pg_config
         elastic = es_config

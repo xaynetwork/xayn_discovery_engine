@@ -51,7 +51,7 @@ use crate::middleware::{
 /// Configuration for roughly network/connection layer specific configurations.
 // Hint: this value just happens to be copy, if needed the Copy trait can be removed
 #[derive(Copy, Clone, Debug, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     /// Address to which the server should bind.
     pub(crate) bind_to: SocketAddr,

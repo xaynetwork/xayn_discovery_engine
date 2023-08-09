@@ -15,7 +15,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     pub(crate) enable_legacy_tenant: bool,
     pub(crate) enable_dev: bool,

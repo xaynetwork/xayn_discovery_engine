@@ -225,7 +225,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
                         "_dev": { "hybrid": { "customize": {
                             "normalize_knn": "identity",
                             "normalize_bm25": "identity",
-                            "merge_fn": { "rrf": { "k": 60. } }
+                            "merge_fn": { "rrf": { "rank_constant": 60. } }
                         } } }
                     }))
                     .build()?,

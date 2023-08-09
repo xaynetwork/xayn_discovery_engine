@@ -58,6 +58,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 struct Document {
     snippet: DocumentSnippet,
     is_summarized: bool,

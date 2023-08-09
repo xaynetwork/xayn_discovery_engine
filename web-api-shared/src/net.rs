@@ -29,6 +29,7 @@ use tracing::warn;
 use crate::serde::serde_duration_in_config;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExponentialJitterRetryPolicyConfig {
     pub max_retries: u8,
     #[serde(with = "serde_duration_in_config")]

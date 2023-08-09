@@ -26,7 +26,7 @@ use crate::{request::TenantId, serde::serialize_redacted};
 pub type Client = Pool<Postgres>;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Config {
     /// The default base url.
     ///

@@ -199,6 +199,7 @@ pub enum OperationResult {
     DeleteTenant { tenant: Option<Tenant> },
     Error { msg: String },
 }
+
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Tenant {
     pub tenant_id: TenantId,
