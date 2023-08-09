@@ -126,7 +126,7 @@ struct UnvalidatedDocumentForIngestion {
 struct InputDocument {
     id: DocumentId,
     //FIXME properly handle raw document vs. snippets
-    raw_document: DocumentSnippet,
+    original: DocumentSnippet,
     preprocessing_step: PreprocessingStep,
     properties: DocumentProperties,
     tags: DocumentTags,
@@ -210,7 +210,7 @@ impl UnvalidatedDocumentForIngestion {
         let config = config.as_ref();
 
         let id = self.id.as_str().try_into()?;
-        let raw_document = DocumentSnippet::new(self.snippet, config.max_snippet_size)?;
+        let original = DocumentSnippet::new(self.snippet, config.max_snippet_size)?;
 
         let preprocessing_step = if self.summarize {
             PreprocessingStep::Summarize
@@ -246,7 +246,7 @@ impl UnvalidatedDocumentForIngestion {
 
         Ok(InputDocument {
             id,
-            raw_document,
+            original,
             preprocessing_step,
             properties,
             tags,
@@ -318,7 +318,7 @@ async fn upsert_documents(
                 (
                     document.id,
                     (
-                        document.raw_document,
+                        document.original,
                         document.preprocessing_step,
                         document.properties,
                         document.tags,
@@ -335,17 +335,17 @@ async fn upsert_documents(
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
                 .map(
-                    |(raw_document, preprocessing_step, properties, tags, is_candidate)| {
+                    |(original, preprocessing_step, properties, tags, is_candidate)| {
                         (
-                            (raw_document, preprocessing_step, properties, tags),
+                            (original, preprocessing_step, properties, tags),
                             *is_candidate,
                         )
                     },
                 )
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(raw_document, preprocessing_step, _, _)| {
-                raw_document != document.raw_document.as_str()
+            let new_snippet = data.map_or(true, |(original, preprocessing_step, _, _)| {
+                original != document.original.as_str()
                     || *preprocessing_step != document.preprocessing_step
             });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
@@ -399,10 +399,10 @@ async fn upsert_documents(
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
             let preprocessing_step = document.preprocessing_step;
-            match preprocess_document(&state.embedder, &document.raw_document, preprocessing_step) {
+            match preprocess_document(&state.embedder, &document.original, preprocessing_step) {
                 Ok(snippets) => Either::Left(models::DocumentForIngestion {
                     id: document.id,
-                    raw_document: document.raw_document.into(),
+                    original: document.original.into(),
                     snippets,
                     preprocessing_step,
                     properties: document.properties,

@@ -15,7 +15,7 @@
 mod client;
 
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     slice,
     time::Duration,
 };
@@ -23,7 +23,7 @@ use std::{
 use async_trait::async_trait;
 pub(crate) use client::{Database, DatabaseBuilder};
 use either::Either;
-use futures_util::{StreamExt, TryStreamExt};
+use futures_util::{future, TryStreamExt};
 use itertools::Itertools;
 use serde_json::Value;
 use sqlx::{
@@ -51,13 +51,14 @@ use super::{
         IndexedPropertyDefinition,
         IndexedPropertyType,
     },
-    utils::{IterAsTuple, SqlBitCastU32},
+    utils::{Chunks, IterAsTuple, SqlBitCastU32},
     InteractionUpdateContext,
     TagWeights,
 };
 use crate::{
     ingestion::IngestionConfig,
     models::{
+        DocumentContent,
         DocumentForIngestion,
         DocumentId,
         DocumentProperties,
@@ -107,20 +108,20 @@ impl Database {
         let mut builder = QueryBuilder::new(
             "INSERT INTO document (
                 document_id,
-                raw_document,
+                original,
                 preprocessing_step,
                 properties,
                 tags,
                 is_candidate
             ) ",
         );
-        for chunk in documents.chunks(Self::BIND_LIMIT / 5) {
+        for chunk in documents.chunks(Self::BIND_LIMIT / 6) {
             builder
                 .reset()
                 .push_values(chunk, |mut builder, document| {
                     builder
                         .push_bind(&document.id)
-                        .push_bind(&document.raw_document)
+                        .push_bind(&document.original)
                         .push_bind(document.preprocessing_step)
                         .push_bind(Json(&document.properties))
                         .push_bind(&document.tags)
@@ -128,7 +129,7 @@ impl Database {
                 })
                 .push(
                     " ON CONFLICT (document_id) DO UPDATE SET
-                        raw_document = EXCLUDED.raw_document,
+                        original = EXCLUDED.original,
                         preprocessing_step = EXCLUDED.preprocessing_step,
                         properties = EXCLUDED.properties,
                         tags = EXCLUDED.tags,
@@ -140,14 +141,11 @@ impl Database {
                 .await?;
         }
 
-        let mut snippets = documents
-            .iter()
-            .flat_map(|document| {
-                document
-                    .snippets
-                    .iter()
-                    .enumerate()
-                    .map(|(sub_id, (snippet, embedding))| {
+        let mut snippets = Chunks::new(
+            Self::BIND_LIMIT / 4,
+            documents.iter().flat_map(|document| {
+                document.snippets.iter().enumerate().map(
+                    |(sub_id, DocumentContent { snippet, embedding })| {
                         (
                             &document.id,
                             #[allow(clippy::cast_possible_truncation)]
@@ -155,9 +153,10 @@ impl Database {
                             snippet,
                             embedding,
                         )
-                    })
-            })
-            .peekable();
+                    },
+                )
+            }),
+        );
 
         let mut builder = QueryBuilder::new(
             "INSERT INTO snippet (
@@ -168,11 +167,11 @@ impl Database {
                     ) ",
         );
 
-        while snippets.peek().is_some() {
+        while let Some(chunk) = snippets.next() {
             builder
                 .reset()
                 .push_values(
-                    snippets.by_ref().take(Self::BIND_LIMIT / 4),
+                    chunk,
                     |mut builder, (document_id, sub_id, snippet, embedding)| {
                         builder
                             .push_bind(document_id)
@@ -261,14 +260,14 @@ impl Database {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
     ) -> Result<Vec<SnippetForInteraction>, Error> {
         let mut builder = QueryBuilder::new(
-            "SELECT s.document_id, s.snippet_idx, s.embedding, d.tags
+            "SELECT s.document_id, s.sub_id, s.embedding, d.tags
             FROM snippet s JOIN document d USING (document_id)
-            WHERE (document_id, snippet_idx) IN ",
+            WHERE (s.document_id, s.sub_id) IN ",
         );
         let mut chunks = IterAsTuple::chunks(
             Self::BIND_LIMIT,
             ids.into_iter()
-                .map(|s| (s.document_id(), SqlBitCastU32::from(s.snippet_idx()))),
+                .map(|s| (s.document_id(), SqlBitCastU32::from(s.sub_id()))),
         );
         let mut documents = Vec::with_capacity(chunks.element_count());
         while let Some(ids) = chunks.next() {
@@ -279,8 +278,8 @@ impl Database {
                     .build()
                     .try_map(|row: PgRow| {
                         let document_id = row.try_get("document_id")?;
-                        let snippet_idx = row.try_get::<SqlBitCastU32, _>("snippet_idx")?;
-                        let id = SnippetId::new(document_id, snippet_idx.into());
+                        let sub_id = row.try_get::<SqlBitCastU32, _>("sub_id")?;
+                        let id = SnippetId::new(document_id, sub_id.into());
                         Ok(SnippetForInteraction {
                             id,
                             embedding: row.try_get("embedding")?,
@@ -305,10 +304,10 @@ impl Database {
 
         let mut builder = QueryBuilder::new(format!(
             "SELECT
-                d.document_id, d.tags {properties},
-                s.sub_id, s.embedding {snippet}
-            FROM document d JOIN snippet s USING (document_id)
-            WHERE (document_id, sub_id) IN ",
+                s.document_id, s.sub_id, s.embedding {snippet},
+                d.tags {properties}
+            FROM snippet s JOIN document d USING (document_id)
+            WHERE (s.document_id, s.sub_id) IN ",
             properties = include_properties
                 .then_some(", d.properties")
                 .unwrap_or_default(),
@@ -371,25 +370,31 @@ impl Database {
         let ids = ids.into_iter();
 
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, raw_document, preprocessing_step, properties, tags, is_candidate
+            "SELECT document_id, original, preprocessing_step, properties, tags, is_candidate
             FROM document
             WHERE document_id IN ",
         );
         let mut documents = Vec::with_capacity(ids.len());
         let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids);
         while let Some(ids) = chunks.next() {
-            let mut rows = builder.reset().push_tuple(ids).build().fetch(&mut *tx);
+            let chunk = builder
+                .reset()
+                .push_tuple(ids)
+                .build()
+                .try_map(|row: PgRow| {
+                    Ok(ExcerptedDocument {
+                        id: row.try_get("document_id")?,
+                        original: row.try_get("original")?,
+                        preprocessing_step: row.try_get("preprocessing_step")?,
+                        properties: row.try_get::<Json<_>, _>("properties")?.0,
+                        tags: row.try_get("tags")?,
+                        is_candidate: row.try_get("is_candidate")?,
+                    })
+                })
+                .fetch_all(&mut *tx)
+                .await?;
 
-            while let Some(row) = rows.next().await.transpose()? {
-                documents.push(ExcerptedDocument {
-                    id: row.try_get("document_id")?,
-                    raw_document: row.try_get("raw_document")?,
-                    preprocessing_step: row.try_get("preprocessing_step")?,
-                    properties: row.try_get::<Json<_>, _>("properties")?.0,
-                    tags: row.try_get("tags")?,
-                    is_candidate: row.try_get("is_candidate")?,
-                });
-            }
+            documents.extend(chunk);
         }
 
         Ok(documents)
@@ -473,21 +478,23 @@ impl Database {
             FROM snippet
             WHERE document_id IN ",
         );
-        let mut snippets = HashMap::<_, BTreeMap<_, _>>::new();
+        let mut snippets = HashMap::<_, Vec<_>>::new();
         let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids.clone());
         while let Some(ids) = chunks.next() {
-            let mut chunk = builder
+            builder
                 .reset()
                 .push_tuple(ids)
                 .build_query_as::<SqlSnippet>()
-                .fetch(&mut *tx);
-
-            while let Some(snippet) = chunk.next().await.transpose()? {
-                snippets.entry(snippet.document_id).or_default().insert(
-                    u32::from(snippet.sub_id),
-                    (snippet.snippet, snippet.embedding),
-                );
-            }
+                .fetch(&mut *tx)
+                .try_for_each(|snippet| {
+                    snippets.entry(snippet.document_id).or_default().push((
+                        u32::from(snippet.sub_id),
+                        snippet.snippet,
+                        snippet.embedding,
+                    ));
+                    future::ok(())
+                })
+                .await?;
         }
 
         let mut builder = QueryBuilder::new(
@@ -498,35 +505,39 @@ impl Database {
         let mut needs_ingestion = Vec::with_capacity(ids.len());
         let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, ids);
         while let Some(ids) = chunks.next() {
-            let mut rows = builder
+            let chunk = builder
                 .reset()
                 .push_tuple(ids)
                 .push(" RETURNING document_id, preprocessing_step, properties, tags;")
                 .build()
-                .fetch(&mut *tx);
+                .try_map(|row: PgRow| {
+                    let document_id = row.try_get("document_id")?;
+                    //Hint: We currently assume there are no gaps.
+                    //      I.e. if there are 10 snippets their sub ids are 0..10.
+                    let snippets = snippets
+                        .remove(&document_id)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .sorted_by_key(|(idx, _, _)| *idx)
+                        .map(|(_, snippet, embedding)| DocumentContent { snippet, embedding })
+                        .collect();
 
-            while let Some(row) = rows.next().await.transpose()? {
-                let document_id = row.try_get("document_id")?;
-                //Hint: We currently assume there are no gaps
-                let snippets = snippets
-                    .remove(&document_id)
-                    .unwrap_or_default()
-                    .into_values()
-                    .map(|(snippet, embedding)| (snippet, embedding))
-                    .collect();
+                    Ok(DocumentForIngestion {
+                        id: document_id,
+                        //FIXME clearly separate PG and ES
+                        // we don't put raw document onto ES
+                        original: String::new(),
+                        snippets,
+                        preprocessing_step: row.try_get("preprocessing_step")?,
+                        properties: row.try_get::<Json<_>, _>("properties")?.0,
+                        tags: row.try_get("tags")?,
+                        is_candidate: true,
+                    })
+                })
+                .fetch_all(&mut *tx)
+                .await?;
 
-                needs_ingestion.push(DocumentForIngestion {
-                    id: document_id,
-                    //FIXME clearly separate PG and ES
-                    // we don't put raw document onto ES
-                    raw_document: String::new(),
-                    snippets,
-                    preprocessing_step: row.try_get("preprocessing_step")?,
-                    properties: row.try_get::<Json<_>, _>("properties")?.0,
-                    tags: row.try_get("tags")?,
-                    is_candidate: true,
-                });
-            }
+            needs_ingestion.extend(chunk);
         }
 
         Ok(needs_ingestion)
@@ -714,25 +725,22 @@ impl Database {
                 last_view
             ) ",
         );
-        let mut iter = cois.values().peekable();
-        while iter.peek().is_some() {
+        let mut iter = Chunks::new(Database::BIND_LIMIT / 6, cois.values());
+        while let Some(chunk) = iter.next() {
             builder
                 .reset()
-                .push_values(
-                    iter.by_ref().take(Database::BIND_LIMIT / 6),
-                    |mut builder, update| {
-                        // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
-                        // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
-                        #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
-                        builder
-                            .push_bind(update.id)
-                            .push_bind(user_id)
-                            .push_bind(&update.point)
-                            .push_bind(update.stats.view_count as i32)
-                            .push_bind(update.stats.view_time.as_millis() as i64)
-                            .push_bind(time);
-                    },
-                )
+                .push_values(chunk, |mut builder, update| {
+                    // bit casting to signed int is fine as we fetch them as signed int before bit casting them back to unsigned int
+                    // truncating to 64bit is fine as >292e+6 years is more then enough for this use-case
+                    #[allow(clippy::cast_possible_wrap, clippy::cast_possible_truncation)]
+                    builder
+                        .push_bind(update.id)
+                        .push_bind(user_id)
+                        .push_bind(&update.point)
+                        .push_bind(update.stats.view_count as i32)
+                        .push_bind(update.stats.view_time.as_millis() as i64)
+                        .push_bind(time);
+                })
                 .push(
                     " ON CONFLICT (coi_id) DO UPDATE SET
                     embedding = EXCLUDED.embedding,
@@ -754,26 +762,24 @@ impl Database {
         time: DateTime<Utc>,
         interactions: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
     ) -> Result<(), Error> {
-        let mut interactions = interactions.into_iter().peekable();
+        let mut interactions = Chunks::new(Database::BIND_LIMIT / 4, interactions);
+
         //FIXME micro benchmark and chunking+persist abstraction
-        let persist = interactions.len() < 10;
+        let persist = interactions.element_count() < 10;
 
         let mut builder = QueryBuilder::new(
-            "INSERT INTO interaction (document_id, snippet_idx, user_id, time_stamp) ",
+            "INSERT INTO interaction (document_id, sub_id, user_id, time_stamp) ",
         );
-        while interactions.peek().is_some() {
+        while let Some(chunk) = interactions.next() {
             builder
                 .reset()
-                .push_values(
-                    interactions.by_ref().take(Database::BIND_LIMIT / 3),
-                    |mut builder, snippet_id| {
-                        builder
-                            .push_bind(snippet_id.document_id())
-                            .push_bind(SqlBitCastU32::from(snippet_id.snippet_idx()))
-                            .push_bind(user_id)
-                            .push_bind(time);
-                    },
-                )
+                .push_values(chunk, |mut builder, snippet_id| {
+                    builder
+                        .push_bind(snippet_id.document_id())
+                        .push_bind(SqlBitCastU32::from(snippet_id.sub_id()))
+                        .push_bind(user_id)
+                        .push_bind(time);
+                })
                 .push(" ON CONFLICT DO NOTHING;")
                 .build()
                 .persistent(persist)
@@ -790,19 +796,16 @@ impl Database {
         updates: &HashMap<&DocumentTag, i32>,
     ) -> Result<(), Error> {
         let mut builder = QueryBuilder::new("INSERT INTO weighted_tag (user_id, tag, weight) ");
-        let mut iter = updates.iter().peekable();
-        while iter.peek().is_some() {
+        let mut updates = Chunks::new(Database::BIND_LIMIT / 3, updates);
+        while let Some(updates) = updates.next() {
             builder
                 .reset()
-                .push_values(
-                    iter.by_ref().take(Database::BIND_LIMIT / 3),
-                    |mut builder, (tag, weight_diff)| {
-                        builder
-                            .push_bind(user_id)
-                            .push_bind(tag)
-                            .push_bind(weight_diff);
-                    },
-                )
+                .push_values(updates, |mut builder, (tag, weight_diff)| {
+                    builder
+                        .push_bind(user_id)
+                        .push_bind(tag)
+                        .push_bind(weight_diff);
+                })
                 .push(
                     " ON CONFLICT (user_id, tag) DO UPDATE SET
                     weight = weighted_tag.weight + EXCLUDED.weight;",

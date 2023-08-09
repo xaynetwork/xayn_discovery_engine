@@ -42,6 +42,7 @@ use crate::{
         common::{DocumentNotFound, DocumentPropertyNotFound},
     },
     models::{
+        DocumentContent,
         DocumentForIngestion,
         DocumentId,
         DocumentProperties,
@@ -244,7 +245,7 @@ impl storage::Document for Storage {
         let documents = ids
             .into_iter()
             .filter_map(|id| {
-                assert_eq!(id.snippet_idx(), 0);
+                assert_eq!(id.sub_id(), 0);
                 documents.0.get(id.document_id()).and_then(|document| {
                     documents
                         .1
@@ -302,7 +303,7 @@ impl storage::Document for Storage {
             .filter_map(|id| {
                 documents.0.get(id).map(|document| ExcerptedDocument {
                     id: id.clone(),
-                    raw_document: document.snippet.as_str().to_owned(),
+                    original: document.snippet.as_str().to_owned(),
                     preprocessing_step: document.preprocessing_step,
                     properties: document.properties.clone(),
                     tags: document.tags.clone(),
@@ -378,7 +379,7 @@ impl storage::Document for Storage {
         documents.0.reserve(new_documents.len());
         for mut document in new_documents {
             assert_eq!(document.snippets.len(), 1);
-            let (snippet, embedding) = document.snippets.pop().unwrap();
+            let DocumentContent { snippet, embedding } = document.snippets.pop().unwrap();
             documents.0.insert(
                 document.id.clone(),
                 Document {
@@ -753,8 +754,11 @@ mod tests {
             .zip(embeddings)
             .map(|(id, embedding)| DocumentForIngestion {
                 id: id.document_id().clone(),
-                raw_document: "snippet".into(),
-                snippets: vec![(DocumentSnippet::new("snippet", 100).unwrap(), embedding)],
+                original: "snippet".into(),
+                snippets: vec![DocumentContent {
+                    snippet: DocumentSnippet::new("snippet", 100).unwrap(),
+                    embedding,
+                }],
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: DocumentTags::default(),
@@ -822,8 +826,11 @@ mod tests {
             &storage,
             vec![DocumentForIngestion {
                 id: doc_id.document_id().clone(),
-                raw_document: snippet.as_str().to_owned(),
-                snippets: vec![(snippet.clone(), embedding.clone())],
+                original: snippet.as_str().to_owned(),
+                snippets: vec![DocumentContent {
+                    snippet: snippet.clone(),
+                    embedding: embedding.clone(),
+                }],
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
@@ -861,7 +868,7 @@ mod tests {
             .unwrap();
         assert_eq!(documents.len(), 1);
         assert_eq!(&documents[0].id, doc_id.document_id());
-        assert_eq!(documents[0].raw_document, snippet.as_str());
+        assert_eq!(documents[0].original, snippet.as_str());
         let documents = storage::Document::get_personalized(&storage, [&doc_id], true, true)
             .await
             .unwrap();

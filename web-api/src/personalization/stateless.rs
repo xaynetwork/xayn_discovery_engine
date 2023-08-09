@@ -73,8 +73,8 @@ pub(super) fn validate_history(
             let timestamp = unchecked.timestamp.unwrap_or(most_recent_time);
             if timestamp > most_recent_time {
                 let document_id = id.document_id();
-                let snippet_idx = id.snippet_idx();
-                warnings.push(format!("inconsistent history ordering around document {document_id} snippet {snippet_idx:?}").into());
+                let sub_id = id.sub_id();
+                warnings.push(format!("inconsistent history ordering around document {document_id} snippet {sub_id:?}").into());
             }
             most_recent_time = timestamp;
             Ok(HistoryEntry { id, timestamp })
@@ -110,9 +110,7 @@ pub(super) async fn load_history(
         })
         .collect::<HashMap<_, _>>();
 
-    let loaded = storage::Document::get_snippets_for_interaction(storage, history.keys())
-        .await?
-        .into_iter();
+    let loaded = storage::Document::get_snippets_for_interaction(storage, history.keys()).await?;
 
     Ok(loaded
         .into_iter()
@@ -122,6 +120,7 @@ pub(super) async fn load_history(
                  embedding,
                  tags,
              }| {
+                // loaded ⊆ history
                 let timestamp = history[&id];
                 LoadedHistoryEntry {
                     timestamp,
@@ -245,7 +244,7 @@ mod tests {
         assert_eq!(
             documents,
             vec![HistoryEntry {
-                id: SnippetOrDocumentId::DocumentId("doc-2".try_into()?),
+                id: doc_id("doc-2"),
                 timestamp: now - Duration::days(1)
             }]
         );

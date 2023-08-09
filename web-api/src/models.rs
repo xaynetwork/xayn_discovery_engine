@@ -246,9 +246,9 @@ impl SnippetOrDocumentId {
         }
     }
 
-    pub(crate) fn snippet_idx(&self) -> Option<u32> {
+    pub(crate) fn sub_id(&self) -> Option<u32> {
         match self {
-            SnippetOrDocumentId::SnippetId(id) => Some(id.snippet_idx()),
+            SnippetOrDocumentId::SnippetId(id) => Some(id.sub_id()),
             SnippetOrDocumentId::DocumentId(_) => None,
         }
     }
@@ -418,16 +418,11 @@ impl<'a> IntoIterator for &'a DocumentTags {
         self.0.iter()
     }
 }
-/// Represents a result from an interaction query.
+
 #[derive(Clone, Debug)]
 pub(crate) struct SnippetForInteraction {
-    /// Unique identifier of the document.
     pub(crate) id: SnippetId,
-
-    /// Embedding from smbert.
     pub(crate) embedding: NormalizedEmbedding,
-
-    /// The tags associated to the document.
     pub(crate) tags: DocumentTags,
 }
 
@@ -476,10 +471,10 @@ pub(crate) struct DocumentForIngestion {
     pub(crate) id: DocumentId,
 
     /// The raw document provided by the client.
-    pub(crate) raw_document: String,
+    pub(crate) original: String,
 
     /// Snippet used to calculate embeddings for a document.
-    pub(crate) snippets: Vec<(DocumentSnippet, NormalizedEmbedding)>,
+    pub(crate) snippets: Vec<DocumentContent>,
 
     /// Method used to preprocess the document before ingestion.
     pub(crate) preprocessing_step: PreprocessingStep,
@@ -494,10 +489,16 @@ pub(crate) struct DocumentForIngestion {
     pub(crate) is_candidate: bool,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct DocumentContent {
+    pub(crate) snippet: DocumentSnippet,
+    pub(crate) embedding: NormalizedEmbedding,
+}
+
 #[derive(Debug)]
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
-    pub(crate) raw_document: String,
+    pub(crate) original: String,
     pub(crate) preprocessing_step: PreprocessingStep,
     pub(crate) properties: DocumentProperties,
     pub(crate) tags: DocumentTags,

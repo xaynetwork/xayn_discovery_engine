@@ -164,10 +164,10 @@ impl Client {
                     serde_json::to_value(BulkInstruction::Index { id: &document.id }),
                     serde_json::to_value(IngestedDocument {
                         // TODO[pmk/ET-4756-7]
-                        snippet: &document.snippets[0].0,
+                        snippet: &document.snippets[0].snippet,
                         properties: &document.properties,
                         // TODO[pmk/ET-4756-7]
-                        embedding: &document.snippets[0].1,
+                        embedding: &document.snippets[0].embedding,
                         tags: &document.tags,
                     }),
                 ]

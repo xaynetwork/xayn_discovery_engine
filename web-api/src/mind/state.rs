@@ -23,6 +23,7 @@ use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
     models::{
+        DocumentContent,
         DocumentForIngestion,
         DocumentId,
         DocumentProperties,
@@ -77,8 +78,11 @@ impl State {
                 let embedding = self.embedder.run(&document.snippet)?;
                 Ok(DocumentForIngestion {
                     id: document.id,
-                    raw_document: document.snippet.as_str().to_owned(),
-                    snippets: vec![(document.snippet, embedding)],
+                    original: document.snippet.as_str().to_owned(),
+                    snippets: vec![DocumentContent {
+                        snippet: document.snippet,
+                        embedding,
+                    }],
                     preprocessing_step: PreprocessingStep::None,
                     properties: DocumentProperties::default(),
                     tags: vec![document.category, document.subcategory].try_into()?,
