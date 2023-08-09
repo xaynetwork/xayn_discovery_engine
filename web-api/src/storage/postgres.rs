@@ -453,7 +453,7 @@ impl Database {
             SET is_candidate = FALSE
             WHERE document_id IN ",
         );
-        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, removed.iter());
+        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, &removed);
         while let Some(ids) = chunks.next() {
             builder
                 .reset()
@@ -934,6 +934,7 @@ impl storage::Document for Storage {
             });
         let failed_documents = self.elastic.upsert_documents(&candidates).await?;
         self.elastic.delete_by_parents(&noncandidates).await?;
+
         Ok(failed_documents)
     }
 
@@ -943,6 +944,7 @@ impl storage::Document for Storage {
     ) -> Result<Warning<DocumentId>, Error> {
         let (candidates, failed_documents) = self.postgres.delete_documents(ids).await?;
         self.elastic.delete_by_parents(&candidates).await?;
+
         Ok(failed_documents)
     }
 }

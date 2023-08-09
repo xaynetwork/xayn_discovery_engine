@@ -170,16 +170,15 @@ impl Client {
                         #[allow(clippy::cast_possible_truncation)]
                         let id = SnippetId::new(document.id.clone(), idx as _);
                         let header =
-                            serde_json::to_value(BulkInstruction::Create { id: id.to_es_id() })
-                                .map_err(Into::into);
-                        let data = serde_json::to_value(EsDocument {
+                            serde_json::to_value(BulkInstruction::Create { id: id.to_es_id() });
+                        let data = serde_json::to_value(Document {
                             snippet,
                             properties: &document.properties,
                             embedding,
                             tags: &document.tags,
                             parent: id.document_id(),
-                        })
-                        .map_err(Into::into);
+                        });
+
                         [header, data]
                     },
                 )
@@ -198,6 +197,7 @@ impl Client {
         &self,
         parents: impl SerializeDocumentIds,
     ) -> Result<(), Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
         let url = self.create_url(["_delete_by_query"], [("refresh", None)]);
         let body = json!({
             "query": {
@@ -406,7 +406,7 @@ impl Client {
 }
 
 pub(super) trait SerializeDocumentIds: Serialize {}
-impl<T> SerializeDocumentIds for &'_ T where T: SerializeDocumentIds {}
+impl<T> SerializeDocumentIds for &'_ T where T: SerializeDocumentIds + ?Sized {}
 impl SerializeDocumentIds for [DocumentId] {}
 impl SerializeDocumentIds for [&'_ DocumentId] {}
 impl SerializeDocumentIds for Vec<DocumentId> {}
@@ -452,7 +452,7 @@ pub(crate) enum IndexUpdateMethod {
 }
 
 #[derive(Debug, Serialize)]
-struct EsDocument<'a> {
+struct Document<'a> {
     snippet: &'a DocumentSnippet,
     properties: &'a DocumentProperties,
     embedding: &'a NormalizedEmbedding,
