@@ -185,6 +185,7 @@ fn test_full_migration() {
             &es_config,
             Table::new(),
             "smbert_v0003",
+            true,
         );
 
         info!("test setup done");
@@ -289,6 +290,7 @@ fn test_full_migration() {
             &es_config,
             Table::new(),
             "smbert_v0004",
+            false,
         );
         let args = &[
             "integration-test",
