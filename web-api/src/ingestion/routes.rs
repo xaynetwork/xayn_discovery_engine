@@ -20,6 +20,7 @@ use actix_web::{
     Responder,
 };
 use anyhow::anyhow;
+use futures_util::stream::{FuturesOrdered, StreamExt};
 use itertools::{Either, Itertools};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -408,27 +409,44 @@ async fn upsert_documents(
     .await?;
 
     let start = Instant::now();
-    let (new_documents, mut failed_documents) = new_documents
-        .into_iter()
-        .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
-            let preprocessing_step = document.preprocessing_step;
-            let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
-            match preprocess_document(&state.embedder, document.original, preprocessing_step) {
-                Ok(snippets) => Either::Left(models::DocumentForIngestion {
-                    id: document.id,
-                    original_sha256,
-                    snippets,
-                    preprocessing_step,
-                    properties: document.properties,
-                    tags: document.tags,
-                    is_candidate: new_is_candidate.value,
-                }),
-                Err(error) => {
-                    error!("Failed to embed document '{}': {:#?}", document.id, error);
-                    Either::Right(DocumentInBatchError::new(document.id, &*error))
-                }
-            }
-        });
+    let state = &state;
+    let new_documents_len = new_documents.len();
+    let (new_documents, mut failed_documents) =
+        new_documents
+            .into_iter()
+            .map(|(document, new_is_candidate)| async move {
+                let snippets = preprocess_document(
+                    &state.embedder,
+                    document.original.clone(),
+                    document.preprocessing_step,
+                )
+                .await;
+                (document, new_is_candidate, snippets)
+            })
+            .collect::<FuturesOrdered<_>>()
+            .fold(
+                (Vec::with_capacity(new_documents_len), Vec::new()),
+                |(mut new_documents, mut failed_documents),
+                 (document, new_is_candidate, snippets)| async move {
+                    match snippets {
+                        Ok(snippets) => new_documents.push(models::DocumentForIngestion {
+                            id: document.id,
+                            original_sha256: Sha256Hash::calculate(document.original.as_bytes()),
+                            snippets,
+                            preprocessing_step: document.preprocessing_step,
+                            properties: document.properties,
+                            tags: document.tags,
+                            is_candidate: new_is_candidate.value,
+                        }),
+                        Err(error) => {
+                            error!("Failed to embed document '{}': {:#?}", document.id, error);
+                            failed_documents.push(DocumentInBatchError::new(document.id, &*error));
+                        }
+                    }
+                    (new_documents, failed_documents)
+                },
+            )
+            .await;
 
     debug!(
         "{} new embeddings calculated in {} seconds and {} unchanged embeddings skipped",
