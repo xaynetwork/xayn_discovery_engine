@@ -59,7 +59,7 @@ pub(crate) enum Embedder {
 }
 
 impl Embedder {
-    #[allow(clippy::unused_async)]
+    #[allow(clippy::unused_async)] // required for sagemaker
     pub(crate) async fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
             Config::Pipeline(Pipeline {
