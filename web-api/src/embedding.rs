@@ -18,7 +18,7 @@ use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase")]
+#[serde(rename_all = "lowercase", deny_unknown_fields)]
 pub enum Config {
     Pipeline(Pipeline),
 }
@@ -30,7 +30,7 @@ impl Default for Config {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Pipeline {
     pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
