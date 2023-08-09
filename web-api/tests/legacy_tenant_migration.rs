@@ -72,8 +72,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
         let legacy_elastic_index_as_tenant_id =
             TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
         elastic_create_tenant(
-            &es_client,
-            &legacy_elastic_index_as_tenant_id,
+            &es_client.with_index(&legacy_elastic_index_as_tenant_id),
             TEST_EMBEDDING_SIZE,
         )
         .await?;

@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::fmt::Debug;
-
 use anyhow::bail;
 use once_cell::sync::Lazy;
 use reqwest::Method;
@@ -30,17 +28,12 @@ static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
 
 #[instrument(skip(elastic))]
-pub async fn create_tenant_index(
-    elastic: &Client,
-    new_id: &TenantId,
-    embedding_size: usize,
-) -> Result<(), Error> {
-    let elastic = elastic.with_index(new_id);
+pub async fn create_tenant_index(elastic: &Client, embedding_size: usize) -> Result<(), Error> {
     let mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
     elastic
         .query_with_json::<_, SerdeDiscard>(Method::PUT, elastic.create_url([], []), Some(&mapping))
         .await?;
-    info!({tenant_id = %new_id}, "created ES index");
+    info!("created ES index");
     Ok(())
 }
 
@@ -56,27 +49,25 @@ pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Res
 
 #[instrument(skip(elastic))]
 pub(crate) async fn setup_legacy_tenant(
-    elastic: &Client,
+    elastic: Client,
     default_index: &str,
-    tenant_id: &TenantId,
     embedding_size: usize,
 ) -> Result<(), Error> {
-    if does_tenant_index_exist(elastic, default_index).await? {
-        create_index_alias(elastic, default_index, tenant_id).await?;
+    if does_tenant_index_exist(&elastic.with_index(default_index)).await? {
+        create_alias_index_to(&elastic, default_index).await?;
     } else {
-        create_tenant_index(elastic, tenant_id, embedding_size).await?;
+        create_tenant_index(&elastic, embedding_size).await?;
     }
-
     Ok(())
 }
 
 #[instrument(skip(elastic))]
 pub(crate) async fn migrate_tenant_index(
-    elastic: &Client,
+    elastic: Client,
     tenant_id: &TenantId,
     embedding_size: usize,
 ) -> Result<(), Error> {
-    if let Some(existing_mapping) = get_opt_tenant_mapping(elastic, tenant_id).await? {
+    if let Some(existing_mapping) = get_opt_tenant_mapping(&elastic).await? {
         let base_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
         check_mapping_compatibility(&existing_mapping, &base_mapping)?;
     } else {
@@ -84,8 +75,9 @@ pub(crate) async fn migrate_tenant_index(
             {%tenant_id},
             "index for tenant doesn't exist, creating a new index"
         );
-        create_tenant_index(elastic, tenant_id, embedding_size).await?;
+        create_tenant_index(&elastic, embedding_size).await?;
     }
+
     Ok(())
 }
 
@@ -119,19 +111,12 @@ fn check_mapping_compatibility(
 }
 
 #[instrument(skip(elastic))]
-async fn does_tenant_index_exist(
-    elastic: &Client,
-    tenant_id: impl AsRef<str> + Debug,
-) -> Result<bool, Error> {
-    Ok(get_opt_tenant_mapping(elastic, tenant_id).await?.is_some())
+async fn does_tenant_index_exist(elastic: &Client) -> Result<bool, Error> {
+    Ok(get_opt_tenant_mapping(elastic).await?.is_some())
 }
 
 #[instrument(skip(elastic))]
-async fn get_opt_tenant_mapping(
-    elastic: &Client,
-    tenant_id: impl AsRef<str> + Debug,
-) -> Result<Option<Value>, Error> {
-    let elastic = elastic.with_index(&tenant_id);
+async fn get_opt_tenant_mapping(elastic: &Client) -> Result<Option<Value>, Error> {
     let response = elastic
         .query_with_bytes::<Value>(Method::GET, elastic.create_url(["_mapping"], []), None)
         .await
@@ -146,30 +131,24 @@ async fn get_opt_tenant_mapping(
 }
 
 #[instrument(skip(elastic))]
-async fn create_index_alias(
-    elastic: &Client,
-    index: &str,
-    alias: impl AsRef<str> + Debug,
-) -> Result<(), Error> {
+async fn create_alias_index_to(elastic: &Client, original_index: &str) -> Result<(), Error> {
+    let alias_index = elastic.get_index().to_owned();
     let elastic = elastic.with_index("_aliases");
-    let alias = alias.as_ref();
     elastic
         .query_with_json::<_, SerdeDiscard>(
             Method::POST,
             elastic.create_url([], []),
             Some(&json!({
-                "actions": [
-                {
+                "actions": [{
                     "add": {
-                    "index": index,
-                    "alias": alias,
+                        "index": original_index,
+                        "alias": alias_index,
                     }
-                }
-                ]
+                }]
             })),
         )
         .await?;
-    info!({%index, %alias}, "created ES alias");
+    info!({%alias_index, %original_index}, "created ES alias");
     Ok(())
 }
 

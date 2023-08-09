@@ -155,6 +155,10 @@ impl Client {
         }
     }
 
+    pub fn get_index(&self) -> &str {
+        self.url_to_index.last_segment().unwrap(/*Client always has some index*/)
+    }
+
     pub fn request<'a>(
         &self,
         method: Method,
@@ -584,6 +588,12 @@ impl SegmentableUrl {
         segments_mut.pop().push(last_segment);
         drop(segments_mut);
         Self(new_url)
+    }
+
+    pub fn last_segment(&self) -> Option<&str> {
+        self.0.path_segments()
+            .unwrap(/* we made sure this can't happen */)
+            .last()
     }
 }
 
