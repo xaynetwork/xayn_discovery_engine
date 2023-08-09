@@ -23,7 +23,7 @@ use std::{
 use async_trait::async_trait;
 pub(crate) use client::{Database, DatabaseBuilder};
 use either::Either;
-use futures_util::{future, StreamExt, TryStreamExt};
+use futures_util::{future, TryStreamExt};
 use itertools::Itertools;
 use serde_json::Value;
 use sqlx::{
