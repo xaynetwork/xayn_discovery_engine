@@ -59,6 +59,7 @@ pub(crate) enum Embedder {
 }
 
 impl Embedder {
+    #[allow(clippy::unused_async)]
     pub(crate) async fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
             Config::Pipeline(Pipeline {
@@ -78,6 +79,7 @@ impl Embedder {
         Ok(Self::Pipeline(embedder))
     }
 
+    #[allow(clippy::unused_async)]
     pub(crate) async fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
         match self {
             Embedder::Pipeline(embedder) => embedder
