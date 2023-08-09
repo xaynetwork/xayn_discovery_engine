@@ -52,10 +52,9 @@ stdout = """
     "max_properties_string_size": 2048
   },
   "embedding": {
-    "pipeline": {
-      "directory": "assets",
-      "token_size": 250
-    }
+    "type": "pipeline",
+    "directory": "assets",
+    "token_size": 250
   },
   "tenants": {
     "enable_legacy_tenant": false,

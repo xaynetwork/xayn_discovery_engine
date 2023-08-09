@@ -672,7 +672,6 @@ pub fn build_test_config_from_parts_and_model(
     es_config: &elastic::Config,
     configure: Table,
     model_name: &str,
-    version_0_1: bool,
 ) -> Table {
     let pg_password = pg_config.password.expose_secret().as_str();
     let pg_config = Value::try_from(pg_config).unwrap();
@@ -689,20 +688,11 @@ pub fn build_test_config_from_parts_and_model(
         [storage]
         postgres = pg_config
         elastic = es_config
-    };
 
-    let embedder = match version_0_1 {
-        true => toml! {
-            [embedding]
-            directory = embedding_dir
-        },
-        false => toml! {
-            [embedding.pipeline]
-            directory = embedding_dir
-        },
+        [embedding]
+        type = "pipeline"
+        directory = embedding_dir
     };
-
-    extend_config(&mut config, embedder);
 
     //the password was serialized as REDACTED in to_toml_value
     extend_config(
@@ -723,7 +713,7 @@ pub fn build_test_config_from_parts(
     es_config: &elastic::Config,
     configure: Table,
 ) -> Table {
-    build_test_config_from_parts_and_model(pg_config, es_config, configure, "xaynia_v0002", false)
+    build_test_config_from_parts_and_model(pg_config, es_config, configure, "xaynia_v0002")
 }
 
 #[derive(Clone, Debug, Display, Deref, AsRef)]

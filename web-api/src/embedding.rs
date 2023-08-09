@@ -18,27 +18,17 @@ use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(rename_all = "lowercase", deny_unknown_fields)]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum Config {
-    Pipeline(Pipeline),
+    Pipeline {
+        directory: RelativePathBuf,
+        token_size: usize,
+    },
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self::Pipeline(Pipeline::default())
-    }
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct Pipeline {
-    pub(crate) directory: RelativePathBuf,
-    pub(crate) token_size: usize,
-}
-
-impl Default for Pipeline {
-    fn default() -> Self {
-        Self {
+        Self::Pipeline {
             directory: "assets".into(),
             token_size: 250,
         }
@@ -52,13 +42,16 @@ pub(crate) enum Embedder {
 impl Embedder {
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
-            Config::Pipeline(config) => Self::load_pipeline(config),
+            Config::Pipeline {
+                directory,
+                token_size,
+            } => Self::load_pipeline(directory, *token_size),
         }
     }
 
-    fn load_pipeline(config: &Pipeline) -> Result<Self, SetupError> {
-        let config = EmbedderConfig::new(config.directory.relative())?
-            .with_token_size(config.token_size)?
+    fn load_pipeline(directory: &RelativePathBuf, token_size: usize) -> Result<Self, SetupError> {
+        let config = EmbedderConfig::new(directory.relative())?
+            .with_token_size(token_size)?
             .with_pooler();
         config.validate()?;
         let embedder = config.build()?;
@@ -91,10 +84,10 @@ mod tests {
 
     #[test]
     fn test_embedder() {
-        let config = Config::Pipeline(Pipeline {
+        let config = Config::Pipeline {
             directory: xaynia().unwrap().into(),
-            ..Pipeline::default()
-        });
+            token_size: 250,
+        };
         let embedder = Embedder::load(&config).unwrap();
         embedder.run("test").unwrap();
     }

@@ -47,10 +47,9 @@ stdout = """
     "horizon": 30
   },
   "embedding": {
-    "pipeline": {
-      "directory": "assets",
-      "token_size": 250
-    }
+    "type": "pipeline",
+    "directory": "assets",
+    "token_size": 250
   },
   "personalization": {
     "max_number_documents": 100,
