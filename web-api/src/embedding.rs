@@ -79,7 +79,7 @@ impl Embedder {
         Ok(Self::Pipeline(embedder))
     }
 
-    #[allow(clippy::unused_async)]
+    #[allow(clippy::unused_async)] // required for sagemaker
     pub(crate) async fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
         match self {
             Embedder::Pipeline(embedder) => embedder
