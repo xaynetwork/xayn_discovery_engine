@@ -79,7 +79,7 @@ impl State {
             .into_iter()
             .map(|document| async move {
                 let embedding = self.embedder.run(&document.snippet).await?;
-                Ok::<IngestedDocument, Panic>(IngestedDocument {
+                Ok::<_, Panic>(IngestedDocument {
                     id: document.id,
                     original_sha256: Sha256Hash::calculate(document.snippet.as_bytes()),
                     snippets: vec![DocumentContent {
