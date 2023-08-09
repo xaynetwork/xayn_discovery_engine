@@ -689,7 +689,7 @@ pub fn build_test_config_from_parts_and_model(
         postgres = pg_config
         elastic = es_config
 
-        [embedding]
+        [embedding.pipeline]
         directory = embedding_dir
     };
 

@@ -20,7 +20,7 @@ use xayn_ai_coi::{CoiConfig, CoiSystem};
 use xayn_test_utils::error::Panic;
 
 use crate::{
-    embedding::{self, Embedder},
+    embedding::{self, Embedder, Pipeline},
     mind::{config::StateConfig, data::Document},
     models::{
         DocumentContent,
@@ -49,10 +49,10 @@ pub(super) struct State {
 
 impl State {
     pub(super) fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
-        let embedder = Embedder::load(&embedding::Config {
+        let embedder = Embedder::load(&embedding::Config::Pipeline(Pipeline {
             directory: "../assets/xaynia_v0002".into(),
-            ..embedding::Config::default()
-        })
+            ..embedding::Pipeline::default()
+        }))
         .map_err(|error| Panic::from(&*error))?;
 
         let coi = config.coi.build();

@@ -1,5 +1,11 @@
 bin.name = "ingestion"
-args = ["--print-config", "--config", "tests/cmd/assets/config.toml", "--bind-to", "127.4.3.2:1099"]
+args = [
+  "--print-config",
+  "--config",
+  "tests/cmd/assets/config.toml",
+  "--bind-to",
+  "127.4.3.2:1099",
+]
 status.code = 0
 stderr = ""
 stdout = """
@@ -52,8 +58,10 @@ stdout = """
     "max_properties_string_size": 2048
   },
   "embedding": {
-    "directory": "assets",
-    "token_size": 250
+    "pipeline": {
+      "directory": "assets",
+      "token_size": 250
+    }
   },
   "tenants": {
     "enable_legacy_tenant": true,

@@ -18,13 +18,25 @@ use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct Config {
+#[serde(rename_all = "lowercase")]
+pub enum Config {
+    Pipeline(Pipeline),
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self::Pipeline(Pipeline::default())
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
+pub struct Pipeline {
     pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
 }
 
-impl Default for Config {
+impl Default for Pipeline {
     fn default() -> Self {
         Self {
             directory: "assets".into(),
@@ -33,31 +45,41 @@ impl Default for Config {
     }
 }
 
-pub(crate) struct Embedder {
-    embedder: AvgEmbedder,
+pub(crate) enum Embedder {
+    Pipeline(AvgEmbedder),
 }
 
 impl Embedder {
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
+        match config {
+            Config::Pipeline(config) => Self::load_pipeline(config),
+        }
+    }
+
+    fn load_pipeline(config: &Pipeline) -> Result<Self, SetupError> {
         let config = EmbedderConfig::new(config.directory.relative())?
             .with_token_size(config.token_size)?
             .with_pooler();
         config.validate()?;
         let embedder = config.build()?;
 
-        Ok(Self { embedder })
+        Ok(Self::Pipeline(embedder))
     }
 
     pub(crate) fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
-        self.embedder
-            .run(sequence)
-            .map_err(InternalError::from_std)?
-            .normalize()
-            .map_err(InternalError::from_std)
+        match self {
+            Embedder::Pipeline(embedder) => embedder
+                .run(sequence)
+                .map_err(InternalError::from_std)?
+                .normalize()
+                .map_err(InternalError::from_std),
+        }
     }
 
     pub(crate) fn embedding_size(&self) -> usize {
-        self.embedder.embedding_size()
+        match self {
+            Embedder::Pipeline(embedder) => embedder.embedding_size(),
+        }
     }
 }
 
@@ -69,10 +91,10 @@ mod tests {
 
     #[test]
     fn test_embedder() {
-        let config = Config {
+        let config = Config::Pipeline(Pipeline {
             directory: xaynia().unwrap().into(),
-            ..Config::default()
-        };
+            ..Pipeline::default()
+        });
         let embedder = Embedder::load(&config).unwrap();
         embedder.run("test").unwrap();
     }
