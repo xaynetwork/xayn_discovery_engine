@@ -744,7 +744,7 @@ async fn semantic_search(
     };
     let (embedding, query) = match document {
         InputDocument::DocumentId(id) => {
-            // TODO[pmk/soon] how to handle by document search with split documents
+            // TODO[pmk/ET-4933] how to handle by document search with multi-snippet documents
             let id = SnippetId::new(id, 0);
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?

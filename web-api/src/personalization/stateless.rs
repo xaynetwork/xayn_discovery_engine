@@ -101,7 +101,7 @@ pub(super) async fn load_history(
     let history = history
         .into_iter()
         .map(|entry| {
-            // TODO[pmk/soon] properly support history of documents with multiple snippets
+            // TODO[pmk/ET-4851] properly support history of documents with multiple snippets
             let id = match entry.id {
                 SnippetOrDocumentId::SnippetId(id) => id,
                 SnippetOrDocumentId::DocumentId(id) => SnippetId::new(id, 0),
