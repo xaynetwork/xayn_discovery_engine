@@ -10,13 +10,8 @@ anyhow = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 figment = { workspace = true }
-itertools = { workspace = true }
-lindera-core = "0.25.0"
-lindera-dictionary = "0.25.0"
-lindera-tokenizer = "0.25.0"
 ndarray = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
-serde_json = { workspace = true }
 sqlx = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokenizers = { version = "0.13.3", default-features = false, features = ["onig"] }

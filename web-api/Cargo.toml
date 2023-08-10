@@ -26,11 +26,9 @@ itertools = { workspace = true }
 mime = "0.3.17"
 ndarray = { workspace = true }
 once_cell = { workspace = true }
-pin-project = "1.1.0"
 rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
-secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["chrono", "uuid"] }
@@ -39,7 +37,6 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { version = "2.4.0", features = ["serde"] }
-urlencoding = "2.1.2"
 uuid = { workspace = true }
 xayn-ai-bert = { path = "../bert", features = ["sqlx"] }
 xayn-ai-coi = { path = "../coi", features = ["sqlx"] }

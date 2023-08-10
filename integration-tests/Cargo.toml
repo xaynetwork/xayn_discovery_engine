@@ -18,14 +18,12 @@ secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sqlx = { workspace = true }
-temp-dir = "0.1.11"
 tokio = { workspace = true, features = ["macros"] }
 toml = { workspace = true }
 tracing = { workspace = true }
 tracing-flame = "0.2.0"
 tracing-log = "0.1.3"
 tracing-subscriber = { workspace = true }
-uuid = { workspace = true }
 xayn-test-utils = { path = "../test-utils" }
 xayn-web-api = { path = "../web-api" }
 xayn-web-api-db-ctrl = { path = "../web-api-db-ctrl" }
