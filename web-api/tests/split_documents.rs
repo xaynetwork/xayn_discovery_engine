@@ -408,6 +408,27 @@ fn test_split_documents_with_property_updates() {
             let res = query("cars", "filter-a").await?;
             assert_eq!(res.id_ranking(), vec![("d2", 0), ("d2", 2), ("d2", 1),]);
 
+            let res = send_assert_json::<SearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": {
+                            "id": {
+                                "document_id": "d2",
+                                "sub_id": 1
+                            }
+                        },
+                        "count": 2,
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            assert_eq!(res.id_ranking(), vec![("d1", 0), ("d1", 2)]);
+
             Ok(())
         },
     );
@@ -472,6 +493,26 @@ fn test_endpoints_which_do_not_yet_fully_support_split_do_not_fall_over() {
                         "personalize": {
                             "user": {
                                 "history": [ { "id": "d1" }]
+                            }
+                        },
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            send_assert_json::<SearchResponse>(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": {
+                            "query": "car"
+                        },
+                        "personalize": {
+                            "user": {
+                                "history": [ { "id":  { "document_id": "d1", "sub_id": 2 } } ]
                             }
                         },
                     }))
