@@ -32,7 +32,7 @@ impl Default for Config {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Pipeline {
-    pub(crate) directory: String,
+    pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
 }
 
@@ -55,7 +55,7 @@ impl Embedder {
             Config::Pipeline(Pipeline {
                 directory,
                 token_size,
-            }) => Self::load_pipeline(&directory.into(), *token_size),
+            }) => Self::load_pipeline(directory, *token_size),
         }
     }
 
@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_embedder() {
         let config = Config::Pipeline(Pipeline {
-            directory: xaynia().unwrap().display().to_string(),
+            directory: xaynia().unwrap().into(),
             ..Pipeline::default()
         });
         let embedder = Embedder::load(&config).unwrap();
