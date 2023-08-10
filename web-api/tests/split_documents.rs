@@ -34,7 +34,7 @@ struct PersonalizedDocumentData {
     id: String,
     snippet_id: SnippetId,
     score: f32,
-    // included by test only dev option
+    // included by dev option
     #[serde(default)]
     snippet: Option<String>,
 }
@@ -67,7 +67,7 @@ impl SearchResponse {
         let ordered = self
             .documents
             .iter()
-            .zip(self.documents.iter().skip(1))
+            .tuple_windows()
             .all(|(first, second)| first.score > second.score);
         assert!(
             ordered,

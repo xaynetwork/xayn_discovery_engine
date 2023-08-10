@@ -12,6 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use itertools::Itertools;
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use crate::{
@@ -65,13 +66,15 @@ fn embed_with_cutters(
     embedder: &Embedder,
     snippet: &DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
-    let mut snippets = Vec::new();
-    for split in cutters::cut(snippet, cutters::Language::English) {
-        let str = split.str.trim();
-        let snippet = DocumentSnippet::new(str, str.len())?;
-        let embedding = embedder.run(split.str)?;
-        snippets.push(DocumentContent { snippet, embedding });
-    }
+    let snippets = cutters::cut(snippet, cutters::Language::English)
+        .into_iter()
+        .map(|split| {
+            let snippet = DocumentSnippet::new(split.str, split.str.len())?;
+            let embedding = embedder.run(&snippet)?;
+            Ok(DocumentContent { snippet, embedding })
+        })
+        .try_collect::<_, Vec<_>, Error>()?;
+
     if snippets.is_empty() {
         Err(InvalidDocumentSnippet::NoSnippets {}.into())
     } else {
