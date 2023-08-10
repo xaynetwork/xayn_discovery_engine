@@ -1,11 +1,5 @@
 bin.name = "ingestion"
-args = [
-  "--print-config",
-  "--config",
-  "tests/cmd/assets/config.toml",
-  "--bind-to",
-  "127.4.3.2:1099",
-]
+args = ["--print-config", "--config", "tests/cmd/assets/config.toml", "--bind-to", "127.4.3.2:1099"]
 status.code = 0
 stderr = ""
 stdout = """
