@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
@@ -49,7 +47,14 @@ use crate::{
         common::{BadRequest, DocumentNotFound, ForbiddenDevOption, InvalidDocumentCount},
         warning::Warning,
     },
-    models::{DocumentId, DocumentProperties, DocumentQuery, PersonalizedDocument, UserId},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        DocumentQuery,
+        DocumentSnippet,
+        PersonalizedDocument,
+        UserId,
+    },
     storage::{self, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
     tenants,
     utils::deprecate,
@@ -256,6 +261,7 @@ async fn personalized_documents(
         },
         Utc::now(),
         include_properties,
+        false,
     )
     .await?
     {
@@ -278,8 +284,16 @@ async fn personalized_documents(
 struct PersonalizedDocumentData {
     id: DocumentId,
     score: f32,
-    #[serde(skip_serializing_if = "HashMap::is_empty")]
-    properties: DocumentProperties,
+    #[serde(skip_serializing_if = "no_properties")]
+    properties: Option<DocumentProperties>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    snippet: Option<DocumentSnippet>,
+}
+
+fn no_properties(properties: &Option<DocumentProperties>) -> bool {
+    properties
+        .as_ref()
+        .map_or(true, |properties| properties.is_empty())
 }
 
 impl From<PersonalizedDocument> for PersonalizedDocumentData {
@@ -288,6 +302,7 @@ impl From<PersonalizedDocument> for PersonalizedDocumentData {
             id: document.id,
             score: document.score,
             properties: document.properties,
+            snippet: document.snippet,
         }
     }
 }
@@ -314,6 +329,7 @@ pub(crate) enum PersonalizeBy<'a> {
     Documents(&'a [&'a DocumentId]),
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn personalize_documents_by(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi_system: &CoiSystem,
@@ -322,6 +338,7 @@ pub(crate) async fn personalize_documents_by(
     by: PersonalizeBy<'_>,
     time: DateTime<Utc>,
     include_properties: bool,
+    include_snippet: bool,
 ) -> Result<Option<Vec<PersonalizedDocument>>, Error> {
     storage::Interaction::user_seen(storage, user_id, time).await?;
 
@@ -348,6 +365,7 @@ pub(crate) async fn personalize_documents_by(
                 num_candidates: personalization.max_number_candidates,
                 time,
                 include_properties,
+                include_snippet,
                 filter,
             }
             .run_on(storage)
@@ -359,6 +377,7 @@ pub(crate) async fn personalize_documents_by(
                 storage,
                 documents.iter().copied(),
                 include_properties,
+                include_snippet,
             )
             .await?
         }
@@ -440,11 +459,16 @@ struct UnvalidatedSemanticSearchRequest {
 struct DevOption {
     hybrid: Option<DevHybrid>,
     max_number_candidates: Option<usize>,
+    include_snippet: Option<bool>,
 }
 
 impl DevOption {
     fn validate(&self, enable_dev: bool) -> Result<(), Error> {
-        if !enable_dev && (self.hybrid.is_some() || self.max_number_candidates.is_some()) {
+        if !enable_dev
+            && (self.hybrid.is_some()
+                || self.max_number_candidates.is_some()
+                || self.include_snippet.is_some())
+        {
             // notify the caller instead of silently discarding the dev option
             return Err(ForbiddenDevOption::DevDisabled.into());
         }
@@ -545,6 +569,7 @@ impl UnvalidatedSemanticSearchRequest {
             enable_hybrid_search,
             dev_hybrid_search,
             include_properties,
+            include_snippet: dev.include_snippet.unwrap_or_default(),
             filter,
             is_deprecated,
         })
@@ -599,6 +624,8 @@ impl UnvalidatedPersonalize {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::struct_excessive_bools)]
 struct SemanticSearchRequest {
     document: InputDocument,
     count: usize,
@@ -607,6 +634,7 @@ struct SemanticSearchRequest {
     enable_hybrid_search: bool,
     dev_hybrid_search: Option<DevHybrid>,
     include_properties: bool,
+    include_snippet: bool,
     filter: Option<Filter>,
     is_deprecated: bool,
 }
@@ -652,6 +680,7 @@ async fn semantic_search(
         enable_hybrid_search,
         dev_hybrid_search,
         include_properties,
+        include_snippet,
         filter,
         is_deprecated,
     } = body
@@ -687,6 +716,7 @@ async fn semantic_search(
             num_candidates,
             strategy,
             include_properties,
+            include_snippet,
             filter: filter.as_ref(),
         },
     )

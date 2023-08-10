@@ -344,8 +344,15 @@ pub(crate) struct PersonalizedDocument {
     /// Embedding from smbert.
     pub(crate) embedding: NormalizedEmbedding,
 
-    /// Contents of the document properties.
-    pub(crate) properties: DocumentProperties,
+    /// User-defined document properties.
+    ///
+    /// Depending on the context the properties might not be loaded from the db.
+    pub(crate) properties: Option<DocumentProperties>,
+
+    /// Snippet of the document.
+    ///
+    /// Depending on the context the snippet might not be loaded from the db.
+    pub(crate) snippet: Option<DocumentSnippet>,
 
     /// The tags associated to the document.
     pub(crate) tags: DocumentTags,

@@ -261,6 +261,7 @@ impl storage::Document for Storage {
         &self,
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
         include_properties: bool,
+        include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let documents = self.documents.read().await;
         let documents = ids
@@ -275,9 +276,8 @@ impl storage::Document for Storage {
                             id: id.clone(),
                             score: 1.,
                             embedding: embedding.clone(),
-                            properties: include_properties
-                                .then(|| document.properties.clone())
-                                .unwrap_or_default(),
+                            properties: include_properties.then(|| document.properties.clone()),
+                            snippet: include_snippet.then(|| document.snippet.clone()),
                             tags: document.tags.clone(),
                         })
                 })
@@ -339,7 +339,10 @@ impl storage::Document for Storage {
                         id: id.clone(),
                         score: item.distance,
                         embedding: item.point.as_ref().clone(),
-                        properties: document.properties.clone(),
+                        properties: params
+                            .include_properties
+                            .then(|| document.properties.clone()),
+                        snippet: params.include_snippet.then(|| document.snippet.clone()),
                         tags: document.tags.clone(),
                     })
                 }
@@ -746,6 +749,7 @@ mod tests {
                 num_candidates: 2,
                 strategy: SearchStrategy::Knn,
                 include_properties: false,
+                include_snippet: false,
                 filter: None,
             },
         )
@@ -765,6 +769,7 @@ mod tests {
                 num_candidates: 3,
                 strategy: SearchStrategy::Knn,
                 include_properties: false,
+                include_snippet: false,
                 filter: None,
             },
         )
@@ -825,13 +830,17 @@ mod tests {
         assert_eq!(documents.len(), 1);
         assert_eq!(documents[0].id, doc_id);
         assert_eq!(documents[0].snippet, snippet);
-        let documents = storage::Document::get_personalized(&storage, [&doc_id], true)
+        let documents = storage::Document::get_personalized(&storage, [&doc_id], true, true)
             .await
             .unwrap();
         assert_eq!(documents.len(), 1);
         assert_eq!(documents[0].id, doc_id);
         assert_approx_eq!(f32, documents[0].embedding, embedding);
-        assert!(documents[0].properties.is_empty());
+        assert!(documents[0].properties.as_ref().unwrap().is_empty());
+        assert_eq!(
+            documents[0].snippet.as_ref().map(|s| s.as_str()),
+            Some("snippet")
+        );
         assert_eq!(documents[0].tags, tags);
         assert_eq!(
             storage::Tag::get(&storage, &user_id).await.unwrap(),

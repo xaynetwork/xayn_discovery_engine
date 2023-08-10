@@ -17,8 +17,13 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
-use toml::toml;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
+use xayn_integration_tests::{
+    send_assert,
+    send_assert_json,
+    test_two_apps,
+    with_dev_options,
+    UNCHANGED_CONFIG,
+};
 use xayn_web_api::{Ingestion, Personalization};
 
 async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
@@ -47,7 +52,9 @@ struct PersonalizedDocumentData {
     id: String,
     score: f32,
     #[serde(default)]
-    properties: serde_json::Value,
+    properties: Option<serde_json::Value>,
+    #[serde(default)]
+    snippet: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -111,8 +118,8 @@ fn test_semantic_search() {
                 ["d3", "d2"],
                 "unexpected documents: {documents:?}",
             );
-            assert!(documents[0].properties.is_null());
-            assert_eq!(documents[1].properties, json!({ "dodo": 4 }));
+            assert_eq!(documents[0].properties, None);
+            assert_eq!(documents[1].properties, Some(json!({ "dodo": 4 })));
 
             Ok(())
         },
@@ -157,9 +164,32 @@ fn test_semantic_search_with_query() {
                 ["d1", "d3", "d2"],
                 "unexpected documents: {documents:?}",
             );
-            assert!(documents[0].properties.is_null());
-            assert!(documents[1].properties.is_null());
-            assert_eq!(documents[2].properties, json!({ "dodo": 4 }));
+            assert_eq!(documents[0].properties, None);
+            assert_eq!(documents[1].properties, None);
+            assert_eq!(documents[2].properties, Some(json!({ "dodo": 4 })));
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "include_properties": false
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert_order!(
+                documents,
+                ["d1", "d3", "d2"],
+                "unexpected documents: {documents:?}",
+            );
+            assert!(documents[0].properties.is_none());
+            assert!(documents[1].properties.is_none());
+            assert!(documents[2].properties.is_none());
 
             Ok(())
         },
@@ -170,10 +200,7 @@ fn test_semantic_search_with_query() {
 fn test_semantic_search_with_dev_option_hybrid() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        Some(toml! {
-            [tenants]
-            enable_dev = true
-        }),
+        with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 
@@ -284,10 +311,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
 fn test_semantic_search_with_dev_option_candidates() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        Some(toml! {
-            [tenants]
-            enable_dev = true
-        }),
+        with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 
@@ -346,6 +370,49 @@ fn test_semantic_search_with_dev_option_candidates() {
                 ["d1", "d3", "d2"],
                 "unexpected documents: {documents:?}",
             );
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_semantic_search_with_dev_option_snippet() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        with_dev_options(),
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(&client, &ingestion_url).await?;
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "count": 3,
+                        "_dev": { "include_snippet": true }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            assert_order!(
+                documents,
+                ["d1", "d3", "d2"],
+                "unexpected documents: {documents:?}",
+            );
+            assert_eq!(
+                documents[0].snippet.as_deref(),
+                Some("this is one sentence which we have")
+            );
+            assert_eq!(
+                documents[1].snippet.as_deref(),
+                Some("this is another sentence which we have")
+            );
+            assert_eq!(documents[2].snippet.as_deref(), Some("duck duck quack"));
 
             Ok(())
         },
