@@ -42,7 +42,7 @@ struct PersonalizedDocumentData {
 #[derive(Debug, Deserialize)]
 struct SnippetId {
     document_id: String,
-    snippet_idx: u32,
+    sub_id: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -57,7 +57,7 @@ impl SearchResponse {
             .map(|document| {
                 (
                     &*document.snippet_id.document_id,
-                    document.snippet_id.snippet_idx,
+                    document.snippet_id.sub_id,
                 )
             })
             .collect_vec()
