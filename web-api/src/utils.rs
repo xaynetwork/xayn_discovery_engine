@@ -15,26 +15,13 @@ use std::path::Path;
 
 use derive_more::Deref;
 use figment::value::magic::RelativePathBuf as FigmentRelativePathBuf;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Deref)]
 #[serde(transparent)]
 pub struct RelativePathBuf {
-    #[serde(
-        serialize_with = "FigmentRelativePathBuf::serialize_relative",
-        deserialize_with = "deserialize_relative_path_buf"
-    )]
+    #[serde(serialize_with = "FigmentRelativePathBuf::serialize_relative")]
     inner: FigmentRelativePathBuf,
-}
-
-fn deserialize_relative_path_buf<'de, D>(
-    deserializer: D,
-) -> Result<FigmentRelativePathBuf, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let buf = String::deserialize(deserializer)?;
-    Ok(FigmentRelativePathBuf::from(buf))
 }
 
 impl<P> From<P> for RelativePathBuf

@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
@@ -32,8 +32,17 @@ impl Default for Config {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Pipeline {
+    #[serde(deserialize_with = "deserialize_relative_path_buf")]
     pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
+}
+
+fn deserialize_relative_path_buf<'de, D>(deserializer: D) -> Result<RelativePathBuf, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let buf = String::deserialize(deserializer)?;
+    Ok(RelativePathBuf::from(buf))
 }
 
 impl Default for Pipeline {
