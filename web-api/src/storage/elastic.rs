@@ -161,7 +161,6 @@ impl Client {
         &self,
         documents: impl IntoIterator<Item = &models::DocumentForIngestion>,
     ) -> Result<Warning<DocumentId>, Error> {
-        // TODO[pmk/now] this won't work correctly with upserts id old snippet count > new snippet count
         let mut snippets = documents
             .into_iter()
             .flat_map(|document| {

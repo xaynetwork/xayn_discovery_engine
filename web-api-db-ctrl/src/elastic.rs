@@ -89,7 +89,6 @@ pub(crate) async fn migrate_tenant_index(
 }
 
 async fn migrate_parent_property(elastic: &Client) -> Result<(), Error> {
-    // TODO[pmk/now] get and log task id
     let res = elastic
         .query_with_json::<_, Value>(
             Method::POST,
