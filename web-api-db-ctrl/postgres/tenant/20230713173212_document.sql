@@ -25,5 +25,7 @@ CREATE TABLE snippet (
 INSERT INTO snippet(document_id, sub_id, snippet, embedding)
     SELECT document_id, 0, snippet, embedding FROM document;
 
-ALTER TABLE document RENAME COLUMN snippet TO original;
+ALTER TABLE document ALTER COLUMN snippet TYPE BYTEA USING sha256(snippet::bytea);
+ALTER TABLE document RENAME COLUMN snippet TO original_sha256;
+
 ALTER TABLE document DROP COLUMN embedding;

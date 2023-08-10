@@ -25,6 +25,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use sqlx::{
     postgres::{PgHasArrayType, PgTypeInfo},
     FromRow,
@@ -470,8 +471,8 @@ pub(crate) struct DocumentForIngestion {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
 
-    /// The raw document provided by the client.
-    pub(crate) original: String,
+    /// The sha256 hash of the original document provided by the client.
+    pub(crate) original_sha256: Sha256Hash,
 
     /// Snippet used to calculate embeddings for a document.
     pub(crate) snippets: Vec<DocumentContent>,
@@ -489,6 +490,22 @@ pub(crate) struct DocumentForIngestion {
     pub(crate) is_candidate: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, Type)]
+#[sqlx(transparent)]
+pub(crate) struct Sha256Hash([u8; 32]);
+
+impl Sha256Hash {
+    pub(crate) fn zero() -> Self {
+        Self([0; 32])
+    }
+
+    pub(crate) fn calculate(document: &[u8]) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(document);
+        Self(hasher.finalize().into())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct DocumentContent {
     pub(crate) snippet: DocumentSnippet,
@@ -498,7 +515,7 @@ pub(crate) struct DocumentContent {
 #[derive(Debug)]
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
-    pub(crate) original: String,
+    pub(crate) original_sha256: Sha256Hash,
     pub(crate) preprocessing_step: PreprocessingStep,
     pub(crate) properties: DocumentProperties,
     pub(crate) tags: DocumentTags,

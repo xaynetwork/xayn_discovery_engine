@@ -51,6 +51,7 @@ use crate::{
         DocumentSnippet,
         DocumentTags,
         PreprocessingStep,
+        Sha256Hash,
     },
     storage::{self, property_filter::IndexedPropertiesSchemaUpdate},
     utils::deprecate,
@@ -127,6 +128,7 @@ struct InputDocument {
     id: DocumentId,
     //FIXME properly handle raw document vs. snippets
     original: DocumentSnippet,
+    original_sha256: Sha256Hash,
     preprocessing_step: PreprocessingStep,
     properties: DocumentProperties,
     tags: DocumentTags,
@@ -244,9 +246,12 @@ impl UnvalidatedDocumentForIngestion {
             }
         };
 
+        let original_sha256 = Sha256Hash::calculate(original.as_bytes());
+
         Ok(InputDocument {
             id,
             original,
+            original_sha256,
             preprocessing_step,
             properties,
             tags,
@@ -318,7 +323,7 @@ async fn upsert_documents(
                 (
                     document.id,
                     (
-                        document.original,
+                        document.original_sha256,
                         document.preprocessing_step,
                         document.properties,
                         document.tags,
@@ -335,17 +340,17 @@ async fn upsert_documents(
             let (data, is_candidate) = existing_documents
                 .get(&document.id)
                 .map(
-                    |(original, preprocessing_step, properties, tags, is_candidate)| {
+                    |(original_sha256, preprocessing_step, properties, tags, is_candidate)| {
                         (
-                            (original, preprocessing_step, properties, tags),
+                            (original_sha256, preprocessing_step, properties, tags),
                             *is_candidate,
                         )
                     },
                 )
                 .unzip();
 
-            let new_snippet = data.map_or(true, |(original, preprocessing_step, _, _)| {
-                original != document.original.as_str()
+            let new_snippet = data.map_or(true, |(original_sha256, preprocessing_step, _, _)| {
+                original_sha256 != &document.original_sha256
                     || *preprocessing_step != document.preprocessing_step
             });
             let new_is_candidate = document.is_candidate_op.resolve(is_candidate);
@@ -399,10 +404,11 @@ async fn upsert_documents(
         .into_iter()
         .partition_map::<Vec<_>, Vec<_>, _, _, _>(|(document, new_is_candidate)| {
             let preprocessing_step = document.preprocessing_step;
-            match preprocess_document(&state.embedder, &document.original, preprocessing_step) {
+            let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
+            match preprocess_document(&state.embedder, document.original, preprocessing_step) {
                 Ok(snippets) => Either::Left(models::DocumentForIngestion {
                     id: document.id,
-                    original: document.original.into(),
+                    original_sha256,
                     snippets,
                     preprocessing_step,
                     properties: document.properties,

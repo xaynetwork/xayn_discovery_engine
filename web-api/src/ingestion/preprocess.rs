@@ -22,7 +22,7 @@ use crate::{
 
 pub(super) fn preprocess_document(
     embedder: &Embedder,
-    original: &DocumentSnippet,
+    original: DocumentSnippet,
     preprocessing_step: PreprocessingStep,
 ) -> Result<Vec<DocumentContent>, Error> {
     Ok(match preprocessing_step {
@@ -33,18 +33,15 @@ pub(super) fn preprocess_document(
 
 fn embed_whole(
     embedder: &Embedder,
-    snippet: &DocumentSnippet,
+    snippet: DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
-    let embedding = embedder.run(snippet)?;
-    Ok(vec![DocumentContent {
-        snippet: snippet.clone(),
-        embedding,
-    }])
+    let embedding = embedder.run(&snippet)?;
+    Ok(vec![DocumentContent { snippet, embedding }])
 }
 
 fn embed_with_summarizer(
     embedder: &Embedder,
-    snippet: &DocumentSnippet,
+    snippet: DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
     let summary = summarize(
         &Summarizer::Naive,
@@ -55,7 +52,9 @@ fn embed_with_summarizer(
     );
     let embedding = embedder.run(&summary)?;
     Ok(vec![DocumentContent {
-        snippet: snippet.clone(),
+        // Hint: Yes we do not use the summary, this is so that keyword/text search
+        //       can use the original text.
+        snippet,
         embedding,
     }])
 }

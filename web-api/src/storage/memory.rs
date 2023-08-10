@@ -54,6 +54,7 @@ use crate::{
         ExcerptedDocument,
         PersonalizedDocument,
         PreprocessingStep,
+        Sha256Hash,
         SnippetForInteraction,
         SnippetId,
         SnippetOrDocumentId,
@@ -303,7 +304,7 @@ impl storage::Document for Storage {
             .filter_map(|id| {
                 documents.0.get(id).map(|document| ExcerptedDocument {
                     id: id.clone(),
-                    original: document.snippet.as_str().to_owned(),
+                    original_sha256: Sha256Hash::calculate(document.snippet.as_bytes()),
                     preprocessing_step: document.preprocessing_step,
                     properties: document.properties.clone(),
                     tags: document.tags.clone(),
@@ -635,7 +636,7 @@ impl storage::Interaction for Storage {
         time: DateTime<Utc>,
         mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
     ) -> Result<(), Error> {
-        // TODO[pmk/soon] properly support reactions to multi-snippet document
+        // TODO[pmk/ET-4851] properly support interactions to multi-snippet document
         let interactions = interactions
             .into_iter()
             .map(|id| match id {
@@ -754,7 +755,7 @@ mod tests {
             .zip(embeddings)
             .map(|(id, embedding)| DocumentForIngestion {
                 id: id.document_id().clone(),
-                original: "snippet".into(),
+                original_sha256: Sha256Hash::calculate(b"snippet"),
                 snippets: vec![DocumentContent {
                     snippet: DocumentSnippet::new("snippet", 100).unwrap(),
                     embedding,
@@ -826,7 +827,7 @@ mod tests {
             &storage,
             vec![DocumentForIngestion {
                 id: doc_id.document_id().clone(),
-                original: snippet.as_str().to_owned(),
+                original_sha256: Sha256Hash::calculate(snippet.as_bytes()),
                 snippets: vec![DocumentContent {
                     snippet: snippet.clone(),
                     embedding: embedding.clone(),
@@ -868,7 +869,10 @@ mod tests {
             .unwrap();
         assert_eq!(documents.len(), 1);
         assert_eq!(&documents[0].id, doc_id.document_id());
-        assert_eq!(documents[0].original, snippet.as_str());
+        assert_eq!(
+            documents[0].original_sha256,
+            Sha256Hash::calculate(snippet.as_bytes())
+        );
         let documents = storage::Document::get_personalized(&storage, [&doc_id], true, true)
             .await
             .unwrap();

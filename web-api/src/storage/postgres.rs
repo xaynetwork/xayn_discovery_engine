@@ -69,6 +69,7 @@ use crate::{
         DocumentTags,
         ExcerptedDocument,
         PersonalizedDocument,
+        Sha256Hash,
         SnippetForInteraction,
         SnippetId,
         SnippetOrDocumentId,
@@ -108,7 +109,7 @@ impl Database {
         let mut builder = QueryBuilder::new(
             "INSERT INTO document (
                 document_id,
-                original,
+                original_sha256,
                 preprocessing_step,
                 properties,
                 tags,
@@ -121,7 +122,7 @@ impl Database {
                 .push_values(chunk, |mut builder, document| {
                     builder
                         .push_bind(&document.id)
-                        .push_bind(&document.original)
+                        .push_bind(&document.original_sha256)
                         .push_bind(document.preprocessing_step)
                         .push_bind(Json(&document.properties))
                         .push_bind(&document.tags)
@@ -129,7 +130,7 @@ impl Database {
                 })
                 .push(
                     " ON CONFLICT (document_id) DO UPDATE SET
-                        original = EXCLUDED.original,
+                        original_sha256 = EXCLUDED.original_sha256,
                         preprocessing_step = EXCLUDED.preprocessing_step,
                         properties = EXCLUDED.properties,
                         tags = EXCLUDED.tags,
@@ -370,7 +371,7 @@ impl Database {
         let ids = ids.into_iter();
 
         let mut builder = QueryBuilder::new(
-            "SELECT document_id, original, preprocessing_step, properties, tags, is_candidate
+            "SELECT document_id, original_sha256, preprocessing_step, properties, tags, is_candidate
             FROM document
             WHERE document_id IN ",
         );
@@ -384,7 +385,7 @@ impl Database {
                 .try_map(|row: PgRow| {
                     Ok(ExcerptedDocument {
                         id: row.try_get("document_id")?,
-                        original: row.try_get("original")?,
+                        original_sha256: row.try_get("original_sha256")?,
                         preprocessing_step: row.try_get("preprocessing_step")?,
                         properties: row.try_get::<Json<_>, _>("properties")?.0,
                         tags: row.try_get("tags")?,
@@ -526,7 +527,7 @@ impl Database {
                         id: document_id,
                         //FIXME clearly separate PG and ES
                         // we don't put raw document onto ES
-                        original: String::new(),
+                        original_sha256: Sha256Hash::zero(),
                         snippets,
                         preprocessing_step: row.try_get("preprocessing_step")?,
                         properties: row.try_get::<Json<_>, _>("properties")?.0,

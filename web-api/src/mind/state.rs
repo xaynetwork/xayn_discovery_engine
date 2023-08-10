@@ -28,6 +28,7 @@ use crate::{
         DocumentId,
         DocumentProperties,
         PreprocessingStep,
+        Sha256Hash,
         SnippetOrDocumentId,
         UserId,
     },
@@ -78,7 +79,7 @@ impl State {
                 let embedding = self.embedder.run(&document.snippet)?;
                 Ok(DocumentForIngestion {
                     id: document.id,
-                    original: document.snippet.as_str().to_owned(),
+                    original_sha256: Sha256Hash::calculate(document.snippet.as_bytes()),
                     snippets: vec![DocumentContent {
                         snippet: document.snippet,
                         embedding,
