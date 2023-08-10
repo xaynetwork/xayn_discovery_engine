@@ -1094,6 +1094,7 @@ impl storage::DocumentProperty for Storage {
                 self.elastic
                     .delete_document_property(document_id, property_id)
                     .await?
+                    .map(|()| Some(()))
             } else {
                 Some(Some(()))
             }

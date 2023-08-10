@@ -15,7 +15,7 @@
 mod client;
 mod filter;
 
-use std::{collections::HashMap, convert::identity, ops::AddAssign};
+use std::{convert::identity, hash::Hash, ops::AddAssign};
 
 use anyhow::bail;
 pub(crate) use client::{Client, ClientBuilder};
@@ -27,7 +27,7 @@ use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 use xayn_web_api_shared::{
-    elastic::{NotFoundAsOptionExt, SerdeDiscard},
+    elastic::{NotFoundAsOptionExt, ScoreMap, SerdeDiscard},
     serde::{json_object, merge_json_objects, JsonObject},
 };
 
@@ -54,13 +54,11 @@ use crate::{
     Error,
 };
 
-type ScoreMap = HashMap<DocumentId, f32>;
-
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<ScoreMap, Error> {
+    ) -> Result<ScoreMap<DocumentId>, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::Hybrid { query } => {
@@ -88,7 +86,10 @@ impl Client {
         }
     }
 
-    async fn knn_search<'a>(&self, params: KnnSearchParams<'a>) -> Result<ScoreMap, Error> {
+    async fn knn_search<'a>(
+        &self,
+        params: KnnSearchParams<'a>,
+    ) -> Result<ScoreMap<DocumentId>, Error> {
         let KnnSearchParts {
             knn_object,
             generic_parameters,
@@ -105,10 +106,10 @@ impl Client {
         &self,
         params: KnnSearchParams<'_>,
         query: &DocumentQuery,
-        normalize_knn: impl FnOnce(ScoreMap) -> ScoreMap,
-        normalize_bm25: impl FnOnce(ScoreMap) -> ScoreMap,
-        merge_function: impl FnOnce(ScoreMap, ScoreMap) -> ScoreMap,
-    ) -> Result<ScoreMap, Error> {
+        normalize_knn: impl FnOnce(ScoreMap<DocumentId>) -> ScoreMap<DocumentId>,
+        normalize_bm25: impl FnOnce(ScoreMap<DocumentId>) -> ScoreMap<DocumentId>,
+        merge_function: impl FnOnce(ScoreMap<DocumentId>, ScoreMap<DocumentId>) -> ScoreMap<DocumentId>,
+    ) -> Result<ScoreMap<DocumentId>, Error> {
         let count = params.count;
 
         let KnnSearchParts {
@@ -206,49 +207,35 @@ impl Client {
 
     pub(super) async fn insert_document_properties(
         &self,
-        id: &DocumentId,
+        document_id: &DocumentId,
         properties: &DocumentProperties,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json_object!({
                 "source": "ctx._source.properties = params.properties",
                 "params": {
                     "properties": properties
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn delete_document_properties(
         &self,
-        id: &DocumentId,
+        document_id: &DocumentId,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json_object!({
                 "source": "ctx._source.properties = params.properties",
                 "params": {
                     "properties": DocumentProperties::default()
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn insert_document_property(
@@ -257,64 +244,62 @@ impl Client {
         property_id: &DocumentPropertyId,
         property: &DocumentProperty,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json_object!({
                 "source": "ctx._source.properties.put(params.prop_id, params.property)",
                 "params": {
                     "prop_id": property_id,
                     "property": property
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| ()))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn delete_document_property(
         &self,
         document_id: &DocumentId,
         property_id: &DocumentPropertyId,
-    ) -> Result<Option<Option<()>>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+    ) -> Result<Option<()>, Error> {
+        self.document_update(
+            document_id,
+            json_object!({
                 "source": "ctx._source.properties.remove(params.prop_id)",
                 "params": {
                     "prop_id": property_id
                 }
-            },
-            "_source": false
-        }));
-
-        Ok(self
-            .query_with_json::<_, SerdeDiscard>(Method::POST, url, body)
-            .await
-            .not_found_as_option()?
-            .map(|_| Some(())))
+            }),
+        )
+        .await
     }
 
     pub(super) async fn insert_document_tags(
         &self,
-        id: &DocumentId,
+        document_id: &DocumentId,
         tags: &DocumentTags,
     ) -> Result<Option<()>, Error> {
-        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
-        let url = self.create_url(["_update", id.as_ref()], [("refresh", None)]);
-        let body = Some(json!({
-            "script": {
+        self.document_update(
+            document_id,
+            json_object!({
                 "source": "ctx._source.tags = params.tags",
                 "params": {
                     "tags": tags
                 }
-            },
+            }),
+        )
+        .await
+    }
+
+    async fn document_update(
+        &self,
+        document_id: &DocumentId,
+        update_script: JsonObject,
+    ) -> Result<Option<()>, Error> {
+        // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-update.html
+        let url = self.create_url(["_update", document_id.as_ref()], [("refresh", None)]);
+        let body = Some(json!({
+            "script": update_script,
             "_source": false
         }));
 
@@ -499,7 +484,7 @@ impl KnnSearchParams<'_> {
 }
 
 // https://www.elastic.co/guide/en/elasticsearch/reference/current/dense-vector.html#dense-vector-similarity
-fn rescale_knn_scores(mut scores: ScoreMap) -> ScoreMap {
+fn rescale_knn_scores<K>(mut scores: ScoreMap<K>) -> ScoreMap<K> {
     for score in scores.values_mut() {
         *score = *score * 2. - 1.;
     }
@@ -507,7 +492,10 @@ fn rescale_knn_scores(mut scores: ScoreMap) -> ScoreMap {
     scores
 }
 
-fn normalize_scores(mut scores: ScoreMap) -> ScoreMap {
+fn normalize_scores<K>(mut scores: ScoreMap<K>) -> ScoreMap<K>
+where
+    K: Eq + Hash,
+{
     let max_score = scores
         .values()
         .max_by(|l, r| l.total_cmp(r))
@@ -523,7 +511,10 @@ fn normalize_scores(mut scores: ScoreMap) -> ScoreMap {
     scores
 }
 
-fn normalize_scores_if_max_gt_1(mut scores: ScoreMap) -> ScoreMap {
+fn normalize_scores_if_max_gt_1<K>(mut scores: ScoreMap<K>) -> ScoreMap<K>
+where
+    K: Eq + Hash,
+{
     let max_score = scores
         .values()
         .max_by(|l, r| l.total_cmp(r))
@@ -538,7 +529,13 @@ fn normalize_scores_if_max_gt_1(mut scores: ScoreMap) -> ScoreMap {
     scores
 }
 
-fn merge_scores_average_duplicates_only(mut scores_1: ScoreMap, scores_2: ScoreMap) -> ScoreMap {
+fn merge_scores_average_duplicates_only<K>(
+    mut scores_1: ScoreMap<K>,
+    scores_2: ScoreMap<K>,
+) -> ScoreMap<K>
+where
+    K: Eq + Hash,
+{
     for (key, value) in scores_2 {
         scores_1
             .entry(key)
@@ -548,7 +545,10 @@ fn merge_scores_average_duplicates_only(mut scores_1: ScoreMap, scores_2: ScoreM
     scores_1
 }
 
-fn merge_scores_weighted(scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> ScoreMap {
+fn merge_scores_weighted<K>(scores: impl IntoIterator<Item = (f32, ScoreMap<K>)>) -> ScoreMap<K>
+where
+    K: Eq + Hash,
+{
     let weighted = scores.into_iter().flat_map(|(weight, mut scores)| {
         for score in scores.values_mut() {
             *score *= weight;
@@ -559,7 +559,10 @@ fn merge_scores_weighted(scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> S
 }
 
 /// Reciprocal Rank Fusion
-fn rrf(k: f32, scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> ScoreMap {
+fn rrf<K>(k: f32, scores: impl IntoIterator<Item = (f32, ScoreMap<K>)>) -> ScoreMap<K>
+where
+    K: Eq + Hash,
+{
     let rrf_scores = scores.into_iter().flat_map(|(weight, scores)| {
         scores
             .into_iter()
@@ -573,7 +576,10 @@ fn rrf(k: f32, scores: impl IntoIterator<Item = (f32, ScoreMap)>) -> ScoreMap {
     collect_summing_repeated(rrf_scores)
 }
 
-fn collect_summing_repeated(scores: impl IntoIterator<Item = (DocumentId, f32)>) -> ScoreMap {
+fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> ScoreMap<K>
+where
+    K: Eq + Hash,
+{
     scores
         .into_iter()
         .fold(ScoreMap::new(), |mut acc, (key, value)| {
@@ -582,7 +588,10 @@ fn collect_summing_repeated(scores: impl IntoIterator<Item = (DocumentId, f32)>)
         })
 }
 
-fn take_highest_n_scores(n: usize, scores: ScoreMap) -> ScoreMap {
+fn take_highest_n_scores<K>(n: usize, scores: ScoreMap<K>) -> ScoreMap<K>
+where
+    K: Eq + Hash,
+{
     if scores.len() <= n {
         return scores;
     }
@@ -595,7 +604,7 @@ fn take_highest_n_scores(n: usize, scores: ScoreMap) -> ScoreMap {
 }
 
 impl NormalizationFn {
-    fn to_fn(self) -> Box<dyn Fn(ScoreMap) -> ScoreMap> {
+    fn to_fn(self) -> Box<dyn Fn(ScoreMap<DocumentId>) -> ScoreMap<DocumentId>> {
         match self {
             NormalizationFn::Identity => Box::new(identity),
             NormalizationFn::Normalize => Box::new(normalize_scores),
@@ -604,8 +613,10 @@ impl NormalizationFn {
     }
 }
 
+type DynMergeFn = dyn Fn(ScoreMap<DocumentId>, ScoreMap<DocumentId>) -> ScoreMap<DocumentId>;
+
 impl MergeFn {
-    fn to_fn(self) -> Box<dyn Fn(ScoreMap, ScoreMap) -> ScoreMap> {
+    fn to_fn(self) -> Box<DynMergeFn> {
         match self {
             MergeFn::Sum {
                 knn_weight,
@@ -640,8 +651,8 @@ mod tests {
     #[test]
     fn test_rrf_parameters_are_used() {
         let id = |id: &str| id.try_into().unwrap();
-        let left: ScoreMap = [(id("foo"), 2.), (id("bar"), 1.), (id("baz"), 3.)].into();
-        let right: ScoreMap = [(id("baz"), 5.), (id("dodo"), 1.2)].into();
+        let left: ScoreMap<DocumentId> = [(id("foo"), 2.), (id("bar"), 1.), (id("baz"), 3.)].into();
+        let right: ScoreMap<DocumentId> = [(id("baz"), 5.), (id("dodo"), 1.2)].into();
         assert_eq!(
             rrf(80., [(1., left.clone()), (1., right.clone())]),
             [
