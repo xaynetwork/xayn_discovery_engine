@@ -366,6 +366,31 @@ fn test_full_migration() {
         res1?;
         res2?;
         info!("stopped new ingestion & personalization");
+
+        let hits = send_assert_json::<Value>(
+            &client,
+            client
+                .get(format!(
+                    "{}/{}/_search",
+                    es_config.url, es_config.index_name
+                ))
+                .json(&json!({
+                    "query": {
+                        "match_all": {}
+                    },
+                    "_source": ["parent"]
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+
+        for document in hits["hits"]["hits"].as_array().unwrap() {
+            let id = &document["_id"];
+            let parent = &document["_source"]["parent"];
+            assert_eq!(id, parent);
+        }
         Ok(())
     })
 }

@@ -73,9 +73,11 @@ impl Silo {
                     .await
             }
         });
-        let migrate_tenant = move |tenant_id| async move {
+        let migrate_tenant = move |tenant_id, mut migrator| async move {
             let client = self.elastic.with_index(&tenant_id);
-            elastic::migrate_tenant_index(client, &tenant_id, self.embedding_size).await
+            elastic::migrate_tenant_index(client, &tenant_id, self.embedding_size, &mut migrator)
+                .await?;
+            Ok(migrator)
         };
 
         postgres::initialize(&self.postgres, opt_legacy_setup, migrate_tenant).await

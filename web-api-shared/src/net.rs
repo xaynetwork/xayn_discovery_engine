@@ -16,12 +16,16 @@
 
 use std::{
     fmt::{Debug, Display},
+    future::Future,
     ops::{ControlFlow, Mul},
     time::Duration,
 };
 
 use derive_more::Deref;
-use futures_retry_policies::RetryPolicy;
+use futures_retry_policies::{
+    tokio::{retry, RetryFuture},
+    RetryPolicy,
+};
 use rand::random;
 use serde::{Deserialize, Serialize};
 use tracing::warn;
@@ -66,6 +70,15 @@ impl<F> ExponentialJitterRetryPolicy<F> {
             retry_count: self.retry_count,
             retry_filter,
         }
+    }
+
+    pub fn retry<MakeFut, Fut>(self, futures: MakeFut) -> RetryFuture<Self, MakeFut, Fut>
+    where
+        Self: RetryPolicy<Fut::Output>,
+        MakeFut: FnMut() -> Fut,
+        Fut: Future,
+    {
+        retry(self, futures)
     }
 
     fn register_pending_retry(&mut self, error: &dyn Display) -> Option<Duration> {

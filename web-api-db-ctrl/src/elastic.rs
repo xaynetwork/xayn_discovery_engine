@@ -22,7 +22,7 @@ use xayn_web_api_shared::{
     request::TenantId,
 };
 
-use crate::Error;
+use crate::{postgres::ExternalMigrator, Error};
 
 static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
@@ -61,11 +61,12 @@ pub(crate) async fn setup_legacy_tenant(
     Ok(())
 }
 
-#[instrument(skip(elastic))]
+#[instrument(skip(elastic, migrator))]
 pub(crate) async fn migrate_tenant_index(
     elastic: Client,
     tenant_id: &TenantId,
     embedding_size: usize,
+    migrator: &mut impl ExternalMigrator,
 ) -> Result<(), Error> {
     if let Some(existing_mapping) = get_opt_tenant_mapping(&elastic).await? {
         let base_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
@@ -76,6 +77,44 @@ pub(crate) async fn migrate_tenant_index(
             "index for tenant doesn't exist, creating a new index"
         );
         create_tenant_index(&elastic, embedding_size).await?;
+    }
+
+    migrator
+        .run_migration_if_needed("migrate_parent_property", async move {
+            migrate_parent_property(&elastic).await
+        })
+        .await?;
+
+    Ok(())
+}
+
+async fn migrate_parent_property(elastic: &Client) -> Result<(), Error> {
+    // TODO[pmk/now] get and log task id
+    let res = elastic
+        .query_with_json::<_, Value>(
+            Method::POST,
+            elastic.create_url(
+                ["_update_by_query"],
+                [
+                    ("refresh", None),
+                    ("conflicts", Some("proceed")),
+                    ("wait_for_completion", Some("false")),
+                    (
+                        "requests_per_second",
+                        Some(&elastic.default_request_per_second().to_string()),
+                    ),
+                ],
+            ),
+            Some(json!({
+                "script": {
+                    "source": "ctx._source.putIfAbsent('parent', ctx._id)",
+                },
+            })),
+        )
+        .await?;
+
+    if let Some(task_id) = res.get("task").and_then(|value| value.as_str()) {
+        info!({%task_id}, "parent property migration running in background");
     }
 
     Ok(())
