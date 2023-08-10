@@ -172,14 +172,14 @@ string_wrapper! {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
 pub(crate) struct SnippetId {
     document_id: DocumentId,
-    snippet_idx: usize,
+    sub_id: usize,
 }
 
 impl SnippetId {
-    pub(crate) fn new(document_id: DocumentId, snippet_idx: usize) -> Self {
+    pub(crate) fn new(document_id: DocumentId, sub_id: usize) -> Self {
         Self {
             document_id,
-            snippet_idx,
+            sub_id,
         }
     }
 
@@ -192,8 +192,8 @@ impl SnippetId {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn snippet_idx(&self) -> usize {
-        self.snippet_idx
+    pub(crate) fn sub_id(&self) -> usize {
+        self.sub_id
     }
 
     const ES_SNIPPET_ID_PREFIX: &str = "_s.";
@@ -201,16 +201,16 @@ impl SnippetId {
     pub(crate) fn try_from_es_id(es_id: impl AsRef<str>) -> Result<Self, Error> {
         let es_id = es_id.as_ref();
         if let Some(suffix) = es_id.strip_prefix(Self::ES_SNIPPET_ID_PREFIX) {
-            let Some((snippet_idx, document_id)) = suffix.split_once('.') else {
+            let Some((sub_id, document_id)) = suffix.split_once('.') else {
                 return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
             };
-            let Ok(snippet_idx) = snippet_idx.parse() else {
+            let Ok(sub_id) = sub_id.parse() else {
                 return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
             };
             let Ok(document_id) = document_id.parse() else {
                 return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
             };
-            Ok(Self::new(document_id, snippet_idx))
+            Ok(Self::new(document_id, sub_id))
         } else {
             let Ok(document_id) = es_id.parse() else {
                 return Err(InvalidEsSnippetIdFormat { id: es_id.into() }.into());
@@ -220,13 +220,13 @@ impl SnippetId {
     }
 
     pub(crate) fn to_es_id(&self) -> Cow<'_, str> {
-        if self.snippet_idx == 0 {
+        if self.sub_id == 0 {
             Cow::Borrowed(&self.document_id)
         } else {
             Cow::Owned(format!(
                 "{}{}.{}",
                 Self::ES_SNIPPET_ID_PREFIX,
-                self.snippet_idx,
+                self.sub_id,
                 self.document_id,
             ))
         }

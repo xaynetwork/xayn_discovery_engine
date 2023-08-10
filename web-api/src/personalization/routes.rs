@@ -588,11 +588,7 @@ impl UnvalidatedSemanticSearchRequest {
 #[serde(untagged)]
 enum UnvalidatedSnippetOrDocumentId {
     DocumentId(String),
-    PotentialSnippetId {
-        document_id: String,
-        #[serde(default)]
-        snippet_idx: Option<usize>,
-    },
+    SnippetId { document_id: String, sub_id: usize },
 }
 
 impl From<SnippetOrDocumentId> for InputDocument {
@@ -606,22 +602,15 @@ impl From<SnippetOrDocumentId> for InputDocument {
 
 impl UnvalidatedSnippetOrDocumentId {
     fn validate(self) -> Result<SnippetOrDocumentId, Error> {
-        let (document_id, snippet_idx) = match self {
-            UnvalidatedSnippetOrDocumentId::DocumentId(document_id) => (document_id, None),
-            UnvalidatedSnippetOrDocumentId::PotentialSnippetId {
+        Ok(match self {
+            UnvalidatedSnippetOrDocumentId::DocumentId(document_id) => {
+                SnippetOrDocumentId::DocumentId(document_id.try_into()?)
+            }
+            UnvalidatedSnippetOrDocumentId::SnippetId {
                 document_id,
-                snippet_idx,
-            } => (document_id, snippet_idx),
-        };
-        let document_id = document_id.try_into()?;
-        if let Some(snippet_idx) = snippet_idx {
-            Ok(SnippetOrDocumentId::SnippetId(SnippetId::new(
-                document_id,
-                snippet_idx,
-            )))
-        } else {
-            Ok(SnippetOrDocumentId::DocumentId(document_id))
-        }
+                sub_id,
+            } => SnippetOrDocumentId::SnippetId(SnippetId::new(document_id.try_into()?, sub_id)),
+        })
     }
 }
 

@@ -274,7 +274,7 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row: PgRow| {
-                        // TODO[pmk/now] for this PR we blindly assume snippet_idx==0, this function
+                        // TODO[pmk/now] for this PR we blindly assume sub_id==0, this function
                         //               will change majorly in the followup PR anyway
                         let id = SnippetId::new(row.try_get("document_id")?, 0);
                         let embedding = row.try_get("embedding")?;
