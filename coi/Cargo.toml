@@ -10,11 +10,9 @@ chrono = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 itertools = { workspace = true }
-ndarray = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 sqlx = { workspace = true, optional = true }
 thiserror = { workspace = true }
-tracing = { workspace = true }
 uuid = { workspace = true }
 xayn-ai-bert = { path = "../bert" }
 
