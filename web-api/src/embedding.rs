@@ -18,7 +18,7 @@ use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Config {
     Pipeline(Pipeline),
 }
