@@ -406,16 +406,6 @@ components:
     IngestedDocument:
       type: object
       required: [id, snippet]
-      # FIXME: valid schema, but I don't expect tooling to handle it properly
-      #   How does this work?
-      #     json-schema is defining directly validation rules but not data structures, through structures
-      #       are implied by the validation rules.
-      #     not required => validation succeeds if required validations fails, i.e. if all properties
-      #                     listed in required are present
-      not:
-        required:
-          - summarize
-          - split
       properties:
         id:
           $ref: './schemas/document.yml#/DocumentId'
