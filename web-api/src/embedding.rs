@@ -20,15 +20,25 @@ use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBu
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
 pub enum Config {
-    Pipeline {
-        directory: RelativePathBuf,
-        token_size: usize,
-    },
+    Pipeline(Pipeline),
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self::Pipeline {
+        Self::Pipeline(Pipeline::default())
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Pipeline {
+    pub(crate) directory: String,
+    pub(crate) token_size: usize,
+}
+
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self {
             directory: "assets".into(),
             token_size: 250,
         }
@@ -42,10 +52,10 @@ pub(crate) enum Embedder {
 impl Embedder {
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
-            Config::Pipeline {
+            Config::Pipeline(Pipeline {
                 directory,
                 token_size,
-            } => Self::load_pipeline(directory, *token_size),
+            }) => Self::load_pipeline(&directory.into(), *token_size),
         }
     }
 
@@ -84,10 +94,10 @@ mod tests {
 
     #[test]
     fn test_embedder() {
-        let config = Config::Pipeline {
-            directory: xaynia().unwrap().into(),
-            token_size: 250,
-        };
+        let config = Config::Pipeline(Pipeline {
+            directory: xaynia().unwrap().display().to_string(),
+            ..Pipeline::default()
+        });
         let embedder = Embedder::load(&config).unwrap();
         embedder.run("test").unwrap();
     }
