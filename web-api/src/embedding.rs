@@ -26,6 +26,7 @@ use crate::{app::SetupError, error::common::InternalError};
 #[serde(default)]
 pub struct Config {
     pub(crate) sagemaker_endpoint_name: String,
+    pub(crate) sagemaker_model: Option<String>,
     pub(crate) aws_region: Option<String>,
     pub(crate) aws_profile: Option<String>,
 }
@@ -34,6 +35,7 @@ impl Default for Config {
     fn default() -> Self {
         Self {
             sagemaker_endpoint_name: String::new(),
+            sagemaker_model: None,
             aws_region: None,
             aws_profile: None,
         }
@@ -49,6 +51,7 @@ pub(crate) struct Embedder {
     embedding_dim: usize,
     client: Client,
     sagemaker_endpoint_name: String,
+    sagemaker_model: Option<String>,
 }
 
 impl Embedder {
@@ -71,6 +74,7 @@ impl Embedder {
             embedding_dim: 384,
             client,
             sagemaker_endpoint_name: config.sagemaker_endpoint_name.clone(),
+            sagemaker_model: config.sagemaker_model.clone(),
         })
     }
 
@@ -78,10 +82,17 @@ impl Embedder {
         let input = json!({
             "inputs": [sequence],
         });
-        let res = self
+
+        let mut builder = self
             .client
             .invoke_endpoint()
-            .endpoint_name(&self.sagemaker_endpoint_name)
+            .endpoint_name(&self.sagemaker_endpoint_name);
+
+        if let Some(sagemaker_model) = &self.sagemaker_model {
+            builder = builder.target_model(sagemaker_model.clone());
+        }
+
+        let res = builder
             .content_type("application/json")
             .body(Blob::new(input.to_string()))
             .send()
