@@ -30,7 +30,7 @@ pub(super) fn preprocess_document(
     Ok(match preprocessing_step {
         PreprocessingStep::None => embed_whole(embedder, original)?,
         PreprocessingStep::Summarize => embed_with_summarizer(embedder, original)?,
-        PreprocessingStep::CuttersSplit => embed_with_cutters(embedder, original)?,
+        PreprocessingStep::CuttersSplit => embed_with_cutters(embedder, &original)?,
     })
 }
 
