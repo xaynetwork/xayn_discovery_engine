@@ -157,10 +157,12 @@ fn test_ingestion_bad_request() {
             json!({
                 "kind": "InvalidDocumentSnippet" ,
                 "details": {
-                    "size": {
-                        "got": 2049,
-                        "min": 1,
-                        "max": 2048,
+                    "invalid_string": {
+                        "size": {
+                            "got": 2049,
+                            "min": 1,
+                            "max": 2048,
+                        }
                     }
                 }
             })
@@ -427,8 +429,10 @@ fn test_ingestion_validation() {
                     "id": "d1",
                     "kind": "InvalidDocumentSnippet",
                     "details": {
-                        "syntax": {
-                            "expected": "^[^\\x00]*$"
+                        "invalid_string": {
+                            "syntax": {
+                                "expected": "^[^\\x00]*$"
+                            }
                         }
                     }
                 })]),
@@ -455,10 +459,12 @@ fn test_ingestion_validation() {
                     "id": "d1",
                     "kind": "InvalidDocumentSnippet",
                     "details": {
-                        "size": {
-                            "got": 11,
-                            "min": 1,
-                            "max": 10
+                        "invalid_string": {
+                            "size": {
+                                "got": 11,
+                                "min": 1,
+                                "max": 10
+                            }
                         }
                     }
                 })]),

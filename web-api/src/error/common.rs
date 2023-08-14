@@ -145,10 +145,14 @@ pub(crate) struct InvalidDocumentTags {
 
 impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
 
-/// Malformed document snippet: {0}
 #[derive(Debug, Error, Display, Serialize)]
-#[serde(transparent)]
-pub(crate) struct InvalidDocumentSnippet(pub(crate) InvalidString);
+#[serde(rename_all = "snake_case")]
+pub(crate) enum InvalidDocumentSnippet {
+    /// Malformed document snippet: {0}
+    InvalidString(InvalidString),
+    /// Input document didn't yield any snippets
+    NoSnippets {},
+}
 
 impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
 

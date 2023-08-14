@@ -12,10 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use itertools::Itertools;
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use crate::{
     embedding::Embedder,
+    error::common::InvalidDocumentSnippet,
     models::{DocumentContent, DocumentSnippet, PreprocessingStep},
     Error,
 };
@@ -28,6 +30,7 @@ pub(super) fn preprocess_document(
     Ok(match preprocessing_step {
         PreprocessingStep::None => embed_whole(embedder, original)?,
         PreprocessingStep::Summarize => embed_with_summarizer(embedder, original)?,
+        PreprocessingStep::CuttersSplit => embed_with_cutters(embedder, &original)?,
     })
 }
 
@@ -57,4 +60,24 @@ fn embed_with_summarizer(
         snippet,
         embedding,
     }])
+}
+
+fn embed_with_cutters(
+    embedder: &Embedder,
+    snippet: &DocumentSnippet,
+) -> Result<Vec<DocumentContent>, Error> {
+    let snippets = cutters::cut(snippet, cutters::Language::English)
+        .into_iter()
+        .map(|split| {
+            let snippet = DocumentSnippet::new(split.str, split.str.len())?;
+            let embedding = embedder.run(&snippet)?;
+            Ok(DocumentContent { snippet, embedding })
+        })
+        .try_collect::<_, Vec<_>, Error>()?;
+
+    if snippets.is_empty() {
+        Err(InvalidDocumentSnippet::NoSnippets {}.into())
+    } else {
+        Ok(snippets)
+    }
 }

@@ -269,7 +269,7 @@ impl DocumentSnippet {
         trim(&mut value);
 
         validate_string(&value, 1..=max_size, &GENERIC_STRING_SYNTAX)
-            .map_err(InvalidDocumentSnippet)?;
+            .map_err(InvalidDocumentSnippet::InvalidString)?;
 
         Ok(Self(value))
     }
@@ -522,12 +522,19 @@ pub(crate) struct ExcerptedDocument {
     pub(crate) is_candidate: bool,
 }
 
+/// The preprocessing step used on the raw document.
+// Note: The same input parameter (e.g. split) can over time
+//       map to different variants, e.g. now it maps to `CuttersSplit`
+//       but in the future it will map to different splits.
+//       This matters for deciding if in case of reingestion we should
+//       reprocess the document even if the raw document didn't change.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 #[sqlx(type_name = "preprocessing_step", rename_all = "snake_case")]
 pub(crate) enum PreprocessingStep {
     None,
     Summarize,
+    CuttersSplit,
 }
 
 #[cfg(test)]

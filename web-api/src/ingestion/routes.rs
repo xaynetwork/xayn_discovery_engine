@@ -121,6 +121,8 @@ struct UnvalidatedDocumentForIngestion {
     default_is_candidate: Option<bool>,
     #[serde(default)]
     summarize: bool,
+    #[serde(default)]
+    split: bool,
 }
 
 #[derive(Debug)]
@@ -214,10 +216,16 @@ impl UnvalidatedDocumentForIngestion {
         let id = self.id.as_str().try_into()?;
         let original = DocumentSnippet::new(self.snippet, config.max_snippet_size)?;
 
-        let preprocessing_step = if self.summarize {
-            PreprocessingStep::Summarize
-        } else {
-            PreprocessingStep::None
+        let preprocessing_step = match (self.split, self.summarize) {
+            (true, true) => {
+                return Err(anyhow!(
+                "You can only use either the pre-ingestion-option summarize or split but not both."
+            )
+                .into())
+            }
+            (true, false) => PreprocessingStep::CuttersSplit,
+            (false, true) => PreprocessingStep::Summarize,
+            (false, false) => PreprocessingStep::None,
         };
 
         let properties = validate_document_properties(
