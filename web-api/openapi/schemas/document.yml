@@ -3,6 +3,27 @@ DocumentId:
     $ref: './id.yml#/Id/description'
   $ref: './id.yml#/Id'
 
+SnippetId:
+  description: |-
+    Id of a snippet consisting of the document_id and the in-document id of the given snippet.
+  type: object
+  required:
+    - document_id
+    - sub_id
+  properties:
+    document_id:
+      $ref: '#/DocumentId'
+    sub_id:
+      type: number
+      minimum: 0
+
+SnippetOrDocumentId:
+  description: |-
+    Allow providing either a snippet id or a document id.
+  oneOf:
+    - $ref: '#/DocumentId'
+    - $ref: '#/SnippetId'
+
 DocumentPropertyId:
   description:
     $ref: './id.yml#/IdNoDot/description'
@@ -93,7 +114,7 @@ HistoryEntry:
   required: [id]
   properties:
     id:
-      $ref: '#/DocumentId'
+      $ref: '#/SnippetOrDocumentId'
     timestamp:
       $ref: './time.yml#/Timestamp'
 
@@ -105,7 +126,7 @@ InputDocument:
   type: object
   properties:
     id:
-      $ref: '#/DocumentId'
+      $ref: '#/SnippetOrDocumentId'
     query:
       $ref: '#/DocumentSearchQuery'
   minProperties: 1

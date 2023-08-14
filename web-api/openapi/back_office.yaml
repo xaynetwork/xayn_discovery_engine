@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Back Office API
-  version: 2.5.0
+  version: 2.5.1
   description: |-
     # Back Office
     This API acts as a create/read/update/delete interface for anything related to documents.
@@ -446,7 +446,17 @@ components:
             Setting neither will default to `is_candidate = true`.
           type: boolean
         summarize:
-          description: Summarize the document snippets before further processing.
+          description: |-
+            Summarize the document before further processing.
+
+            This is incompatible with `split`.
+          type: boolean
+          default: false
+        split:
+          description: |-
+            Split the input document into multiple parts before further processing.
+
+            This is incompatible with `summarize`.
           type: boolean
           default: false
       example:

@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Front Office API
-  version: 2.5.0
+  version: 2.5.1
   description: |-
     # Front Office
     The front office is typically used within front-end apps, for example a website or a mobile application.
@@ -57,9 +57,12 @@ paths:
         - search
       summary: Personalize documents for the user
       description: |-
-        Get a list of documents personalized for the given `user_id`.
-        Each document contains the id and the score, where a higher value means that the document matches the preferences of the user better. Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
-        The documents also contain their properties if this is requested and the properties are not empty.
+        Get a list of snippets personalized for the given `user_id`.
+
+        Each snippet has an id and contains the id of the document it originates from as well as a score. A higher score means that the document matches the preferences of the user better.
+        Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
+
+        The snippet also contain the parent documents properties if this is requested and the properties are not empty.
         Documents that have been interacted with by the user are filtered out from the result.
         Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
       operationId: getPersonalizedDocuments
@@ -89,7 +92,7 @@ paths:
         - front office
         - search
       deprecated: true
-      summary: Get personalized documents for the user
+      summary: Get personalized snippets for the user
       description: Deprecated. Use `POST /users/{user_id}/personalized_documents` instead.
       operationId: getPersonalizedDocumentsDeprecated
       parameters:
@@ -142,9 +145,10 @@ paths:
       tags:
         - front office
         - interaction
-      summary: Add a document interaction for the user
+      summary: Add a interaction between a user and either a snippet or a whole document.
       description: |-
-        Register an interaction between a user and a document.
+        Register an interaction between a user and a snippet or a whole document.
+
         For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
         For apps, consider implementing a "like" button, where the on-click triggers this method.
       operationId: updateUserInteractions
@@ -160,7 +164,7 @@ paths:
         '204':
           description: Successful operation.
         '400':
-          description: User or document id is invalid.
+          description: User snippet or document id is invalid.
           content:
             application/json:
               schema:
@@ -174,7 +178,14 @@ paths:
       summary: Semantic search in documents
       description: |-
         Semantically search through the documents in different ways.
-        When a document `id` is used, the system will return documents that are similar to the one in input.
+
+        When a snippet id is used, the system will return snippets across all documents, that are similar
+        to the one referred to by the given id.
+
+        When a document id is used it will _currently_ search as if you had provided the snippet id of an
+        arbitrary snippet in the document. This means it's for now only meaningful usable with documents which
+        only have one snippet. That will likely change in the future.
+
         When a `query` is provided, the system will return documents that are similar to the query.
         If `enable_hybrid_search` is passed, then the system will also perform keyword matching between the query and the documents.
         It is possible to personalize the result by passing a user id or history. In this case, the system will consider the user's interests to rank the documents.
@@ -298,10 +309,13 @@ components:
             - $ref: '#/components/schemas/FilterCombine'
     PersonalizedDocumentData:
       type: object
-      required: [id, score]
+      required: [id, snippet_id, score]
       properties:
         id:
+          deprecated: true
           $ref: './schemas/document.yml#/DocumentId'
+        snippet_id:
+          $ref: './schemas/document.yml#/SnippetId'
         score:
           description: A number where higher means better.
           type: number
@@ -322,6 +336,9 @@ components:
       example:
         documents:
           - id: 'document_id0'
+            snippet_id:
+              document_id: 'document_id0'
+              sub_id: 2
             score: 0.87
             properties:
               title: "News title"
@@ -372,6 +389,9 @@ components:
       example:
         documents:
           - id: 'document_id0'
+            snippet_id:
+              document_id: 'document_id0'
+              sub_id: 2
             score: 0.87
             properties:
               title: "News title"
@@ -388,7 +408,7 @@ components:
       type: object
       properties:
         id:
-          $ref: './schemas/document.yml#/DocumentId'
+          $ref: './schemas/document.yml#/SnippetOrDocumentId'
     UserInteractionRequest:
       type: object
       required: [documents]
