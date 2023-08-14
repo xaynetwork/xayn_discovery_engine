@@ -21,7 +21,7 @@ use xayn_ai_coi::{Coi, CoiSystem};
 use xayn_web_api_shared::elastic::ScoreMap;
 
 use crate::{
-    models::{DocumentId, DocumentTag, PersonalizedDocument},
+    models::{DocumentTag, PersonalizedDocument, SnippetId},
     personalization::PersonalizationConfig,
 };
 
@@ -30,7 +30,7 @@ fn rerank_by_interest<'a>(
     documents: &'a [PersonalizedDocument],
     interests: &[Coi],
     time: DateTime<Utc>,
-) -> ScoreMap<&'a DocumentId> {
+) -> ScoreMap<&'a SnippetId> {
     coi_system
         .score(documents, interests, time)
         .map(|scores| {
@@ -46,7 +46,7 @@ fn rerank_by_interest<'a>(
 fn rerank_by_tag_weight<'a>(
     documents: &'a [PersonalizedDocument],
     tag_weights: &HashMap<DocumentTag, usize>,
-) -> ScoreMap<&'a DocumentId> {
+) -> ScoreMap<&'a SnippetId> {
     let total_tag_weight = tag_weights.values().sum::<usize>();
     if total_tag_weight == 0 {
         return HashMap::new();
@@ -122,7 +122,7 @@ pub fn bench_rerank<S>(
         .into_iter()
         .enumerate()
         .map(|(id, (embedding, tags))| PersonalizedDocument {
-            id: id.to_string().try_into().unwrap(),
+            id: SnippetId::new(id.to_string().try_into().unwrap(), 0),
             score: 1.,
             embedding,
             properties: None,
@@ -163,7 +163,7 @@ mod tests {
     fn mock_documents(n: usize) -> Vec<PersonalizedDocument> {
         (0..n)
             .map(|i| {
-                let id = i.to_string().try_into().unwrap();
+                let id = SnippetId::new(i.to_string().try_into().unwrap(), 0);
 
                 let mut embedding = vec![1.; n];
                 embedding[i] = 10.;
@@ -237,11 +237,11 @@ mod tests {
         let interests = vec![mock_coi(1, n, time), mock_coi(4, n, time)];
 
         let reranked = rerank_by_interest(&coi_system, &documents, &interests, time);
-        let zero = "0".try_into().unwrap();
-        let one = "1".try_into().unwrap();
-        let two = "2".try_into().unwrap();
-        let three = "3".try_into().unwrap();
-        let four = "4".try_into().unwrap();
+        let zero = SnippetId::new("0".try_into().unwrap(), 0);
+        let one = SnippetId::new("1".try_into().unwrap(), 0);
+        let two = SnippetId::new("2".try_into().unwrap(), 0);
+        let three = SnippetId::new("3".try_into().unwrap(), 0);
+        let four = SnippetId::new("4".try_into().unwrap(), 0);
         assert!(0. <= reranked[&&zero]);
         assert_approx_eq!(f32, reranked[&&zero], reranked[&&two]);
         assert_approx_eq!(f32, reranked[&&zero], reranked[&&three]);
@@ -284,15 +284,15 @@ mod tests {
         .into();
 
         let reranked = rerank_by_tag_weight(&documents, &tag_weights);
-        let zero = "0".try_into().unwrap();
-        let one = "1".try_into().unwrap();
+        let zero = SnippetId::new("0".try_into().unwrap(), 0);
+        let one = SnippetId::new("1".try_into().unwrap(), 0);
         assert!(reranked[&&zero] < reranked[&&one]);
         for i in (2..n).step_by(2) {
-            let id = i.to_string().try_into().unwrap();
+            let id = SnippetId::new(i.to_string().try_into().unwrap(), 0);
             assert_approx_eq!(f32, reranked[&&zero], reranked[&&id]);
         }
         for i in (3..n).step_by(2) {
-            let id = i.to_string().try_into().unwrap();
+            let id = SnippetId::new(i.to_string().try_into().unwrap(), 0);
             assert_approx_eq!(f32, reranked[&&one], reranked[&&id]);
         }
     }

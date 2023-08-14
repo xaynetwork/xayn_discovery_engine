@@ -16,7 +16,7 @@ use xayn_ai_bert::NormalizedEmbedding;
 
 /// Common document properties.
 pub trait Document {
-    type Id: std::fmt::Display + std::fmt::Debug + Eq + std::hash::Hash + Clone;
+    type Id: std::fmt::Debug + Eq + std::hash::Hash + Clone;
 
     /// Gets the document id.
     fn id(&self) -> &Self::Id;

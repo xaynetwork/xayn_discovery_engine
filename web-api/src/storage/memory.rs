@@ -53,6 +53,8 @@ use crate::{
         InteractedDocument,
         PersonalizedDocument,
         PreprocessingStep,
+        SnippetId,
+        SnippetOrDocumentId,
         UserId,
     },
     storage::{self, KnnSearchParams, Warning},
@@ -260,7 +262,7 @@ impl storage::Document for Storage {
 
     async fn get_personalized(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
         include_properties: bool,
         include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
@@ -268,11 +270,11 @@ impl storage::Document for Storage {
         let documents = ids
             .into_iter()
             .filter_map(|id| {
-                documents.0.get(id).and_then(|document| {
+                documents.0.get(id.document_id()).and_then(|document| {
                     documents
                         .1
                         .borrow_map()
-                        .get(id)
+                        .get(id.document_id())
                         .map(|embedding| PersonalizedDocument {
                             id: id.clone(),
                             score: 1.,
@@ -310,8 +312,15 @@ impl storage::Document for Storage {
         Ok(documents)
     }
 
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
-        Ok(self.documents.read().await.1.borrow_map().get(id).cloned())
+    async fn get_embedding(&self, id: &SnippetId) -> Result<Option<NormalizedEmbedding>, Error> {
+        Ok(self
+            .documents
+            .read()
+            .await
+            .1
+            .borrow_map()
+            .get(id.document_id())
+            .cloned())
     }
 
     async fn get_by_embedding<'a>(
@@ -322,7 +331,7 @@ impl storage::Document for Storage {
             unimplemented!(/* we don't need it for memory.rs */);
         }
 
-        let excluded = params.excluded.iter().collect::<HashSet<_>>();
+        let excluded = params.excluded.documents.iter().collect::<HashSet<_>>();
         let documents = self.documents.read().await;
         let documents = documents
             .1
@@ -337,7 +346,7 @@ impl storage::Document for Storage {
                     None
                 } else {
                     documents.0.get(id).map(|document| PersonalizedDocument {
-                        id: id.clone(),
+                        id: SnippetId::new(id.clone(), 0),
                         score: item.distance,
                         embedding: item.point.as_ref().clone(),
                         properties: params
@@ -616,11 +625,16 @@ impl storage::Interaction for Storage {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        interactions: Vec<SnippetOrDocumentId>,
         store_user_history: bool,
         time: DateTime<Utc>,
         mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
     ) -> Result<(), Error> {
+        // TODO[pmk/ET-4756-5] properly support snippet id
+        let interactions = interactions.iter().map(|id| match id {
+            SnippetOrDocumentId::DocumentId(id) => id,
+            SnippetOrDocumentId::SnippetId(id) => id.document_id(),
+        });
         // Note: This doesn't has the exact same concurrency semantics as the postgres version
         let documents = self.get_interacted(interactions).await?;
         let mut interests = self.interests.write().await;
@@ -710,12 +724,15 @@ mod tests {
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
-    use crate::{models::PreprocessingStep, storage::SearchStrategy};
+    use crate::{
+        models::PreprocessingStep,
+        storage::{Exclusions, SearchStrategy},
+    };
 
     #[tokio::test]
     async fn test_knn_search() {
         let ids = (0..3)
-            .map(|id| DocumentId::try_from(id.to_string()).unwrap())
+            .map(|id| SnippetId::new(DocumentId::try_from(id.to_string()).unwrap(), 0))
             .collect_vec();
         let embeddings = [
             [1., 0., 0.].try_into().unwrap(),
@@ -726,7 +743,7 @@ mod tests {
             .iter()
             .zip(embeddings)
             .map(|(id, embedding)| IngestedDocument {
-                id: id.clone(),
+                id: id.document_id().clone(),
                 snippet: DocumentSnippet::new("snippet", 100).unwrap(),
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
@@ -744,7 +761,7 @@ mod tests {
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {
-                excluded: &[],
+                excluded: &Exclusions::default(),
                 embedding,
                 count: 2,
                 num_candidates: 2,
@@ -764,7 +781,10 @@ mod tests {
         let documents = storage::Document::get_by_embedding(
             &storage,
             KnnSearchParams {
-                excluded: &ids[1..=1],
+                excluded: &Exclusions {
+                    documents: vec![ids[1].document_id().clone()],
+                    snippets: Vec::new(),
+                },
                 embedding,
                 count: 3,
                 num_candidates: 3,
@@ -785,14 +805,14 @@ mod tests {
     #[tokio::test]
     async fn test_serde() {
         let storage = Storage::default();
-        let doc_id = DocumentId::try_from("42").unwrap();
+        let doc_id = SnippetId::new(DocumentId::try_from("42").unwrap(), 0);
         let snippet = DocumentSnippet::new("snippet", 100).unwrap();
         let tags = DocumentTags::try_from(vec!["tag".try_into().unwrap()]).unwrap();
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
             vec![IngestedDocument {
-                id: doc_id.clone(),
+                id: doc_id.document_id().clone(),
                 snippet: snippet.clone(),
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
@@ -807,7 +827,9 @@ mod tests {
         storage::Interaction::update_interactions(
             &storage,
             &user_id,
-            [&doc_id],
+            vec![SnippetOrDocumentId::DocumentId(
+                doc_id.document_id().clone(),
+            )],
             true,
             Utc::now(),
             |context| {
@@ -825,11 +847,11 @@ mod tests {
         .unwrap();
 
         let storage = Storage::deserialize(&storage.serialize().await.unwrap()).unwrap();
-        let documents = storage::Document::get_excerpted(&storage, [&doc_id])
+        let documents = storage::Document::get_excerpted(&storage, [doc_id.document_id()])
             .await
             .unwrap();
         assert_eq!(documents.len(), 1);
-        assert_eq!(documents[0].id, doc_id);
+        assert_eq!(&documents[0].id, doc_id.document_id());
         assert_eq!(documents[0].snippet, snippet);
         let documents = storage::Document::get_personalized(&storage, [&doc_id], true, true)
             .await

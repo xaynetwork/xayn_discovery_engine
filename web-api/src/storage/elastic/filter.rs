@@ -12,13 +12,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{cmp::Ordering, collections::HashMap};
+use std::{borrow::Cow, cmp::Ordering, collections::HashMap};
 
 use serde::{Serialize, Serializer};
 
 use crate::{
-    models::{DocumentId, DocumentProperty, DocumentPropertyId},
+    models::{DocumentId, DocumentProperty, DocumentPropertyId, SnippetId},
     personalization::filter::{self, Combine, CombineOp, Compare, CompareOp},
+    storage::Exclusions,
 };
 
 #[derive(Debug)]
@@ -64,6 +65,35 @@ impl Serialize for Terms<'_> {
         let terms = [(field.as_str(), self.value)].into();
 
         Terms { terms }.serialize(serializer)
+    }
+}
+
+#[derive(Debug)]
+struct Parents<'a> {
+    parents: &'a [DocumentId],
+}
+
+impl Serialize for Parents<'_> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        #[derive(Serialize)]
+        struct Terms<'a> {
+            terms: ParentField<'a>,
+        }
+
+        #[derive(Serialize)]
+        struct ParentField<'a> {
+            parent: &'a [DocumentId],
+        }
+
+        Terms {
+            terms: ParentField {
+                parent: self.parents,
+            },
+        }
+        .serialize(serializer)
     }
 }
 
@@ -177,28 +207,32 @@ impl Serialize for Range<'_> {
 }
 
 #[derive(Debug)]
-struct Ids<'a> {
-    values: &'a [DocumentId],
+struct Ids<'a, Id: Clone> {
+    values: Cow<'a, [Id]>,
 }
 
-impl Serialize for Ids<'_> {
+impl<Id> Serialize for Ids<'_, Id>
+where
+    //Hint: a Display bound and a serialize as string helper would be more correct
+    Id: Clone + Serialize,
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
         #[derive(Serialize)]
-        struct Values<'a> {
-            values: &'a [DocumentId],
+        struct Values<'a, Id> {
+            values: &'a [Id],
         }
 
         #[derive(Serialize)]
-        struct Ids<'a> {
-            ids: Values<'a>,
+        struct Ids<'a, Id> {
+            ids: Values<'a, Id>,
         }
 
         Ids {
             ids: Values {
-                values: self.values,
+                values: &self.values,
             },
         }
         .serialize(serializer)
@@ -473,11 +507,19 @@ pub(super) struct Clauses<'a> {
     #[serde(flatten, skip_serializing_if = "Should::is_empty")]
     should: Should<'a>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    must_not: Vec<Ids<'a>>,
+    must_not: Vec<ExcludedIds<'a>>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(untagged)]
+enum ExcludedIds<'a> {
+    DocumentsById(Ids<'a, DocumentId>),
+    SnippetsById(Ids<'a, Cow<'a, str>>),
+    DocumentsByParent(Parents<'a>),
 }
 
 impl<'a> Clauses<'a> {
-    pub(super) fn new(filter: Option<&'a filter::Filter>, excluded: &'a [DocumentId]) -> Self {
+    pub(super) fn new(filter: Option<&'a filter::Filter>, exclusions: &'a Exclusions) -> Self {
         let mut clauses = Self {
             filter: Filter {
                 filter: Vec::new(),
@@ -498,10 +540,26 @@ impl<'a> Clauses<'a> {
                 Clause::Should(clause) => clauses.should = clause,
             }
         }
-        if !excluded.is_empty() {
-            // existing pg documents are not filtered in the query to avoid too much work for a cold
-            // path, filtering them afterwards can occasionally lead to less than k results though
-            clauses.must_not.push(Ids { values: excluded });
+
+        if !exclusions.documents.is_empty() {
+            clauses.must_not.push(ExcludedIds::DocumentsById(Ids {
+                values: Cow::Borrowed(&exclusions.documents),
+            }));
+            clauses
+                .must_not
+                .push(ExcludedIds::DocumentsByParent(Parents {
+                    parents: &exclusions.documents,
+                }));
+        }
+        if !exclusions.snippets.is_empty() {
+            let ids = exclusions
+                .snippets
+                .iter()
+                .map(SnippetId::to_es_id)
+                .collect();
+            clauses.must_not.push(ExcludedIds::SnippetsById(Ids {
+                values: Cow::Owned(ids),
+            }));
         }
 
         clauses
@@ -531,14 +589,14 @@ mod tests {
         let clause = serde_json::from_str(r#"{ "a": { "$eq": true } }"#).unwrap();
         let value = json!({ FILTER: [{ TERM: { PROP_A: true } }] });
         assert_eq!(
-            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
             value,
         );
 
         let clause = serde_json::from_str(r#"{ "a": { "$eq": "b" } }"#).unwrap();
         let value = json!({ FILTER: [{ TERM: { PROP_A: "b" } }] });
         assert_eq!(
-            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
             value,
         );
     }
@@ -548,7 +606,7 @@ mod tests {
         let clause = serde_json::from_str(r#"{ "a": { "$in": ["b", "c"] } }"#).unwrap();
         let value = json!({ FILTER: [{ TERMS: { PROP_A: ["b", "c"] } }] });
         assert_eq!(
-            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
             value,
         );
     }
@@ -729,7 +787,7 @@ mod tests {
                 serde_json::from_str(&json!({ "a": { operation.0: 42 } }).to_string()).unwrap();
             let value = json!({ FILTER: [{ RANGE: { PROP_A: { operation.1: 42 } } }] });
             assert_eq!(
-                serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+                serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
                 value,
             );
 
@@ -737,7 +795,7 @@ mod tests {
                 serde_json::from_str(&json!({ "a": { operation.0: DATE } }).to_string()).unwrap();
             let value = json!({ FILTER: [{ RANGE: { PROP_A: { operation.1: DATE } } }] });
             assert_eq!(
-                serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+                serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
                 value,
             );
         }
@@ -761,7 +819,7 @@ mod tests {
             { RANGE: { PROP_C: { "gt": 5, "lte": 0 } } }
         ] });
         assert_eq!(
-            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
             value,
         );
     }
@@ -789,7 +847,7 @@ mod tests {
             MINIMUM_SHOULD_MATCH: 1
         });
         assert_eq!(
-            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
             value,
         );
     }
@@ -810,7 +868,7 @@ mod tests {
             { RANGE: { PROP_C: { "gt": DATE, "lt": DATE } } }
         ] });
         assert_eq!(
-            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
             value,
         );
     }
@@ -835,7 +893,7 @@ mod tests {
             MINIMUM_SHOULD_MATCH: 1
         });
         assert_eq!(
-            serde_json::to_value(Clauses::new(Some(&clause), &[])).unwrap(),
+            serde_json::to_value(Clauses::new(Some(&clause), &Exclusions::default())).unwrap(),
             value,
         );
     }
@@ -889,14 +947,26 @@ mod tests {
 
     #[test]
     fn test_must_not() {
-        let ids = [
-            "a".try_into().unwrap(),
-            "b".try_into().unwrap(),
-            "c".try_into().unwrap(),
-        ];
-        let value = json!({ "must_not": [{ "ids": { "values": ["a", "b", "c"] } }] });
+        let exclusions = Exclusions {
+            documents: vec![
+                "a".try_into().unwrap(),
+                "b".try_into().unwrap(),
+                "c".try_into().unwrap(),
+            ],
+            snippets: vec![
+                SnippetId::new("e".try_into().unwrap(), 0),
+                SnippetId::new("e".try_into().unwrap(), 1),
+            ],
+        };
+        let value = json!({
+            "must_not": [
+                { "ids": { "values": ["a", "b", "c"] } },
+                { "terms": { "parent": [ "a", "b", "c"] } },
+                { "ids": { "values": ["e", "_s.1.e"] } },
+            ]
+        });
         assert_eq!(
-            serde_json::to_value(Clauses::new(None, &ids)).unwrap(),
+            serde_json::to_value(Clauses::new(None, &exclusions)).unwrap(),
             value,
         );
     }

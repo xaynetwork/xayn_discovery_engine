@@ -46,6 +46,8 @@ use crate::{
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
+        SnippetId,
+        SnippetOrDocumentId,
         UserId,
     },
     personalization::filter::Filter,
@@ -54,7 +56,7 @@ use crate::{
 };
 
 pub(crate) struct KnnSearchParams<'a> {
-    pub(crate) excluded: &'a [DocumentId],
+    pub(crate) excluded: &'a Exclusions,
     pub(crate) embedding: &'a NormalizedEmbedding,
     /// The number of documents which will be returned if there are enough fitting documents.
     pub(crate) count: usize,
@@ -64,6 +66,12 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(super) include_properties: bool,
     pub(super) include_snippet: bool,
     pub(super) filter: Option<&'a Filter>,
+}
+
+#[derive(Default)]
+pub(crate) struct Exclusions {
+    pub(crate) documents: Vec<DocumentId>,
+    pub(crate) snippets: Vec<SnippetId>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -140,9 +148,10 @@ pub(crate) trait Document {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<InteractedDocument>, Error>;
 
+    //FIXME this is only used by (view) tests and dead code, consider removing it
     async fn get_personalized(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
         include_properties: bool,
         include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error>;
@@ -152,7 +161,7 @@ pub(crate) trait Document {
         ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Vec<ExcerptedDocument>, Error>;
 
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error>;
+    async fn get_embedding(&self, id: &SnippetId) -> Result<Option<NormalizedEmbedding>, Error>;
 
     async fn get_by_embedding<'a>(
         &self,
@@ -249,7 +258,7 @@ pub(crate) trait Interaction {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        interactions: Vec<SnippetOrDocumentId>,
         store_user_history: bool,
         time: DateTime<Utc>,
         update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,

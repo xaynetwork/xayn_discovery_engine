@@ -53,9 +53,11 @@ use crate::{
         DocumentQuery,
         DocumentSnippet,
         PersonalizedDocument,
+        SnippetId,
+        SnippetOrDocumentId,
         UserId,
     },
-    storage::{self, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
+    storage::{self, Exclusions, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
     tenants,
     utils::deprecate,
     Error,
@@ -79,34 +81,38 @@ pub(super) fn configure_service(config: &mut ServiceConfig) {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct UserInteractionRequest {
-    documents: Vec<UserInteractionData>,
+struct UnvalidatedUserInteractionRequest {
+    documents: Vec<UnvalidatedUserInteraction>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct UserInteractionData {
-    #[serde(rename = "id")]
-    document_id: String,
+struct UnvalidatedUserInteraction {
+    id: UnvalidatedSnippetOrDocumentId,
+}
+
+impl UnvalidatedUserInteractionRequest {
+    fn validate(self) -> Result<Vec<SnippetOrDocumentId>, Error> {
+        self.documents
+            .into_iter()
+            .map(|document| document.id.validate())
+            .try_collect()
+    }
 }
 
 async fn interactions(
     state: Data<AppState>,
     user_id: Path<String>,
-    Json(body): Json<UserInteractionRequest>,
+    Json(body): Json<UnvalidatedUserInteractionRequest>,
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
-    let interactions = body
-        .documents
-        .into_iter()
-        .map(|data| data.document_id.try_into())
-        .try_collect::<_, Vec<_>, _>()?;
+    let interactions = body.validate()?;
     update_interactions(
         &storage,
         &state.coi,
         &user_id,
-        &interactions,
+        interactions,
         state.config.personalization.store_user_history,
         Utc::now(),
     )
@@ -119,7 +125,7 @@ pub(crate) async fn update_interactions(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
     coi: &CoiSystem,
     user_id: &UserId,
-    interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+    interactions: Vec<SnippetOrDocumentId>,
     store_user_history: bool,
     time: DateTime<Utc>,
 ) -> Result<(), Error> {
@@ -283,6 +289,7 @@ async fn personalized_documents(
 #[derive(Debug, Serialize)]
 struct PersonalizedDocumentData {
     id: DocumentId,
+    snippet_id: SnippetId,
     score: f32,
     #[serde(skip_serializing_if = "no_properties")]
     properties: Option<DocumentProperties>,
@@ -299,7 +306,8 @@ fn no_properties(properties: &Option<DocumentProperties>) -> bool {
 impl From<PersonalizedDocument> for PersonalizedDocumentData {
     fn from(document: PersonalizedDocument) -> Self {
         Self {
-            id: document.id,
+            id: document.id.document_id().clone(),
+            snippet_id: document.id,
             score: document.score,
             properties: document.properties,
             snippet: document.snippet,
@@ -349,9 +357,12 @@ pub(crate) async fn personalize_documents_by(
     }
 
     let excluded = if personalization.store_user_history {
-        storage::Interaction::get(storage, user_id).await?
+        Exclusions {
+            documents: storage::Interaction::get(storage, user_id).await?,
+            snippets: Vec::new(),
+        }
     } else {
-        Vec::new()
+        Exclusions::default()
     };
 
     let mut documents = match by {
@@ -373,9 +384,13 @@ pub(crate) async fn personalize_documents_by(
         }
         #[cfg(test)]
         PersonalizeBy::Documents(documents) => {
+            let ids = documents
+                .iter()
+                .map(|&id| SnippetId::new(id.clone(), 0))
+                .collect_vec();
             storage::Document::get_personalized(
                 storage,
-                documents.iter().copied(),
+                ids.iter(),
                 include_properties,
                 include_snippet,
             )
@@ -578,20 +593,54 @@ impl UnvalidatedSemanticSearchRequest {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[serde(untagged)]
+enum UnvalidatedSnippetOrDocumentId {
+    DocumentId(String),
+    SnippetId { document_id: String, sub_id: usize },
+}
+
+impl From<SnippetOrDocumentId> for InputDocument {
+    fn from(value: SnippetOrDocumentId) -> Self {
+        match value {
+            SnippetOrDocumentId::SnippetId(id) => InputDocument::SnippetId(id),
+            SnippetOrDocumentId::DocumentId(id) => InputDocument::DocumentId(id),
+        }
+    }
+}
+
+impl UnvalidatedSnippetOrDocumentId {
+    fn validate(self) -> Result<SnippetOrDocumentId, Error> {
+        Ok(match self {
+            UnvalidatedSnippetOrDocumentId::DocumentId(document_id) => {
+                SnippetOrDocumentId::DocumentId(document_id.try_into()?)
+            }
+            UnvalidatedSnippetOrDocumentId::SnippetId {
+                document_id,
+                sub_id,
+            } => SnippetOrDocumentId::SnippetId(SnippetId::new(document_id.try_into()?, sub_id)),
+        })
+    }
+}
+
+#[derive(Debug, Deserialize)]
 struct UnvalidatedInputDocument {
-    id: Option<String>,
+    id: Option<UnvalidatedSnippetOrDocumentId>,
     query: Option<String>,
 }
 
 impl UnvalidatedInputDocument {
     fn validate(self) -> Result<InputDocument, Error> {
-        match (self.id, self.query) {
+        let id = self
+            .id
+            .map(|id| id.validate().map(InputDocument::from))
+            .transpose()?;
+        match (id, self.query) {
             (Some(_), Some(_)) => Err(BadRequest::from(
                 "either id or query must be present in the request, but both were found",
             )
             .into()),
             (None, Some(query)) => Ok(InputDocument::Query(query.try_into()?)),
-            (Some(id), None) => Ok(InputDocument::Ref(id.try_into()?)),
+            (Some(id), None) => Ok(id),
             (None, None) => {
                 Err(BadRequest::from("either id or query must be present in the request").into())
             }
@@ -640,7 +689,8 @@ struct SemanticSearchRequest {
 }
 
 enum InputDocument {
-    Ref(DocumentId),
+    DocumentId(DocumentId),
+    SnippetId(SnippetId),
     Query(DocumentQuery),
 }
 
@@ -687,17 +737,26 @@ async fn semantic_search(
         .validate_and_resolve_defaults(&state.config, &storage, &mut warnings)
         .await?;
 
-    let mut excluded = if let Some(personalize) = &personalize {
+    let mut exclusions = if let Some(personalize) = &personalize {
         personalized_exclusions(&storage, state.config.as_ref(), personalize).await?
     } else {
-        Vec::new()
+        Exclusions::default()
     };
     let (embedding, query) = match document {
-        InputDocument::Ref(id) => {
+        InputDocument::DocumentId(id) => {
+            // TODO[pmk/soon] how to handle by document search with split documents
+            let id = SnippetId::new(id, 0);
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
-            excluded.push(id);
+            exclusions.documents.push(id.into_document_id());
+            (embedding, None)
+        }
+        InputDocument::SnippetId(id) => {
+            let embedding = storage::Document::get_embedding(&storage, &id)
+                .await?
+                .ok_or(DocumentNotFound)?;
+            exclusions.snippets.push(id);
             (embedding, None)
         }
         InputDocument::Query(ref query) => {
@@ -710,7 +769,7 @@ async fn semantic_search(
     let mut documents = storage::Document::get_by_embedding(
         &storage,
         KnnSearchParams {
-            excluded: &excluded,
+            excluded: &exclusions,
             embedding: &embedding,
             count,
             num_candidates,
@@ -747,21 +806,28 @@ async fn personalized_exclusions(
     storage: &impl storage::Interaction,
     config: &PersonalizationConfig,
     personalize: &Personalize,
-) -> Result<Vec<DocumentId>, Error> {
+) -> Result<Exclusions, Error> {
     if !personalize.exclude_seen {
-        return Ok(Vec::new());
+        return Ok(Exclusions::default());
     }
 
     Ok(match &personalize.user {
         InputUser::Ref { id } => {
             //FIXME move optimization into storage abstraction
             if config.store_user_history {
-                storage::Interaction::get(storage, id).await?
+                let documents = storage::Interaction::get(storage, id).await?;
+                Exclusions {
+                    documents,
+                    snippets: Vec::new(),
+                }
             } else {
-                Vec::new()
+                Exclusions::default()
             }
         }
-        InputUser::Inline { history } => history.iter().map(|entry| entry.id.clone()).collect(),
+        InputUser::Inline { history } => Exclusions {
+            documents: history.iter().map(|entry| entry.id.clone()).collect(),
+            snippets: Vec::new(),
+        },
     })
 }
 

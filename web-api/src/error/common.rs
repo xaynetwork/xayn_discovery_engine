@@ -81,6 +81,14 @@ pub(crate) struct InvalidDocumentPropertyId(pub(crate) InvalidString);
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
+/// Invalid ES snippet id: {id}
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct InvalidEsSnippetIdFormat {
+    pub(crate) id: String,
+}
+
+impl_application_error!(InvalidEsSnippetIdFormat => INTERNAL_SERVER_ERROR, ERROR);
+
 /// Malformed document property {property_id}, {invalid_reason}: {invalid_value}
 #[derive(Debug, Error, Display, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]

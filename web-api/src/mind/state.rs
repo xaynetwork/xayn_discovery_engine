@@ -12,20 +12,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut};
 use itertools::Itertools;
 use serde::Serialize;
-use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 use xayn_test_utils::error::Panic;
 
 use crate::{
     embedding::{self, Embedder},
     mind::{config::StateConfig, data::Document},
-    models::{DocumentId, DocumentProperties, IngestedDocument, PreprocessingStep, UserId},
+    models::{
+        DocumentId,
+        DocumentProperties,
+        IngestedDocument,
+        PreprocessingStep,
+        SnippetOrDocumentId,
+        UserId,
+    },
     personalization::{
         routes::{personalize_documents_by, update_interactions, PersonalizeBy},
         PersonalizationConfig,
@@ -87,52 +91,17 @@ impl State {
         Ok(())
     }
 
-    #[allow(dead_code)]
-    pub(super) async fn update(
-        &self,
-        embeddings: Vec<(DocumentId, NormalizedEmbedding)>,
-    ) -> Result<(), Panic> {
-        let mut documents = storage::Document::get_personalized(
-            &self.storage,
-            embeddings.iter().map(|(id, _)| id),
-            true,
-            true,
-        )
-        .await?
-        .into_iter()
-        .map(|document| (document.id.clone(), document))
-        .collect::<HashMap<_, _>>();
-        let documents = embeddings
-            .into_iter()
-            .map(|(id, embedding)| {
-                let document = documents.remove(&id).unwrap(/* document must already exist */);
-                IngestedDocument {
-                    id,
-                    snippet: document.snippet.unwrap(/* we fetch it*/),
-                    preprocessing_step: PreprocessingStep::None,
-                    properties: document.properties.unwrap(/* we fetch it*/),
-                    tags: document.tags,
-                    embedding,
-                    is_candidate: true,
-                }
-            })
-            .collect_vec();
-        storage::Document::insert(&self.storage, documents).await?;
-
-        Ok(())
-    }
-
     pub(super) async fn interact(
         &self,
         user: &UserId,
-        documents: impl IntoIterator<Item = (&DocumentId, DateTime<Utc>)>,
+        documents: impl IntoIterator<Item = (SnippetOrDocumentId, DateTime<Utc>)>,
     ) -> Result<(), Panic> {
         for (id, time) in documents {
             update_interactions(
                 &self.storage,
                 &self.coi,
                 user,
-                [id],
+                vec![id],
                 self.personalization.store_user_history,
                 time,
             )
@@ -160,7 +129,12 @@ impl State {
         )
         .await
         .map(|documents| {
-            documents.map(|documents| documents.into_iter().map(|document| document.id).collect())
+            documents.map(|documents| {
+                documents
+                    .into_iter()
+                    .map(|document| document.id.into_document_id())
+                    .collect()
+            })
         })
         .map_err(Into::into)
     }

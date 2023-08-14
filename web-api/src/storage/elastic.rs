@@ -49,6 +49,7 @@ use crate::{
         DocumentQuery,
         DocumentSnippet,
         DocumentTags,
+        SnippetId,
     },
     storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
@@ -58,7 +59,7 @@ impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<ScoreMap<DocumentId>, Error> {
+    ) -> Result<ScoreMap<SnippetId>, Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::Hybrid { query } => {
@@ -89,7 +90,7 @@ impl Client {
     async fn knn_search<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<ScoreMap<DocumentId>, Error> {
+    ) -> Result<ScoreMap<SnippetId>, Error> {
         let KnnSearchParts {
             knn_object,
             generic_parameters,
@@ -97,7 +98,9 @@ impl Client {
         } = params.create_common_knn_search_parts();
 
         let request = merge_json_objects([knn_object, generic_parameters]);
-        let scores = self.search_request(request).await?;
+        let scores = self
+            .search_request(request, SnippetId::try_from_es_id)
+            .await?;
 
         Ok(rescale_knn_scores(scores))
     }
@@ -106,10 +109,10 @@ impl Client {
         &self,
         params: KnnSearchParams<'_>,
         query: &DocumentQuery,
-        normalize_knn: impl FnOnce(ScoreMap<DocumentId>) -> ScoreMap<DocumentId>,
-        normalize_bm25: impl FnOnce(ScoreMap<DocumentId>) -> ScoreMap<DocumentId>,
-        merge_function: impl FnOnce(ScoreMap<DocumentId>, ScoreMap<DocumentId>) -> ScoreMap<DocumentId>,
-    ) -> Result<ScoreMap<DocumentId>, Error> {
+        normalize_knn: impl FnOnce(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
+        normalize_bm25: impl FnOnce(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
+        merge_function: impl FnOnce(ScoreMap<SnippetId>, ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
+    ) -> Result<ScoreMap<SnippetId>, Error> {
         let count = params.count;
 
         let KnnSearchParts {
@@ -120,7 +123,9 @@ impl Client {
 
         let knn_request = merge_json_objects([knn_object, generic_parameters.clone()]);
         // don't rescale the knn_scores since they would need to be immediately normalized again to be fed into normalize_knn()
-        let knn_scores = self.search_request(knn_request).await?;
+        let knn_scores = self
+            .search_request(knn_request, SnippetId::try_from_es_id)
+            .await?;
 
         let bm_25 = merge_json_objects([
             json_object!({
@@ -134,7 +139,9 @@ impl Client {
             generic_parameters,
         ]);
         // FIXME parallelize polling
-        let bm25_scores = self.search_request(bm_25).await?;
+        let bm25_scores = self
+            .search_request(bm_25, SnippetId::try_from_es_id)
+            .await?;
 
         let merged = merge_function(normalize_knn(knn_scores), normalize_bm25(bm25_scores));
         Ok(take_highest_n_scores(count, merged))
@@ -604,7 +611,7 @@ where
 }
 
 impl NormalizationFn {
-    fn to_fn(self) -> Box<dyn Fn(ScoreMap<DocumentId>) -> ScoreMap<DocumentId>> {
+    fn to_fn(self) -> Box<dyn Fn(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>> {
         match self {
             NormalizationFn::Identity => Box::new(identity),
             NormalizationFn::Normalize => Box::new(normalize_scores),
@@ -613,7 +620,7 @@ impl NormalizationFn {
     }
 }
 
-type DynMergeFn = dyn Fn(ScoreMap<DocumentId>, ScoreMap<DocumentId>) -> ScoreMap<DocumentId>;
+type DynMergeFn = dyn Fn(ScoreMap<SnippetId>, ScoreMap<SnippetId>) -> ScoreMap<SnippetId>;
 
 impl MergeFn {
     fn to_fn(self) -> Box<DynMergeFn> {

@@ -41,6 +41,7 @@ use sqlx::{
 use tracing::{info, instrument};
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiId, CoiStats};
+use xayn_web_api_shared::elastic::ScoreMap;
 
 use super::{
     property_filter::{
@@ -65,6 +66,8 @@ use crate::{
         IngestedDocument,
         InteractedDocument,
         PersonalizedDocument,
+        SnippetId,
+        SnippetOrDocumentId,
         UserId,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
@@ -249,8 +252,7 @@ impl Database {
 
     async fn get_personalized(
         tx: &mut Transaction<'_, Postgres>,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-        scores: impl Fn(&DocumentId) -> Option<f32> + Sync,
+        scores: ScoreMap<SnippetId>,
         include_properties: bool,
         include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
@@ -263,9 +265,8 @@ impl Database {
                 .unwrap_or_default(),
             include_snippet.then_some(", snippet").unwrap_or_default(),
         ));
-        let ids = ids.into_iter();
-        let mut documents = Vec::with_capacity(ids.len());
-        let mut ids = ids.filter(|id| scores(id).is_some()).peekable();
+        let mut documents = Vec::with_capacity(scores.len());
+        let mut ids = scores.keys().map(SnippetId::document_id).peekable();
         while ids.peek().is_some() {
             documents.extend(
                 builder
@@ -273,7 +274,9 @@ impl Database {
                     .push_tuple(ids.by_ref().take(Self::BIND_LIMIT))
                     .build()
                     .try_map(|row: PgRow| {
-                        let id = row.try_get("document_id")?;
+                        // TODO[pmk/now] for this PR we blindly assume sub_id==0, this function
+                        //               will change majorly in the followup PR anyway
+                        let id = SnippetId::new(row.try_get("document_id")?, 0);
                         let embedding = row.try_get("embedding")?;
                         let tags = row.try_get("tags")?;
                         let properties = if include_properties {
@@ -286,7 +289,7 @@ impl Database {
                         } else {
                             None
                         };
-                        let score = scores(&id).unwrap(/* filtered ids */);
+                        let score = scores[&id];
 
                         Ok(PersonalizedDocument {
                             id,
@@ -301,12 +304,8 @@ impl Database {
                     .await?,
             );
         }
-        documents.sort_unstable_by(|d1, d2| {
-            scores(&d1.id)
-                .unwrap()
-                .total_cmp(&scores(&d2.id).unwrap())
-                .reverse()
-        });
+
+        documents.sort_unstable_by(|d1, d2| d1.score.total_cmp(&d2.score).reverse());
 
         Ok(documents)
     }
@@ -350,10 +349,11 @@ impl Database {
 
     async fn get_embedding(
         tx: &mut Transaction<'_, Postgres>,
-        id: &DocumentId,
+        id: &SnippetId,
     ) -> Result<Option<NormalizedEmbedding>, Error> {
+        // TODO[pmk/ET-4756-5] handle snippet idx
         sqlx::query_as("SELECT embedding FROM document WHERE document_id = $1;")
-            .bind(id)
+            .bind(id.document_id())
             .fetch_optional(tx)
             .await
             .map_err(Into::into)
@@ -776,19 +776,14 @@ impl storage::Document for Storage {
 
     async fn get_personalized(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
         include_properties: bool,
         include_snippet: bool,
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut tx = self.postgres.begin().await?;
-        let documents = Database::get_personalized(
-            &mut tx,
-            ids,
-            |_| Some(1.0),
-            include_properties,
-            include_snippet,
-        )
-        .await?;
+        let ids = ids.into_iter().map(|id| (id.clone(), 1.0)).collect();
+        let documents =
+            Database::get_personalized(&mut tx, ids, include_properties, include_snippet).await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -806,7 +801,7 @@ impl storage::Document for Storage {
     }
 
     #[instrument(skip(self))]
-    async fn get_embedding(&self, id: &DocumentId) -> Result<Option<NormalizedEmbedding>, Error> {
+    async fn get_embedding(&self, id: &SnippetId) -> Result<Option<NormalizedEmbedding>, Error> {
         let mut tx = self.postgres.begin().await?;
         let embedding = Database::get_embedding(&mut tx, id).await?;
         tx.commit().await?;
@@ -822,14 +817,9 @@ impl storage::Document for Storage {
         let include_properties = params.include_properties;
         let include_snippet = params.include_snippet;
         let scores = self.elastic.get_by_embedding(params).await?;
-        let documents = Database::get_personalized(
-            &mut tx,
-            scores.keys(),
-            |id| scores.get(id).copied(),
-            include_properties,
-            include_snippet,
-        )
-        .await?;
+        let documents =
+            Database::get_personalized(&mut tx, scores, include_properties, include_snippet)
+                .await?;
         tx.commit().await?;
 
         Ok(documents)
@@ -1167,7 +1157,7 @@ impl storage::Interaction for Storage {
     async fn update_interactions(
         &self,
         user_id: &UserId,
-        interactions: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
+        interactions: Vec<SnippetOrDocumentId>,
         store_user_history: bool,
         time: DateTime<Utc>,
         mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
@@ -1175,7 +1165,11 @@ impl storage::Interaction for Storage {
         let mut tx = self.postgres.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
-        let interactions = interactions.into_iter();
+        // TODO[pmk/ET-4756-5] properly support SnippetId
+        let interactions = interactions.iter().map(|id| match id {
+            SnippetOrDocumentId::DocumentId(id) => id,
+            SnippetOrDocumentId::SnippetId(id) => id.document_id(),
+        });
         let documents = Database::get_interacted(&mut tx, interactions.clone()).await?;
         let document_map = documents
             .iter()

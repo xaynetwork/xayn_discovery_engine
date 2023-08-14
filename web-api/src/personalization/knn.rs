@@ -22,16 +22,16 @@ use xayn_ai_coi::{compute_coi_weights, Coi};
 
 use crate::{
     error::common::InternalError,
-    models::{DocumentId, PersonalizedDocument},
+    models::{PersonalizedDocument, SnippetId},
     personalization::filter::Filter,
-    storage::{self, KnnSearchParams, SearchStrategy},
+    storage::{self, Exclusions, KnnSearchParams, SearchStrategy},
     Error,
 };
 
 /// KNN search based on Centers of Interest.
 pub(super) struct CoiSearch<'a, I> {
     pub(super) interests: I,
-    pub(super) excluded: &'a [DocumentId],
+    pub(super) excluded: &'a Exclusions,
     pub(super) horizon: Duration,
     pub(super) max_cois: usize,
     pub(super) count: usize,
@@ -110,7 +110,7 @@ fn weighted_number(weight: f32, number: usize) -> usize {
 
 async fn merge_knn_searchs(
     mut results: impl Stream<Item = Result<Vec<PersonalizedDocument>, Error>> + Unpin,
-) -> (HashMap<DocumentId, PersonalizedDocument>, Vec<Error>) {
+) -> (HashMap<SnippetId, PersonalizedDocument>, Vec<Error>) {
     let mut all_documents = HashMap::new();
     let mut errors = Vec::new();
     while let Some(result) = results.next().await {
@@ -150,7 +150,7 @@ mod tests {
         let storage = Storage::default();
         let documents = CoiSearch {
             interests: &[],
-            excluded: &[],
+            excluded: &Exclusions::default(),
             horizon: CoiConfig::default().horizon(),
             max_cois: PersonalizationConfig::default().max_cois_for_knn,
             count: 10,
