@@ -28,6 +28,7 @@ use bincode::{deserialize, serialize};
 use chrono::{DateTime, Utc};
 use derive_more::{AsRef, Deref};
 use instant_distance::{Builder as HnswBuilder, HnswMap, Point, Search};
+use itertools::Itertools;
 use ouroboros::self_referencing;
 use serde::{de, ser::SerializeStruct, Deserialize, Deserializer, Serialize, Serializer};
 use tokio::sync::RwLock;
@@ -41,6 +42,8 @@ use crate::{
         common::{DocumentNotFound, DocumentPropertyNotFound},
     },
     models::{
+        DocumentContent,
+        DocumentForIngestion,
         DocumentId,
         DocumentProperties,
         DocumentProperty,
@@ -49,10 +52,10 @@ use crate::{
         DocumentTag,
         DocumentTags,
         ExcerptedDocument,
-        IngestedDocument,
-        InteractedDocument,
         PersonalizedDocument,
         PreprocessingStep,
+        Sha256Hash,
+        SnippetForInteraction,
         SnippetId,
         SnippetOrDocumentId,
         UserId,
@@ -235,20 +238,21 @@ pub(crate) struct Storage {
 
 #[async_trait(?Send)]
 impl storage::Document for Storage {
-    async fn get_interacted(
+    async fn get_snippets_for_interaction(
         &self,
-        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &DocumentId>>,
-    ) -> Result<Vec<InteractedDocument>, Error> {
+        ids: impl IntoIterator<IntoIter = impl ExactSizeIterator<Item = &SnippetId>>,
+    ) -> Result<Vec<SnippetForInteraction>, Error> {
         let documents = self.documents.read().await;
         let documents = ids
             .into_iter()
             .filter_map(|id| {
-                documents.0.get(id).and_then(|document| {
+                assert_eq!(id.sub_id(), 0);
+                documents.0.get(id.document_id()).and_then(|document| {
                     documents
                         .1
                         .borrow_map()
-                        .get(id)
-                        .map(|embedding| InteractedDocument {
+                        .get(id.document_id())
+                        .map(|embedding| SnippetForInteraction {
                             id: id.clone(),
                             embedding: embedding.clone(),
                             tags: document.tags.clone(),
@@ -300,7 +304,7 @@ impl storage::Document for Storage {
             .filter_map(|id| {
                 documents.0.get(id).map(|document| ExcerptedDocument {
                     id: id.clone(),
-                    snippet: document.snippet.clone(),
+                    original_sha256: Sha256Hash::calculate(document.snippet.as_bytes()),
                     preprocessing_step: document.preprocessing_step,
                     properties: document.properties.clone(),
                     tags: document.tags.clone(),
@@ -365,7 +369,7 @@ impl storage::Document for Storage {
 
     async fn insert(
         &self,
-        new_documents: Vec<IngestedDocument>,
+        new_documents: Vec<DocumentForIngestion>,
     ) -> Result<Warning<DocumentId>, Error> {
         if new_documents.is_empty() {
             return Ok(Warning::default());
@@ -374,18 +378,20 @@ impl storage::Document for Storage {
         let mut documents = self.documents.write().await;
         let mut embeddings = mem::take(&mut documents.1).into_heads().map;
         documents.0.reserve(new_documents.len());
-        for document in new_documents {
+        for mut document in new_documents {
+            assert_eq!(document.snippets.len(), 1);
+            let DocumentContent { snippet, embedding } = document.snippets.pop().unwrap();
             documents.0.insert(
                 document.id.clone(),
                 Document {
-                    snippet: document.snippet,
+                    snippet,
                     preprocessing_step: document.preprocessing_step,
                     properties: document.properties,
                     tags: document.tags,
                     is_candidate: document.is_candidate,
                 },
             );
-            embeddings.insert(document.id, document.embedding);
+            embeddings.insert(document.id, embedding);
         }
         documents.1 = Embeddings::borrowed(embeddings);
 
@@ -630,13 +636,18 @@ impl storage::Interaction for Storage {
         time: DateTime<Utc>,
         mut update_logic: impl for<'a, 'b> FnMut(InteractionUpdateContext<'a, 'b>) -> Coi,
     ) -> Result<(), Error> {
-        // TODO[pmk/ET-4756-5] properly support snippet id
-        let interactions = interactions.iter().map(|id| match id {
-            SnippetOrDocumentId::DocumentId(id) => id,
-            SnippetOrDocumentId::SnippetId(id) => id.document_id(),
-        });
+        // TODO[pmk/ET-4851] properly support interactions to multi-snippet document
+        let interactions = interactions
+            .into_iter()
+            .map(|id| match id {
+                SnippetOrDocumentId::SnippetId(id) => id,
+                SnippetOrDocumentId::DocumentId(id) => SnippetId::new(id, 0),
+            })
+            .collect_vec();
         // Note: This doesn't has the exact same concurrency semantics as the postgres version
-        let documents = self.get_interacted(interactions).await?;
+        let documents = self
+            .get_snippets_for_interaction(interactions.iter())
+            .await?;
         let mut interests = self.interests.write().await;
         let mut interactions = self.interactions.write().await;
         let interactions = interactions.entry(user_id.clone()).or_default();
@@ -659,7 +670,7 @@ impl storage::Interaction for Storage {
                 time,
             });
             if store_user_history {
-                interactions.insert((document.id.clone(), updated.stats.last_view));
+                interactions.insert((document.id.document_id().clone(), updated.stats.last_view));
             }
         }
 
@@ -742,13 +753,16 @@ mod tests {
         let documents = ids
             .iter()
             .zip(embeddings)
-            .map(|(id, embedding)| IngestedDocument {
+            .map(|(id, embedding)| DocumentForIngestion {
                 id: id.document_id().clone(),
-                snippet: DocumentSnippet::new("snippet", 100).unwrap(),
+                original_sha256: Sha256Hash::calculate(b"snippet"),
+                snippets: vec![DocumentContent {
+                    snippet: DocumentSnippet::new("snippet", 100).unwrap(),
+                    embedding,
+                }],
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: DocumentTags::default(),
-                embedding,
                 is_candidate: true,
             })
             .collect_vec();
@@ -811,13 +825,16 @@ mod tests {
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(
             &storage,
-            vec![IngestedDocument {
+            vec![DocumentForIngestion {
                 id: doc_id.document_id().clone(),
-                snippet: snippet.clone(),
+                original_sha256: Sha256Hash::calculate(snippet.as_bytes()),
+                snippets: vec![DocumentContent {
+                    snippet: snippet.clone(),
+                    embedding: embedding.clone(),
+                }],
                 preprocessing_step: PreprocessingStep::None,
                 properties: DocumentProperties::default(),
                 tags: tags.clone(),
-                embedding: embedding.clone(),
                 is_candidate: true,
             }],
         )
@@ -852,7 +869,10 @@ mod tests {
             .unwrap();
         assert_eq!(documents.len(), 1);
         assert_eq!(&documents[0].id, doc_id.document_id());
-        assert_eq!(documents[0].snippet, snippet);
+        assert_eq!(
+            documents[0].original_sha256,
+            Sha256Hash::calculate(snippet.as_bytes())
+        );
         let documents = storage::Document::get_personalized(&storage, [&doc_id], true, true)
             .await
             .unwrap();

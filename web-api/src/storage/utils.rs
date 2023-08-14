@@ -14,7 +14,7 @@
 
 //! Module containing non-database specific sqlx utilities.
 
-use std::iter;
+use std::iter::{Peekable, Take};
 
 use displaydoc::Display;
 use sqlx::{Database, Encode, QueryBuilder, Type};
@@ -52,8 +52,9 @@ where
         I::Item: SqlxPushAsTuple<'args, DB>,
     {
         self.push("(");
-        self.push_tuple(values.first);
-        for tuple in values.iter {
+        let mut iter = values.iter;
+        self.push_tuple(iter.next().unwrap(/*guaranteed non empty*/));
+        for tuple in iter {
             self.push(", ");
             self.push_tuple(tuple);
         }
@@ -108,23 +109,23 @@ pub(super) struct IterAsTuple<I>
 where
     I: Iterator,
 {
-    first: I::Item,
-    iter: I,
+    iter: Peekable<I>,
 }
 
 impl<I> IterAsTuple<I>
 where
     I: Iterator,
 {
+    #[allow(dead_code)]
     pub(super) fn new<II>(iter: II) -> Result<Self, UnsupportedEmptyTuple>
     where
         II: IntoIterator<IntoIter = I>,
     {
-        let mut iter = iter.into_iter();
-        let Some(first) = iter.next() else {
+        let mut iter = iter.into_iter().peekable();
+        if iter.peek().is_none() {
             return Err(UnsupportedEmptyTuple);
         };
-        Ok(Self { first, iter })
+        Ok(Self { iter })
     }
 
     pub(super) fn chunks<II>(chunk_size: usize, iter: II) -> ChunksAsTuple<I>
@@ -132,8 +133,7 @@ where
         II: IntoIterator<IntoIter = I>,
     {
         ChunksAsTuple {
-            chunk_size,
-            iter: iter.into_iter(),
+            iter: Chunks::new(chunk_size, iter),
         }
     }
 }
@@ -146,7 +146,6 @@ where
 {
     fn push_as_inner_tuple(self, builder: &mut QueryBuilder<'args, DB>) {
         let mut separated = builder.separated(", ");
-        separated.push_bind(self.first);
         for value in self.iter {
             separated.push_bind(value);
         }
@@ -157,16 +156,51 @@ pub(super) struct ChunksAsTuple<I>
 where
     I: Iterator,
 {
-    chunk_size: usize,
-    iter: I,
+    iter: Chunks<I>,
 }
 
 impl<I> ChunksAsTuple<I>
 where
     I: Iterator,
 {
-    pub(super) fn next(&mut self) -> Option<IterAsTuple<iter::Take<&mut I>>> {
-        IterAsTuple::new(self.iter.by_ref().take(self.chunk_size)).ok()
+    pub(super) fn next(&mut self) -> Option<IterAsTuple<impl Iterator<Item = I::Item> + '_>> {
+        // Hint: Chunks guarantees yielded iters are non empty
+        self.iter.next().map(|iter| IterAsTuple { iter })
+    }
+
+    pub(super) fn element_count(&self) -> usize
+    where
+        I: ExactSizeIterator,
+    {
+        self.iter.element_count()
+    }
+}
+
+pub(super) struct Chunks<I>
+where
+    I: Iterator,
+{
+    chunk_size: usize,
+    iter: I,
+}
+
+impl<I> Chunks<I>
+where
+    I: Iterator,
+{
+    pub(super) fn new<II>(chunk_size: usize, iter: II) -> Self
+    where
+        II: IntoIterator<IntoIter = I>,
+    {
+        Self {
+            chunk_size,
+            iter: iter.into_iter(),
+        }
+    }
+
+    pub(super) fn next(&mut self) -> Option<Peekable<Take<&mut I>>> {
+        let mut iter = self.iter.by_ref().take(self.chunk_size).peekable();
+        iter.peek().is_some().then_some(iter)
     }
 
     pub(super) fn element_count(&self) -> usize

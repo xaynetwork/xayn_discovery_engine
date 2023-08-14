@@ -12,37 +12,37 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xayn_ai_bert::NormalizedEmbedding;
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use crate::{
     embedding::Embedder,
-    models::{DocumentSnippet, PreprocessingStep},
+    models::{DocumentContent, DocumentSnippet, PreprocessingStep},
     Error,
 };
 
-pub(super) type DocumentContent = (DocumentSnippet, NormalizedEmbedding);
-
 pub(super) fn preprocess_document(
     embedder: &Embedder,
-    raw_text: DocumentSnippet,
+    original: DocumentSnippet,
     preprocessing_step: PreprocessingStep,
-) -> Result<DocumentContent, Error> {
+) -> Result<Vec<DocumentContent>, Error> {
     Ok(match preprocessing_step {
-        PreprocessingStep::None => embed_whole(embedder, raw_text)?,
-        PreprocessingStep::Summarize => embed_with_summarizer(embedder, raw_text)?,
+        PreprocessingStep::None => embed_whole(embedder, original)?,
+        PreprocessingStep::Summarize => embed_with_summarizer(embedder, original)?,
     })
 }
 
-fn embed_whole(embedder: &Embedder, snippet: DocumentSnippet) -> Result<DocumentContent, Error> {
+fn embed_whole(
+    embedder: &Embedder,
+    snippet: DocumentSnippet,
+) -> Result<Vec<DocumentContent>, Error> {
     let embedding = embedder.run(&snippet)?;
-    Ok((snippet, embedding))
+    Ok(vec![DocumentContent { snippet, embedding }])
 }
 
 fn embed_with_summarizer(
     embedder: &Embedder,
     snippet: DocumentSnippet,
-) -> Result<DocumentContent, Error> {
+) -> Result<Vec<DocumentContent>, Error> {
     let summary = summarize(
         &Summarizer::Naive,
         &Source::PlainText {
@@ -51,5 +51,10 @@ fn embed_with_summarizer(
         &Config::default(),
     );
     let embedding = embedder.run(&summary)?;
-    Ok((snippet, embedding))
+    Ok(vec![DocumentContent {
+        // Hint: Yes we do not use the summary, this is so that keyword/text search
+        //       can use the original text.
+        snippet,
+        embedding,
+    }])
 }

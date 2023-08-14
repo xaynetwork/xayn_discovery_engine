@@ -25,6 +25,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use sqlx::{
     postgres::{PgHasArrayType, PgTypeInfo},
     FromRow,
@@ -191,7 +192,6 @@ impl SnippetId {
         self.document_id
     }
 
-    #[allow(dead_code)]
     pub(crate) fn sub_id(&self) -> u32 {
         self.sub_id
     }
@@ -233,13 +233,29 @@ impl SnippetId {
     }
 }
 
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) enum SnippetOrDocumentId {
     SnippetId(SnippetId),
     DocumentId(DocumentId),
 }
 
+impl SnippetOrDocumentId {
+    pub(crate) fn document_id(&self) -> &DocumentId {
+        match self {
+            SnippetOrDocumentId::SnippetId(id) => id.document_id(),
+            SnippetOrDocumentId::DocumentId(id) => id,
+        }
+    }
+
+    pub(crate) fn sub_id(&self) -> Option<u32> {
+        match self {
+            SnippetOrDocumentId::SnippetId(id) => Some(id.sub_id()),
+            SnippetOrDocumentId::DocumentId(_) => None,
+        }
+    }
+}
 /// A document snippet.
-#[derive(Clone, Debug, Deref, Deserialize, PartialEq, Serialize, Type)]
+#[derive(Clone, Debug, Deref, Deserialize, Into, PartialEq, Serialize, Type)]
 #[serde(transparent)]
 #[sqlx(transparent)]
 pub(crate) struct DocumentSnippet(String);
@@ -404,16 +420,10 @@ impl<'a> IntoIterator for &'a DocumentTags {
     }
 }
 
-/// Represents a result from an interaction query.
 #[derive(Clone, Debug)]
-pub(crate) struct InteractedDocument {
-    /// Unique identifier of the document.
-    pub(crate) id: DocumentId,
-
-    /// Embedding from smbert.
+pub(crate) struct SnippetForInteraction {
+    pub(crate) id: SnippetId,
     pub(crate) embedding: NormalizedEmbedding,
-
-    /// The tags associated to the document.
     pub(crate) tags: DocumentTags,
 }
 
@@ -457,12 +467,15 @@ impl AiDocument for PersonalizedDocument {
 
 /// Represents a document sent for ingestion.
 #[derive(Clone, Debug)]
-pub(crate) struct IngestedDocument {
+pub(crate) struct DocumentForIngestion {
     /// Unique identifier of the document.
     pub(crate) id: DocumentId,
 
+    /// The sha256 hash of the original document provided by the client.
+    pub(crate) original_sha256: Sha256Hash,
+
     /// Snippet used to calculate embeddings for a document.
-    pub(crate) snippet: DocumentSnippet,
+    pub(crate) snippets: Vec<DocumentContent>,
 
     /// Method used to preprocess the document before ingestion.
     pub(crate) preprocessing_step: PreprocessingStep,
@@ -473,17 +486,36 @@ pub(crate) struct IngestedDocument {
     /// The tags associated to the document.
     pub(crate) tags: DocumentTags,
 
-    /// Embedding from smbert.
-    pub(crate) embedding: NormalizedEmbedding,
-
     /// Indicates if the document is considered for recommendations.
     pub(crate) is_candidate: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Type)]
+#[sqlx(transparent)]
+pub(crate) struct Sha256Hash([u8; 32]);
+
+impl Sha256Hash {
+    pub(crate) fn zero() -> Self {
+        Self([0; 32])
+    }
+
+    pub(crate) fn calculate(document: &[u8]) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update(document);
+        Self(hasher.finalize().into())
+    }
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct DocumentContent {
+    pub(crate) snippet: DocumentSnippet,
+    pub(crate) embedding: NormalizedEmbedding,
 }
 
 #[derive(Debug)]
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
-    pub(crate) snippet: DocumentSnippet,
+    pub(crate) original_sha256: Sha256Hash,
     pub(crate) preprocessing_step: PreprocessingStep,
     pub(crate) properties: DocumentProperties,
     pub(crate) tags: DocumentTags,
