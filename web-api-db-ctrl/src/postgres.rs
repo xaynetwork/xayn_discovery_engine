@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+mod extern_migrations;
+
 use std::{
     collections::hash_map::DefaultHasher,
     hash::{Hash, Hasher},
@@ -31,6 +33,8 @@ use tokio::time::sleep;
 use tracing::{debug, error, info, instrument};
 use xayn_web_api_shared::{postgres::QuotedIdentifier, request::TenantId};
 
+pub(crate) use self::extern_migrations::ExternalMigrator;
+use self::extern_migrations::PgExternalMigrator;
 use crate::{Error, Tenant};
 
 static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwrap());
@@ -71,11 +75,11 @@ const MIGRATION_LOCK_ID: i64 = 0;
 pub(super) async fn initialize<F1, F2>(
     pool: &Pool<Postgres>,
     legacy_setup: Option<impl FnOnce(TenantId) -> F1>,
-    migrate_tenant: impl Fn(TenantId) -> F2,
+    migrate_tenant: impl Fn(TenantId, PgExternalMigrator) -> F2,
 ) -> Result<Option<TenantId>, Error>
 where
     F1: Future<Output = Result<(), Error>>,
-    F2: Future<Output = Result<(), Error>>,
+    F2: Future<Output = Result<PgExternalMigrator, Error>>,
 {
     // Move out to make sure that a pool with a limit of 1 conn doesn't
     // lead to a dead lock when running tenant migrations. And that we
@@ -167,10 +171,10 @@ where
 async fn run_all_db_migrations<F>(
     pool: &Pool<Postgres>,
     lock_db: bool,
-    migrate_tenant: impl Fn(TenantId) -> F,
+    migrate_tenant: impl Fn(TenantId, PgExternalMigrator) -> F,
 ) -> Result<Vec<(TenantId, Error)>, Error>
 where
-    F: Future<Output = Result<(), Error>>,
+    F: Future<Output = Result<PgExternalMigrator, Error>>,
 {
     let tenants = list_tenants(pool).await?;
     // Hint: Parallelism is implicitly limited by the connection pool.
@@ -179,7 +183,9 @@ where
         async move {
             let mut tx = pool.begin().await?;
             run_db_migration_for(&mut tx, &tenant.tenant_id, lock_db).await?;
-            migrate_tenant(tenant.tenant_id.clone()).await?;
+            tx = migrate_tenant(tenant.tenant_id.clone(), tx.into())
+                .await?
+                .into();
             tx.commit().await?;
             Ok(())
         }

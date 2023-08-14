@@ -513,7 +513,6 @@ pub(super) struct Clauses<'a> {
 #[derive(Debug, Serialize)]
 #[serde(untagged)]
 enum ExcludedIds<'a> {
-    DocumentsById(Ids<'a, DocumentId>),
     SnippetsById(Ids<'a, Cow<'a, str>>),
     DocumentsByParent(Parents<'a>),
 }
@@ -542,9 +541,6 @@ impl<'a> Clauses<'a> {
         }
 
         if !exclusions.documents.is_empty() {
-            clauses.must_not.push(ExcludedIds::DocumentsById(Ids {
-                values: Cow::Borrowed(&exclusions.documents),
-            }));
             clauses
                 .must_not
                 .push(ExcludedIds::DocumentsByParent(Parents {
@@ -960,7 +956,6 @@ mod tests {
         };
         let value = json!({
             "must_not": [
-                { "ids": { "values": ["a", "b", "c"] } },
                 { "terms": { "parent": [ "a", "b", "c"] } },
                 { "ids": { "values": ["e", "_s.1.e"] } },
             ]

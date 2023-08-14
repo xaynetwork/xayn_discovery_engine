@@ -24,7 +24,6 @@ use std::{
 
 use bytes::Bytes;
 use derive_more::From;
-use futures_retry_policies::tokio::retry;
 use itertools::Itertools;
 use reqwest::{
     header::{HeaderMap, HeaderValue, CONTENT_TYPE},
@@ -65,6 +64,8 @@ pub struct Config {
 
     /// The retry policy for internal requests to elastic search.
     pub retry_policy: ExponentialJitterRetryPolicyConfig,
+
+    pub default_request_per_second: usize,
 }
 
 impl Default for Config {
@@ -80,6 +81,7 @@ impl Default for Config {
                 step_size: Duration::from_millis(300),
                 max_backoff: Duration::from_millis(1000),
             },
+            default_request_per_second: 500,
         }
     }
 }
@@ -102,6 +104,7 @@ pub struct Client {
     url_to_index: Arc<SegmentableUrl>,
     client: reqwest::Client,
     retry_policy: ExponentialJitterRetryPolicyConfig,
+    default_request_per_second: usize,
 }
 
 impl Client {
@@ -113,6 +116,7 @@ impl Client {
             index_name,
             timeout,
             retry_policy,
+            default_request_per_second,
         } = config;
         Ok(Self {
             auth: Auth { user, password }.into(),
@@ -122,6 +126,7 @@ impl Client {
                 .into(),
             client: reqwest::ClientBuilder::new().timeout(timeout).build()?,
             retry_policy,
+            default_request_per_second,
         })
     }
 
@@ -134,10 +139,10 @@ impl Client {
         F: Future<Output = Result<T, E>>,
         E: Display,
     {
-        let policy = ExponentialJitterRetryPolicy::new(self.retry_policy.clone())
-            .with_retry_filter(error_filter);
-
-        retry(policy, code).await
+        ExponentialJitterRetryPolicy::new(self.retry_policy.clone())
+            .with_retry_filter(error_filter)
+            .retry(code)
+            .await
     }
 
     /// Sets a different index.
@@ -152,7 +157,16 @@ impl Client {
                 .into(),
             client: self.client.clone(),
             retry_policy: self.retry_policy.clone(),
+            default_request_per_second: self.default_request_per_second,
         }
+    }
+
+    pub fn default_request_per_second(&self) -> usize {
+        self.default_request_per_second
+    }
+
+    pub fn get_index(&self) -> &str {
+        self.url_to_index.last_segment().unwrap(/*Client always has some index*/)
     }
 
     pub fn request<'a>(
@@ -189,6 +203,10 @@ impl Client {
 #[serde(rename_all = "lowercase")]
 pub enum BulkInstruction<I> {
     Index {
+        #[serde(rename = "_id")]
+        id: I,
+    },
+    Create {
         #[serde(rename = "_id")]
         id: I,
     },
@@ -580,6 +598,12 @@ impl SegmentableUrl {
         segments_mut.pop().push(last_segment);
         drop(segments_mut);
         Self(new_url)
+    }
+
+    pub fn last_segment(&self) -> Option<&str> {
+        self.0.path_segments()
+            .unwrap(/* we made sure this can't happen */)
+            .last()
     }
 }
 

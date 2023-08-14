@@ -68,17 +68,16 @@ impl Silo {
     pub async fn initialize(&self) -> Result<Option<TenantId>, Error> {
         let opt_legacy_setup = self.enable_legacy_tenant.as_ref().map(move |legacy_info| {
             move |tenant_id| async move {
-                elastic::setup_legacy_tenant(
-                    &self.elastic,
-                    &legacy_info.es_index,
-                    &tenant_id,
-                    self.embedding_size,
-                )
-                .await
+                let elastic = self.elastic.with_index(&tenant_id);
+                elastic::setup_legacy_tenant(elastic, &legacy_info.es_index, self.embedding_size)
+                    .await
             }
         });
-        let migrate_tenant = move |tenant_id| async move {
-            elastic::migrate_tenant_index(&self.elastic, &tenant_id, self.embedding_size).await
+        let migrate_tenant = move |tenant_id, mut migrator| async move {
+            let client = self.elastic.with_index(&tenant_id);
+            elastic::migrate_tenant_index(client, &tenant_id, self.embedding_size, &mut migrator)
+                .await?;
+            Ok(migrator)
         };
 
         postgres::initialize(&self.postgres, opt_legacy_setup, migrate_tenant).await
@@ -99,7 +98,8 @@ impl Silo {
     ) -> Result<Tenant, Error> {
         let mut tx = self.postgres.begin().await?;
         postgres::create_tenant(&mut tx, &tenant_id, is_legacy_tenant).await?;
-        elastic::create_tenant_index(&self.elastic, &tenant_id, self.embedding_size).await?;
+        elastic::create_tenant_index(&self.elastic.with_index(&tenant_id), self.embedding_size)
+            .await?;
         tx.commit().await?;
         Ok(Tenant {
             tenant_id,

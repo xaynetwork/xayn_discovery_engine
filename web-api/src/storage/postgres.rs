@@ -418,7 +418,7 @@ impl Database {
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<
         (
-            Vec<DocumentId>,
+            HashSet<DocumentId>,
             Vec<DocumentForIngestion>,
             Warning<DocumentId>,
         ),
@@ -427,22 +427,33 @@ impl Database {
         let mut tx = self.begin().await?;
 
         let mut ingestable = ids.into_iter().collect::<HashSet<_>>();
-        let (unchanged, removed) = sqlx::query_as::<_, DocumentId>(
+        let mut unchanged = HashSet::new();
+        let mut removed = HashSet::new();
+
+        sqlx::query_as::<_, (DocumentId,)>(
             "SELECT document_id
             FROM document
             WHERE is_candidate;",
         )
-        .fetch_all(&mut tx)
-        .await?
-        .into_iter()
-        .partition::<Vec<_>, _>(|id| ingestable.remove(id));
+        .fetch(&mut tx)
+        .try_for_each(|(document_id,)| {
+            if ingestable.contains(&document_id) {
+                unchanged.insert(document_id);
+            } else {
+                removed.insert(document_id);
+            }
+            future::ok(())
+        })
+        .await?;
+
+        ingestable.retain(|id| !unchanged.contains(*id));
 
         let mut builder = QueryBuilder::new(
             "UPDATE document
             SET is_candidate = FALSE
             WHERE document_id IN ",
         );
-        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, removed);
+        let mut chunks = IterAsTuple::chunks(Self::BIND_LIMIT, &removed);
         while let Some(ids) = chunks.next() {
             builder
                 .reset()
@@ -467,7 +478,7 @@ impl Database {
             })
             .unwrap_or_default();
 
-        Ok((unchanged, needs_ingestion, failed))
+        Ok((removed, needs_ingestion, failed))
     }
 
     async fn set_is_candidate_and_return_for_ingestion(
@@ -921,8 +932,8 @@ impl storage::Document for Storage {
                     Either::Right(document.id)
                 }
             });
-        let mut failed_documents = self.elastic.insert_documents(&candidates).await?;
-        failed_documents.extend(self.elastic.delete_documents(&noncandidates).await?);
+        let failed_documents = self.elastic.upsert_documents(&candidates).await?;
+        self.elastic.delete_by_parents(&noncandidates).await?;
 
         Ok(failed_documents)
     }
@@ -931,8 +942,8 @@ impl storage::Document for Storage {
         &self,
         ids: impl IntoIterator<IntoIter = impl Clone + ExactSizeIterator<Item = &DocumentId>>,
     ) -> Result<Warning<DocumentId>, Error> {
-        let (candidates, mut failed_documents) = self.postgres.delete_documents(ids).await?;
-        failed_documents.extend(self.elastic.delete_documents(&candidates).await?);
+        let (candidates, failed_documents) = self.postgres.delete_documents(ids).await?;
+        self.elastic.delete_by_parents(&candidates).await?;
 
         Ok(failed_documents)
     }
@@ -951,9 +962,9 @@ impl storage::DocumentCandidate for Storage {
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<Warning<DocumentId>, Error> {
-        let (unchanged, ingested, mut failed) = self.postgres.set_candidates(ids).await?;
-        self.elastic.retain_documents(&unchanged).await?;
-        failed.extend(self.elastic.insert_documents(&ingested).await?);
+        let (removed, ingested, mut failed) = self.postgres.set_candidates(ids).await?;
+        self.elastic.delete_by_parents(&removed).await?;
+        failed.extend(self.elastic.freshly_insert_documents(&ingested).await?);
 
         Ok(failed)
     }
@@ -963,7 +974,7 @@ impl storage::DocumentCandidate for Storage {
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<Warning<DocumentId>, Error> {
         let (ingested, mut failed) = self.postgres.add_candidates(ids).await?;
-        failed.extend(self.elastic.insert_documents(&ingested).await?);
+        failed.extend(self.elastic.freshly_insert_documents(&ingested).await?);
 
         Ok(failed)
     }
@@ -972,9 +983,8 @@ impl storage::DocumentCandidate for Storage {
         &self,
         ids: impl IntoIterator<Item = &DocumentId>,
     ) -> Result<Warning<DocumentId>, Error> {
-        let (removed, mut failed) = self.postgres.remove_candidates(ids).await?;
-        failed.extend(self.elastic.delete_documents(&removed).await?);
-
+        let (removed, failed) = self.postgres.remove_candidates(ids).await?;
+        self.elastic.delete_by_parents(&removed).await?;
         Ok(failed)
     }
 }

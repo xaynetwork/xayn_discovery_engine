@@ -72,8 +72,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
         let legacy_elastic_index_as_tenant_id =
             TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
         elastic_create_tenant(
-            &es_client,
-            &legacy_elastic_index_as_tenant_id,
+            &es_client.with_index(&legacy_elastic_index_as_tenant_id),
             TEST_EMBEDDING_SIZE,
         )
         .await?;
@@ -367,6 +366,31 @@ fn test_full_migration() {
         res1?;
         res2?;
         info!("stopped new ingestion & personalization");
+
+        let hits = send_assert_json::<Value>(
+            &client,
+            client
+                .get(format!(
+                    "{}/{}/_search",
+                    es_config.url, es_config.index_name
+                ))
+                .json(&json!({
+                    "query": {
+                        "match_all": {}
+                    },
+                    "_source": ["parent"]
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+
+        for document in hits["hits"]["hits"].as_array().unwrap() {
+            let id = &document["_id"];
+            let parent = &document["_source"]["parent"];
+            assert_eq!(id, parent);
+        }
         Ok(())
     })
 }
