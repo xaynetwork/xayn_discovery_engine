@@ -596,7 +596,7 @@ impl UnvalidatedSemanticSearchRequest {
 #[serde(untagged)]
 enum UnvalidatedSnippetOrDocumentId {
     DocumentId(String),
-    SnippetId { document_id: String, sub_id: usize },
+    SnippetId { document_id: String, sub_id: u32 },
 }
 
 impl From<SnippetOrDocumentId> for InputDocument {
