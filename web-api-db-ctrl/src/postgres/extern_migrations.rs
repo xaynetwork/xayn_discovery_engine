@@ -36,12 +36,6 @@ pub(crate) struct PgExternalMigrator {
     tx: Transaction<'static, Postgres>,
 }
 
-impl PgExternalMigrator {
-    fn tx(&mut self) -> &mut Transaction<'static, Postgres> {
-        &mut self.tx
-    }
-}
-
 #[derive(Debug, Copy, Clone, PartialEq, Type)]
 #[sqlx(type_name = "external_migration_state", rename_all = "snake_case")]
 enum ExternalMigrationState {
@@ -72,7 +66,7 @@ impl ExternalMigrator for PgExternalMigrator {
                 ON CONFLICT DO NOTHING;",
         )
         .bind(name)
-        .execute(self.tx())
+        .execute(&mut self.tx)
         .await?;
 
         if res.rows_affected() == 0 {
@@ -83,7 +77,7 @@ impl ExternalMigrator for PgExternalMigrator {
                     FOR UPDATE;",
             )
             .bind(name)
-            .fetch_one(self.tx())
+            .fetch_one(&mut self.tx)
             .await?;
 
             return match existing {
@@ -93,9 +87,10 @@ impl ExternalMigrator for PgExternalMigrator {
                 }
                 ExternalMigrationState::Pending => {
                     unreachable!(/*
-                        'pending' only exist during ongoing transactions as we don't share the transaction we
-                        run on with other tasks this should make it impossible to observe this state
-                    */)
+                        'pending' only exist during ongoing transactions as we don't share the
+                        transaction we run on with other tasks this should make it impossible to
+                        observe this state
+                    */);
                 }
             };
         }
@@ -115,7 +110,7 @@ impl ExternalMigrator for PgExternalMigrator {
         .bind(state)
         .bind(error)
         .bind(name)
-        .execute(self.tx())
+        .execute(&mut self.tx)
         .await?;
 
         result
