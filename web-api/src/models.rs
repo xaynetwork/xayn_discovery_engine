@@ -379,8 +379,8 @@ pub(crate) struct IngestedDocument {
     /// Snippet used to calculate embeddings for a document.
     pub(crate) snippet: DocumentSnippet,
 
-    /// Whether the embedding was computed on the summarized snippet.
-    pub(crate) is_summarized: bool,
+    /// Method used to preprocess the document before ingestion.
+    pub(crate) preprocessing_step: PreprocessingStep,
 
     /// Contents of the document properties.
     pub(crate) properties: DocumentProperties,
@@ -399,10 +399,18 @@ pub(crate) struct IngestedDocument {
 pub(crate) struct ExcerptedDocument {
     pub(crate) id: DocumentId,
     pub(crate) snippet: DocumentSnippet,
-    pub(crate) is_summarized: bool,
+    pub(crate) preprocessing_step: PreprocessingStep,
     pub(crate) properties: DocumentProperties,
     pub(crate) tags: DocumentTags,
     pub(crate) is_candidate: bool,
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+#[sqlx(type_name = "preprocessing_step", rename_all = "snake_case")]
+pub(crate) enum PreprocessingStep {
+    None,
+    Summarize,
 }
 
 #[cfg(test)]
