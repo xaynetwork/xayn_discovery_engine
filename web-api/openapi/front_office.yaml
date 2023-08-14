@@ -336,6 +336,9 @@ components:
       example:
         documents:
           - id: 'document_id0'
+            snippet_id:
+              document_id: 'document_id0'
+              sub_id: 2
             score: 0.87
             properties:
               title: "News title"
@@ -386,6 +389,9 @@ components:
       example:
         documents:
           - id: 'document_id0'
+            snippet_id:
+              document_id: 'document_id0'
+              sub_id: 2
             score: 0.87
             properties:
               title: "News title"
