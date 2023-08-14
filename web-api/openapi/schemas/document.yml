@@ -9,11 +9,11 @@ SnippetId:
   type: object
   required:
     - document_id
-    - snippet_idx
+    - sub_id
   properties:
     document_id:
       $ref: '#/DocumentId'
-    snippet_idx:
+    sub_id:
       type: number
       minimum: 0
 

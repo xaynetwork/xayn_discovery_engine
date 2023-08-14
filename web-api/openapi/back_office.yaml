@@ -447,14 +447,14 @@ components:
           type: boolean
         summarize:
           description: |-
-            Summarize the document snippets before further processing.
+            Summarize the document before further processing.
 
             This is incompatible with `split`.
           type: boolean
           default: false
         split:
           description: |-
-            Split the input documents into multiple parts.
+            Split the input document into multiple parts.
 
             This is incompatible with `summarize`.
           type: boolean

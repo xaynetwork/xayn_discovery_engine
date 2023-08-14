@@ -59,7 +59,7 @@ paths:
       description: |-
         Get a list of snippets personalized for the given `user_id`.
 
-        Each snippet has an id and contains the id of the document it is from as well as a score. A higher score means that the document matches the preferences of the user better.
+        Each snippet has an id and contains the id of the document it originates from as well as a score. A higher score means that the document matches the preferences of the user better.
         Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
 
         The snippet also contain the parent documents properties if this is requested and the properties are not empty.
@@ -184,7 +184,7 @@ paths:
 
         When a document id is used it will _currently_ search as if you had provided the snippet id of an
         arbitrary snippet in the document. This means it's for now only meaningful usable with documents which
-        only have one snippet. That will change in the future.
+        only have one snippet. That will likely change in the future.
 
         When a `query` is provided, the system will return documents that are similar to the query.
         If `enable_hybrid_search` is passed, then the system will also perform keyword matching between the query and the documents.
@@ -309,7 +309,7 @@ components:
             - $ref: '#/components/schemas/FilterCombine'
     PersonalizedDocumentData:
       type: object
-      required: [id, score]
+      required: [id, snippet_id, score]
       properties:
         id:
           deprecated: true
