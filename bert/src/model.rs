@@ -14,15 +14,24 @@
 
 use std::{fs::File, io::BufReader, path::PathBuf};
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Error};
 use derive_more::{Deref, From};
 use ndarray::CowArray;
 use ort::{
     environment::Environment,
+    execution_providers::{
+        ACLExecutionProviderOptions,
+        CPUExecutionProviderOptions,
+        CUDAExecutionProviderOptions,
+        ExecutionProvider,
+        TensorRTExecutionProviderOptions,
+    },
     session::{Session, SessionBuilder},
     value::Value,
+    GraphOptimizationLevel,
+    LoggingLevel,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use tract_onnx::prelude::{
     Framework,
     InferenceFact,
@@ -34,7 +43,10 @@ use tract_onnx::prelude::{
     TypedRunnableModel,
 };
 
-use crate::{config::Config, tokenizer::Encoding};
+use crate::{
+    config::{self, Config},
+    tokenizer::Encoding,
+};
 
 #[derive(Deserialize)]
 enum DynDim {
@@ -54,8 +66,8 @@ impl<P> Config<P> {
         &self,
         io: &'static str,
         mut model: InferenceModel,
-        with_io_fact: impl Fn(InferenceModel, usize, InferenceFact) -> Result<InferenceModel>,
-    ) -> Result<InferenceModel> {
+        with_io_fact: impl Fn(InferenceModel, usize, InferenceFact) -> Result<InferenceModel, Error>,
+    ) -> Result<InferenceModel, Error> {
         let mut i = 0;
         while let Ok(datum_type) = self
             .extract::<String>(&format!("model.{io}.{i}.type"))
@@ -88,12 +100,6 @@ pub(crate) struct Model {
     pub(crate) embedding_size: usize,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub enum RuntimeKind {
-    Tract,
-    Ort,
-}
-
 #[derive(Debug)]
 enum Runtime {
     Tract(TypedRunnableModel<TypedModel>),
@@ -101,14 +107,14 @@ enum Runtime {
 }
 
 impl Runtime {
-    pub(crate) fn new<P>(model: &PathBuf, config: &Config<P>) -> Result<Self> {
-        match config.runtime_kind {
-            RuntimeKind::Tract => Self::tract(model, config),
-            RuntimeKind::Ort => Self::ort(model),
+    pub(crate) fn new<P>(model: &PathBuf, config: &Config<P>) -> Result<Self, Error> {
+        match config.runtime {
+            config::Runtime::Tract => Self::tract(model, config),
+            config::Runtime::Ort => Self::ort(model),
         }
     }
 
-    fn tract<P>(model: &PathBuf, config: &Config<P>) -> Result<Self> {
+    fn tract<P>(model: &PathBuf, config: &Config<P>) -> Result<Self, Error> {
         let mut model = BufReader::new(File::open(model)?);
         let model = tract_onnx::onnx().model_for_read(&mut model)?;
         let model = config.extract_facts("input", model, InferenceModel::with_input_fact)?;
@@ -118,17 +124,28 @@ impl Runtime {
         Ok(Self::Tract(model))
     }
 
-    fn ort(model: &PathBuf) -> Result<Self> {
+    fn ort(model: &PathBuf) -> Result<Self, Error> {
         let environment = Environment::builder()
             .with_name("embedder")
+            .with_execution_providers([
+                ExecutionProvider::TensorRT(TensorRTExecutionProviderOptions::default()),
+                ExecutionProvider::CUDA(CUDAExecutionProviderOptions::default()),
+                ExecutionProvider::ACL(ACLExecutionProviderOptions::default()),
+                ExecutionProvider::CPU(CPUExecutionProviderOptions::default()),
+            ])
+            .with_log_level(LoggingLevel::Warning)
             .build()?
             .into_arc();
-        let session = SessionBuilder::new(&environment)?.with_model_from_file(model)?;
+        let session = SessionBuilder::new(&environment)?
+            // TODO: this is the default, we could run the optimizations once offline and then
+            // always load the optimized model from disk with GraphOptimizationLevel::Disable
+            .with_optimization_level(GraphOptimizationLevel::Level3)?
+            .with_model_from_file(model)?;
 
         Ok(Self::Ort(session))
     }
 
-    pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction> {
+    pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction, Error> {
         match self {
             Self::Tract(runtime) => Self::tract_predict(runtime, encoding),
             Self::Ort(runtime) => Self::ort_predict(runtime, encoding),
@@ -138,23 +155,31 @@ impl Runtime {
     fn tract_predict(
         model: &TypedRunnableModel<TypedModel>,
         encoding: Encoding,
-    ) -> Result<Prediction> {
+    ) -> Result<Prediction, Error> {
         let inputs = encoding.into();
         let mut outputs = model.run(inputs)?;
 
         Ok(outputs.swap_remove(0).into())
     }
 
-    fn ort_predict(session: &Session, encoding: Encoding) -> Result<Prediction> {
+    fn ort_predict(session: &Session, encoding: Encoding) -> Result<Prediction, Error> {
         let token_ids = CowArray::from(encoding.token_ids.into_dyn());
         let attention_mask = CowArray::from(encoding.attention_mask.into_dyn());
-        let type_ids = CowArray::from(encoding.type_ids.unwrap().into_dyn());
+        let type_ids = encoding
+            .type_ids
+            .map(|type_ids| CowArray::from(type_ids.into_dyn()));
 
-        let inputs = vec![
-            Value::from_array(session.allocator(), &token_ids)?,
-            Value::from_array(session.allocator(), &attention_mask)?,
-            Value::from_array(session.allocator(), &type_ids)?,
-        ];
+        let token_ids = Value::from_array(session.allocator(), &token_ids)?;
+        let attention_mask = Value::from_array(session.allocator(), &attention_mask)?;
+        let inputs = if let Some(type_ids) = &type_ids {
+            vec![
+                token_ids,
+                attention_mask,
+                Value::from_array(session.allocator(), type_ids)?,
+            ]
+        } else {
+            vec![token_ids, attention_mask]
+        };
 
         let outputs = session.run(inputs)?;
         let output = outputs[0]
@@ -162,6 +187,7 @@ impl Runtime {
             .view()
             .to_owned()
             .into_arc_tensor();
+
         Ok(TValue::Const(output).into())
     }
 }
@@ -174,7 +200,7 @@ pub(crate) struct Prediction(TValue);
 
 impl Model {
     /// Creates a model from a configuration.
-    pub(crate) fn new<P>(config: &Config<P>) -> Result<Self> {
+    pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, Error> {
         let model = config.dir.join("model.onnx");
         if !model.exists() {
             bail!("embedder model '{}' doesn't exist", model.display());
@@ -190,7 +216,7 @@ impl Model {
     }
 
     /// Runs prediction on the encoded sequence.
-    pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction> {
+    pub(crate) fn predict(&self, encoding: Encoding) -> Result<Prediction, Error> {
         self.runtime.predict(encoding)
     }
 }
@@ -200,6 +226,7 @@ mod tests {
     use std::unreachable;
 
     use ndarray::{Array, Array2, Dimension};
+    use ort::tensor::TensorElementDataType;
     use tract_onnx::prelude::{DatumType, IntoArcTensor};
     use xayn_test_utils::asset::smbert_mocked;
 
@@ -215,47 +242,107 @@ mod tests {
     }
 
     #[test]
-    fn test_new() {
+    fn test_new_tract() {
         let config = Config::new(smbert_mocked().unwrap())
             .unwrap()
-            .with_runtime(RuntimeKind::Tract)
             .with_token_size(64)
-            .unwrap();
+            .unwrap()
+            .with_runtime(config::Runtime::Tract);
+        let Model {
+            runtime,
+            token_size,
+            embedding_size,
+        } = Model::new(&config).unwrap();
+        let Runtime::Tract(model) = runtime else { unreachable!() };
+        let model = model.model();
 
-        let model = Model::new(&config).unwrap();
-        let Runtime::Tract(tract_model) = model.runtime else { unreachable!()};
-        let tract_model = tract_model.model();
-
-        assert_eq!(tract_model.input_outlets().unwrap().len(), 3);
-        let fact = tract_model.input_fact(0).unwrap();
-        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.token_size]);
+        assert_eq!(model.input_outlets().unwrap().len(), 3);
+        let fact = model.input_fact(0).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, token_size]);
         assert_eq!(fact.datum_type, DatumType::I64);
-        let fact = tract_model.input_fact(1).unwrap();
-        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.token_size]);
+        let fact = model.input_fact(1).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, token_size]);
         assert_eq!(fact.datum_type, DatumType::I64);
-        let fact = tract_model.input_fact(2).unwrap();
-        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.token_size]);
+        let fact = model.input_fact(2).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, token_size]);
         assert_eq!(fact.datum_type, DatumType::I64);
 
-        assert_eq!(tract_model.output_outlets().unwrap().len(), 2);
-        let fact = tract_model.output_fact(0).unwrap();
+        assert_eq!(model.output_outlets().unwrap().len(), 2);
+        let fact = model.output_fact(0).unwrap();
         assert_eq!(
             fact.shape.as_concrete().unwrap(),
-            [1, model.token_size, model.embedding_size],
+            [1, token_size, embedding_size],
         );
         assert_eq!(fact.datum_type, DatumType::F32);
-        let fact = tract_model.output_fact(1).unwrap();
-        assert_eq!(fact.shape.as_concrete().unwrap(), [1, model.embedding_size]);
+        let fact = model.output_fact(1).unwrap();
+        assert_eq!(fact.shape.as_concrete().unwrap(), [1, embedding_size]);
         assert_eq!(fact.datum_type, DatumType::F32);
     }
 
     #[test]
-    fn test_predict() {
+    fn test_new_ort() {
+        let config = Config::new(smbert_mocked().unwrap())
+            .unwrap()
+            .with_token_size(64)
+            .unwrap()
+            .with_runtime(config::Runtime::Ort);
+        let Model {
+            runtime,
+            embedding_size,
+            ..
+        } = Model::new(&config).unwrap();
+        let Runtime::Ort(session) = runtime else { unreachable!() };
+        #[allow(clippy::cast_possible_truncation)]
+        let embedding_size = embedding_size as u32;
+
+        assert_eq!(session.inputs.len(), 3);
+        let input = &session.inputs[0];
+        assert_eq!(input.dimensions, [None, None]);
+        assert_eq!(input.input_type, TensorElementDataType::Int64);
+        let input = &session.inputs[1];
+        assert_eq!(input.dimensions, [None, None]);
+        assert_eq!(input.input_type, TensorElementDataType::Int64);
+        let input = &session.inputs[2];
+        assert_eq!(input.dimensions, [None, None]);
+        assert_eq!(input.input_type, TensorElementDataType::Int64);
+
+        assert_eq!(session.outputs.len(), 2);
+        let output = &session.outputs[0];
+        assert_eq!(output.dimensions, [None, None, None]);
+        assert_eq!(output.output_type, TensorElementDataType::Float32);
+        let output = &session.outputs[1];
+        assert_eq!(output.dimensions, [None, Some(embedding_size)]);
+        assert_eq!(output.output_type, TensorElementDataType::Float32);
+    }
+
+    #[test]
+    fn test_predict_tract() {
         let shape = (1, 64);
         let config = Config::new(smbert_mocked().unwrap())
             .unwrap()
             .with_token_size(shape.1)
-            .unwrap();
+            .unwrap()
+            .with_runtime(config::Runtime::Tract);
+        let model = Model::new(&config).unwrap();
+
+        let encoding = Encoding {
+            token_ids: Array2::from_elem(shape, 0),
+            attention_mask: Array2::from_elem(shape, 1),
+            type_ids: Some(Array2::from_elem(shape, 0)),
+        };
+        let prediction = model.predict(encoding).unwrap();
+        assert_eq!(model.token_size, shape.1);
+        assert_eq!(prediction.shape(), [shape.0, shape.1, model.embedding_size]);
+    }
+
+    #[test]
+    fn test_predict_ort() {
+        let shape = (1, 64);
+        let config = Config::new(smbert_mocked().unwrap())
+            .unwrap()
+            .with_token_size(shape.1)
+            .unwrap()
+            .with_runtime(config::Runtime::Ort);
         let model = Model::new(&config).unwrap();
 
         let encoding = Encoding {

@@ -11,13 +11,20 @@ derive_more = { workspace = true }
 displaydoc = { workspace = true }
 figment = { workspace = true }
 ndarray = { workspace = true, features = ["serde"] }
-ort = { version = "1.15.2" }
+# TODO: remove download feature and store binary with target arch features
+ort = { version = "1.15.2", default-features = false, features = ["download-binaries"] }
 serde = { workspace = true }
 sqlx = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokenizers = { version = "0.13.3", default-features = false, features = ["onig"] }
 tract-onnx = "0.20.7"
 xayn-test-utils = { path = "../test-utils" }
+
+# [target.'cfg(target_arch = "arm")'.dependencies]
+# ort = { features = ["acl"] }
+
+# [target.'cfg(target_arch = "cuda")'.dependencies]
+# ort = { features = ["cuda"] }
 
 [dev-dependencies]
 criterion = { workspace = true }

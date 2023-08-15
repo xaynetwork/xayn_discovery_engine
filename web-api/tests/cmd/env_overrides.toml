@@ -55,7 +55,7 @@ stdout = """
     "type": "pipeline",
     "directory": "assets",
     "token_size": 250,
-    "runtime_kind": "Tract"
+    "runtime": "tract"
   },
   "tenants": {
     "enable_legacy_tenant": false,

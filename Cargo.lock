@@ -2688,7 +2688,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c5e56c9c4185ee949ef961aca8777d1dbd52cb104b444669adad63e8181820a7"
 dependencies = [
  "flate2",
- "half 2.2.1",
  "lazy_static",
  "libc",
  "ndarray",

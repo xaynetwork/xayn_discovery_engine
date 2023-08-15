@@ -19,14 +19,21 @@ use figment::{
     providers::{Format, Toml},
     Figment,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
-    model::{Model, RuntimeKind},
+    model::Model,
     pipeline::{Pipeline, PipelineError},
     pooler::NonePooler,
     tokenizer::Tokenizer,
 };
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Runtime {
+    Tract,
+    Ort,
+}
 
 /// A pipeline configuration.
 ///
@@ -82,20 +89,13 @@ pub struct Config<P> {
     pub(crate) dir: PathBuf,
     toml: Figment,
     pub(crate) token_size: usize,
-    pub(crate) runtime_kind: RuntimeKind,
+    pub(crate) runtime: Runtime,
     pooler: PhantomData<P>,
 }
 
 impl Config<NonePooler> {
     /// Creates a pipeline configuration.
     pub fn new(dir: impl Into<PathBuf>) -> Result<Self, Error> {
-        Self::new_with_runtime(dir, RuntimeKind::Tract)
-    }
-
-    pub fn new_with_runtime(
-        dir: impl Into<PathBuf>,
-        runtime_kind: RuntimeKind,
-    ) -> Result<Self, Error> {
         let dir = dir.into();
         if !dir.exists() {
             return Err(Error::from(Kind::Message(format!(
@@ -120,7 +120,7 @@ impl Config<NonePooler> {
             dir,
             toml,
             token_size,
-            runtime_kind,
+            runtime: Runtime::Tract,
             pooler: PhantomData,
         })
     }
@@ -163,11 +163,11 @@ impl<P> Config<P> {
         Ok(self)
     }
 
-    /// Sets the runtime to use (tract or ort).
+    /// Sets the runtime for the model.
     ///
-    /// Defaults to tract.
-    pub fn with_runtime(mut self, kind: RuntimeKind) -> Self {
-        self.runtime_kind = kind;
+    /// Defaults to `Tract`.
+    pub fn with_runtime(mut self, runtime: Runtime) -> Self {
+        self.runtime = runtime;
 
         self
     }
@@ -180,7 +180,7 @@ impl<P> Config<P> {
             dir: self.dir,
             toml: self.toml,
             token_size: self.token_size,
-            runtime_kind: self.runtime_kind,
+            runtime: self.runtime,
             pooler: PhantomData,
         }
     }

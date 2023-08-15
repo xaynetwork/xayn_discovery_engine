@@ -50,7 +50,7 @@ stdout = """
     "type": "pipeline",
     "directory": "assets",
     "token_size": 250,
-    "runtime_kind": "Tract"
+    "runtime": "tract"
   },
   "personalization": {
     "max_number_documents": 100,

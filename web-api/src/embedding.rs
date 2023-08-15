@@ -16,7 +16,7 @@ use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Deserializer, Serialize};
 use serde_json::json;
-use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding, RuntimeKind};
+use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding, Runtime};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
@@ -39,7 +39,7 @@ pub struct Pipeline {
     #[serde(deserialize_with = "deserialize_relative_path_buf")]
     pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
-    pub(crate) runtime_kind: RuntimeKind,
+    pub(crate) runtime: Runtime,
 }
 
 fn deserialize_relative_path_buf<'de, D>(deserializer: D) -> Result<RelativePathBuf, D::Error>
@@ -55,7 +55,7 @@ impl Default for Pipeline {
         Self {
             directory: "assets".into(),
             token_size: 250,
-            runtime_kind: RuntimeKind::Tract,
+            runtime: Runtime::Tract,
         }
     }
 }
@@ -63,7 +63,7 @@ impl Default for Pipeline {
 impl Pipeline {
     fn load(&self) -> Result<Embedder, SetupError> {
         let config = EmbedderConfig::new(self.directory.relative())?
-            .with_runtime(self.runtime_kind)
+            .with_runtime(self.runtime)
             .with_token_size(self.token_size)?
             .with_pooler();
         config.validate()?;
