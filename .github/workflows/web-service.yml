@@ -13,16 +13,6 @@ on:
         type: string
         default: v0002
         required: true
-      runtime_name:
-        description: Name of the runtime
-        type: string
-        default: ort
-        required: true
-      runtime_version:
-        description: Version of the runtime
-        type: string
-        default: v1.15.1
-        required: true
       platform:
         description: Platform to build the image for
         type: choice
@@ -34,7 +24,7 @@ on:
       tag:
         description: >
           A tag for image identification. This override the default.
-          Default is <branch>-<timestamp>-<commit hash>-<model_name>_<model_version>-<runtime_name>_<runtime_version>-<platform>.
+          Default is <branch>-<timestamp>-<commit hash>-<model_name>_<model_version>-<platform>.
           Step 'Images name' will print the name of the generated images.
         type: string
         required: false
@@ -46,8 +36,10 @@ permissions:
 
 env:
   DENY_WARNINGS: false
-  frontoffice_archive: "web-service-frontoffice"
-  backoffice_archive: "web-service-backoffice"
+  runtime_name: ort
+  runtime_version: v1.15.1
+  frontoffice_archive: web-service-frontoffice
+  backoffice_archive: web-service-backoffice
 
 jobs:
   services-build:
@@ -81,7 +73,7 @@ jobs:
       - name: Download assets
         run: just download-assets \
           ${{ inputs.model_name }} ${{ inputs.model_version }} \
-          ${{ inputs.runtime_name }} ${{ inputs.runtime_version }}
+          ${{ env.runtime_name }} ${{ env.runtime_version }}
 
       - name: Create backoffice artifact
         uses: ./.github/actions/release_artifact
@@ -90,7 +82,7 @@ jobs:
           bin_name: "ingestion"
           archive_name: ${{ env.backoffice_archive }}
           model_full_name: ${{ inputs.model_name }}_${{ inputs.model_version }}
-          runtime_full_name: ${{ inputs.runtime_name }}_${{ inputs.runtime_version }}
+          runtime_full_name: ${{ env.runtime_name }}_${{ env.runtime_version }}
 
       - name: Create frontoffice artifact
         uses: ./.github/actions/release_artifact
@@ -99,7 +91,7 @@ jobs:
           bin_name: "personalization"
           archive_name: ${{ env.frontoffice_archive }}
           model_full_name: ${{ inputs.model_name }}_${{ inputs.model_version }}
-          runtime_full_name: ${{ inputs.runtime_name }}_${{ inputs.runtime_version }}
+          runtime_full_name: ${{ env.runtime_name }}_${{ env.runtime_version }}
 
   docker-build:
     runs-on: ubuntu-22.04
@@ -126,7 +118,6 @@ jobs:
             TAG="$TAG-$(date +"%y%m%d%H%M%S")"
             TAG="$TAG-$(git rev-parse --short HEAD)"
             TAG="$TAG-${{ inputs.model_name }}_${{ inputs.model_version }}"
-            TAG="$TAG-${{ inputs.runtime_name }}_${{ inputs.runtime_version }}"
             TAG="$TAG-${{ inputs.platform }}"
           fi
           frontoffice_image_name="xaynetci/xayn_discovery_web_service:$TAG"
