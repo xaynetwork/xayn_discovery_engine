@@ -5122,6 +5122,7 @@ dependencies = [
 name = "xayn-test-utils"
 version = "0.2.0"
 dependencies = [
+ "cfg-if",
  "float-cmp",
  "ndarray",
  "once_cell",

@@ -7,7 +7,7 @@ license = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
-cfg-if = "1.0.0"
+cfg-if = { workspace = true }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 figment = { workspace = true }

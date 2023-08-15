@@ -125,10 +125,7 @@ impl Runtime {
     }
 
     fn ort<P>(config: &Config<P>) -> Result<Self, Error> {
-        const ORT_DYLIB_PATH: &str = "ORT_DYLIB_PATH";
-        let ort_dylib_path = env::var_os(ORT_DYLIB_PATH);
-        env::set_var(ORT_DYLIB_PATH, config.runtime()?);
-
+        env::set_var("ORT_DYLIB_PATH", config.runtime()?);
         let environment = Environment::builder()
             .with_name("embedder")
             .with_execution_providers([
@@ -141,13 +138,6 @@ impl Runtime {
             .with_log_level(LoggingLevel::Warning)
             .build()?
             .into_arc();
-
-        if let Some(ort_dylib_path) = ort_dylib_path {
-            env::set_var(ORT_DYLIB_PATH, ort_dylib_path);
-        } else {
-            env::remove_var(ORT_DYLIB_PATH);
-        }
-
         let session = SessionBuilder::new(&environment)?
             // TODO: this is the default, we could run the optimizations once offline and then
             // always load the optimized model from disk with GraphOptimizationLevel::Disable

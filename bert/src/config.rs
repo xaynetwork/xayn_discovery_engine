@@ -236,18 +236,17 @@ impl<P> Config<P> {
             Runtime::Ort(dir) => dir,
         };
         cfg_if! {
-            if #[cfg(all(target_os = "linux", target_arch = "aarch64"))] {
-                let runtime = dir.join("linux_aarch64/lib/libonnxruntime.so");
-            } else if #[cfg(all(target_os = "linux", target_arch = "x86_64"))] {
-                let runtime = dir.join("linux_x64/lib/libonnxruntime.so");
+            if #[cfg(target_os = "linux")] {
+                let extension = "so";
             } else if #[cfg(target_os = "macos")] {
-                let runtime = dir.join("macos/lib/libonnxruntime.dylib");
+                let extension = "dylib";
             } else {
                 return Err(Error::from(Kind::Message(
-                    "embedder runtime isn't available for this target os/arch".into(),
+                    "embedder runtime isn't available for this target os".into(),
                 )));
             }
         }
+        let runtime = dir.join(format!("lib/libonnxruntime.{extension}"));
 
         if runtime.exists() {
             Ok(runtime)

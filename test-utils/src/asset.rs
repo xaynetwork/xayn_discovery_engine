@@ -18,7 +18,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-const DATA_DIR: &str = "assets/";
+use cfg_if::cfg_if;
+
+const ASSETS_DIR: &str = "assets/";
 
 /// Resolves the path to the requested data relative to the workspace directory.
 fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
@@ -36,34 +38,47 @@ fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
         .canonicalize()
 }
 
-/// Resolves the path to the qasmbert model.
-pub fn qasmbert() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "qasmbert_v0002"])
-}
-
 /// Resolves the path to the smbert model.
 pub fn smbert() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smbert_v0004"])
+    resolve_path(&[ASSETS_DIR, "smbert_v0004"])
 }
 
 /// Resolves the path to the mocked smbert model.
 pub fn smbert_mocked() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "smbert_mocked_v0004"])
+    resolve_path(&[ASSETS_DIR, "smbert_mocked_v0004"])
 }
 
 /// Resolves the path to the mocked e5 model.
 pub fn e5_mocked() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "e5_mocked_v0000"])
+    resolve_path(&[ASSETS_DIR, "e5_mocked_v0000"])
 }
 
 /// Resolves the path to the xaynia model.
 pub fn xaynia() -> Result<PathBuf> {
-    qasmbert()
+    resolve_path(&[ASSETS_DIR, "xaynia_v0002"])
+}
+
+/// Resolves the target of the onnxruntime library.
+pub fn ort_target() -> Result<&'static str> {
+    cfg_if! {
+        if #[cfg(all(target_os = "linux", target_arch = "aarch64"))] {
+            Ok("linux_aarch64")
+        } else if #[cfg(all(target_os = "linux", target_arch = "x86_64"))] {
+            Ok("linux_x64")
+        } else if #[cfg(target_os = "macos")] {
+            Ok("macos")
+        } else {
+            Err(Error::new(
+                ErrorKind::Unsupported,
+                "onnxruntime isn't available for this target os/arch",
+            ))
+        }
+    }
 }
 
 /// Resolves the path to the onnxruntime library.
 pub fn ort() -> Result<PathBuf> {
-    resolve_path(&[DATA_DIR, "ort_v1.15.1"])
+    resolve_path(&[ASSETS_DIR, "ort_v1.15.1", ort_target()?])
 }
 
 #[cfg(test)]
@@ -81,12 +96,17 @@ mod tests {
     }
 
     #[test]
-    fn test_qasmbert() {
-        assert!(qasmbert().is_ok());
+    fn test_e5_mocked() {
+        assert!(e5_mocked().is_ok());
     }
 
     #[test]
-    fn test_e5_mocked() {
-        assert!(e5_mocked().is_ok());
+    fn test_xaynia() {
+        assert!(xaynia().is_ok());
+    }
+
+    #[test]
+    fn test_ort() {
+        assert!(ort().is_ok());
     }
 }

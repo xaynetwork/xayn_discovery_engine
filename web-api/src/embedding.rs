@@ -55,7 +55,7 @@ impl Default for Pipeline {
         Self {
             directory: "assets".into(),
             token_size: 250,
-            runtime: Runtime::Tract,
+            runtime: Runtime::Ort("assets".into()),
         }
     }
 }
@@ -204,14 +204,26 @@ impl Embedder {
 
 #[cfg(test)]
 mod tests {
-    use xayn_test_utils::asset::xaynia;
+    use xayn_test_utils::asset::{ort, xaynia};
 
     use super::*;
 
     #[tokio::test]
-    async fn test_embedder() {
+    async fn test_embedder_tract() {
         let config = Config::Pipeline(Pipeline {
             directory: xaynia().unwrap().into(),
+            runtime: Runtime::Tract,
+            ..Pipeline::default()
+        });
+        let embedder = Embedder::load(&config).await.unwrap();
+        embedder.run("test").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_embedder_ort() {
+        let config = Config::Pipeline(Pipeline {
+            directory: xaynia().unwrap().into(),
+            runtime: Runtime::Ort(ort().unwrap()),
             ..Pipeline::default()
         });
         let embedder = Embedder::load(&config).await.unwrap();

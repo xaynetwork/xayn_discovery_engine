@@ -61,7 +61,7 @@ use tracing_subscriber::{
     EnvFilter,
     Layer,
 };
-use xayn_test_utils::env::clear_env;
+use xayn_test_utils::{asset::ort_target, env::clear_env};
 use xayn_web_api::{config, start, AppHandle, Application, Ingestion};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
@@ -679,7 +679,7 @@ pub fn build_test_config_from_parts_and_names(
     let es_config = Value::try_from(es_config).unwrap();
 
     // Hint: Relative path doesn't work with `cargo flamegraph`
-    let embedding_dir = PROJECT_ROOT
+    let model_dir = PROJECT_ROOT
         .join("assets")
         .join(model_name)
         .display()
@@ -697,7 +697,7 @@ pub fn build_test_config_from_parts_and_names(
 
         [embedding]
         type = "pipeline"
-        directory = embedding_dir
+        directory = model_dir
         runtime = runtime_dir
     };
 
@@ -725,7 +725,7 @@ pub fn build_test_config_from_parts(
         es_config,
         configure,
         "xaynia_v0002",
-        "ort_v1.15.1",
+        &format!("ort_v1.15.1/{}", ort_target().unwrap()),
     )
 }
 

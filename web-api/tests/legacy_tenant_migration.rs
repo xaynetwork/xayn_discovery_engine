@@ -34,7 +34,7 @@ use xayn_integration_tests::{
     MANAGEMENT_DB,
     TEST_EMBEDDING_SIZE,
 };
-use xayn_test_utils::env::clear_env;
+use xayn_test_utils::{asset::ort_target, env::clear_env};
 use xayn_web_api::{config, start, Ingestion, Personalization};
 use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
@@ -185,7 +185,7 @@ fn test_full_migration() {
             &es_config,
             Table::new(),
             "smbert_v0003",
-            "ort_v1.15.1",
+            &format!("ort_v1.15.1/{}", ort_target().unwrap()),
         );
 
         info!("test setup done");
@@ -290,7 +290,7 @@ fn test_full_migration() {
             &es_config,
             Table::new(),
             "smbert_v0004",
-            "ort_v1.15.1",
+            &format!("ort_v1.15.1/{}", ort_target().unwrap()),
         );
         let args = &[
             "integration-test",
