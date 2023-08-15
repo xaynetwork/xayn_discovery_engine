@@ -62,6 +62,7 @@ impl Default for Pipeline {
 #[serde(deny_unknown_fields)]
 pub struct Sagemaker {
     pub(crate) endpoint: String,
+    pub(crate) embedding_size: usize,
     pub(crate) target_model: Option<String>,
     pub(crate) retry_max_attempts: Option<u32>,
     pub(crate) aws_region: Option<String>,
@@ -73,6 +74,7 @@ pub(crate) enum Embedder {
     Sagemaker {
         client: Client,
         endpoint: String,
+        embedding_size: usize,
         target_model: Option<String>,
     },
 }
@@ -91,7 +93,7 @@ impl Embedder {
     }
 
     fn load_pipeline(config: &Pipeline) -> Result<Self, SetupError> {
-        let config = EmbedderConfig::new(RelativePathBuf::from(&config.directory).relative())?
+        let config = EmbedderConfig::new(config.directory.relative())?
             .with_token_size(config.token_size)?
             .with_pooler();
         config.validate()?;
@@ -120,6 +122,7 @@ impl Embedder {
 
         Ok(Self::Sagemaker {
             client,
+            embedding_size: config.embedding_size,
             endpoint: config.endpoint.clone(),
             target_model: config.target_model.clone(),
         })
@@ -136,6 +139,7 @@ impl Embedder {
                 client,
                 endpoint,
                 target_model,
+                ..
             } => Self::run_sagemaker(client, endpoint, target_model, sequence).await,
         }
     }
@@ -183,9 +187,7 @@ impl Embedder {
     pub(crate) fn embedding_size(&self) -> usize {
         match self {
             Embedder::Pipeline(embedder) => embedder.embedding_size(),
-            Embedder::Sagemaker { .. } => {
-                unimplemented!("embedding_size is not implemented for the sagemaker embedder")
-            }
+            Embedder::Sagemaker { embedding_size, .. } => *embedding_size,
         }
     }
 }
@@ -199,7 +201,7 @@ mod tests {
     #[tokio::test]
     async fn test_embedder() {
         let config = Config::Pipeline(Pipeline {
-            directory: xaynia().unwrap().display().to_string(),
+            directory: xaynia().unwrap().into(),
             ..Pipeline::default()
         });
         let embedder = Embedder::load(&config).await.unwrap();
