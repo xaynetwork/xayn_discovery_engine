@@ -5167,6 +5167,7 @@ dependencies = [
  "npyz",
  "once_cell",
  "ouroboros",
+ "pyo3",
  "rand",
  "regex",
  "reqwest",

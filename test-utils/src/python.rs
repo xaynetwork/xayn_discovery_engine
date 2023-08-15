@@ -29,9 +29,10 @@ use pyo3::{types::PyDict, Python};
 ///
 /// As this is a test util it will panic on failure.
 pub fn initialize_python() {
+    pyo3::prepare_freethreaded_python();
+
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
-        pyo3::prepare_freethreaded_python();
         Python::with_gil(inject_snippet_extractor_venv_activation).unwrap();
     })
 }

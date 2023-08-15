@@ -83,6 +83,9 @@ where
     let pwd = current_dir().unwrap_or_else(|_| PathBuf::from("<no working directory set>"));
     info!(pwd=?pwd);
 
+    pyo3::prepare_freethreaded_python();
+    info!("initialized python runtime");
+
     let net_config = net::Config::clone(config.as_ref());
     let app_state = Arc::new(AppState::<A>::create(config).await?);
     let legacy_tenant = app_state.legacy_tenant().cloned();
