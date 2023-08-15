@@ -14,7 +14,7 @@
 
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut};
-use itertools::Itertools;
+use futures_util::{stream::FuturesOrdered, TryStreamExt};
 use serde::Serialize;
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 use xayn_test_utils::error::Panic;
@@ -48,11 +48,12 @@ pub(super) struct State {
 }
 
 impl State {
-    pub(super) fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
+    pub(super) async fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
         let embedder = Embedder::load(&embedding::Config::Pipeline(Pipeline {
             directory: "../assets/xaynia_v0002".into(),
             ..Pipeline::default()
         }))
+        .await
         .map_err(|error| Panic::from(&*error))?;
 
         let coi = config.coi.build();
@@ -75,9 +76,9 @@ impl State {
     pub(super) async fn insert(&self, documents: Vec<Document>) -> Result<(), Panic> {
         let documents = documents
             .into_iter()
-            .map(|document| {
-                let embedding = self.embedder.run(&document.snippet)?;
-                Ok(DocumentForIngestion {
+            .map(|document| async move {
+                let embedding = self.embedder.run(&document.snippet).await?;
+                Ok::<_, Panic>(DocumentForIngestion {
                     id: document.id,
                     original_sha256: Sha256Hash::calculate(document.snippet.as_bytes()),
                     snippets: vec![DocumentContent {
@@ -90,7 +91,10 @@ impl State {
                     is_candidate: true,
                 })
             })
-            .try_collect::<_, _, Panic>()?;
+            .collect::<FuturesOrdered<_>>()
+            .try_collect()
+            .await?;
+
         storage::Document::insert(&self.storage, documents).await?;
 
         Ok(())

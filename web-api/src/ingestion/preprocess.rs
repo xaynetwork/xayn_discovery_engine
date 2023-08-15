@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use itertools::Itertools;
+use futures_util::{stream::FuturesOrdered, TryStreamExt};
 use xayn_summarizer::{summarize, Config, Source, Summarizer};
 
 use crate::{
@@ -22,27 +22,27 @@ use crate::{
     Error,
 };
 
-pub(super) fn preprocess_document(
+pub(super) async fn preprocess_document(
     embedder: &Embedder,
     original: DocumentSnippet,
     preprocessing_step: PreprocessingStep,
 ) -> Result<Vec<DocumentContent>, Error> {
     Ok(match preprocessing_step {
-        PreprocessingStep::None => embed_whole(embedder, original)?,
-        PreprocessingStep::Summarize => embed_with_summarizer(embedder, original)?,
-        PreprocessingStep::CuttersSplit => embed_with_cutters(embedder, &original)?,
+        PreprocessingStep::None => embed_whole(embedder, original).await?,
+        PreprocessingStep::Summarize => embed_with_summarizer(embedder, original).await?,
+        PreprocessingStep::CuttersSplit => embed_with_cutters(embedder, &original).await?,
     })
 }
 
-fn embed_whole(
+async fn embed_whole(
     embedder: &Embedder,
     snippet: DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
-    let embedding = embedder.run(&snippet)?;
+    let embedding = embedder.run(&snippet).await?;
     Ok(vec![DocumentContent { snippet, embedding }])
 }
 
-fn embed_with_summarizer(
+async fn embed_with_summarizer(
     embedder: &Embedder,
     snippet: DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
@@ -53,7 +53,7 @@ fn embed_with_summarizer(
         },
         &Config::default(),
     );
-    let embedding = embedder.run(&summary)?;
+    let embedding = embedder.run(&summary).await?;
     Ok(vec![DocumentContent {
         // Hint: Yes we do not use the summary, this is so that keyword/text search
         //       can use the original text.
@@ -62,18 +62,20 @@ fn embed_with_summarizer(
     }])
 }
 
-fn embed_with_cutters(
+async fn embed_with_cutters(
     embedder: &Embedder,
     snippet: &DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
     let snippets = cutters::cut(snippet, cutters::Language::English)
         .into_iter()
-        .map(|split| {
+        .map(|split| async move {
             let snippet = DocumentSnippet::new(split.str, split.str.len())?;
-            let embedding = embedder.run(&snippet)?;
-            Ok(DocumentContent { snippet, embedding })
+            let embedding = embedder.run(&snippet).await?;
+            Ok::<_, Error>(DocumentContent { snippet, embedding })
         })
-        .try_collect::<_, Vec<_>, Error>()?;
+        .collect::<FuturesOrdered<_>>()
+        .try_collect::<Vec<_>>()
+        .await?;
 
     if snippets.is_empty() {
         Err(InvalidDocumentSnippet::NoSnippets {}.into())

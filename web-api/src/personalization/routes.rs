@@ -760,7 +760,7 @@ async fn semantic_search(
             (embedding, None)
         }
         InputDocument::Query(ref query) => {
-            let embedding = state.embedder.run(query)?;
+            let embedding = state.embedder.run(query).await?;
             (embedding, Some(query))
         }
     };

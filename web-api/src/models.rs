@@ -254,6 +254,7 @@ impl SnippetOrDocumentId {
         }
     }
 }
+
 /// A document snippet.
 #[derive(Clone, Debug, Deref, Deserialize, Into, PartialEq, Serialize, Type)]
 #[serde(transparent)]

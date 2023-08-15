@@ -59,7 +59,8 @@ pub(crate) enum Embedder {
 }
 
 impl Embedder {
-    pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
+    #[allow(clippy::unused_async)] // required for sagemaker
+    pub(crate) async fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
             Config::Pipeline(Pipeline {
                 directory,
@@ -78,7 +79,8 @@ impl Embedder {
         Ok(Self::Pipeline(embedder))
     }
 
-    pub(crate) fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
+    #[allow(clippy::unused_async)] // required for sagemaker
+    pub(crate) async fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
         match self {
             Embedder::Pipeline(embedder) => embedder
                 .run(sequence)
@@ -101,13 +103,13 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn test_embedder() {
+    #[tokio::test]
+    async fn test_embedder() {
         let config = Config::Pipeline(Pipeline {
             directory: xaynia().unwrap().into(),
             ..Pipeline::default()
         });
-        let embedder = Embedder::load(&config).unwrap();
-        embedder.run("test").unwrap();
+        let embedder = Embedder::load(&config).await.unwrap();
+        embedder.run("test").await.unwrap();
     }
 }
