@@ -1,0 +1,15 @@
+[package]
+name = "xayn-snippet-extractor"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+description = "Library for extracting multiple snippets from a document."
+license = { workspace = true }
+
+[dependencies]
+displaydoc = { workspace = true }
+pyo3 = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+xayn-test-utils = { path = "../test-utils" }
