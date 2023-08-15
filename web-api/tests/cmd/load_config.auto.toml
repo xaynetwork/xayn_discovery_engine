@@ -53,7 +53,7 @@ stdout = """
   },
   "embedding": {
     "type": "pipeline",
-    "directory": "assets",
+    "directory": "assets/model",
     "token_size": 250,
     "runtime": "assets"
   },

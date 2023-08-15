@@ -14,7 +14,7 @@
 
 use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding, Runtime};
 
@@ -36,18 +36,10 @@ impl Default for Config {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Pipeline {
-    #[serde(deserialize_with = "deserialize_relative_path_buf")]
+    #[serde(deserialize_with = "RelativePathBuf::deserialize_string")]
     pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
     pub(crate) runtime: Runtime,
-}
-
-fn deserialize_relative_path_buf<'de, D>(deserializer: D) -> Result<RelativePathBuf, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let buf = String::deserialize(deserializer)?;
-    Ok(RelativePathBuf::from(buf))
 }
 
 impl Default for Pipeline {
