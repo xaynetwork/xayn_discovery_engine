@@ -34,7 +34,7 @@ on:
       tag:
         description: >
           A tag for image identification. This override the default.
-          Default is <branch>-<timestamp>-<commit hash>-<model_name>_<model_version>-<platform>.
+          Default is <branch>-<timestamp>-<commit hash>-<model_name>_<model_version>-<runtime_name>_<runtime_version>-<platform>.
           Step 'Images name' will print the name of the generated images.
         type: string
         required: false
@@ -125,7 +125,8 @@ jobs:
             TAG="$(git rev-parse --abbrev-ref HEAD)"
             TAG="$TAG-$(date +"%y%m%d%H%M%S")"
             TAG="$TAG-$(git rev-parse --short HEAD)"
-            TAG="$TAG-${{ inputs.model_name}}_${{ inputs.model_version }}"
+            TAG="$TAG-${{ inputs.model_name }}_${{ inputs.model_version }}"
+            TAG="$TAG-${{ inputs.runtime_name }}_${{ inputs.runtime_version }}"
             TAG="$TAG-${{ inputs.platform }}"
           fi
           frontoffice_image_name="xaynetci/xayn_discovery_web_service:$TAG"
