@@ -12,9 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{fs::File, io::BufReader, path::PathBuf};
+use std::{env, fs::File, io::BufReader};
 
-use anyhow::{bail, Error};
+use anyhow::Error;
 use derive_more::{Deref, From};
 use ndarray::CowArray;
 use ort::{
@@ -107,15 +107,15 @@ enum Runtime {
 }
 
 impl Runtime {
-    pub(crate) fn new<P>(model: &PathBuf, config: &Config<P>) -> Result<Self, Error> {
+    pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, Error> {
         match config.runtime {
-            config::Runtime::Tract => Self::tract(model, config),
-            config::Runtime::Ort => Self::ort(model),
+            config::Runtime::Tract => Self::tract(config),
+            config::Runtime::Ort => Self::ort(config),
         }
     }
 
-    fn tract<P>(model: &PathBuf, config: &Config<P>) -> Result<Self, Error> {
-        let mut model = BufReader::new(File::open(model)?);
+    fn tract<P>(config: &Config<P>) -> Result<Self, Error> {
+        let mut model = BufReader::new(File::open(config.model()?)?);
         let model = tract_onnx::onnx().model_for_read(&mut model)?;
         let model = config.extract_facts("input", model, InferenceModel::with_input_fact)?;
         let model = config.extract_facts("output", model, InferenceModel::with_output_fact)?;
@@ -124,10 +124,15 @@ impl Runtime {
         Ok(Self::Tract(model))
     }
 
-    fn ort(model: &PathBuf) -> Result<Self, Error> {
+    fn ort<P>(config: &Config<P>) -> Result<Self, Error> {
+        const ORT_DYLIB_PATH: &str = "ORT_DYLIB_PATH";
+        let ort_dylib_path = env::var_os(ORT_DYLIB_PATH);
+        env::set_var(ORT_DYLIB_PATH, config.runtime()?);
+
         let environment = Environment::builder()
             .with_name("embedder")
             .with_execution_providers([
+                // TODO: add onnxruntime gpu libraries to assets
                 ExecutionProvider::TensorRT(TensorRTExecutionProviderOptions::default()),
                 ExecutionProvider::CUDA(CUDAExecutionProviderOptions::default()),
                 ExecutionProvider::ACL(ACLExecutionProviderOptions::default()),
@@ -136,11 +141,18 @@ impl Runtime {
             .with_log_level(LoggingLevel::Warning)
             .build()?
             .into_arc();
+
+        if let Some(ort_dylib_path) = ort_dylib_path {
+            env::set_var(ORT_DYLIB_PATH, ort_dylib_path);
+        } else {
+            env::remove_var(ORT_DYLIB_PATH);
+        }
+
         let session = SessionBuilder::new(&environment)?
             // TODO: this is the default, we could run the optimizations once offline and then
             // always load the optimized model from disk with GraphOptimizationLevel::Disable
             .with_optimization_level(GraphOptimizationLevel::Level3)?
-            .with_model_from_file(model)?;
+            .with_model_from_file(config.model()?)?;
 
         Ok(Self::Ort(session))
     }
@@ -201,15 +213,8 @@ pub(crate) struct Prediction(TValue);
 impl Model {
     /// Creates a model from a configuration.
     pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, Error> {
-        let model = config.dir.join("model.onnx");
-        if !model.exists() {
-            bail!("embedder model '{}' doesn't exist", model.display());
-        }
-
-        let runtime = Runtime::new(&model, config)?;
-
         Ok(Model {
-            runtime,
+            runtime: Runtime::new(config)?,
             token_size: config.token_size,
             embedding_size: config.extract("model.output.0.shape.2")?,
         })

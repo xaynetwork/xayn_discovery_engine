@@ -185,6 +185,40 @@ impl<P> Config<P> {
         }
     }
 
+    pub(crate) fn model(&self) -> Result<PathBuf, Error> {
+        let model = self.dir.join("model.onnx");
+
+        if model.exists() {
+            Ok(model)
+        } else {
+            Err(Error::from(Kind::Message(format!(
+                "embedder model '{}' doesn't exist",
+                model.display(),
+            ))))
+        }
+    }
+
+    pub(crate) fn runtime(&self) -> Result<PathBuf, Error> {
+        // TODO: add the ort libraries to the image and the infra assets
+        let runtime =
+            self.dir.parent().unwrap(/* dir exists and must have a parent */).join("ort_v0000");
+        #[cfg(target_os = "macos")]
+        let runtime = runtime.join("macos/lib/libonnxruntime.dylib");
+        #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
+        let runtime = runtime.join("linux_x64/lib/libonnxruntime.so");
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        let runtime = runtime.join("linux_aarch64/lib/libonnxruntime.so");
+
+        if runtime.exists() {
+            Ok(runtime)
+        } else {
+            Err(Error::from(Kind::Message(format!(
+                "embedder runtime '{}' doesn't exist",
+                runtime.display(),
+            ))))
+        }
+    }
+
     /// Creates a pipeline from a configuration.
     pub fn build(&self) -> Result<Pipeline<P>, PipelineError> {
         let tokenizer = Tokenizer::new(self)?;
