@@ -12,19 +12,40 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+pub enum Config {
+    Pipeline(Pipeline),
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self::Pipeline(Pipeline::default())
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Config {
+pub struct Pipeline {
+    #[serde(deserialize_with = "deserialize_relative_path_buf")]
     pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
 }
 
-impl Default for Config {
+fn deserialize_relative_path_buf<'de, D>(deserializer: D) -> Result<RelativePathBuf, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let buf = String::deserialize(deserializer)?;
+    Ok(RelativePathBuf::from(buf))
+}
+
+impl Default for Pipeline {
     fn default() -> Self {
         Self {
             directory: "assets".into(),
@@ -33,31 +54,44 @@ impl Default for Config {
     }
 }
 
-pub(crate) struct Embedder {
-    embedder: AvgEmbedder,
+pub(crate) enum Embedder {
+    Pipeline(AvgEmbedder),
 }
 
 impl Embedder {
     pub(crate) fn load(config: &Config) -> Result<Self, SetupError> {
-        let config = EmbedderConfig::new(config.directory.relative())?
-            .with_token_size(config.token_size)?
+        match config {
+            Config::Pipeline(Pipeline {
+                directory,
+                token_size,
+            }) => Self::load_pipeline(directory, *token_size),
+        }
+    }
+
+    fn load_pipeline(directory: &RelativePathBuf, token_size: usize) -> Result<Self, SetupError> {
+        let config = EmbedderConfig::new(directory.relative())?
+            .with_token_size(token_size)?
             .with_pooler();
         config.validate()?;
         let embedder = config.build()?;
 
-        Ok(Self { embedder })
+        Ok(Self::Pipeline(embedder))
     }
 
     pub(crate) fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
-        self.embedder
-            .run(sequence)
-            .map_err(InternalError::from_std)?
-            .normalize()
-            .map_err(InternalError::from_std)
+        match self {
+            Embedder::Pipeline(embedder) => embedder
+                .run(sequence)
+                .map_err(InternalError::from_std)?
+                .normalize()
+                .map_err(InternalError::from_std),
+        }
     }
 
     pub(crate) fn embedding_size(&self) -> usize {
-        self.embedder.embedding_size()
+        match self {
+            Embedder::Pipeline(embedder) => embedder.embedding_size(),
+        }
     }
 }
 
@@ -69,10 +103,10 @@ mod tests {
 
     #[test]
     fn test_embedder() {
-        let config = Config {
+        let config = Config::Pipeline(Pipeline {
             directory: xaynia().unwrap().into(),
-            ..Config::default()
-        };
+            ..Pipeline::default()
+        });
         let embedder = Embedder::load(&config).unwrap();
         embedder.run("test").unwrap();
     }

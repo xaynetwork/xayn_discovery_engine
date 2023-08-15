@@ -690,6 +690,7 @@ pub fn build_test_config_from_parts_and_model(
         elastic = es_config
 
         [embedding]
+        type = "pipeline"
         directory = embedding_dir
     };
 

@@ -47,6 +47,7 @@ stdout = """
     "horizon": 30
   },
   "embedding": {
+    "type": "pipeline",
     "directory": "assets",
     "token_size": 250
   },
