@@ -66,15 +66,15 @@ async fn embed_with_cutters(
     embedder: &Embedder,
     snippet: &DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
-    let snippets: Vec<DocumentContent> = cutters::cut(snippet, cutters::Language::English)
+    let snippets = cutters::cut(snippet, cutters::Language::English)
         .into_iter()
         .map(|split| async move {
             let snippet = DocumentSnippet::new(split.str, split.str.len())?;
             let embedding = embedder.run(&snippet).await?;
-            Ok::<DocumentContent, Error>(DocumentContent { snippet, embedding })
+            Ok::<_, Error>(DocumentContent { snippet, embedding })
         })
         .collect::<FuturesOrdered<_>>()
-        .try_collect()
+        .try_collect::<Vec<_>>()
         .await?;
 
     if snippets.is_empty() {
