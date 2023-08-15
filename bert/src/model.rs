@@ -110,7 +110,7 @@ impl Runtime {
     pub(crate) fn new<P>(config: &Config<P>) -> Result<Self, Error> {
         match config.runtime {
             config::Runtime::Tract => Self::tract(config),
-            config::Runtime::Ort => Self::ort(config),
+            config::Runtime::Ort(_) => Self::ort(config),
         }
     }
 
@@ -233,7 +233,7 @@ mod tests {
     use ndarray::{Array, Array2, Dimension};
     use ort::tensor::TensorElementDataType;
     use tract_onnx::prelude::{DatumType, IntoArcTensor};
-    use xayn_test_utils::asset::smbert_mocked;
+    use xayn_test_utils::asset::{ort, smbert_mocked};
 
     use super::*;
 
@@ -290,7 +290,7 @@ mod tests {
             .unwrap()
             .with_token_size(64)
             .unwrap()
-            .with_runtime(config::Runtime::Ort);
+            .with_runtime(config::Runtime::Ort(ort().unwrap()));
         let Model {
             runtime,
             embedding_size,
@@ -347,7 +347,7 @@ mod tests {
             .unwrap()
             .with_token_size(shape.1)
             .unwrap()
-            .with_runtime(config::Runtime::Ort);
+            .with_runtime(config::Runtime::Ort(ort().unwrap()));
         let model = Model::new(&config).unwrap();
 
         let encoding = Encoding {

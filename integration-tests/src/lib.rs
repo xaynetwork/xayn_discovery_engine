@@ -667,11 +667,12 @@ where
 /// Embedding size used by the `Embedder` used for testing.
 pub const TEST_EMBEDDING_SIZE: usize = 384;
 
-pub fn build_test_config_from_parts_and_model(
+pub fn build_test_config_from_parts_and_names(
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
     configure: Table,
     model_name: &str,
+    runtime_name: &str,
 ) -> Table {
     let pg_password = pg_config.password.expose_secret().as_str();
     let pg_config = Value::try_from(pg_config).unwrap();
@@ -683,6 +684,11 @@ pub fn build_test_config_from_parts_and_model(
         .join(model_name)
         .display()
         .to_string();
+    let runtime_dir = PROJECT_ROOT
+        .join("assets")
+        .join(runtime_name)
+        .display()
+        .to_string();
 
     let mut config = toml! {
         [storage]
@@ -692,6 +698,7 @@ pub fn build_test_config_from_parts_and_model(
         [embedding]
         type = "pipeline"
         directory = embedding_dir
+        runtime = runtime_dir
     };
 
     //the password was serialized as REDACTED in to_toml_value
@@ -713,7 +720,13 @@ pub fn build_test_config_from_parts(
     es_config: &elastic::Config,
     configure: Table,
 ) -> Table {
-    build_test_config_from_parts_and_model(pg_config, es_config, configure, "xaynia_v0002")
+    build_test_config_from_parts_and_names(
+        pg_config,
+        es_config,
+        configure,
+        "xaynia_v0002",
+        "ort_v1.15.1",
+    )
 }
 
 #[derive(Clone, Debug, Display, Deref, AsRef)]

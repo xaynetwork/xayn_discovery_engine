@@ -63,7 +63,7 @@ impl Default for Pipeline {
 impl Pipeline {
     fn load(&self) -> Result<Embedder, SetupError> {
         let config = EmbedderConfig::new(self.directory.relative())?
-            .with_runtime(self.runtime)
+            .with_runtime(self.runtime.clone())
             .with_token_size(self.token_size)?
             .with_pooler();
         config.validate()?;

@@ -5005,6 +5005,7 @@ name = "xayn-ai-bert"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "cfg-if",
  "criterion",
  "csv",
  "derive_more",

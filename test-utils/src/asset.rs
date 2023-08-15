@@ -61,6 +61,11 @@ pub fn xaynia() -> Result<PathBuf> {
     qasmbert()
 }
 
+/// Resolves the path to the onnxruntime library.
+pub fn ort() -> Result<PathBuf> {
+    resolve_path(&[DATA_DIR, "ort_v1.15.1"])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

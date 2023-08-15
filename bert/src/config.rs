@@ -14,6 +14,7 @@
 
 use std::{marker::PhantomData, path::PathBuf};
 
+use cfg_if::cfg_if;
 use figment::{
     error::{Actual, Error, Kind},
     providers::{Format, Toml},
@@ -28,11 +29,38 @@ use crate::{
     tokenizer::Tokenizer,
 };
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Debug)]
 pub enum Runtime {
     Tract,
-    Ort,
+    Ort(PathBuf),
+}
+
+impl Runtime {
+    const TRACT: &str = "tract";
+}
+
+impl<'de> Deserialize<'de> for Runtime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match String::deserialize(deserializer)? {
+            tract if tract == Self::TRACT => Ok(Self::Tract),
+            ort => Ok(Self::Ort(ort.into())),
+        }
+    }
+}
+
+impl Serialize for Runtime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Tract => Self::TRACT.serialize(serializer),
+            Self::Ort(ort) => ort.serialize(serializer),
+        }
+    }
 }
 
 /// A pipeline configuration.
@@ -199,15 +227,27 @@ impl<P> Config<P> {
     }
 
     pub(crate) fn runtime(&self) -> Result<PathBuf, Error> {
-        // TODO: add the ort libraries to the image and the infra assets
-        let runtime =
-            self.dir.parent().unwrap(/* dir exists and must have a parent */).join("ort_v0000");
-        #[cfg(target_os = "macos")]
-        let runtime = runtime.join("macos/lib/libonnxruntime.dylib");
-        #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
-        let runtime = runtime.join("linux_x64/lib/libonnxruntime.so");
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-        let runtime = runtime.join("linux_aarch64/lib/libonnxruntime.so");
+        let dir = match &self.runtime {
+            Runtime::Tract => {
+                return Err(Error::from(Kind::Message(
+                    "embedder runtime isn't available for tract".into(),
+                )))
+            }
+            Runtime::Ort(dir) => dir,
+        };
+        cfg_if! {
+            if #[cfg(all(target_os = "linux", target_arch = "aarch64"))] {
+                let runtime = dir.join("linux_aarch64/lib/libonnxruntime.so");
+            } else if #[cfg(all(target_os = "linux", target_arch = "x86_64"))] {
+                let runtime = dir.join("linux_x64/lib/libonnxruntime.so");
+            } else if #[cfg(target_os = "macos")] {
+                let runtime = dir.join("macos/lib/libonnxruntime.dylib");
+            } else {
+                return Err(Error::from(Kind::Message(
+                    "embedder runtime isn't available for this target os/arch".into(),
+                )));
+            }
+        }
 
         if runtime.exists() {
             Ok(runtime)
