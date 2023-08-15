@@ -1250,7 +1250,7 @@ impl storage::Interaction for Storage {
         let mut tx = self.postgres.begin().await?;
         Database::acquire_user_coi_lock(&mut tx, user_id).await?;
 
-        // TODO[pmk/soon] proper support for interaction with multi-snippet documents
+        // TODO[pmk/ET-4851] proper support for interaction with multi-snippet documents
         let interactions = interactions
             .into_iter()
             .map(|id| match id {
