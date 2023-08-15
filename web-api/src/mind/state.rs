@@ -15,7 +15,6 @@
 use chrono::{DateTime, Utc};
 use derive_more::{Deref, DerefMut};
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
-use itertools::Itertools;
 use serde::Serialize;
 use xayn_ai_coi::{CoiConfig, CoiSystem};
 use xayn_test_utils::error::Panic;
@@ -79,7 +78,7 @@ impl State {
             .into_iter()
             .map(|document| async move {
                 let embedding = self.embedder.run(&document.snippet).await?;
-                Ok::<_, Panic>(IngestedDocument {
+                Ok::<_, Panic>(DocumentForIngestion {
                     id: document.id,
                     original_sha256: Sha256Hash::calculate(document.snippet.as_bytes()),
                     snippets: vec![DocumentContent {
