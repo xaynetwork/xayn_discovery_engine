@@ -14,7 +14,7 @@
 
 use std::{fs::File, io::BufReader, path::PathBuf};
 
-use anyhow::bail;
+use anyhow::{bail, Result};
 use derive_more::{Deref, From};
 use ndarray::CowArray;
 use ort::{
@@ -48,8 +48,6 @@ enum Dimension {
     Fixed(usize),
     Dynamic(DynDim),
 }
-
-use anyhow::Result;
 
 impl<P> Config<P> {
     fn extract_facts(
