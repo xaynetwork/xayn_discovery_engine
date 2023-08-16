@@ -50,9 +50,9 @@ if [ $# -gt 0 ]; then
     done
 else
     download smbert v0003
-    download smbert v0004
-    download smbert_mocked v0004
-    download e5_mocked v0000
-    download xaynia v0002
+    download smbert v0005
+    download smbert_mocked v0005
+    download e5_mocked v0001
+    download xaynia v0201
     download ort v1.15.1
 fi

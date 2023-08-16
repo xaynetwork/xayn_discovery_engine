@@ -20,7 +20,7 @@ def create_mock_onnx_model(model_path: str, graph_def: GraphProto) -> None:
     onnx.save(model_def, model_path)
     print(f"The model is saved under {model_path}: \N{heavy check mark}")
 
-def create_smbert_graph() -> GraphProto:
+def create_bert_graph(embedding: int) -> GraphProto:
     # Create inputs (ValueInfoProto)
     input_type_proto = helper.make_tensor_type_proto(
         TensorProto.INT64,
@@ -37,12 +37,12 @@ def create_smbert_graph() -> GraphProto:
         helper.make_tensor_value_info(
             'output_0',
             TensorProto.FLOAT,
-            ['batch', 'sequence', 'Addoutput_0_dim_2'],
+            ['batch', 'sequence', embedding],
         ),
         helper.make_tensor_value_info(
             'output_1',
             TensorProto.FLOAT,
-            ['batch', 128],
+            ['batch', embedding],
         ),
     ]
 
@@ -68,7 +68,7 @@ def create_smbert_graph() -> GraphProto:
                 name='const_tensor',
                 data_type=TensorProto.INT64,
                 dims=[1],
-                vals=[128],
+                vals=[embedding],
             )
         ),
         helper.make_node(
@@ -111,7 +111,7 @@ def create_smbert_graph() -> GraphProto:
     # Create the graph (GraphProto)
     return helper.make_graph(
         nodes,
-        'smbert-mocked',
+        'bert-mocked',
         inputs,
         outputs,
         [condition_tensor],
@@ -144,10 +144,17 @@ if __name__ == '__main__':
     )
     parser.add_argument(
         "--type",
-        choices=["smbert"],
+        choices=["bert"],
         required=False,
-        default="smbert",
+        default="bert",
         help="Type of the model.",
+    )
+    parser.add_argument(
+        "--embedding",
+        type=int,
+        required=False,
+        default=128,
+        help="Embedding size of the model.",
     )
 
     args = parser.parse_args()
@@ -157,15 +164,14 @@ if __name__ == '__main__':
         print(f"The specified path: \"{args.output}\" does not exist: \N{heavy ballot x}")
         exit(1)
 
-    filename_prefix = args.type
-    model_path = os.path.join(model_path, f"{filename_prefix}-mocked.onnx")
+    model_path = os.path.join(model_path, "model.onnx")
     create_graph_choices = {
-        "smbert": create_smbert_graph,
+        "bert": create_bert_graph,
     }
 
     try:
         print("\n====== Converting model to ONNX ======")
-        graph_def = create_graph_choices.get(args.type)()
+        graph_def = create_graph_choices.get(args.type)(args.embedding)
         create_mock_onnx_model(model_path, graph_def)
         verify(model_path)
     except Exception as e:

@@ -40,22 +40,22 @@ fn resolve_path(path: &[impl AsRef<Path>]) -> Result<PathBuf> {
 
 /// Resolves the path to the smbert model.
 pub fn smbert() -> Result<PathBuf> {
-    resolve_path(&[ASSETS_DIR, "smbert_v0004"])
+    resolve_path(&[ASSETS_DIR, "smbert_v0005"])
 }
 
 /// Resolves the path to the mocked smbert model.
 pub fn smbert_mocked() -> Result<PathBuf> {
-    resolve_path(&[ASSETS_DIR, "smbert_mocked_v0004"])
+    resolve_path(&[ASSETS_DIR, "smbert_mocked_v0005"])
 }
 
 /// Resolves the path to the mocked e5 model.
 pub fn e5_mocked() -> Result<PathBuf> {
-    resolve_path(&[ASSETS_DIR, "e5_mocked_v0000"])
+    resolve_path(&[ASSETS_DIR, "e5_mocked_v0001"])
 }
 
 /// Resolves the path to the xaynia model.
 pub fn xaynia() -> Result<PathBuf> {
-    resolve_path(&[ASSETS_DIR, "xaynia_v0002"])
+    resolve_path(&[ASSETS_DIR, "xaynia_v0201"])
 }
 
 /// Resolves the target of the onnxruntime library.

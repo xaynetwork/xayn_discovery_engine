@@ -724,7 +724,7 @@ pub fn build_test_config_from_parts(
         pg_config,
         es_config,
         configure,
-        "xaynia_v0002",
+        "xaynia_v0201",
         &format!("ort_v1.15.1/{}", ort_target().unwrap()),
     )
 }
