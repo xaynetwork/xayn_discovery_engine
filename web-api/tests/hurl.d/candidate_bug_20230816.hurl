@@ -1,5 +1,5 @@
 # Ingest One Document
-POST https://{{host}}/documents
+POST {{url}}/documents
 authorizationToken: {{bo_token}}
 {
   "documents": [
@@ -23,7 +23,7 @@ HTTP 201
 
 # Set candidate
 
-PUT https://{{host}}/candidates
+PUT {{url}}/candidates
 authorizationToken: {{bo_token}}
 {
     "documents" :[{ "id": "8d53f7ae-b2a0-4821-94d2-b9904b276166"}]
@@ -33,7 +33,7 @@ HTTP 204
 
 # Get candidate
 
-GET https://{{host}}/candidates
+GET {{url}}/candidates
 authorizationToken: {{bo_token}}
 
 HTTP 200
@@ -43,7 +43,7 @@ jsonpath "$.documents" count == 1
 
 # Set ingest documents
 
-POST https://{{host}}/documents
+POST {{url}}/documents
 authorizationToken: {{bo_token}}
 {
   "documents": [
@@ -172,7 +172,7 @@ HTTP 201
 
 # check candidate
 
-GET https://{{host}}/candidates
+GET {{url}}/candidates
 authorizationToken: {{bo_token}}
 
 HTTP 200
@@ -182,14 +182,14 @@ jsonpath "$.documents" count == 9
 
 # delete one document
 
-DELETE https://{{host}}/documents/8d53f7ae-b2a0-4821-94d2-b9904b276166
+DELETE {{url}}/documents/8d53f7ae-b2a0-4821-94d2-b9904b276166
 authorizationToken: {{bo_token}}
 
 HTTP 204
 
 # Add Document Properties
 
-PUT https://{{host}}/documents/8bce6d6d-7e95-49c6-921a-d935ee2774c3/properties
+PUT {{url}}/documents/8bce6d6d-7e95-49c6-921a-d935ee2774c3/properties
 authorizationToken: {{bo_token}}
 {
     "properties": {
@@ -207,7 +207,7 @@ HTTP 204
 
 # Get Document Properties
 
-GET https://{{host}}/documents/8bce6d6d-7e95-49c6-921a-d935ee2774c3/properties
+GET {{url}}/documents/8bce6d6d-7e95-49c6-921a-d935ee2774c3/properties
 authorizationToken: {{bo_token}}
 
 HTTP 200
@@ -217,7 +217,7 @@ jsonpath "$.properties.test" == "HAHAH"
 
 # two interactions
 
-PATCH https://{{host}}/users/simon/interactions
+PATCH {{url}}/users/simon/interactions
 authorizationToken: {{fo_token}}
 {
     "documents" : [
@@ -234,7 +234,7 @@ HTTP 204
 
 # Do one interaction that was already submitted
 
-PATCH https://{{host}}/users/simon/interactions
+PATCH {{url}}/users/simon/interactions
 authorizationToken: {{fo_token}}
 {
     "documents" : [
@@ -248,7 +248,7 @@ HTTP 204
 
 # One new interaction
 
-PATCH https://{{host}}/users/238468732462346/interactions
+PATCH {{url}}/users/238468732462346/interactions
 authorizationToken: {{fo_token}}
 {
     "documents" : [{"id" : "48aee97f-f9f3-4a2a-b4d7-78c1171de9ee"}]
@@ -258,7 +258,7 @@ HTTP 204
 
 # Personalized Documents per User
 
-GET https://{{host}}/users/simon/personalized_documents
+GET {{url}}/users/simon/personalized_documents
 authorizationToken: {{fo_token}}
 
 HTTP 200
@@ -268,7 +268,7 @@ jsonpath "$.documents" count > 0
 
 # Check Similar Documents
 
-POST https://{{host}}/semantic_search
+POST {{url}}/semantic_search
 authorizationToken: {{fo_token}}
 {
     "document" :{"id" : "8bce6d6d-7e95-49c6-921a-d935ee2774c3"}
@@ -281,7 +281,7 @@ jsonpath "$.documents[0].id" == "8bce6d6d-7e95-49c6-921a-d935ee2774c3"
 
 # Personalized Documents for a given History
 
-POST https://{{host}}/semantic_search
+POST {{url}}/semantic_search
 authorizationToken: {{fo_token}}
 {
     "document" :{
@@ -305,7 +305,7 @@ jsonpath "$.documents" count > 0
 
 # Run Free Text Search
 
-POST https://{{host}}/semantic_search
+POST {{url}}/semantic_search
 authorizationToken: {{fo_token}}
 {
     "document" :{ "query": "A very violent Movie."}
@@ -318,7 +318,7 @@ jsonpath "$.documents[0].id" == "48aee97f-f9f3-4a2a-b4d7-78c1171de9ee"
 
 # Set candidate
 
-PUT https://{{host}}/candidates
+PUT {{url}}/candidates
 authorizationToken: {{bo_token}}
 {
     "documents" :[{ "id": "55b83ea2-d136-456d-b31a-cbf9773382c8"}]
@@ -328,7 +328,7 @@ HTTP 204
 
 # Personalized Documents for only one candidate
 
-GET https://{{host}}/users/simon/personalized_documents
+GET {{url}}/users/simon/personalized_documents
 authorizationToken: {{fo_token}}
 
 HTTP 200
@@ -338,7 +338,7 @@ jsonpath "$.documents" count == 8
 
 # Delete all documents
 
-DELETE https://{{host}}/documents
+DELETE {{url}}/documents
 authorizationToken: {{bo_token}}
 [Options]
 very-verbose: true
