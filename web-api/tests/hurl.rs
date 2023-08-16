@@ -14,18 +14,14 @@
 
 use std::collections::HashMap;
 
-use anyhow::Error;
 use hurl::{
     runner,
     runner::{RunnerOptionsBuilder, Value},
     util::logger::{LoggerOptionsBuilder, Verbosity},
 };
-use itertools::Itertools;
-use reqwest::{Client, StatusCode, Url};
-use serde::Deserialize;
+
 use walkdir::WalkDir;
-//use serde_json::{json, Value};
-use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
+use xayn_integration_tests::{test_app, UNCHANGED_CONFIG};
 use xayn_web_api::Ingestion;
 
 #[test]
