@@ -16,7 +16,7 @@ runs:
       shell: bash
       run: |
         apt-get update
-        apt-get install pkg-config libxml2
+        apt-get install -y --no-install-recommends pkg-config libxml2 
 
     - name: Configure cargo
       shell: bash
