@@ -115,8 +115,12 @@ jobs:
           echo "frontoffice_image_name=$frontoffice_image_name" >> $GITHUB_ENV
           echo "backoffice_image_name=$backoffice_image_name" >> $GITHUB_ENV
 
-          echo "frontoffice image: $frontoffice_image_name"
-          echo "backoffice image:  $backoffice_image_name"
+          cat <<EOT >>${GITHUB_STEP_SUMMARY}
+            # Image names
+
+            Back-office: $frontoffice_image_name
+            Front-office: $backoffice_image_name
+          EOT
 
       - name: Create backoffice docker image
         uses: ./.github/actions/release_image
@@ -143,4 +147,3 @@ jobs:
           set -eux
           docker push ${{ env.frontoffice_image_name }}
           docker push ${{ env.backoffice_image_name }}
-
