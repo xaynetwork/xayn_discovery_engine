@@ -167,9 +167,9 @@ impl Embedder {
             InternalError::from_message(format!("Failed to request sagemaker endpoint. Error: {e}"))
         })?;
 
-        let body = res.body().ok_or(InternalError::from_message(
-            "Received sagemaker response without body.",
-        ))?;
+        let Some(body) = response.body() else {
+            return Err(InternalError::from_message("Received sagemaker response without body."));
+        };
 
         serde_json::from_slice::<SagemakerResponse>(body.as_ref())
             .map_err(|e| {
