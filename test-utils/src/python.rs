@@ -34,7 +34,7 @@ pub fn initialize_python() {
     static ONCE: Once = Once::new();
     ONCE.call_once(|| {
         Python::with_gil(inject_snippet_extractor_venv_activation).unwrap();
-    })
+    });
 }
 
 /// Inject the snippet-extractor venv into the given python instance.
@@ -67,15 +67,13 @@ pub fn inject_snippet_extractor_venv_activation(py: Python<'_>) -> Result<(), Er
         cmd_returning_str_path("detect venv", "pipenv", &["--venv"], &py_project_dir)?
             .join("bin")
             .join("activate_this.py");
-    let activation_script_path = activation_script_path
-        .to_str()
-        .unwrap(/*we created it from a string*/);
-
-    if !Path::new(activation_script_path).exists() {
+    let Some(activation_script_path) = activation_script_path .to_str() else {
+        bail!("activation script path should be utf-8")
+    };
+    if !Path::is_file(activation_script_path.as_ref()) {
         bail!("venv activation script doesn't exist: {activation_script_path}");
     }
-
-    let activation_script = fs::read(&activation_script_path)?;
+    let activation_script = fs::read(activation_script_path)?;
     let Ok(activation_script) = String::from_utf8(activation_script) else {
         bail!("activation script contained non-utf8 characters: {activation_script_path}");
     };
@@ -92,9 +90,12 @@ fn cmd_returning_str_path(
     hint: &'static str,
     cmd: &str,
     args: &[&str],
-    cwd: &Path,
+    current_dir: &Path,
 ) -> Result<PathBuf, Error> {
-    let output = Command::new(cmd).args(args).current_dir(cwd).output()?;
+    let output = Command::new(cmd)
+        .args(args)
+        .current_dir(current_dir)
+        .output()?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);

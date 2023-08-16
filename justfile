@@ -26,7 +26,7 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
 default:
     @{{just_executable()}} --list
 
-python-build:
+python-deps:
     #!/usr/bin/env bash
     cd snippet-extractor
     pipenv install
@@ -76,10 +76,10 @@ rust-build:
     cargo build --locked
 
 # Builds all code
-build: rust-build python-build
+build: rust-build python-deps
 
 # Tests rust
-rust-test: download-assets python-build
+rust-test: download-assets python-deps
     #!/usr/bin/env -S bash -eu -o pipefail
     export RUST_BACKTRACE=1
     cargo test --lib --bins --tests --locked
@@ -109,7 +109,7 @@ _pre-push: deps fmt check test
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
-download-assets *args:
+download-assets *args: python-deps
     #!/usr/bin/env -S bash -eu -o pipefail
     BASE_DIR="$(pwd)"
     cd {{justfile_directory()}}/.github/scripts

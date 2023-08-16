@@ -17,7 +17,7 @@ from nltk.tokenize import sent_tokenize
 from langchain.text_splitter import RecursiveCharacterTextSplitter, TextSplitter, NLTKTextSplitter
 from transformers import PreTrainedTokenizerFast
 
-tokenizer = PreTrainedTokenizerFast(tokenizer_file="tokenizer.json")
+tokenizer = PreTrainedTokenizerFast(tokenizer_file="/home/user/projects/de2/assets/xaynia_v0002/tokenizer.json")
 
 def token_len(s):
     return len(tokenizer(s).input_ids)
@@ -40,12 +40,12 @@ class NLTKTextSplitter(TextSplitter):
         return self._merge_splits(splits, self._separator)
 
 class TextSplitterWithBigChunkSplitter(TextSplitter):
-    def __init__(self, *, primary: TextSplitter, secondary: TextSplitter, hard_chunks_size_limit: int):
+    def __init__(self, *, primary: TextSplitter, secondary: TextSplitter, hard_chunk_size_limit: int):
         # setting chunk_size = hard_max_chunk is needed for using self._merge_splits
-        super().__init__(chunk_size=hard_chunks_size_limit, chunk_overlap=0, length_function=token_len)
+        super().__init__(chunk_size=hard_chunk_size_limit, chunk_overlap=0, length_function=token_len)
         self._primary = primary
         self._secondary = secondary
-        self._hard_chunks_size_limit = hard_chunks_size_limit
+        self._hard_chunk_size_limit = hard_chunk_size_limit
 
     def split_text(self, text: str) -> List[str]:
         main_splits = self._primary.split_text(text)
@@ -53,7 +53,7 @@ class TextSplitterWithBigChunkSplitter(TextSplitter):
         # remove snippets that are larger than hard_max_chunk
         no_big_splits = []
         for split in main_splits:
-            if token_len(split) > self._hard_chunks_size_limit:
+            if token_len(split) > self._hard_chunk_size_limit:
                 secondary_splits = self._secondary.split_text(split)
                 no_big_splits.extend(secondary_splits)
             else:
@@ -62,9 +62,9 @@ class TextSplitterWithBigChunkSplitter(TextSplitter):
         return self._merge_splits(no_big_splits, "\n")
 
 class SnippetExtractor(TextSplitterWithBigChunkSplitter):
-    def __init__(self, *, language, chunks_size, hard_chunks_size_limit):
+    def __init__(self, *, language, chunk_size, hard_chunk_size_limit):
         super().__init__(
-            primary=NLTKTextSplitter(language=language, chunks_size=chunks_size, chunks_overlap = 0, length_function=token_len),
-            secondary=RecursiveCharacterTextSplitter(chunks_size=chunks_size, chunk_overlap=0, length_function=token_len),
-            hard_chunks_size_limit=hard_chunks_size_limit
+            primary=NLTKTextSplitter(language=language, chunk_size=chunk_size, chunk_overlap = 0, length_function=token_len),
+            secondary=RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=0, length_function=token_len),
+            hard_chunk_size_limit=hard_chunk_size_limit
         )

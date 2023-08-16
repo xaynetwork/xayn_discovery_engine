@@ -1168,16 +1168,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cutters"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6fd442446f9accd59a61a2a7d94dc61cffabebe2d1562392825d8780a8ccf9d0"
-dependencies = [
- "pest",
- "pest_derive",
-]
-
-[[package]]
 name = "darling"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5154,7 +5144,6 @@ dependencies = [
  "const_format",
  "criterion",
  "csv",
- "cutters",
  "derive_more",
  "displaydoc",
  "dotenvy",
@@ -5187,6 +5176,7 @@ dependencies = [
  "xayn-ai-bert 0.2.0",
  "xayn-ai-coi 0.2.0",
  "xayn-integration-tests",
+ "xayn-snippet-extractor",
  "xayn-summarizer 0.2.0",
  "xayn-test-utils 0.2.0",
  "xayn-web-api 0.1.1",

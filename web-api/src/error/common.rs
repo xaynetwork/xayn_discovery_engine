@@ -338,4 +338,5 @@ impl_from_std_error!(
     std::io::Error,
     tokio::task::JoinError,
     serde_json::Error,
+    xayn_snippet_extractor::Error,
 );

@@ -12,13 +12,29 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#![cfg_attr(not(test), forbid(unsafe_code))]
+#![cfg_attr(test, deny(unsafe_code))]
+#![deny(
+    clippy::pedantic,
+    noop_method_call,
+    rust_2018_idioms,
+    unused_qualifications,
+    unsafe_op_in_unsafe_fn
+)]
+#![warn(unreachable_pub, rustdoc::missing_crate_level_docs)]
+#![allow(
+    clippy::items_after_statements,
+    clippy::missing_errors_doc,
+    clippy::module_name_repetitions,
+    clippy::must_use_candidate
+)]
+
 use displaydoc::Display;
 use pyo3::{
     types::{PyDict, PyModule},
     Py,
     PyAny,
     PyErr,
-    PyResult,
     Python,
 };
 use serde::{Deserialize, Serialize};
@@ -64,7 +80,7 @@ pub struct SnippetExtractor {
 }
 
 impl SnippetExtractor {
-    pub fn initialize(config: Config) -> PyResult<Self> {
+    pub fn initialize(config: &Config) -> Result<Self, Error> {
         Python::with_gil(|py| {
             let src = include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
@@ -73,8 +89,8 @@ impl SnippetExtractor {
 
             let kwargs = PyDict::new(py);
             kwargs.set_item("language", &config.language)?;
-            kwargs.set_item("chunks_size", &config.chunks_size)?;
-            kwargs.set_item("hard_chunks_size_limit", &config.hard_chunks_size_limit)?;
+            kwargs.set_item("chunk_size", config.chunks_size)?;
+            kwargs.set_item("hard_chunk_size_limit", config.hard_chunks_size_limit)?;
 
             let extractor = PyModule::from_code(py, src, "extractor.py", "extractor")?
                 .getattr("SnippetExtractor")?
@@ -85,11 +101,12 @@ impl SnippetExtractor {
         })
     }
 
-    pub fn run(&self, document: &str) -> PyResult<Vec<String>> {
+    pub fn run(&self, document: &str) -> Result<Vec<String>, Error> {
         Python::with_gil(|py| {
             self.extractor
                 .call_method(py, "split_text", (document,), None)?
                 .extract(py)
+                .map_err(Error::from)
         })
     }
 }

@@ -17,8 +17,7 @@ use std::sync::{
     Arc,
 };
 
-use pyo3::prelude::*;
-use xayn_snippet_extractor::SnippetExtractor;
+use xayn_snippet_extractor::{Error, SnippetExtractor};
 use xayn_test_utils::python::initialize_python;
 
 const TEST_TEXT: &str = r"
@@ -40,10 +39,10 @@ The precise terms and conditions for copying, distribution and modification foll
 ";
 
 #[test]
-fn test_extraction_works() -> PyResult<()> {
+fn test_extraction_works() -> Result<(), Error> {
     initialize_python();
 
-    let extractor = SnippetExtractor::initialize(Default::default())?;
+    let extractor = SnippetExtractor::initialize(&Default::default())?;
     extractor.run(TEST_TEXT)?;
 
     // TODO[pmk/now] test the outcome is as expected
@@ -52,10 +51,10 @@ fn test_extraction_works() -> PyResult<()> {
 }
 
 #[test]
-fn test_multi_threaded_access_works() -> PyResult<()> {
+fn test_multi_threaded_access_works() -> Result<(), Error> {
     initialize_python();
 
-    let extractor = SnippetExtractor::initialize(Default::default())?;
+    let extractor = SnippetExtractor::initialize(&Default::default())?;
 
     let wait = Arc::new(AtomicBool::new(true));
 

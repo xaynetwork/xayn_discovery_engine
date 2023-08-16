@@ -13,7 +13,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
-use xayn_summarizer::{summarize, Config, Source, Summarizer};
+use xayn_snippet_extractor::{self as snippet_extractor, SnippetExtractor};
+use xayn_summarizer::{self as summarizer, summarize, Source, Summarizer};
 
 use crate::{
     embedding::Embedder,
@@ -25,12 +26,16 @@ use crate::{
 pub(super) async fn preprocess_document(
     embedder: &Embedder,
     original: DocumentSnippet,
-    preprocessing_step: PreprocessingStep,
+    preprocessing_step: &mut PreprocessingStep,
 ) -> Result<Vec<DocumentContent>, Error> {
-    Ok(match preprocessing_step {
+    Ok(match *preprocessing_step {
         PreprocessingStep::None => embed_whole(embedder, original).await?,
         PreprocessingStep::Summarize => embed_with_summarizer(embedder, original).await?,
-        PreprocessingStep::CuttersSplit => embed_with_cutters(embedder, &original).await?,
+        #[allow(deprecated)]
+        PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
+            *preprocessing_step = PreprocessingStep::NltkSplitV1;
+            embed_with_nltk(embedder, &original).await?
+        }
     })
 }
 
@@ -51,7 +56,7 @@ async fn embed_with_summarizer(
         &Source::PlainText {
             text: snippet.to_string(),
         },
-        &Config::default(),
+        &summarizer::Config::default(),
     );
     let embedding = embedder.run(&summary).await?;
     Ok(vec![DocumentContent {
@@ -62,14 +67,16 @@ async fn embed_with_summarizer(
     }])
 }
 
-async fn embed_with_cutters(
+async fn embed_with_nltk(
     embedder: &Embedder,
     snippet: &DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
-    let snippets = cutters::cut(snippet, cutters::Language::English)
+    let extractor = SnippetExtractor::initialize(&snippet_extractor::Config::default())?;
+    let snippets = extractor
+        .run(snippet)?
         .into_iter()
         .map(|split| async move {
-            let snippet = DocumentSnippet::new(split.str, split.str.len())?;
+            let snippet = DocumentSnippet::new(split, usize::MAX)?;
             let embedding = embedder.run(&snippet).await?;
             Ok::<_, Error>(DocumentContent { snippet, embedding })
         })

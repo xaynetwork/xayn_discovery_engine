@@ -536,6 +536,7 @@ pub(crate) enum PreprocessingStep {
     None,
     Summarize,
     CuttersSplit,
+    NltkSplitV1,
 }
 
 #[cfg(test)]
