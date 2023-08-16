@@ -173,13 +173,20 @@ impl Embedder {
             ));
         };
 
-        serde_json::from_slice::<SagemakerResponse>(body.as_ref())
+        let mut embeddings = serde_json::from_slice::<SagemakerResponse>(body.as_ref())
             .map_err(InternalError::from_std)?
-            .embeddings
-            .pop()
-            .ok_or(InternalError::from_message(
-                "Missing embedding in sagemaker response.",
-            ))
+            .embeddings;
+
+        if embeddings.len() == 1 {
+            Ok(
+                embeddings.pop().unwrap(/* safe because we check that embeddings contains one item */),
+            )
+        } else {
+            Err(InternalError::from_message(format!(
+                "Unexpected sagemaker response. Expected 1 embedding, got {}",
+                embeddings.len()
+            )))
+        }
     }
 
     pub(crate) fn embedding_size(&self) -> usize {
