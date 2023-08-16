@@ -109,7 +109,7 @@ impl Embedder {
             config_loader = config_loader.region(Region::new(region.clone()));
         }
         if let Some(profile) = &config.aws_profile {
-            config_loader = config_loader.profile_name(profile.clone());
+            config_loader = config_loader.profile_name(profile);
         }
 
         config_loader = config_loader.retry_config(
