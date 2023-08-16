@@ -20,3 +20,7 @@ application_name = "the-application"
 
 [ingestion]
 max_document_batch_size = 999999
+
+[embedding]
+type = "pipeline"
+directory = "assets/model"

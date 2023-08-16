@@ -14,6 +14,7 @@
 
 use std::ops::{Add, Mul};
 
+use anyhow::Error;
 use derive_more::{Deref, From};
 use displaydoc::Display;
 use ndarray::{s, Array, Array1, Dimension, Ix, Ix1, Ix2};
@@ -31,7 +32,6 @@ use sqlx::{
     Type,
 };
 use thiserror::Error;
-use tract_onnx::prelude::TractError;
 use xayn_test_utils::ApproxEqIter;
 
 use crate::{model::Prediction, tokenizer::AttentionMask};
@@ -205,7 +205,7 @@ pub struct NonePooler;
 
 impl NonePooler {
     /// Passes through the prediction.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding2, TractError> {
+    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding2, Error> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, .., ..])
@@ -221,7 +221,7 @@ pub struct FirstPooler;
 
 impl FirstPooler {
     /// Pools the prediction over its first token.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, TractError> {
+    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, Error> {
         Ok(prediction
             .to_array_view()?
             .slice(s![0, 0, ..])
@@ -240,7 +240,7 @@ impl AveragePooler {
     pub(crate) fn pool(
         prediction: &Prediction,
         attention_mask: &AttentionMask,
-    ) -> Result<Embedding1, TractError> {
+    ) -> Result<Embedding1, Error> {
         let attention_mask: Array1<f32> = attention_mask.slice(s![0, ..]).mapv(
             #[allow(clippy::cast_precision_loss)] // values are only 0 or 1
             |mask| mask as f32,

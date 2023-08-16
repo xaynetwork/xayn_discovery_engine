@@ -49,10 +49,10 @@ if [ $# -gt 0 ]; then
         shift 2
     done
 else
-    download qasmbert v0002
     download smbert v0003
     download smbert v0004
     download smbert_mocked v0004
     download e5_mocked v0000
     download xaynia v0002
+    download ort v1.15.1
 fi

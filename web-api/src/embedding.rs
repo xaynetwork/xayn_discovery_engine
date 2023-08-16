@@ -14,9 +14,9 @@
 
 use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::json;
-use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
+use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding, Runtime};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
@@ -36,17 +36,10 @@ impl Default for Config {
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Pipeline {
-    #[serde(deserialize_with = "deserialize_relative_path_buf")]
+    #[serde(deserialize_with = "RelativePathBuf::deserialize_string")]
     pub(crate) directory: RelativePathBuf,
     pub(crate) token_size: usize,
-}
-
-fn deserialize_relative_path_buf<'de, D>(deserializer: D) -> Result<RelativePathBuf, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let buf = String::deserialize(deserializer)?;
-    Ok(RelativePathBuf::from(buf))
+    pub(crate) runtime: Runtime,
 }
 
 impl Default for Pipeline {
@@ -54,7 +47,21 @@ impl Default for Pipeline {
         Self {
             directory: "assets".into(),
             token_size: 250,
+            runtime: Runtime::Ort("assets".into()),
         }
+    }
+}
+
+impl Pipeline {
+    fn load(&self) -> Result<Embedder, SetupError> {
+        let config = EmbedderConfig::new(self.directory.relative())?
+            .with_runtime(self.runtime.clone())
+            .with_token_size(self.token_size)?
+            .with_pooler();
+        config.validate()?;
+        let embedder = config.build()?;
+
+        Ok(Embedder::Pipeline(embedder))
     }
 }
 
@@ -115,19 +122,9 @@ struct SagemakerResponse {
 impl Embedder {
     pub(crate) async fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
-            Config::Pipeline(config) => Self::load_pipeline(config),
+            Config::Pipeline(config) => config.load(),
             Config::Sagemaker(config) => config.load().await,
         }
-    }
-
-    fn load_pipeline(config: &Pipeline) -> Result<Self, SetupError> {
-        let config = EmbedderConfig::new(config.directory.relative())?
-            .with_token_size(config.token_size)?
-            .with_pooler();
-        config.validate()?;
-        let embedder = config.build()?;
-
-        Ok(Self::Pipeline(embedder))
     }
 
     pub(crate) async fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
@@ -199,14 +196,26 @@ impl Embedder {
 
 #[cfg(test)]
 mod tests {
-    use xayn_test_utils::asset::xaynia;
+    use xayn_test_utils::asset::{ort, xaynia};
 
     use super::*;
 
     #[tokio::test]
-    async fn test_embedder() {
+    async fn test_embedder_tract() {
         let config = Config::Pipeline(Pipeline {
             directory: xaynia().unwrap().into(),
+            runtime: Runtime::Tract,
+            ..Pipeline::default()
+        });
+        let embedder = Embedder::load(&config).await.unwrap();
+        embedder.run("test").await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn test_embedder_ort() {
+        let config = Config::Pipeline(Pipeline {
+            directory: xaynia().unwrap().into(),
+            runtime: Runtime::Ort(ort().unwrap()),
             ..Pipeline::default()
         });
         let embedder = Embedder::load(&config).await.unwrap();

@@ -61,7 +61,7 @@ use tracing_subscriber::{
     EnvFilter,
     Layer,
 };
-use xayn_test_utils::env::clear_env;
+use xayn_test_utils::{asset::ort_target, env::clear_env};
 use xayn_web_api::{config, start, AppHandle, Application, Ingestion};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
@@ -667,20 +667,26 @@ where
 /// Embedding size used by the `Embedder` used for testing.
 pub const TEST_EMBEDDING_SIZE: usize = 384;
 
-pub fn build_test_config_from_parts_and_model(
+pub fn build_test_config_from_parts_and_names(
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
     configure: Table,
     model_name: &str,
+    runtime_name: &str,
 ) -> Table {
     let pg_password = pg_config.password.expose_secret().as_str();
     let pg_config = Value::try_from(pg_config).unwrap();
     let es_config = Value::try_from(es_config).unwrap();
 
     // Hint: Relative path doesn't work with `cargo flamegraph`
-    let embedding_dir = PROJECT_ROOT
+    let model_dir = PROJECT_ROOT
         .join("assets")
         .join(model_name)
+        .display()
+        .to_string();
+    let runtime_dir = PROJECT_ROOT
+        .join("assets")
+        .join(runtime_name)
         .display()
         .to_string();
 
@@ -691,7 +697,8 @@ pub fn build_test_config_from_parts_and_model(
 
         [embedding]
         type = "pipeline"
-        directory = embedding_dir
+        directory = model_dir
+        runtime = runtime_dir
     };
 
     //the password was serialized as REDACTED in to_toml_value
@@ -713,7 +720,13 @@ pub fn build_test_config_from_parts(
     es_config: &elastic::Config,
     configure: Table,
 ) -> Table {
-    build_test_config_from_parts_and_model(pg_config, es_config, configure, "xaynia_v0002")
+    build_test_config_from_parts_and_names(
+        pg_config,
+        es_config,
+        configure,
+        "xaynia_v0002",
+        &format!("ort_v1.15.1/{}", ort_target().unwrap()),
+    )
 }
 
 #[derive(Clone, Debug, Display, Deref, AsRef)]

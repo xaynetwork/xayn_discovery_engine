@@ -14,12 +14,13 @@
 
 use std::{marker::PhantomData, path::PathBuf};
 
+use cfg_if::cfg_if;
 use figment::{
     error::{Actual, Error, Kind},
     providers::{Format, Toml},
     Figment,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::{
     model::Model,
@@ -27,6 +28,40 @@ use crate::{
     pooler::NonePooler,
     tokenizer::Tokenizer,
 };
+
+#[derive(Clone, Debug)]
+pub enum Runtime {
+    Tract,
+    Ort(PathBuf),
+}
+
+impl Runtime {
+    const TRACT: &str = "tract";
+}
+
+impl<'de> Deserialize<'de> for Runtime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match String::deserialize(deserializer)? {
+            tract if tract == Self::TRACT => Ok(Self::Tract),
+            ort => Ok(Self::Ort(ort.into())),
+        }
+    }
+}
+
+impl Serialize for Runtime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Tract => Self::TRACT.serialize(serializer),
+            Self::Ort(ort) => ort.serialize(serializer),
+        }
+    }
+}
 
 /// A pipeline configuration.
 ///
@@ -82,6 +117,7 @@ pub struct Config<P> {
     pub(crate) dir: PathBuf,
     toml: Figment,
     pub(crate) token_size: usize,
+    pub(crate) runtime: Runtime,
     pooler: PhantomData<P>,
 }
 
@@ -112,6 +148,7 @@ impl Config<NonePooler> {
             dir,
             toml,
             token_size,
+            runtime: Runtime::Tract,
             pooler: PhantomData,
         })
     }
@@ -154,6 +191,15 @@ impl<P> Config<P> {
         Ok(self)
     }
 
+    /// Sets the runtime for the model.
+    ///
+    /// Defaults to `Tract`.
+    pub fn with_runtime(mut self, runtime: Runtime) -> Self {
+        self.runtime = runtime;
+
+        self
+    }
+
     /// Sets the pooler for the model.
     ///
     /// Defaults to `NonePooler`.
@@ -162,7 +208,53 @@ impl<P> Config<P> {
             dir: self.dir,
             toml: self.toml,
             token_size: self.token_size,
+            runtime: self.runtime,
             pooler: PhantomData,
+        }
+    }
+
+    pub(crate) fn model(&self) -> Result<PathBuf, Error> {
+        let model = self.dir.join("model.onnx");
+
+        if model.exists() {
+            Ok(model)
+        } else {
+            Err(Error::from(Kind::Message(format!(
+                "embedder model '{}' doesn't exist",
+                model.display(),
+            ))))
+        }
+    }
+
+    pub(crate) fn runtime(&self) -> Result<PathBuf, Error> {
+        let dir = match &self.runtime {
+            Runtime::Tract => {
+                return Err(Error::from(Kind::Message(
+                    "embedder runtime isn't available for tract".into(),
+                )))
+            }
+            Runtime::Ort(dir) => dir,
+        };
+        cfg_if! {
+            if #[cfg(target_os = "linux")] {
+                let extension = "so";
+            } else if #[cfg(target_os = "macos")] {
+                let extension = "dylib";
+            } else {
+                return Err(Error::from(Kind::Message(
+                    "embedder runtime isn't available for this target os".into(),
+                )));
+            }
+        }
+        let runtime = dir.join(format!("lib/libonnxruntime.{extension}"));
+
+        if runtime.exists() {
+            Ok(runtime)
+        } else {
+            Err(Error::from(Kind::Message(format!(
+                "embedder runtime '{}' doesn't exist",
+                runtime.display(),
+            ))))
         }
     }
 

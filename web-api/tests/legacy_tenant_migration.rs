@@ -23,7 +23,7 @@ use sqlx::{Connection, Executor, PgConnection};
 use toml::Table;
 use tracing::{info, instrument};
 use xayn_integration_tests::{
-    build_test_config_from_parts_and_model,
+    build_test_config_from_parts_and_names,
     create_db,
     db_configs_for_testing,
     run_async_test,
@@ -34,7 +34,7 @@ use xayn_integration_tests::{
     MANAGEMENT_DB,
     TEST_EMBEDDING_SIZE,
 };
-use xayn_test_utils::env::clear_env;
+use xayn_test_utils::{asset::ort_target, env::clear_env};
 use xayn_web_api::{config, start, Ingestion, Personalization};
 use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
@@ -180,11 +180,12 @@ fn test_full_migration() {
         info!("entered async test");
 
         let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
-        let config = build_test_config_from_parts_and_model(
+        let config = build_test_config_from_parts_and_names(
             &pg_config,
             &es_config,
             Table::new(),
             "smbert_v0003",
+            &format!("ort_v1.15.1/{}", ort_target().unwrap()),
         );
 
         info!("test setup done");
@@ -284,11 +285,12 @@ fn test_full_migration() {
             .await?;
         conn.close().await?;
 
-        let config = build_test_config_from_parts_and_model(
+        let config = build_test_config_from_parts_and_names(
             &pg_config,
             &es_config,
             Table::new(),
             "smbert_v0004",
+            &format!("ort_v1.15.1/{}", ort_target().unwrap()),
         );
         let args = &[
             "integration-test",

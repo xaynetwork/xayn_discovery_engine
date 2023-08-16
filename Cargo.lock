@@ -2109,6 +2109,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f92be4933c13fd498862a9e02a3055f8a8d9c039ce33db97306fd5a6caa7f29b"
 
 [[package]]
+name = "libloading"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b67380fd3b2fbe7527a606e18729d21c6f3951633d0500574c4dc22d2d638b9f"
+dependencies = [
+ "cfg-if",
+ "winapi",
+]
+
+[[package]]
 name = "libm"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2679,6 +2689,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fc2dbde8f8a79f2102cc474ceb0ad68e3b80b85289ea62389b60e66777e4213"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "ort"
+version = "1.15.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5e56c9c4185ee949ef961aca8777d1dbd52cb104b444669adad63e8181820a7"
+dependencies = [
+ "flate2",
+ "lazy_static",
+ "libc",
+ "libloading",
+ "ndarray",
+ "tar",
+ "thiserror",
+ "tracing",
+ "vswhom",
+ "winapi",
 ]
 
 [[package]]
@@ -4595,6 +4623,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5c3082ca00d5a5ef149bb8b555a72ae84c9c59f7250f013ac822ac2e49b19c64"
 
 [[package]]
+name = "vswhom"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be979b7f07507105799e854203b470ff7c78a1639e330a58f183b5fea574608b"
+dependencies = [
+ "libc",
+ "vswhom-sys",
+]
+
+[[package]]
+name = "vswhom-sys"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3b17ae1f6c8a2b28506cd96d412eebf83b4a0ff2cbefeeb952f2f9dfa44ba18"
+dependencies = [
+ "cc",
+ "libc",
+]
+
+[[package]]
 name = "wait-timeout"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4957,6 +5005,7 @@ name = "xayn-ai-bert"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "cfg-if",
  "criterion",
  "csv",
  "derive_more",
@@ -4964,6 +5013,7 @@ dependencies = [
  "figment",
  "indicatif",
  "ndarray",
+ "ort",
  "serde",
  "sqlx",
  "thiserror",
@@ -5072,6 +5122,7 @@ dependencies = [
 name = "xayn-test-utils"
 version = "0.2.0"
 dependencies = [
+ "cfg-if",
  "float-cmp",
  "ndarray",
  "once_cell",

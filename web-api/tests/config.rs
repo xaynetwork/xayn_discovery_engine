@@ -12,12 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    collections::HashMap,
-    env,
-    ffi::{OsStr, OsString},
-    sync::Mutex,
-};
+use std::{env, ffi::OsStr, sync::Mutex};
 
 use trycmd::TestCases;
 
@@ -45,8 +40,8 @@ fn with_env_guard(
     drop(guard)
 }
 
-fn no_env() -> HashMap<OsString, OsString> {
-    HashMap::new()
+const fn no_env() -> [(&'static str, &'static str); 0] {
+    []
 }
 
 #[test]

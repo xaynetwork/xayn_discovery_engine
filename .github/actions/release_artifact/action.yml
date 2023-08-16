@@ -17,7 +17,11 @@ inputs:
     type: string
     required: true
   model_full_name:
-    description: Name of the model to use
+    description: Versioned name of the model
+    type: string
+    required: true
+  runtime_full_name:
+    description: Versioned name of the runtime
     type: string
     required: true
 
@@ -27,16 +31,19 @@ runs:
     - name: Setup env
       shell: bash
       run: |
-        if [[ "${{ inputs.platform }}" = "arm64" ]]; then 
+        if [[ "${{ inputs.platform }}" = "arm64" ]]; then
           BUILD_TARGET="aarch64-unknown-linux-gnu";
-        elif [[ "${{ inputs.platform }}" = "amd64" ]]; then 
+          RUNTIME_TARGET="linux_aarch64"
+        elif [[ "${{ inputs.platform }}" = "amd64" ]]; then
           BUILD_TARGET="x86_64-unknown-linux-gnu";
+          RUNTIME_TARGET="linux_x64"
         else 
           echo "Unsupported platform ${{ inputs.platform }}"
           exit 1
         fi
 
         echo "build_target=$BUILD_TARGET" >> $GITHUB_ENV
+        echo "runtime_target=$RUNTIME_TARGET" >> $GITHUB_ENV
 
     - name: Build service
       shell: bash
@@ -50,6 +57,7 @@ runs:
 
         BIN_PATH="${GITHUB_WORKSPACE}/target/${{ env.build_target }}/release/${{ inputs.bin_name }}"
         MODEL_PATH="${GITHUB_WORKSPACE}/assets/${{ inputs.model_full_name }}"
+        RUNTIME_PATH="${GITHUB_WORKSPACE}/assets/${{ inputs.runtime_full_name }}/${{ env.runtime_target }}"
         DOCKERFILE_PATH="${GITHUB_WORKSPACE}/web-api/Dockerfile"
         ARCHIVE_NAME="${{ inputs.archive_name }}"
 
@@ -61,6 +69,8 @@ runs:
         cp "$MODEL_PATH/config.toml" ./$ARCHIVE_NAME/assets/config.toml
         cp "$MODEL_PATH/tokenizer.json" ./$ARCHIVE_NAME/assets/tokenizer.json
         cp "$MODEL_PATH/model.onnx" ./$ARCHIVE_NAME/assets/model.onnx
+        cp -r "$RUNTIME_PATH/include" ./$ARCHIVE_NAME/assets/include
+        cp -r "$RUNTIME_PATH/lib" ./$ARCHIVE_NAME/assets/lib
         tar -cvf "$ARCHIVE_NAME.tar" ./$ARCHIVE_NAME
 
     - name: Upload archive
@@ -70,4 +80,3 @@ runs:
         retention-days: 1
         if-no-files-found: error
         path: ./${{ inputs.archive_name }}.tar
-
