@@ -140,14 +140,14 @@ impl Embedder {
                 endpoint,
                 target_model,
                 ..
-            } => Self::run_sagemaker(client, endpoint, target_model, sequence).await,
+            } => Self::run_sagemaker(client, endpoint, target_model.as_deref(), sequence).await,
         }
     }
 
     async fn run_sagemaker(
         client: &Client,
         endpoint: &str,
-        target_model: &Option<String>,
+        target_model: Option<&str>,
         sequence: &str,
     ) -> Result<NormalizedEmbedding, InternalError> {
         let input = json!({
