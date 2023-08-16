@@ -163,7 +163,7 @@ impl Embedder {
             request = request.target_model(target_model);
         };
 
-        let res = request.send().await.map_err(|e| {
+        let response = request.send().await.map_err(|e| {
             InternalError::from_message(format!("Failed to request sagemaker endpoint. Error: {e}"))
         })?;
 
