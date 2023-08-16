@@ -43,7 +43,7 @@ The precise terms and conditions for copying, distribution and modification foll
 fn test_extraction_works() -> PyResult<()> {
     initialize_python();
 
-    let extractor = SnippetExtractor::initialize()?;
+    let extractor = SnippetExtractor::initialize(Default::default())?;
     extractor.run(TEST_TEXT)?;
 
     // TODO[pmk/now] test the outcome is as expected
@@ -55,7 +55,7 @@ fn test_extraction_works() -> PyResult<()> {
 fn test_multi_threaded_access_works() -> PyResult<()> {
     initialize_python();
 
-    let extractor = SnippetExtractor::initialize()?;
+    let extractor = SnippetExtractor::initialize(Default::default())?;
 
     let wait = Arc::new(AtomicBool::new(true));
 

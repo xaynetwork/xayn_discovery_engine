@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 langchain = "*"
+transformers = "*"
+nltk = "*"
 
 [dev-packages]
 

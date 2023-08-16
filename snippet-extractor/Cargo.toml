@@ -9,6 +9,7 @@ license = { workspace = true }
 [dependencies]
 displaydoc = { workspace = true }
 pyo3 = { workspace = true }
+serde = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]

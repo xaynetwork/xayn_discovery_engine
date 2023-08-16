@@ -21,6 +21,7 @@ use pyo3::{
     PyResult,
     Python,
 };
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Snippet extraction failed: {msg}
@@ -37,34 +38,58 @@ impl From<PyErr> for Error {
     }
 }
 
+/// Configurations of the coi system.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(default, deny_unknown_fields)]
+#[must_use]
+pub struct Config {
+    language: String,
+    chunks_size: usize,
+    hard_chunks_size_limit: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            language: "german".into(),
+            chunks_size: 500,
+            hard_chunks_size_limit: 520,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct SnippetExtractor {
     extractor: Py<PyAny>,
 }
 
 impl SnippetExtractor {
-    pub fn initialize() -> PyResult<Self> {
+    pub fn initialize(config: Config) -> PyResult<Self> {
         Python::with_gil(|py| {
             let src = include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
                 "/python_src/extractor.py"
             ));
 
+            let kwargs = PyDict::new(py);
+            kwargs.set_item("language", &config.language)?;
+            kwargs.set_item("chunks_size", &config.chunks_size)?;
+            kwargs.set_item("hard_chunks_size_limit", &config.hard_chunks_size_limit)?;
+
             let extractor = PyModule::from_code(py, src, "extractor.py", "extractor")?
-                .getattr("extract_snippets")?
+                .getattr("SnippetExtractor")?
+                .call((), Some(kwargs))?
                 .into();
 
             Ok(Self { extractor })
         })
     }
 
-    pub fn run(&self, documents: &str) -> PyResult<Vec<String>> {
+    pub fn run(&self, document: &str) -> PyResult<Vec<String>> {
         Python::with_gil(|py| {
-            let kwargs = PyDict::new(py);
-            kwargs.set_item("document", documents)?;
-            kwargs.set_item("chunk_size", 100)?;
-            kwargs.set_item("chunk_overlap", 20)?;
-            self.extractor.call(py, (), Some(kwargs))?.extract(py)
+            self.extractor
+                .call_method(py, "split_text", (document,), None)?
+                .extract(py)
         })
     }
 }
