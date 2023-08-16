@@ -81,11 +81,6 @@ impl Pipeline<AveragePooler> {
 }
 
 impl<P> Pipeline<P> {
-    /// Gets the token size.
-    pub fn token_size(&self) -> usize {
-        self.model.token_size
-    }
-
     /// Gets the embedding size.
     pub fn embedding_size(&self) -> usize {
         self.model.embedding_size
@@ -115,48 +110,44 @@ mod tests {
     #[test]
     fn test_pipeline_none() {
         let pipeline = pipeline::<NonePooler>(smbert_mocked().unwrap());
-        let shape = [pipeline.token_size(), pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [7, pipeline.embedding_size()]);
 
         let embeddings = pipeline.run("").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [2, pipeline.embedding_size()]);
     }
 
     #[test]
     fn test_pipeline_first() {
         let pipeline = pipeline::<FirstPooler>(smbert_mocked().unwrap());
-        let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [pipeline.embedding_size()]);
 
         let embeddings = pipeline.run("").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [pipeline.embedding_size()]);
     }
 
     #[test]
     fn test_pipeline_average() {
         let pipeline = pipeline::<AveragePooler>(smbert_mocked().unwrap());
-        let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [pipeline.embedding_size()]);
 
         let embeddings = pipeline.run("").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [pipeline.embedding_size()]);
     }
 
     #[test]
     fn test_e5_pipeline() {
         let pipeline = pipeline::<AveragePooler>(e5_mocked().unwrap());
-        let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [pipeline.embedding_size()]);
 
         let embeddings = pipeline.run("").unwrap();
-        assert_eq!(embeddings.shape(), shape);
+        assert_eq!(embeddings.shape(), [pipeline.embedding_size()]);
     }
 }

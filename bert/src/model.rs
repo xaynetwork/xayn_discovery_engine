@@ -40,7 +40,6 @@ use crate::config::Config;
 pub(crate) struct Model {
     runtime: Session,
     use_type_ids: bool,
-    pub(crate) token_size: usize,
     pub(crate) embedding_size: usize,
 }
 
@@ -83,7 +82,6 @@ impl Model {
         Ok(Model {
             runtime: session,
             use_type_ids,
-            token_size: config.token_size,
             embedding_size: embedding_size as usize,
         })
     }
@@ -132,10 +130,7 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let config = Config::new(smbert_mocked().unwrap(), ort().unwrap())
-            .unwrap()
-            .with_token_size(64)
-            .unwrap();
+        let config = Config::new(smbert_mocked().unwrap(), ort().unwrap()).unwrap();
         let model = Model::new(&config).unwrap();
 
         assert_eq!(model.runtime.inputs.len(), 3);
@@ -179,7 +174,6 @@ mod tests {
             HashMap::new(),
         );
         let embedding = model.embed(&encoding).unwrap();
-        assert_eq!(model.token_size, token_size);
         assert_eq!(
             embedding.extract().unwrap().view().shape(),
             [1, token_size, model.embedding_size],

@@ -40,9 +40,9 @@ impl Tokenizer {
             );
         }
         let mut tokenizer = HfTokenizer::from_file(tokenizer)?;
-        let padding_token = config.extract::<String>("tokenizer.tokens.padding")?;
+        let padding_token = config.extract::<String>("tokenizer.padding")?;
         let padding = PaddingParams {
-            strategy: PaddingStrategy::Fixed(config.token_size),
+            strategy: PaddingStrategy::BatchLongest,
             direction: PaddingDirection::Right,
             pad_to_multiple_of: None,
             pad_id: tokenizer
@@ -59,7 +59,7 @@ impl Tokenizer {
         };
         tokenizer.with_padding(Some(padding));
         tokenizer.with_truncation(Some(truncation));
-        let add_special_tokens = config.extract::<bool>("tokenizer.add-special-tokens")?;
+        let add_special_tokens = config.extract::<bool>("tokenizer.add_special_tokens")?;
 
         Ok(Tokenizer {
             tokenizer,
@@ -86,19 +86,30 @@ mod tests {
         let encoding = tokenizer
             .encode("These are normal, common EMBEDDINGS.")
             .unwrap();
-        assert_eq!(encoding.get_ids().len(), 257);
+        assert_eq!(encoding.get_ids().len(), 10);
         assert_eq!(
-            encoding.get_ids()[..20],
-            [2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            encoding.get_ids(),
+            [2, 4538, 2128, 8561, 1, 6541, 69469, 2762, 5, 3],
         );
-        assert_eq!(
-            encoding.get_attention_mask()[..20],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        );
-        assert_eq!(
-            encoding.get_type_ids()[..20],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        );
+        assert!(encoding.get_attention_mask().iter().all(|v| *v == 1));
+        assert!(encoding.get_type_ids().iter().all(|v| *v == 0));
+    }
+
+    #[test]
+    fn test_smbert_truncation() {
+        let token_size = 5;
+        let config = Config::new(smbert_mocked().unwrap(), ort().unwrap())
+            .unwrap()
+            .with_token_size(token_size)
+            .unwrap();
+        let tokenizer = Tokenizer::new(&config).unwrap();
+        let encoding = tokenizer
+            .encode("These are normal, common EMBEDDINGS.")
+            .unwrap();
+        assert_eq!(encoding.get_ids().len(), token_size);
+        assert_eq!(encoding.get_ids(), [2, 4538, 2128, 8561, 3]);
+        assert!(encoding.get_attention_mask().iter().all(|v| *v == 1));
+        assert!(encoding.get_type_ids().iter().all(|v| *v == 0));
     }
 
     #[test]
@@ -108,19 +119,13 @@ mod tests {
         let encoding = tokenizer
             .encode("for “life-threatening storm surge” according")
             .unwrap();
-        assert_eq!(encoding.get_ids().len(), 257);
+        assert_eq!(encoding.get_ids().len(), 11);
         assert_eq!(
-            encoding.get_ids()[..15],
-            [2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3, 0, 0, 0, 0],
+            encoding.get_ids(),
+            [2, 1665, 1, 3902, 1, 83775, 11123, 41373, 1, 7469, 3],
         );
-        assert_eq!(
-            encoding.get_attention_mask()[..15],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0],
-        );
-        assert_eq!(
-            encoding.get_type_ids()[..15],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        );
+        assert!(encoding.get_attention_mask().iter().all(|v| *v == 1));
+        assert!(encoding.get_type_ids().iter().all(|v| *v == 0));
     }
 
     #[test]
@@ -130,18 +135,12 @@ mod tests {
         let encoding = tokenizer
             .encode("These are normal, common EMBEDDINGS.")
             .unwrap();
-        assert_eq!(encoding.get_ids().len(), 258);
+        assert_eq!(encoding.get_ids().len(), 12);
         assert_eq!(
-            encoding.get_ids()[..15],
-            [0, 32255, 621, 3638, 4, 39210, 19515, 20090, 24057, 142_766, 5, 2, 1, 1, 1],
+            encoding.get_ids(),
+            [101, 2122, 2024, 3671, 1010, 2691, 7861, 8270, 4667, 2015, 1012, 102],
         );
-        assert_eq!(
-            encoding.get_attention_mask()[..15],
-            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0],
-        );
-        assert_eq!(
-            encoding.get_type_ids()[..15],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        );
+        assert!(encoding.get_attention_mask().iter().all(|v| *v == 1));
+        assert!(encoding.get_type_ids().iter().all(|v| *v == 0));
     }
 }

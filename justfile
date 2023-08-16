@@ -113,7 +113,7 @@ download-assets *args:
 upload-assets *args:
     #!/usr/bin/env -S bash -eu -o pipefail
     {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
-    ./.github/scripts/prepare_data.sh {{args}}
+    ./.github/scripts/prepare_data.sh {{args}} --upload
 
 build-service-args name target="default" features="":
     #!/usr/bin/env -S bash -eux -o pipefail
@@ -146,9 +146,9 @@ web-dev-up:
         echo "web-dev composition is already running, SKIPPING STARTUP"
         exit 0
     fi
-    if [[ "$(ls -l web-api/assets | grep 'assets/xaynia_v0002' | wc -l)" == "0" ]]; then
+    if [[ "$(ls -l web-api/assets | grep 'assets/xaynia_v0201' | wc -l)" == "0" ]]; then
         rm "./web-api/assets" || :
-        ln -s "./assets/xaynia_v0002" "./web-api/assets"
+        ln -s "./assets/xaynia_v0201" "./web-api/assets"
     fi
     export HOST_PORT_SCOPE=30
     docker-compose -p "$PROJECT" -f "./web-api/compose.db.yml" up --detach --remove-orphans --build
@@ -157,28 +157,28 @@ web-dev-down:
     #!/usr/bin/env -S bash -eu -o pipefail
     docker-compose -p web-dev -f "./web-api/compose.db.yml" down
 
-build-service-image $CRATE_PATH $BIN $ASSET_DIR="":
+build-service-image crate_path bin asset_dir="":
     #!/usr/bin/env -S bash -eux -o pipefail
     out="$(mktemp -d -t xayn.web-api.compose.XXXX)"
     echo "Building in: $out"
     cargo install \
-        --path "$CRATE_PATH" \
-        --bin "$BIN" \
+        --path "{{crate_path}}" \
+        --bin "{{bin}}" \
         --debug \
         --root "$out"
     # rename binary to the name the Dockerfile expects
-    mv "$out/bin/$BIN" "$out/server.bin"
+    mv "$out/bin/{{bin}}" "$out/server.bin"
     rmdir "$out/bin"
-    if [ -n "$ASSET_DIR" ]; then
-        cp -R "$ASSET_DIR" "$out/assets"
+    if [ -n "{{asset_dir}}" ]; then
+        cp -R "{{asset_dir}}" "$out/assets"
     fi
-    docker build -f "$CRATE_PATH/Dockerfile" -t "xayn-$CRATE_PATH-$BIN" "$out"
+    docker build -f "{{crate_path}}/Dockerfile" -t "xayn-{{crate_path}}-{{bin}}" "$out"
     rm -rf "$out"
 
-compose-all-build $SMBERT="xaynia_v0002":
+compose-all-build model="xaynia_v0201":
     #!/usr/bin/env -S bash -eux -o pipefail
     {{just_executable()}} build-service-image web-api personalization
-    {{just_executable()}} build-service-image web-api ingestion "assets/$SMBERT"
+    {{just_executable()}} build-service-image web-api ingestion "assets/{{model}}"
 
 compose-all-up *args:
     #!/usr/bin/env -S bash -eux -o pipefail

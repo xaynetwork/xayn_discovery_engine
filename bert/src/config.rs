@@ -37,45 +37,16 @@ use crate::{
 ///
 /// ```toml
 /// # the config file is always named `config.toml`
+/// # the tokenizer file is always named `tokenizer.json`
+/// # the model file is always named `model.onnx`
+/// # the runtime file is always named `lib/libonnxruntime.<so/dylib>`
 ///
-/// # the path is always `tokenizer.json`
 /// [tokenizer]
 /// add-special-tokens = true
-///
-/// [tokenizer.tokens]
 /// # the `token size` must be in the inclusive range, but is passed as an argument
 /// size.min = 2
 /// size.max = 512
 /// padding = "[PAD]"
-///
-/// # the [model] path is always `model.onnx`
-///
-/// # string shapes are considered dynamic and depend on arguments
-/// [model.input.0]
-/// shape.0 = 1
-/// shape.1 = "token size"
-/// type = "i64"
-///
-/// [model.input.1]
-/// shape.0 = 1
-/// shape.1 = "token size"
-/// type = "i64"
-///
-/// [model.input.2]
-/// shape.0 = 1
-/// shape.1 = "token size"
-/// type = "i64"
-///
-/// [model.output.0]
-/// shape.0 = 1
-/// shape.1 = "token size"
-/// shape.2 = 128
-/// type = "f32"
-///
-/// [model.output.1]
-/// shape.0 = 1
-/// shape.1 = 128
-/// type = "f32"
 /// ```
 #[must_use]
 pub struct Config<P> {
@@ -127,8 +98,8 @@ impl Config<NonePooler> {
 }
 
 impl<P> Config<P> {
-    const MIN_TOKEN_SIZE: &str = "tokenizer.tokens.size.min";
-    const MAX_TOKEN_SIZE: &str = "tokenizer.tokens.size.max";
+    const MIN_TOKEN_SIZE: &str = "tokenizer.min_size";
+    const MAX_TOKEN_SIZE: &str = "tokenizer.max_size";
 
     pub(crate) fn extract<'b, V>(&self, key: &str) -> Result<V, Error>
     where
@@ -150,9 +121,10 @@ impl<P> Config<P> {
         Ok(())
     }
 
-    /// Sets the token size for the tokenizer and the model.
+    /// Sets the token size for the tokenizer.
     ///
-    /// Defaults to the midpoint of the token size range.
+    /// Too long tokenized sequences are truncated accordingly. Defaults to the midpoint of the
+    /// token size range.
     ///
     /// # Errors
     /// Fails if `size` is not within the token size range.

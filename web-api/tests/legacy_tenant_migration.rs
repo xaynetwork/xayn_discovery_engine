@@ -289,7 +289,7 @@ fn test_full_migration() {
             &pg_config,
             &es_config,
             Table::new(),
-            "smbert_v0004",
+            "smbert_v0005",
             &format!("ort_v1.15.1/{}", ort_target().unwrap()),
         );
         let args = &[

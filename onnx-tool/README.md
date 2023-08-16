@@ -7,7 +7,7 @@ You need to have [Python](https://www.python.org/) installed.
 
 # 🏗 Usage
 
-First install needed dependencies and then run the script specifying the type of the model (`smbert`) and output path. By default the output path is `"."` (the current directory).
+First install needed dependencies and then run the script specifying the type of the model (`bert`) and output path. By default the output path is `"."` (the current directory).
 
 ```sh
 # create virtual env
@@ -19,8 +19,9 @@ $ source .venv/bin/activate
 # install dependencies
 $ pip install -r requirements.txt
 
-# generate smbert model, put it in the assets dir and upload a new version
+# generate bert model, put it in the assets dir and upload a new version
 $ python src/mock_onnx_tool.py \
-  --type smbert \
-  --output ../assets/smbert_mocked_v0004
+  --type bert \
+  --embedding 128 \
+  --output ../assets/mocked_model
 ```

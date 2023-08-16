@@ -11,7 +11,7 @@ on:
       model_version:
         description: Version of the model
         type: string
-        default: v0002
+        default: v0201
         required: true
       platform:
         description: Platform to build the image for
