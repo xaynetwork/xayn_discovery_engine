@@ -48,30 +48,35 @@ pub enum PipelineError {
 }
 
 impl Pipeline<NonePooler> {
-    /// Computes the embedding of the sequence.
+    /// Computes the pooled embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding2, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
-        let prediction = self.model.predict(encoding)?;
-        NonePooler::pool(&prediction).map_err(Into::into)
+        let embedding = self.model.embed(&encoding)?;
+        let pooling = NonePooler::pool(&embedding.extract()?.view());
+
+        Ok(pooling)
     }
 }
 
 impl Pipeline<FirstPooler> {
-    /// Computes the embedding of the sequence.
+    /// Computes the pooled embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
-        let prediction = self.model.predict(encoding)?;
-        FirstPooler::pool(&prediction).map_err(Into::into)
+        let embedding = self.model.embed(&encoding)?;
+        let pooling = FirstPooler::pool(&embedding.extract()?.view());
+
+        Ok(pooling)
     }
 }
 
 impl Pipeline<AveragePooler> {
-    /// Computes the embedding of the sequence.
+    /// Computes the pooled embedding of the sequence.
     pub fn run(&self, sequence: impl AsRef<str>) -> Result<Embedding1, PipelineError> {
         let encoding = self.tokenizer.encode(sequence)?;
-        let attention_mask = encoding.to_attention_mask();
-        let prediction = self.model.predict(encoding)?;
-        AveragePooler::pool(&prediction, &attention_mask).map_err(Into::into)
+        let embedding = self.model.embed(&encoding)?;
+        let pooling = AveragePooler::pool(&embedding.extract()?.view(), &encoding);
+
+        Ok(pooling)
     }
 }
 
@@ -89,7 +94,9 @@ impl<P> Pipeline<P> {
 
 #[cfg(test)]
 mod tests {
-    use xayn_test_utils::asset::{e5_mocked, smbert_mocked};
+    use std::path::PathBuf;
+
+    use xayn_test_utils::asset::{e5_mocked, ort, smbert_mocked};
 
     use super::*;
     use crate::{
@@ -97,16 +104,8 @@ mod tests {
         pooler::{AveragePooler, FirstPooler, NonePooler},
     };
 
-    fn pipeline<P>() -> Pipeline<P> {
-        Config::new(smbert_mocked().unwrap())
-            .unwrap()
-            .with_pooler()
-            .build()
-            .unwrap()
-    }
-
-    fn e5_pipeline<P>() -> Pipeline<P> {
-        Config::new(e5_mocked().unwrap())
+    fn pipeline<P>(dir: PathBuf) -> Pipeline<P> {
+        Config::new(dir, ort().unwrap())
             .unwrap()
             .with_pooler()
             .build()
@@ -115,7 +114,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_none() {
-        let pipeline = pipeline::<NonePooler>();
+        let pipeline = pipeline::<NonePooler>(smbert_mocked().unwrap());
         let shape = [pipeline.token_size(), pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
@@ -127,7 +126,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_first() {
-        let pipeline = pipeline::<FirstPooler>();
+        let pipeline = pipeline::<FirstPooler>(smbert_mocked().unwrap());
         let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
@@ -139,7 +138,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_average() {
-        let pipeline = pipeline::<AveragePooler>();
+        let pipeline = pipeline::<AveragePooler>(smbert_mocked().unwrap());
         let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();
@@ -151,7 +150,7 @@ mod tests {
 
     #[test]
     fn test_e5_pipeline() {
-        let pipeline = e5_pipeline::<AveragePooler>();
+        let pipeline = pipeline::<AveragePooler>(e5_mocked().unwrap());
         let shape = [pipeline.embedding_size()];
 
         let embeddings = pipeline.run("This is a sequence.").unwrap();

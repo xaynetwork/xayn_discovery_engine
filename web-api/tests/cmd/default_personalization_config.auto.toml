@@ -49,8 +49,8 @@ stdout = """
   "embedding": {
     "type": "pipeline",
     "directory": "assets",
-    "token_size": 250,
-    "runtime": "assets"
+    "runtime": "assets",
+    "token_size": 250
   },
   "personalization": {
     "max_number_documents": 100,

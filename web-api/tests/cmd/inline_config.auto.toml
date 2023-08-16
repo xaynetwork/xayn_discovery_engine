@@ -54,8 +54,8 @@ stdout = """
   "embedding": {
     "type": "pipeline",
     "directory": "assets",
-    "token_size": 250,
-    "runtime": "assets"
+    "runtime": "assets",
+    "token_size": 250
   },
   "tenants": {
     "enable_legacy_tenant": false,
