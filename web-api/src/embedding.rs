@@ -69,6 +69,34 @@ pub struct Sagemaker {
     pub(crate) aws_profile: Option<String>,
 }
 
+impl Sagemaker {
+    async fn load(&self) -> Result<Embedder, SetupError> {
+        let mut config_loader = aws_config::from_env();
+
+        if let Some(region) = &self.aws_region {
+            config_loader = config_loader.region(Region::new(region.clone()));
+        }
+        if let Some(profile) = &self.aws_profile {
+            config_loader = config_loader.profile_name(profile);
+        }
+
+        config_loader = config_loader.retry_config(
+            RetryConfig::standard()
+                .with_max_attempts(1 + self.retry_max_attempts.unwrap_or_default()),
+        );
+
+        let sdk_config = config_loader.load().await;
+        let client = Client::new(&sdk_config);
+
+        Ok(Embedder::Sagemaker {
+            client,
+            embedding_size: self.embedding_size,
+            endpoint: self.endpoint.clone(),
+            target_model: self.target_model.clone(),
+        })
+    }
+}
+
 pub(crate) enum Embedder {
     Pipeline(AvgEmbedder),
     Sagemaker {
@@ -88,7 +116,7 @@ impl Embedder {
     pub(crate) async fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
             Config::Pipeline(config) => Self::load_pipeline(config),
-            Config::Sagemaker(config) => Self::load_client(config).await,
+            Config::Sagemaker(config) => config.load().await,
         }
     }
 
@@ -100,32 +128,6 @@ impl Embedder {
         let embedder = config.build()?;
 
         Ok(Self::Pipeline(embedder))
-    }
-
-    async fn load_client(config: &Sagemaker) -> Result<Self, SetupError> {
-        let mut config_loader = aws_config::from_env();
-
-        if let Some(region) = &config.aws_region {
-            config_loader = config_loader.region(Region::new(region.clone()));
-        }
-        if let Some(profile) = &config.aws_profile {
-            config_loader = config_loader.profile_name(profile);
-        }
-
-        config_loader = config_loader.retry_config(
-            RetryConfig::standard()
-                .with_max_attempts(1 + config.retry_max_attempts.unwrap_or_default()),
-        );
-
-        let sdk_config = config_loader.load().await;
-        let client = Client::new(&sdk_config);
-
-        Ok(Self::Sagemaker {
-            client,
-            embedding_size: config.embedding_size,
-            endpoint: config.endpoint.clone(),
-            target_model: config.target_model.clone(),
-        })
     }
 
     pub(crate) async fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
@@ -163,12 +165,12 @@ impl Embedder {
             request = request.target_model(target_model);
         };
 
-        let response = request.send().await.map_err(|e| {
-            InternalError::from_message(format!("Failed to request sagemaker endpoint. Error: {e}"))
-        })?;
+        let response = request.send().await.map_err(InternalError::from_std)?;
 
         let Some(body) = response.body() else {
-            return Err(InternalError::from_message("Received sagemaker response without body."));
+            return Err(InternalError::from_message(
+                "Received sagemaker response without body.",
+            ));
         };
 
         serde_json::from_slice::<SagemakerResponse>(body.as_ref())
