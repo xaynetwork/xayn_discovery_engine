@@ -172,11 +172,7 @@ impl Embedder {
         };
 
         serde_json::from_slice::<SagemakerResponse>(body.as_ref())
-            .map_err(|e| {
-                InternalError::from_message(format!(
-                    "Failed to deserialize sagemaker response body. Error: {e}"
-                ))
-            })?
+            .map_err(InternalError::from_std)?
             .embeddings
             .pop()
             .ok_or(InternalError::from_message(
