@@ -14,13 +14,13 @@
 
 //! Run as `cargo run --example bert
 
-use xayn_ai_bert::{Config, FirstPooler};
-use xayn_test_utils::asset::smbert;
+use xayn_ai_bert::{AveragePooler, Config};
+use xayn_test_utils::asset::{ort, xaynia};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pipeline = Config::new(smbert()?)?
-        .with_token_size(64)?
-        .with_pooler::<FirstPooler>()
+    let pipeline = Config::new(xaynia()?, ort()?)?
+        .with_token_size(250)?
+        .with_pooler::<AveragePooler>()
         .build()?;
     let embedding = pipeline.run("This is a sequence.")?;
     println!("{}", *embedding);

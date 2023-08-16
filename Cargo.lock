@@ -4214,32 +4214,8 @@ dependencies = [
  "num-traits",
  "rustfft",
  "smallvec",
- "tract-data 0.19.16",
- "tract-linalg 0.19.16",
-]
-
-[[package]]
-name = "tract-core"
-version = "0.20.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d1518c2b81258326ade7659d9c71d3747fee884cb792afdd09977fd4693cf1d"
-dependencies = [
- "anyhow",
- "bit-set",
- "derive-new",
- "downcast-rs",
- "dyn-clone",
- "lazy_static",
- "log",
- "maplit",
- "ndarray",
- "num-complex",
- "num-integer",
- "num-traits",
- "rustfft",
- "smallvec",
- "tract-data 0.20.7",
- "tract-linalg 0.20.7",
+ "tract-data",
+ "tract-linalg",
 ]
 
 [[package]]
@@ -4265,26 +4241,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tract-data"
-version = "0.20.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68315af15998e0cf06c29f017905c083d4f964b3114d8436ef6887b11fa39f56"
-dependencies = [
- "anyhow",
- "half 2.2.1",
- "itertools 0.10.5",
- "lazy_static",
- "maplit",
- "ndarray",
- "nom",
- "num-integer",
- "num-traits",
- "scan_fmt",
- "smallvec",
- "string-interner",
-]
-
-[[package]]
 name = "tract-hir"
 version = "0.19.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4293,18 +4249,7 @@ dependencies = [
  "derive-new",
  "educe",
  "log",
- "tract-core 0.19.16",
-]
-
-[[package]]
-name = "tract-hir"
-version = "0.20.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be070982d0310dc8f9164251cef6e67514bd64c844066d853adfe45d65f2622a"
-dependencies = [
- "derive-new",
- "log",
- "tract-core 0.20.7",
+ "tract-core",
 ]
 
 [[package]]
@@ -4326,31 +4271,7 @@ dependencies = [
  "paste",
  "scan_fmt",
  "smallvec",
- "tract-data 0.19.16",
- "unicode-normalization",
- "walkdir",
-]
-
-[[package]]
-name = "tract-linalg"
-version = "0.20.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f4332a4be4cb2c12c317d0e092dcf5b09479314be18b906333113429ec258d36"
-dependencies = [
- "cc",
- "derive-new",
- "downcast-rs",
- "dyn-clone",
- "half 2.2.1",
- "lazy_static",
- "liquid",
- "liquid-core",
- "log",
- "num-traits",
- "paste",
- "scan_fmt",
- "smallvec",
- "tract-data 0.20.7",
+ "tract-data",
  "unicode-normalization",
  "walkdir",
 ]
@@ -4366,22 +4287,7 @@ dependencies = [
  "log",
  "nom",
  "tar",
- "tract-core 0.19.16",
- "walkdir",
-]
-
-[[package]]
-name = "tract-nnef"
-version = "0.20.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dcb872e9c8c156a8b5194f27ebaff5867f2b2edbc22a6f47dc7fcf2bb8b52473"
-dependencies = [
- "byteorder",
- "flate2",
- "log",
- "nom",
- "tar",
- "tract-core 0.20.7",
+ "tract-core",
  "walkdir",
 ]
 
@@ -4399,27 +4305,9 @@ dependencies = [
  "num-integer",
  "prost",
  "smallvec",
- "tract-hir 0.19.16",
- "tract-nnef 0.19.16",
- "tract-onnx-opl 0.19.16",
-]
-
-[[package]]
-name = "tract-onnx"
-version = "0.20.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec4ba4a71a7eb6ab440bd0e525ea582fc339d938ff1cee91dbf38e0a59af277e"
-dependencies = [
- "bytes",
- "derive-new",
- "log",
- "memmap2",
- "num-integer",
- "prost",
- "smallvec",
- "tract-hir 0.20.7",
- "tract-nnef 0.20.7",
- "tract-onnx-opl 0.20.7",
+ "tract-hir",
+ "tract-nnef",
+ "tract-onnx-opl",
 ]
 
 [[package]]
@@ -4434,21 +4322,7 @@ dependencies = [
  "rand",
  "rand_distr",
  "rustfft",
- "tract-nnef 0.19.16",
-]
-
-[[package]]
-name = "tract-onnx-opl"
-version = "0.20.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d5efd9ae10b507905ae6d1df7ec48f4dab77ab9605b1bd86275bb19997882267"
-dependencies = [
- "getrandom",
- "log",
- "rand",
- "rand_distr",
- "rustfft",
- "tract-nnef 0.20.7",
+ "tract-nnef",
 ]
 
 [[package]]
@@ -4996,7 +4870,7 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokenizers",
- "tract-onnx 0.19.16",
+ "tract-onnx",
  "xayn-test-utils 0.1.1",
 ]
 
@@ -5018,7 +4892,6 @@ dependencies = [
  "sqlx",
  "thiserror",
  "tokenizers",
- "tract-onnx 0.20.7",
  "xayn-test-utils 0.2.0",
 ]
 

@@ -15,7 +15,7 @@
 use std::{hint::black_box, path::Path};
 
 use criterion::{criterion_group, criterion_main, Criterion};
-use xayn_ai_bert::{AveragePooler, Config, Runtime};
+use xayn_ai_bert::{AveragePooler, Config};
 use xayn_test_utils::asset::{ort, xaynia};
 
 const TOKEN_SIZE: usize = 250;
@@ -36,12 +36,11 @@ tincidunt ut laoreet dolore magna aliquam erat volutpat. Ut wisi enim ad minim v
 exerci tation ullamcorper suscipit lobortis nisl ut aliquip ex ea commodo consequat. Duis autem vel
 eum iriure dolor in hendrerit in vulputate velit esse";
 
-fn bench_bert(manager: &mut Criterion, name: &str, dir: &Path, rt: Runtime) {
-    let pipeline = Config::new(dir)
+fn bench_bert(manager: &mut Criterion, name: &str, dir: &Path) {
+    let pipeline = Config::new(dir, ort().unwrap())
         .unwrap()
         .with_token_size(TOKEN_SIZE)
         .unwrap()
-        .with_runtime(rt)
         .with_pooler::<AveragePooler>()
         .build()
         .unwrap();
@@ -50,25 +49,15 @@ fn bench_bert(manager: &mut Criterion, name: &str, dir: &Path, rt: Runtime) {
     });
 }
 
-fn bench_bert_tract(manager: &mut Criterion) {
-    bench_bert(manager, "Bert Tract", &xaynia().unwrap(), Runtime::Tract);
-}
-
-fn bench_bert_ort(manager: &mut Criterion) {
-    bench_bert(
-        manager,
-        "Bert Ort",
-        &xaynia().unwrap(),
-        Runtime::Ort(ort().unwrap()),
-    );
+fn bench_xaynia(manager: &mut Criterion) {
+    bench_bert(manager, "Bert Xaynia", &xaynia().unwrap());
 }
 
 criterion_group! {
     name = bench;
     config = Criterion::default();
     targets =
-        bench_bert_tract,
-        bench_bert_ort,
+        bench_xaynia,
 }
 
 criterion_main! {

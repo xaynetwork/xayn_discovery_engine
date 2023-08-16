@@ -17,7 +17,10 @@ use derive_more::{Deref, DerefMut};
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
 use serde::Serialize;
 use xayn_ai_coi::{CoiConfig, CoiSystem};
-use xayn_test_utils::error::Panic;
+use xayn_test_utils::{
+    asset::{ort, xaynia},
+    error::Panic,
+};
 
 use crate::{
     embedding::{self, Embedder, Pipeline},
@@ -50,7 +53,8 @@ pub(super) struct State {
 impl State {
     pub(super) async fn new(storage: Storage, config: StateConfig) -> Result<Self, Panic> {
         let embedder = Embedder::load(&embedding::Config::Pipeline(Pipeline {
-            directory: "../assets/xaynia_v0002".into(),
+            directory: xaynia()?.into(),
+            runtime: ort()?.into(),
             ..Pipeline::default()
         }))
         .await

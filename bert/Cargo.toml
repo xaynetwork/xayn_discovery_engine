@@ -17,7 +17,6 @@ serde = { workspace = true }
 sqlx = { workspace = true, optional = true }
 thiserror = { workspace = true }
 tokenizers = { version = "0.13.3", default-features = false, features = ["onig"] }
-tract-onnx = "0.20.7"
 xayn-test-utils = { path = "../test-utils" }
 
 [dev-dependencies]

@@ -14,10 +14,9 @@
 
 use std::ops::{Add, Mul};
 
-use anyhow::Error;
 use derive_more::{Deref, From};
 use displaydoc::Display;
-use ndarray::{s, Array, Array1, Dimension, Ix, Ix1, Ix2};
+use ndarray::{s, Array, Array1, ArrayView, Dimension, Ix, Ix1, Ix2, IxDyn};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "sqlx")]
 use sqlx::{
@@ -32,9 +31,8 @@ use sqlx::{
     Type,
 };
 use thiserror::Error;
+use tokenizers::Encoding;
 use xayn_test_utils::ApproxEqIter;
-
-use crate::{model::Prediction, tokenizer::AttentionMask};
 
 /// A d-dimensional sequence embedding.
 #[derive(Clone, Debug, Deref, From, Default)]
@@ -200,68 +198,59 @@ pub type Embedding2 = Embedding<Ix2>;
 
 /// An inert pooling strategy.
 ///
-/// The prediction is just passed through.
+/// The embedding is just passed through.
 pub struct NonePooler;
 
 impl NonePooler {
-    /// Passes through the prediction.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding2, Error> {
-        Ok(prediction
-            .to_array_view()?
-            .slice(s![0, .., ..])
-            .to_owned()
-            .into())
+    /// Passes through the embedding.
+    pub(crate) fn pool(embedding: &ArrayView<'_, f32, IxDyn>) -> Embedding2 {
+        embedding.slice(s![0, .., ..]).to_owned().into()
     }
 }
 
 /// A first token pooling strategy.
 ///
-/// The prediction is pooled over its first tokens (`[CLS]`).
+/// The embedding is pooled over its first token.
 pub struct FirstPooler;
 
 impl FirstPooler {
-    /// Pools the prediction over its first token.
-    pub(crate) fn pool(prediction: &Prediction) -> Result<Embedding1, Error> {
-        Ok(prediction
-            .to_array_view()?
-            .slice(s![0, 0, ..])
-            .to_owned()
-            .into())
+    /// Pools the embedding over its first token.
+    pub(crate) fn pool(embedding: &ArrayView<'_, f32, IxDyn>) -> Embedding1 {
+        embedding.slice(s![0, 0, ..]).to_owned().into()
     }
 }
 
 /// An average token pooling strategy.
 ///
-/// The prediction is pooled over its averaged tokens.
+/// The embedding is pooled over its averaged tokens.
 pub struct AveragePooler;
 
 impl AveragePooler {
-    /// Pools the prediction over its averaged, active tokens.
-    pub(crate) fn pool(
-        prediction: &Prediction,
-        attention_mask: &AttentionMask,
-    ) -> Result<Embedding1, Error> {
-        let attention_mask: Array1<f32> = attention_mask.slice(s![0, ..]).mapv(
+    /// Pools the embedding over its averaged, active tokens.
+    pub(crate) fn pool(embedding: &ArrayView<'_, f32, IxDyn>, encoding: &Encoding) -> Embedding1 {
+        let attention_mask = encoding.get_attention_mask();
+        let attention_mask = Array1::from_shape_fn(
+            attention_mask.len(),
             #[allow(clippy::cast_precision_loss)] // values are only 0 or 1
-            |mask| mask as f32,
+            |i| attention_mask[i] as f32,
         );
         let count = attention_mask.sum();
 
         let average = if count > 0. {
-            attention_mask.dot(&prediction.to_array_view()?.slice(s![0, .., ..])) / count
+            attention_mask.dot(&embedding.slice(s![0, .., ..])) / count
         } else {
-            Array1::default(prediction.shape()[2])
+            Array1::default(embedding.shape()[2])
         };
 
-        Ok(average.into())
+        average.into()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::f32::consts::SQRT_2;
+    use std::{collections::HashMap, f32::consts::SQRT_2};
 
-    use ndarray::{arr2, arr3};
+    use ndarray::arr3;
     use xayn_test_utils::assert_approx_eq;
 
     use super::*;
@@ -286,36 +275,49 @@ mod tests {
 
     #[test]
     fn test_none() {
-        let prediction = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into();
-        let embedding = NonePooler::pool(&prediction).unwrap();
+        let embedding = arr3(&[[[1_f32, 2., 3.], [4., 5., 6.]]]).into_dyn();
+        let embedding = NonePooler::pool(&embedding.view());
         assert_approx_eq!(f32, embedding, [[1., 2., 3.], [4., 5., 6.]]);
     }
 
     #[test]
     fn test_first() {
-        let prediction = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into();
-        let embedding = FirstPooler::pool(&prediction).unwrap();
+        let embedding = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into_dyn();
+        let embedding = FirstPooler::pool(&embedding.view());
         assert_approx_eq!(f32, embedding, [1., 2., 3.]);
     }
 
     #[test]
     fn test_average() {
-        let prediction = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into();
+        let embedding = arr3(&[[[1., 2., 3.], [4., 5., 6.]]]).into_dyn();
+        let attention_mask = |mask| {
+            Encoding::new(
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                mask,
+                Vec::new(),
+                HashMap::new(),
+            )
+        };
 
-        let mask = arr2(&[[0, 0]]).into();
-        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
-        assert_approx_eq!(f32, embedding, [0., 0., 0.]);
+        let encoding = attention_mask(vec![0, 0]);
+        let pooling = AveragePooler::pool(&embedding.view(), &encoding);
+        assert_approx_eq!(f32, pooling, [0., 0., 0.]);
 
-        let mask = arr2(&[[0, 1]]).into();
-        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
-        assert_approx_eq!(f32, embedding, [4., 5., 6.]);
+        let encoding = attention_mask(vec![0, 1]);
+        let pooling = AveragePooler::pool(&embedding.view(), &encoding);
+        assert_approx_eq!(f32, pooling, [4., 5., 6.]);
 
-        let mask = arr2(&[[1, 0]]).into();
-        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
-        assert_approx_eq!(f32, embedding, [1., 2., 3.]);
+        let encoding = attention_mask(vec![1, 0]);
+        let pooling = AveragePooler::pool(&embedding.view(), &encoding);
+        assert_approx_eq!(f32, pooling, [1., 2., 3.]);
 
-        let mask = arr2(&[[1, 1]]).into();
-        let embedding = AveragePooler::pool(&prediction, &mask).unwrap();
-        assert_approx_eq!(f32, embedding, [2.5, 3.5, 4.5]);
+        let encoding = attention_mask(vec![1, 1]);
+        let pooling = AveragePooler::pool(&embedding.view(), &encoding);
+        assert_approx_eq!(f32, pooling, [2.5, 3.5, 4.5]);
     }
 }

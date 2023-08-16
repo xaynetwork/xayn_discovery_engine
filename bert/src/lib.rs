@@ -43,7 +43,7 @@ mod pooler;
 mod tokenizer;
 
 pub use crate::{
-    config::{Config, Runtime},
+    config::Config,
     pipeline::{Pipeline, PipelineError},
     pooler::{
         AveragePooler,

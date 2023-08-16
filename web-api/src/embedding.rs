@@ -16,7 +16,7 @@ use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding, Runtime};
+use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
@@ -38,24 +38,24 @@ impl Default for Config {
 pub struct Pipeline {
     #[serde(deserialize_with = "RelativePathBuf::deserialize_string")]
     pub(crate) directory: RelativePathBuf,
+    #[serde(deserialize_with = "RelativePathBuf::deserialize_string")]
+    pub(crate) runtime: RelativePathBuf,
     pub(crate) token_size: usize,
-    pub(crate) runtime: Runtime,
 }
 
 impl Default for Pipeline {
     fn default() -> Self {
         Self {
             directory: "assets".into(),
+            runtime: "assets".into(),
             token_size: 250,
-            runtime: Runtime::Ort("assets".into()),
         }
     }
 }
 
 impl Pipeline {
     fn load(&self) -> Result<Embedder, SetupError> {
-        let config = EmbedderConfig::new(self.directory.relative())?
-            .with_runtime(self.runtime.clone())
+        let config = EmbedderConfig::new(self.directory.relative(), self.runtime.relative())?
             .with_token_size(self.token_size)?
             .with_pooler();
         config.validate()?;
@@ -201,21 +201,10 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_embedder_tract() {
+    async fn test_embedder() {
         let config = Config::Pipeline(Pipeline {
             directory: xaynia().unwrap().into(),
-            runtime: Runtime::Tract,
-            ..Pipeline::default()
-        });
-        let embedder = Embedder::load(&config).await.unwrap();
-        embedder.run("test").await.unwrap();
-    }
-
-    #[tokio::test]
-    async fn test_embedder_ort() {
-        let config = Config::Pipeline(Pipeline {
-            directory: xaynia().unwrap().into(),
-            runtime: Runtime::Ort(ort().unwrap()),
+            runtime: ort().unwrap().into(),
             ..Pipeline::default()
         });
         let embedder = Embedder::load(&config).await.unwrap();
