@@ -12,6 +12,12 @@ runs:
     - name: Load .env
       uses: xom9ikk/dotenv@de1ff27d319507880e6621e4d47424c677d95f68 # v2.2.0
 
+    - name: Setup missing libs
+      shell: bash
+      run: |
+        apt-get update
+        apt-get install pkg-config libxml2
+
     - name: Configure cargo
       shell: bash
       run: |
