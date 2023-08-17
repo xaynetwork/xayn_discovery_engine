@@ -54,7 +54,6 @@ fn run_hurl_tests() {
 
         test_app::<Ingestion, _>(UNCHANGED_CONFIG, |_, url, _| async move {
             let mut url = url.to_string();
-            let _ = url.pop();
 
             variables.insert("url".to_string(), Value::String(url));
 
