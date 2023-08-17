@@ -54,7 +54,10 @@ fn run_hurl_tests() {
             .build();
 
         test_app::<Ingestion, _>(UNCHANGED_CONFIG, |_, url, _| async move {
-            variables.insert("url".to_string(), Value::String(url.to_string()));
+            let mut url = url.to_string();
+            let _ = url.pop();
+
+            variables.insert("url".to_string(), Value::String(url));
 
             let result = runner::run(
                 &content,
