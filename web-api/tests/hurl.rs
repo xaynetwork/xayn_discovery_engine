@@ -19,7 +19,6 @@ use hurl::{
     runner::{RunnerOptionsBuilder, Value},
     util::logger::{LoggerOptionsBuilder, Verbosity},
 };
-
 use walkdir::WalkDir;
 use xayn_integration_tests::{test_app, UNCHANGED_CONFIG};
 use xayn_web_api::Ingestion;
