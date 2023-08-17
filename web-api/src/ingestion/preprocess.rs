@@ -12,8 +12,10 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::sync::Arc;
+
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
-use xayn_snippet_extractor::{self as snippet_extractor, SnippetExtractor};
+use xayn_snippet_extractor::SnippetExtractor;
 use xayn_summarizer::{self as summarizer, summarize, Source, Summarizer};
 
 use crate::{
@@ -23,70 +25,84 @@ use crate::{
     Error,
 };
 
-pub(super) async fn preprocess_document(
-    embedder: &Embedder,
-    original: DocumentSnippet,
-    preprocessing_step: &mut PreprocessingStep,
-) -> Result<Vec<DocumentContent>, Error> {
-    Ok(match *preprocessing_step {
-        PreprocessingStep::None => embed_whole(embedder, original).await?,
-        PreprocessingStep::Summarize => embed_with_summarizer(embedder, original).await?,
-        #[allow(deprecated)]
-        PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
-            *preprocessing_step = PreprocessingStep::NltkSplitV1;
-            embed_with_nltk(embedder, &original).await?
+pub(crate) struct Preprocessor {
+    embedder: Arc<Embedder>,
+    snippet_extractor: SnippetExtractor,
+}
+
+impl Preprocessor {
+    pub(crate) fn new(embedder: Arc<Embedder>, snippet_extractor: SnippetExtractor) -> Self {
+        Self {
+            embedder,
+            snippet_extractor,
         }
-    })
-}
+        // let extractor = SnippetExtractor::initialize(
+        //     &snippet_extractor::Config::default(),
+        //     std::path::Path::new("/home/user/projects/de2/assets/xaynia_v0002/tokenizer.json"),
+        // )?;
+    }
 
-async fn embed_whole(
-    embedder: &Embedder,
-    snippet: DocumentSnippet,
-) -> Result<Vec<DocumentContent>, Error> {
-    let embedding = embedder.run(&snippet).await?;
-    Ok(vec![DocumentContent { snippet, embedding }])
-}
-
-async fn embed_with_summarizer(
-    embedder: &Embedder,
-    snippet: DocumentSnippet,
-) -> Result<Vec<DocumentContent>, Error> {
-    let summary = summarize(
-        &Summarizer::Naive,
-        &Source::PlainText {
-            text: snippet.to_string(),
-        },
-        &summarizer::Config::default(),
-    );
-    let embedding = embedder.run(&summary).await?;
-    Ok(vec![DocumentContent {
-        // Hint: Yes we do not use the summary, this is so that keyword/text search
-        //       can use the original text.
-        snippet,
-        embedding,
-    }])
-}
-
-async fn embed_with_nltk(
-    embedder: &Embedder,
-    snippet: &DocumentSnippet,
-) -> Result<Vec<DocumentContent>, Error> {
-    let extractor = SnippetExtractor::initialize(&snippet_extractor::Config::default())?;
-    let snippets = extractor
-        .run(snippet)?
-        .into_iter()
-        .map(|split| async move {
-            let snippet = DocumentSnippet::new(split, usize::MAX)?;
-            let embedding = embedder.run(&snippet).await?;
-            Ok::<_, Error>(DocumentContent { snippet, embedding })
+    pub(crate) async fn preprocess(
+        &self,
+        original: DocumentSnippet,
+        preprocessing_step: &mut PreprocessingStep,
+    ) -> Result<Vec<DocumentContent>, Error> {
+        Ok(match *preprocessing_step {
+            PreprocessingStep::None => self.embed_whole(original).await?,
+            PreprocessingStep::Summarize => self.embed_with_summarizer(original).await?,
+            PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
+                *preprocessing_step = PreprocessingStep::NltkSplitV1;
+                self.embed_with_nltk(&original).await?
+            }
         })
-        .collect::<FuturesOrdered<_>>()
-        .try_collect::<Vec<_>>()
-        .await?;
+    }
 
-    if snippets.is_empty() {
-        Err(InvalidDocumentSnippet::NoSnippets {}.into())
-    } else {
-        Ok(snippets)
+    async fn embed_whole(&self, snippet: DocumentSnippet) -> Result<Vec<DocumentContent>, Error> {
+        let embedding = self.embedder.run(&snippet).await?;
+        Ok(vec![DocumentContent { snippet, embedding }])
+    }
+
+    async fn embed_with_summarizer(
+        &self,
+        snippet: DocumentSnippet,
+    ) -> Result<Vec<DocumentContent>, Error> {
+        let summary = summarize(
+            &Summarizer::Naive,
+            &Source::PlainText {
+                text: snippet.to_string(),
+            },
+            &summarizer::Config::default(),
+        );
+        let embedding = self.embedder.run(&summary).await?;
+        Ok(vec![DocumentContent {
+            // Hint: Yes we do not use the summary, this is so that keyword/text search
+            //       can use the original text.
+            snippet,
+            embedding,
+        }])
+    }
+
+    async fn embed_with_nltk(
+        &self,
+        snippet: &DocumentSnippet,
+    ) -> Result<Vec<DocumentContent>, Error> {
+        let snippets = self
+            .snippet_extractor
+            .run(snippet)?
+            .into_iter()
+            .map(|split| async move {
+                let snippet = DocumentSnippet::new(split, usize::MAX)?;
+                let embedding = self.embedder.run(&snippet).await?;
+                Ok::<_, Error>(DocumentContent { snippet, embedding })
+            })
+            .collect::<FuturesOrdered<_>>()
+            .try_collect::<Vec<_>>()
+            .await?;
+
+        if snippets.is_empty() {
+            Err(InvalidDocumentSnippet::NoSnippets {}.into())
+        } else {
+            Ok(snippets)
+        }
     }
 }

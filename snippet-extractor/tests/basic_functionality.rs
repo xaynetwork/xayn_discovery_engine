@@ -12,9 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::sync::{
-    atomic::{AtomicBool, Ordering},
-    Arc,
+use std::{
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
 };
 
 use xayn_snippet_extractor::{Error, SnippetExtractor};
@@ -39,10 +42,13 @@ The precise terms and conditions for copying, distribution and modification foll
 ";
 
 #[test]
-fn test_extraction_works() -> Result<(), Error> {
+fn test_snippet_extraction_works() -> Result<(), Error> {
     initialize_python();
 
-    let extractor = SnippetExtractor::initialize(&Default::default())?;
+    let extractor = SnippetExtractor::initialize(
+        &Default::default(),
+        Path::new("/home/user/projects/de2/assets/xaynia_v0002/tokenizer.json"),
+    )?;
     extractor.run(TEST_TEXT)?;
 
     // TODO[pmk/now] test the outcome is as expected
@@ -51,10 +57,13 @@ fn test_extraction_works() -> Result<(), Error> {
 }
 
 #[test]
-fn test_multi_threaded_access_works() -> Result<(), Error> {
+fn test_multi_threaded_snippet_extraction_works() -> Result<(), Error> {
     initialize_python();
 
-    let extractor = SnippetExtractor::initialize(&Default::default())?;
+    let extractor = SnippetExtractor::initialize(
+        &Default::default(),
+        Path::new("/home/user/projects/de2/assets/xaynia_v0002/tokenizer.json"),
+    )?;
 
     let wait = Arc::new(AtomicBool::new(true));
 

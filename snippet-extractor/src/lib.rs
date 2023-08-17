@@ -29,6 +29,8 @@
     clippy::must_use_candidate
 )]
 
+use std::path::Path;
+
 use displaydoc::Display;
 use pyo3::{
     types::{PyDict, PyModule},
@@ -80,7 +82,11 @@ pub struct SnippetExtractor {
 }
 
 impl SnippetExtractor {
-    pub fn initialize(config: &Config) -> Result<Self, Error> {
+    pub fn initialize(config: &Config, tokenizer_file: &Path) -> Result<Self, Error> {
+        let tokenizer_file = tokenizer_file.to_str().ok_or_else(|| Error {
+            msg: "Non utf-8 tokenizer file".into(),
+        })?;
+
         Python::with_gil(|py| {
             let src = include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
@@ -91,6 +97,7 @@ impl SnippetExtractor {
             kwargs.set_item("language", &config.language)?;
             kwargs.set_item("chunk_size", config.chunks_size)?;
             kwargs.set_item("hard_chunk_size_limit", config.hard_chunks_size_limit)?;
+            kwargs.set_item("tokenizer_file", tokenizer_file)?;
 
             let extractor = PyModule::from_code(py, src, "extractor.py", "extractor")?
                 .getattr("SnippetExtractor")?
