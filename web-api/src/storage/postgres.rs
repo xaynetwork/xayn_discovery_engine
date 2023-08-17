@@ -308,7 +308,7 @@ impl Database {
                 s.document_id, s.sub_id, s.embedding {snippet},
                 d.tags {properties}
             FROM snippet s JOIN document d USING (document_id)
-            WHERE (s.document_id, s.sub_id) IN ",
+            WHERE d.is_candidate AND (s.document_id, s.sub_id) IN ",
             properties = include_properties
                 .then_some(", d.properties")
                 .unwrap_or_default(),
