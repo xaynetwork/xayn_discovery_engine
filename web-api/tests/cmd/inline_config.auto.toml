@@ -57,6 +57,12 @@ stdout = """
     "runtime": "assets",
     "token_size": 250
   },
+  "text_extractor": {
+    "enabled": false,
+    "extractor": "tika",
+    "url": "http://localhost:9998",
+    "allowed_content_type": []
+  },
   "tenants": {
     "enable_legacy_tenant": false,
     "enable_dev": false

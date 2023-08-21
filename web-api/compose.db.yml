@@ -34,14 +34,30 @@ services:
       timeout: 5s
       retries: 5
 
-  db_ready:
-    image: debian:bookworm-slim
+  tika:
+    image: apache/tika:2.8.0.0-full
+    mem_limit: 256m
+    restart: always
+    ports:
+      - "9998:9998"
+    networks:
+      - internal
+    healthcheck:
+      test: wget --no-verbose --tries=1 --spider 'http://localhost:9998/'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  services_ready:
+    image: debian:12-slim
     command: echo dummy
     restart: "no"
     depends_on:
       elasticsearch:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+      tika:
         condition: service_healthy
 
   # adminer:

@@ -29,6 +29,7 @@ pub use self::{rerank::bench_rerank, stateless::bench_derive_interests};
 use crate::{
     app::{self, Application, SetupError},
     embedding,
+    extractor,
     logging,
     net,
     storage,
@@ -71,6 +72,7 @@ pub struct Config {
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
     pub(crate) embedding: embedding::Config,
+    pub(crate) text_extractor: extractor::Config,
     pub(crate) personalization: PersonalizationConfig,
     pub(crate) semantic_search: SemanticSearchConfig,
     pub(crate) tenants: tenants::Config,

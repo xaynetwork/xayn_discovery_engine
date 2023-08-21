@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, matches};
 
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
@@ -20,6 +20,7 @@ use actix_web::{
     Responder,
 };
 use anyhow::anyhow;
+use base64::{engine::general_purpose, Engine as _};
 use futures_util::stream::{FuturesOrdered, StreamExt};
 use itertools::{Either, Itertools};
 use reqwest::StatusCode;
@@ -29,7 +30,7 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use xayn_web_api_db_ctrl::{Operation, Silo};
 
-use super::AppState;
+use super::{preprocessor::PreprocessError, AppState};
 use crate::{
     app::TenantState,
     error::common::{
@@ -41,6 +42,8 @@ use crate::{
         FailedToIngestDocuments,
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
+        FileUploadNotEnabled,
+        InvalidDocumentSnippet,
     },
     ingestion::IngestionConfig,
     models::{
@@ -107,11 +110,39 @@ pub(super) fn configure_ops_service(config: &mut ServiceConfig) {
     config.service(web::resource("/silo_management").route(web::post().to(silo_management)));
 }
 
+#[derive(Debug, Clone, Deserialize)]
+pub(crate) enum InputDataRequest {
+    #[serde(rename = "snippet")]
+    Snippet(String),
+    #[serde(rename = "file")]
+    File(String),
+}
+
+impl InputDataRequest {
+    fn is_file(&self) -> bool {
+        matches!(self, InputDataRequest::File(_))
+    }
+
+    fn validate(self, config: &IngestionConfig) -> Result<InputData, InvalidDocumentSnippet> {
+        Ok(match self {
+            InputDataRequest::Snippet(snippet) => {
+                InputData::Snippet(DocumentSnippet::new(snippet, config.max_snippet_size)?)
+            }
+            InputDataRequest::File(encoded_bin) => InputData::Binary(
+                general_purpose::STANDARD
+                    .decode(encoded_bin)
+                    .map_err(|_| InvalidDocumentSnippet::FileNotBase64Encoded)?,
+            ),
+        })
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct UnvalidatedDocumentForIngestion {
     id: String,
-    snippet: String,
+    #[serde(flatten)]
+    data: InputDataRequest,
     #[serde(default)]
     properties: HashMap<String, Value>,
     #[serde(default)]
@@ -123,14 +154,32 @@ struct UnvalidatedDocumentForIngestion {
     #[serde(default)]
     summarize: bool,
     #[serde(default)]
-    split: bool,
+    split: Option<bool>,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) enum InputData {
+    Snippet(DocumentSnippet),
+    Binary(Vec<u8>),
+}
+
+impl InputData {
+    fn is_binary(&self) -> bool {
+        matches!(self, InputData::Binary(_))
+    }
+
+    fn as_bytes(&self) -> &[u8] {
+        match self {
+            InputData::Snippet(snippet) => snippet.as_bytes(),
+            InputData::Binary(binary) => binary,
+        }
+    }
 }
 
 #[derive(Debug)]
 struct InputDocument {
     id: DocumentId,
-    //FIXME properly handle raw document vs. snippets
-    original: DocumentSnippet,
+    original: InputData,
     original_sha256: Sha256Hash,
     preprocessing_step: PreprocessingStep,
     properties: DocumentProperties,
@@ -215,18 +264,26 @@ impl UnvalidatedDocumentForIngestion {
         let config = config.as_ref();
 
         let id = self.id.as_str().try_into()?;
-        let original = DocumentSnippet::new(self.snippet, config.max_snippet_size)?;
+        let data = self.data.validate(config)?;
 
+        let data_is_binary = data.is_binary();
         let preprocessing_step = match (self.split, self.summarize) {
-            (true, true) => {
+            (Some(true), true) => {
                 return Err(anyhow!(
                 "You can only use either the pre-ingestion-option summarize or split but not both."
             )
                 .into())
             }
-            (true, false) => PreprocessingStep::default_split(),
-            (false, true) => PreprocessingStep::Summarize,
-            (false, false) => PreprocessingStep::None,
+            (_, true) if data_is_binary => {
+                return Err(anyhow!("You cannot use summarize when passing a file.").into())
+            }
+            (Some(false), _) if data_is_binary => {
+                return Err(anyhow!("You split cannot be disabled when passing a file.").into())
+            }
+            (None, false) if data_is_binary => PreprocessingStep::default_split(),
+            (Some(true), false) => PreprocessingStep::default_split(),
+            (_, true) => PreprocessingStep::Summarize,
+            (_, false) => PreprocessingStep::None,
         };
 
         let properties = validate_document_properties(
@@ -255,11 +312,11 @@ impl UnvalidatedDocumentForIngestion {
             }
         };
 
-        let original_sha256 = Sha256Hash::calculate(original.as_bytes());
+        let original_sha256 = Sha256Hash::calculate(data.as_bytes());
 
         Ok(InputDocument {
             id,
-            original,
+            original: data,
             original_sha256,
             preprocessing_step,
             properties,
@@ -293,6 +350,11 @@ async fn upsert_documents(
             state.config.ingestion.max_document_batch_size
         ))
         .into());
+    }
+
+    let has_file = body.documents.iter().any(|doc| doc.data.is_file());
+    if !state.config.text_extractor.enabled && has_file {
+        return Err(FileUploadNotEnabled.into());
     }
 
     let mut documents = Vec::with_capacity(body.documents.len());
@@ -411,7 +473,7 @@ async fn upsert_documents(
     let start = Instant::now();
     let state = &state;
     let new_documents_len = new_documents.len();
-    let (new_documents, mut failed_documents) = new_documents
+    let (new_documents, mut failed_documents, invalid_documents) = new_documents
         .into_iter()
         .map(|(mut document, new_is_candidate)| async move {
             let id = document.id;
@@ -431,20 +493,23 @@ async fn upsert_documents(
                     is_candidate: new_is_candidate.value,
                 }),
                 Err(error) => {
-                    error!("Failed to embed document '{id}': {error:#?}");
-                    Err(DocumentInBatchError::new(id, &*error))
+                    Err((id, error))
                 }
             }
         })
         .collect::<FuturesOrdered<_>>()
         .fold(
-            (Vec::with_capacity(new_documents_len), Vec::new()),
-            |(mut new_documents, mut failed_documents), document| async move {
+            (Vec::with_capacity(new_documents_len), Vec::new(), invalid_documents),
+            |(mut new_documents, mut failed_documents, mut invalid_documents), document| async move {
                 match document {
                     Ok(document) => new_documents.push(document),
-                    Err(error) => failed_documents.push(error),
+                    Err((id, PreprocessError::Fatal(error))) => {
+                        error!("Failed to preprocess document '{id}': {error:#?}");
+                        failed_documents.push(DocumentInBatchError::new(id, &*error));
+                    },
+                    Err((id, PreprocessError::Invalid(error))) => invalid_documents.push(DocumentInBatchError::new(id, &*error))
                 }
-                (new_documents, failed_documents)
+                (new_documents, failed_documents, invalid_documents)
             },
         )
         .await;
@@ -455,6 +520,7 @@ async fn upsert_documents(
         start.elapsed().as_secs(),
         changed_documents.len(),
     );
+
     failed_documents.extend(
         storage::Document::insert(&storage, new_documents)
             .await?

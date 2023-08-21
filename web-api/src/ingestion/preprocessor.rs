@@ -12,43 +12,68 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use displaydoc::Display;
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
+use thiserror::Error;
 use xayn_snippet_extractor::pool::PooledSnippetExtractor;
 use xayn_summarizer::{self as summarizer, summarize, Source, Summarizer};
 
+use super::routes::InputData;
 use crate::{
     embedding::Embedder,
     error::common::InvalidDocumentSnippet,
+    extractor::TextExtractor,
     models::{DocumentContent, DocumentSnippet, PreprocessingStep},
     Error,
 };
 
+#[derive(Error, Debug, Display)]
+pub(crate) enum PreprocessError {
+    /// Fatal error
+    Fatal(Error),
+    /// Invalid request
+    Invalid(Error),
+}
+
 pub(crate) struct Preprocessor<'a> {
     embedder: &'a Embedder,
     snippet_extractor: PooledSnippetExtractor,
+    text_extractor: &'a TextExtractor,
 }
 
 impl<'a> Preprocessor<'a> {
-    pub(crate) fn new(embedder: &'a Embedder, snippet_extractor: PooledSnippetExtractor) -> Self {
+    pub(crate) fn new(
+        embedder: &'a Embedder,
+        snippet_extractor: PooledSnippetExtractor,
+        text_extractor: &'a TextExtractor,
+    ) -> Self {
         Self {
             embedder,
             snippet_extractor,
+            text_extractor,
         }
     }
 
     pub(crate) async fn preprocess(
         self,
-        original: DocumentSnippet,
+        original: InputData,
         preprocessing_step: &mut PreprocessingStep,
-    ) -> Result<Vec<DocumentContent>, Error> {
-        Ok(match *preprocessing_step {
-            PreprocessingStep::None => self.embed_whole(original).await?,
-            PreprocessingStep::Summarize => self.embed_with_summarizer(original).await?,
+    ) -> Result<Vec<DocumentContent>, PreprocessError> {
+        let original = match original {
+            InputData::Snippet(snippet) => snippet,
+            InputData::Binary(binary) => self.text_extractor.extract_text(binary).await?,
+        };
+
+        let res = match *preprocessing_step {
+            PreprocessingStep::None => self.embed_whole(original).await,
+            PreprocessingStep::Summarize => self.embed_with_summarizer(original).await,
             PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
                 *preprocessing_step = PreprocessingStep::NltkSplitV1;
-                self.embed_with_nltk(original).await?
+                self.embed_with_nltk(original).await
             }
-        })
+        };
+
+        res.map_err(PreprocessError::Fatal)
     }
 
     async fn embed_whole(&self, snippet: DocumentSnippet) -> Result<Vec<DocumentContent>, Error> {

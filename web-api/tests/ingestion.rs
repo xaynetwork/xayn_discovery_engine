@@ -14,6 +14,7 @@
 
 use std::collections::{HashMap, HashSet};
 
+use base64::{engine::general_purpose, Engine as _};
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -23,6 +24,7 @@ use xayn_integration_tests::{
     send_assert_json,
     test_app,
     test_two_apps,
+    with_text_extractor_options,
     UNCHANGED_CONFIG,
 };
 use xayn_web_api::{Ingestion, Personalization};
@@ -48,6 +50,7 @@ async fn ingest(client: &Client, url: &Url) -> Result<(), anyhow::Error> {
 
 #[derive(Debug, Deserialize, PartialEq)]
 enum Kind {
+    FileUploadNotEnabled,
     DocumentNotFound,
     FailedToValidateDocuments,
     FailedToDeleteSomeDocuments,
@@ -168,6 +171,22 @@ fn test_ingestion_bad_request() {
             })
         );
 
+        let er = send_assert_json::<Error>(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d", "file": general_purpose::STANDARD.encode("once in a spring there was a fall".as_bytes()) },
+                    ]
+                }))
+                .build()?,
+            StatusCode::BAD_REQUEST,
+            false,
+        )
+        .await;
+        assert_eq!(er.kind, Kind::FileUploadNotEnabled);
+
         send_assert(
             &client,
             client.get(url.join("/documents/d2/properties")?).build()?,
@@ -177,6 +196,161 @@ fn test_ingestion_bad_request() {
         .await;
         Ok(())
     });
+}
+
+#[test]
+fn test_ingestion_created_with_file() {
+    let txt_content = "once in a spring there was a fall";
+    let html_content = "<!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset=\"utf-8\">
+        <title>MarkSheet</title>
+        <meta name=\"description\" content=\"A simple HTML and CSS tutorial\">
+      </head>
+      <body>
+        <p>Hello World!</p>
+      </body>
+    </html>";
+
+    let allowed_content_type = ["application/pdf", "text/plain", "text/html"]
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    test_app::<Ingestion, _>(
+        with_text_extractor_options(allowed_content_type),
+        |client, url, _| async move {
+            send_assert(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "file": general_purpose::STANDARD.encode(txt_content)},
+                            { "id": "d2", "file": general_purpose::STANDARD.encode(html_content)},
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::CREATED,
+                false,
+            )
+            .await;
+
+            send_assert(
+                &client,
+                client.get(url.join("/documents/d1/properties")?).build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            send_assert(
+                &client,
+                client.get(url.join("/documents/d2/properties")?).build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_ingestion_created_with_file_bad_request() {
+    let txt_content = general_purpose::STANDARD.encode("once in a spring there was a fall");
+    let html_content_empty = general_purpose::STANDARD.encode(
+        "<!DOCTYPE html>
+    <html>
+      <head>
+      </head>
+      <body>
+      </body>
+    </html>",
+    );
+
+    test_app::<Ingestion, _>(
+        with_text_extractor_options(vec![]),
+        |client, url, _| async move {
+            send_assert(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "file": txt_content, "summarize": true},
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
+            send_assert(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "file": txt_content, "split": false},
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
+            send_assert(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "file": "invalid base 64"},
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
+            send_assert(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "file": ""},
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
+            send_assert(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "file": html_content_empty},
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
 }
 
 #[test]

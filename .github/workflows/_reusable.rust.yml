@@ -69,6 +69,15 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+      tika:
+        image: apache/tika:2.8.0.0-full
+        options: >-
+          --memory 256m
+          --health-cmd "wget --no-verbose --tries=1 --spider 'http://localhost:9998/'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 

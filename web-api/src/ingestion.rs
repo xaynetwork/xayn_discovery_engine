@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod preprocessor;
+pub(crate) mod preprocessor;
 mod routes;
 
 use actix_web::web::ServiceConfig;
@@ -22,16 +22,19 @@ use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
 use xayn_snippet_extractor::pool::SnippetExtractorPool;
 
-use self::preprocessor::Preprocessor;
+use self::{
+    preprocessor::{PreprocessError, Preprocessor},
+    routes::InputData,
+};
 use crate::{
     app::{self, Application, SetupError},
     embedding,
+    extractor,
     logging,
-    models::{DocumentContent, DocumentSnippet, PreprocessingStep},
+    models::{DocumentContent, PreprocessingStep},
     net,
     storage::{self, elastic::IndexUpdateConfig},
     tenants,
-    Error,
 };
 
 pub struct Ingestion;
@@ -65,10 +68,17 @@ type AppState = app::AppState<Ingestion>;
 impl AppState {
     pub(crate) async fn preprocess(
         &self,
-        original: DocumentSnippet,
+        original: InputData,
         preprocessing_step: &mut PreprocessingStep,
-    ) -> Result<Vec<DocumentContent>, Error> {
-        let preprocessor = Preprocessor::new(&self.embedder, self.snippet_extractor.get().await?);
+    ) -> Result<Vec<DocumentContent>, PreprocessError> {
+        let preprocessor = Preprocessor::new(
+            &self.embedder,
+            self.snippet_extractor
+                .get()
+                .await
+                .map_err(|e| PreprocessError::Fatal(e.into()))?,
+            &self.extractor,
+        );
         preprocessor.preprocess(original, preprocessing_step).await
     }
 }
@@ -81,6 +91,7 @@ pub struct Config {
     pub(crate) storage: storage::Config,
     pub(crate) ingestion: IngestionConfig,
     pub(crate) embedding: embedding::Config,
+    pub(crate) text_extractor: extractor::Config,
     pub(crate) tenants: tenants::Config,
     pub(crate) snippet_extractor: xayn_snippet_extractor::Config,
 }

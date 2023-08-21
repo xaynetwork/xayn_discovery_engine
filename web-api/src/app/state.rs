@@ -29,6 +29,7 @@ use crate::{
     app::{Application, SetupError},
     embedding::Embedder,
     error::common::InternalError,
+    extractor::TextExtractor,
     middleware::request_context::RequestContext,
     storage::{initialize_silo, Storage, StorageBuilder},
     Error,
@@ -42,6 +43,7 @@ where
     #[as_ref(forward)]
     pub(crate) config: A::Config,
     pub(crate) embedder: Embedder,
+    pub(crate) extractor: TextExtractor,
     #[deref]
     pub(crate) extension: A::Extension,
     storage_builder: Arc<StorageBuilder>,
@@ -63,12 +65,14 @@ where
         let extension = A::create_extension(&config)?;
         // embedder config is validated during loading
         let embedder = Embedder::load(config.as_ref()).await?;
+        let extractor = TextExtractor::new(config.as_ref())?;
         let (silo, legacy_tenant) =
             initialize_silo(config.as_ref(), config.as_ref(), embedder.embedding_size()).await?;
         let storage_builder = Arc::new(Storage::builder(config.as_ref(), legacy_tenant).await?);
         Ok(Self {
             config,
             embedder,
+            extractor,
             extension,
             storage_builder,
             silo: Arc::new(silo),
