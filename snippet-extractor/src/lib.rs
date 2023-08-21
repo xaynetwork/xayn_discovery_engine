@@ -61,9 +61,9 @@ impl From<PyErr> for Error {
 #[serde(default, deny_unknown_fields)]
 #[must_use]
 pub struct Config {
-    language: String,
-    chunk_size: usize,
-    hard_chunk_size_limit: usize,
+    pub language: String,
+    pub chunk_size: usize,
+    pub hard_chunk_size_limit: usize,
 }
 
 impl Default for Config {
