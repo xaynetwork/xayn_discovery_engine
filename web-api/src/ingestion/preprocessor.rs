@@ -34,10 +34,6 @@ impl<'a> Preprocessor<'a> {
             embedder,
             snippet_extractor,
         }
-        // let extractor = SnippetExtractor::initialize(
-        //     &snippet_extractor::Config::default(),
-        //     std::path::Path::new("/home/user/projects/de2/assets/xaynia_v0002/tokenizer.json"),
-        // )?;
     }
 
     pub(crate) async fn preprocess(
