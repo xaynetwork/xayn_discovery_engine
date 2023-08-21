@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::sync::Arc;
-
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
 use xayn_snippet_extractor::SnippetExtractor;
 use xayn_summarizer::{self as summarizer, summarize, Source, Summarizer};
@@ -25,13 +23,13 @@ use crate::{
     Error,
 };
 
-pub(crate) struct Preprocessor {
-    embedder: Arc<Embedder>,
-    snippet_extractor: SnippetExtractor,
+pub(crate) struct Preprocessor<'a> {
+    embedder: &'a Embedder,
+    snippet_extractor: &'a SnippetExtractor,
 }
 
-impl Preprocessor {
-    pub(crate) fn new(embedder: Arc<Embedder>, snippet_extractor: SnippetExtractor) -> Self {
+impl<'a> Preprocessor<'a> {
+    pub(crate) fn new(embedder: &'a Embedder, snippet_extractor: &'a SnippetExtractor) -> Self {
         Self {
             embedder,
             snippet_extractor,

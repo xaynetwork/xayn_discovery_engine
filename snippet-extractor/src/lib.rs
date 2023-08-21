@@ -29,7 +29,7 @@
     clippy::must_use_candidate
 )]
 
-use std::path::Path;
+use std::{path::Path, sync::Mutex};
 
 use displaydoc::Display;
 use pyo3::{
@@ -62,16 +62,16 @@ impl From<PyErr> for Error {
 #[must_use]
 pub struct Config {
     language: String,
-    chunks_size: usize,
-    hard_chunks_size_limit: usize,
+    chunk_size: usize,
+    hard_chunk_size_limit: usize,
 }
 
 impl Default for Config {
     fn default() -> Self {
         Self {
             language: "german".into(),
-            chunks_size: 500,
-            hard_chunks_size_limit: 520,
+            chunk_size: 500,
+            hard_chunk_size_limit: 520,
         }
     }
 }
@@ -83,10 +83,18 @@ pub struct SnippetExtractor {
 
 impl SnippetExtractor {
     pub fn initialize(config: &Config, tokenizer_file: &Path) -> Result<Self, Error> {
+        // For some reason running this function multi-threaded leads to an import error.
+        // It's not clear where the error lies but while the GIL is a global lock programs can
+        // temporary suspend holding it, this means executions in two `Python::with_gil` closures
+        // can internally overlap. And in case of module loading, at least for the `transformers` module
+        // this seems to cause some issues making the module loading/importing fail.
+        static PREVENT_MULTI_THREADED_IMPORT: Mutex<()> = Mutex::new(());
+
         let tokenizer_file = tokenizer_file.to_str().ok_or_else(|| Error {
             msg: "Non utf-8 tokenizer file".into(),
         })?;
 
+        let _guard = PREVENT_MULTI_THREADED_IMPORT.lock();
         Python::with_gil(|py| {
             let src = include_str!(concat!(
                 env!("CARGO_MANIFEST_DIR"),
@@ -95,8 +103,8 @@ impl SnippetExtractor {
 
             let kwargs = PyDict::new(py);
             kwargs.set_item("language", &config.language)?;
-            kwargs.set_item("chunk_size", config.chunks_size)?;
-            kwargs.set_item("hard_chunk_size_limit", config.hard_chunks_size_limit)?;
+            kwargs.set_item("chunk_size", config.chunk_size)?;
+            kwargs.set_item("hard_chunk_size_limit", config.hard_chunk_size_limit)?;
             kwargs.set_item("tokenizer_file", tokenizer_file)?;
 
             let extractor = PyModule::from_code(py, src, "extractor.py", "extractor")?

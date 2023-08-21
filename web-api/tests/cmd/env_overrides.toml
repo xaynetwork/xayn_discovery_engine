@@ -60,6 +60,11 @@ stdout = """
   "tenants": {
     "enable_legacy_tenant": false,
     "enable_dev": false
+  },
+  "snippet_extractor": {
+    "language": "german",
+    "chunk_size": 500,
+    "hard_chunk_size_limit": 520
   }
 }
 """

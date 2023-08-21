@@ -641,6 +641,11 @@ where
             toml! {
                 [ingestion.index_update]
                 method = "danger_wait_for_completion"
+
+                [snippet_extractor]
+                language = "english"
+                chunk_size = 10
+                hard_chunk_size_limit = 10
             },
         );
     }

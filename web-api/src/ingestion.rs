@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod preprocess;
+mod preprocessor;
 mod routes;
 
 use actix_web::web::ServiceConfig;
@@ -20,7 +20,10 @@ use anyhow::bail;
 use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
+use tracing::info;
+use xayn_snippet_extractor::SnippetExtractor;
 
+use self::preprocessor::Preprocessor;
 use crate::{
     app::{self, Application, SetupError},
     embedding,
@@ -50,11 +53,23 @@ impl Application for Ingestion {
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         config.ingestion.validate()?;
 
-        Ok(Extension {})
+        pyo3::prepare_freethreaded_python();
+        info!("initialized python runtime");
+
+        let snippet_extractor =
+            SnippetExtractor::initialize(config.as_ref(), &config.embedding.tokenizer_file())?;
+
+        Ok(Extension { snippet_extractor })
     }
 }
 
 type AppState = app::AppState<Ingestion>;
+
+impl AppState {
+    pub(crate) fn preprocessor(&self) -> Preprocessor<'_> {
+        Preprocessor::new(&self.embedder, &self.snippet_extractor)
+    }
+}
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -65,6 +80,7 @@ pub struct Config {
     pub(crate) ingestion: IngestionConfig,
     pub(crate) embedding: embedding::Config,
     pub(crate) tenants: tenants::Config,
+    pub(crate) snippet_extractor: xayn_snippet_extractor::Config,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -104,7 +120,9 @@ impl IngestionConfig {
 }
 
 #[derive(AsRef)]
-pub struct Extension {}
+pub struct Extension {
+    snippet_extractor: SnippetExtractor,
+}
 
 #[cfg(test)]
 mod tests {
