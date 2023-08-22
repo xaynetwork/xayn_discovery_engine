@@ -37,7 +37,7 @@ runs:
         elif [[ "${{ inputs.platform }}" = "amd64" ]]; then
           BUILD_TARGET="x86_64-unknown-linux-gnu";
           RUNTIME_TARGET="linux_x64"
-        else 
+        else
           echo "Unsupported platform ${{ inputs.platform }}"
           exit 1
         fi
@@ -60,11 +60,14 @@ runs:
         RUNTIME_PATH="${GITHUB_WORKSPACE}/assets/${{ inputs.runtime_full_name }}/${{ env.runtime_target }}"
         DOCKERFILE_PATH="${GITHUB_WORKSPACE}/web-api/Dockerfile"
         ARCHIVE_NAME="${{ inputs.archive_name }}"
+        PYTHON_WORKSPACE="${GITHUB_WORKSPACE}/snippet-extractor/"
 
         rm -rf "$ARCHIVE_NAME"
         mkdir -p "$ARCHIVE_NAME"/assets
 
         cp "$BIN_PATH" ./$ARCHIVE_NAME/server.bin
+        cp "$PYTHON_WORKSPACE/Pipfile" "./$ARCHIVE_NAME/Pipfile"
+        cp "$PYTHON_WORKSPACE/Pipfile.lock" "./$ARCHIVE_NAME/Pipfile.lock"
         cp "$DOCKERFILE_PATH" ./$ARCHIVE_NAME/Dockerfile
         cp "$MODEL_PATH/config.toml" ./$ARCHIVE_NAME/assets/config.toml
         cp "$MODEL_PATH/tokenizer.json" ./$ARCHIVE_NAME/assets/tokenizer.json
