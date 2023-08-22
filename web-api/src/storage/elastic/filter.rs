@@ -396,13 +396,17 @@ fn merge_range_or(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
             let mut j = i + 1;
             while j < clause.len() {
                 if is_greater_range(&clause[j]).map_or(false, |f| f == &field) {
-                    let Clause::Range(Range { greater: Some(greater_j), .. }) =
-                        clause.swap_remove(j)
+                    let Clause::Range(Range {
+                        greater: Some(greater_j),
+                        ..
+                    }) = clause.swap_remove(j)
                     else {
                         unreachable!(/* clause[j] is greater range */);
                     };
-                    let Clause::Range(Range { greater: Some(greater_i), .. }) =
-                        &mut clause[i]
+                    let Clause::Range(Range {
+                        greater: Some(greater_i),
+                        ..
+                    }) = &mut clause[i]
                     else {
                         unreachable!(/* clause[i] is greater range */);
                     };
@@ -415,12 +419,16 @@ fn merge_range_or(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
             let mut j = i + 1;
             while j < clause.len() {
                 if is_less_range(&clause[j]).map_or(false, |f| f == &field) {
-                    let Clause::Range(Range { less: Some(less_j), .. }) =
-                        clause.swap_remove(j)
+                    let Clause::Range(Range {
+                        less: Some(less_j), ..
+                    }) = clause.swap_remove(j)
                     else {
                         unreachable!(/* clause[j] is less range */);
                     };
-                    let Clause::Range(Range { less: Some(less_i), .. }) = &mut clause[i] else {
+                    let Clause::Range(Range {
+                        less: Some(less_i), ..
+                    }) = &mut clause[i]
+                    else {
                         unreachable!(/* clause[i] is less range */);
                     };
                     less_i.or(less_j);
