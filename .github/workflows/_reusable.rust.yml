@@ -10,7 +10,7 @@ jobs:
   cargo-format:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v14
+      image: xaynetci/yellow:v15
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -24,7 +24,7 @@ jobs:
   cargo-clippy:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v14
+      image: xaynetci/yellow:v15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
@@ -38,7 +38,7 @@ jobs:
   cargo-test:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v14
+      image: xaynetci/yellow:v15
     timeout-minutes: 20
     env:
       XAYN_INGESTION__NET__BIND_TO: "127.0.0.1:3030"
@@ -90,7 +90,7 @@ jobs:
   cargo-doc:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v14
+      image: xaynetci/yellow:v15
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3

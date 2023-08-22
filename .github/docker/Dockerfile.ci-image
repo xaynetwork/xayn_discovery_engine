@@ -14,8 +14,8 @@ USER root
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-      ca-certificates wget curl git zstd gcc libc6-dev \ 
-      nodejs npm postgresql-client python3.11 python3-pip \
+      ca-certificates wget curl git zstd gcc libc6-dev \
+      nodejs npm postgresql-client python3.11 pipenv python3-nltk \
       unzip lld awscli g++-aarch64-linux-gnu libc6-dev-arm64-cross \
       ; \
     rm -rf /var/lib/apt/lists/*;
@@ -72,3 +72,12 @@ RUN set -eux; \
       @ibm-cloud/openapi-ruleset-utilities@${ibm_openapi_ruleset_utilities_version} \
       validator@${validator_version} \
       @redocly/cli@${redocly_cli_version}
+
+# Begin: Additional Python requirements
+# Added by us
+
+RUN set -eux; \
+    python3 -c 'import nltk; nltk.download("punkt")'
+
+# End: Additional Python requirements
+# ---------------------------------

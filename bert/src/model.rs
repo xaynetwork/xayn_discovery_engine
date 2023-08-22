@@ -68,10 +68,8 @@ impl Model {
             .with_model_from_file(config.model()?)?;
 
         let use_type_ids = session.inputs.len() > 2;
-        let Some(embedding_size) = session
-            .outputs[0]
-            .dimensions[2]
-            .or_else(|| session.outputs[1].dimensions[1])
+        let Some(embedding_size) =
+            session.outputs[0].dimensions[2].or_else(|| session.outputs[1].dimensions[1])
         else {
             bail!(format!(
                 "embedder model '{}' has unspecified embedding size",

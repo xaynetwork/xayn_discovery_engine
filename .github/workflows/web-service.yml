@@ -45,7 +45,7 @@ jobs:
   services-build:
     runs-on: hetzner-pm
     container:
-      image: xaynetci/yellow:v14
+      image: xaynetci/yellow:v15
     timeout-minutes: 30
     permissions:
       id-token: write
