@@ -48,6 +48,8 @@ runs:
     - name: Build service
       shell: bash
       run: |
+        set -eux
+        export PYO3_CROSS_PYTHON_VERSION="$(grep -E 'python_version = "3\.[0-9]+"' snippet-extractor/Pipfile | grep  -o -E "3.[0-9]+")"
         cargo build --release --bin ${{ inputs.bin_name }} --target ${{ env.build_target }}
 
     - name: Create artifact
@@ -70,6 +72,7 @@ runs:
         cp "$PYTHON_WORKSPACE/Pipfile.lock" "./$ARCHIVE_NAME/Pipfile.lock"
         cp "$DOCKERFILE_PATH" ./$ARCHIVE_NAME/Dockerfile
         cp "$MODEL_PATH/config.toml" ./$ARCHIVE_NAME/assets/config.toml
+        # Hint: Even when removing the model for sagemaker we want to keep the tokenizer.json
         cp "$MODEL_PATH/tokenizer.json" ./$ARCHIVE_NAME/assets/tokenizer.json
         cp "$MODEL_PATH/model.onnx" ./$ARCHIVE_NAME/assets/model.onnx
         cp -r "$RUNTIME_PATH/include" ./$ARCHIVE_NAME/assets/include
