@@ -15,7 +15,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
       ca-certificates wget curl git zstd gcc libc6-dev \
-      nodejs npm postgresql-client python3.11 python3-pip \
+      nodejs npm postgresql-client python3.11 python3-pip python3-venv \
       unzip lld awscli g++-aarch64-linux-gnu libc6-dev-arm64-cross \
       ; \
     rm -rf /var/lib/apt/lists/*;
