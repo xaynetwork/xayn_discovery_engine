@@ -49,7 +49,17 @@ runs:
       shell: bash
       run: |
         set -eux
-        export PYO3_CROSS_PYTHON_VERSION="$(grep -E 'python_version = "3\.[0-9]+"' snippet-extractor/Pipfile | grep  -o -E "3.[0-9]+")"
+
+        if [[ "${{ inputs.platform }}" = "arm64" ]]; then
+          export PYO3_CROSS_PYTHON_VERSION="$(grep -E 'python_version = "3\.[0-9]+"' snippet-extractor/Pipfile | grep  -o -E "3.[0-9]+")"
+          mkdir pyarm64
+          cd pyarm64
+          docker create --name pyarm64 --platform linux/arm64 "python:${PYO3_CROSS_PYTHON_VERSION}-slim-bookworm"
+          docker export pyarm64 | tar -xf -
+          cd ..
+          export PYO3_CROSS_LIB_DIR=./pyarm64/usr/local/lib/
+        fi
+
         cargo build --release --bin ${{ inputs.bin_name }} --target ${{ env.build_target }}
 
     - name: Create artifact
