@@ -4,7 +4,7 @@ FROM debian:bookworm-20230502-slim
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends \
-        ca-certificates python3.11 libpython3.11 pipenv \
+        ca-certificates python3.11 pipenv \
         ; \
     update-ca-certificates
 
