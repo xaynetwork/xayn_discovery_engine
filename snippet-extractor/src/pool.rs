@@ -24,9 +24,7 @@ use tokio::task::spawn_blocking;
 
 use crate::{Config, Error, SnippetExtractor};
 
-#[derive(Clone)]
 pub struct SnippetExtractorPool {
-    // Hint: Internally `Arc`ed
     pool: Pool<SnippetExtractor>,
 }
 
