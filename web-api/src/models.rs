@@ -539,6 +539,12 @@ pub(crate) enum PreprocessingStep {
     NltkSplitV1,
 }
 
+impl PreprocessingStep {
+    pub(crate) fn default_split() -> Self {
+        Self::NltkSplitV1
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

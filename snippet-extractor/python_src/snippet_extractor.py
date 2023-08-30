@@ -26,7 +26,7 @@ from msgpack import Packer, Unpacker
 class NLTKTextSplitter(TextSplitter):
     """Splitting text using NLTK package."""
 
-    def __init__(self, *, separator="\n\n", language="german", **kwargs):
+    def __init__(self, *, language, separator="\n\n", **kwargs):
         """Initialize the NLTK splitter."""
         super().__init__(**kwargs)
         self._tokenizer = lambda x: sent_tokenize(x, language)

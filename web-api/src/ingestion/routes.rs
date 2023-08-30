@@ -224,7 +224,7 @@ impl UnvalidatedDocumentForIngestion {
             )
                 .into())
             }
-            (true, false) => PreprocessingStep::NltkSplitV1,
+            (true, false) => PreprocessingStep::default_split(),
             (false, true) => PreprocessingStep::Summarize,
             (false, false) => PreprocessingStep::None,
         };

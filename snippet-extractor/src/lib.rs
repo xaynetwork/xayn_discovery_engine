@@ -73,7 +73,6 @@ impl Error {
     }
 }
 
-/// Configurations of the coi system.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 #[must_use]
