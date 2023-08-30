@@ -12,17 +12,17 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::time::Duration;
+use std::{io, time::Duration};
 
+pub use deadpool::unmanaged::PoolError;
 use deadpool::{
     unmanaged::{Object, Pool, PoolConfig},
     Runtime,
 };
+use derive_more::{Deref, DerefMut};
+use tokio::task::spawn_blocking;
 
 use crate::{Config, Error, SnippetExtractor};
-
-pub type PooledSnippetExtractor = Object<SnippetExtractor>;
-pub use deadpool::unmanaged::PoolError;
 
 #[derive(Clone)]
 pub struct SnippetExtractorPool {
@@ -49,6 +49,21 @@ impl SnippetExtractorPool {
     }
 
     pub async fn get(&self) -> Result<PooledSnippetExtractor, PoolError> {
-        self.pool.get().await
+        self.pool.get().await.map(PooledSnippetExtractor)
+    }
+}
+
+#[derive(Deref, DerefMut)]
+pub struct PooledSnippetExtractor(Object<SnippetExtractor>);
+
+impl PooledSnippetExtractor {
+    pub async fn extract_snippet(
+        mut self,
+        tokenizer: String,
+        document: String,
+    ) -> Result<Vec<String>, Error> {
+        spawn_blocking(move || self.0.extract_snippet(&tokenizer, &document))
+            .await
+            .map_err(|join_error| Error::Io(io::Error::new(io::ErrorKind::Other, join_error)))?
     }
 }

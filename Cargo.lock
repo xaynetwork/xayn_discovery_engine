@@ -4997,11 +4997,13 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "deadpool",
+ "derive_more",
  "displaydoc",
  "num_cpus",
  "rmp-serde",
  "serde",
  "thiserror",
+ "tokio",
  "xayn-test-utils 0.2.0",
 ]
 

@@ -37,7 +37,7 @@ impl<'a> Preprocessor<'a> {
     }
 
     pub(crate) async fn preprocess(
-        &mut self,
+        self,
         original: DocumentSnippet,
         preprocessing_step: &mut PreprocessingStep,
     ) -> Result<Vec<DocumentContent>, Error> {
@@ -46,7 +46,7 @@ impl<'a> Preprocessor<'a> {
             PreprocessingStep::Summarize => self.embed_with_summarizer(original).await?,
             PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
                 *preprocessing_step = PreprocessingStep::NltkSplitV1;
-                self.embed_with_nltk(&original).await?
+                self.embed_with_nltk(original).await?
             }
         })
     }
@@ -77,14 +77,14 @@ impl<'a> Preprocessor<'a> {
     }
 
     async fn embed_with_nltk(
-        &mut self,
-        snippet: &DocumentSnippet,
+        self,
+        snippet: DocumentSnippet,
     ) -> Result<Vec<DocumentContent>, Error> {
         let embedder = &self.embedder;
         let snippets = self
             .snippet_extractor
-            // TODO[pmk/now] spawn blocking
-            .extract_snippet("default", snippet)?
+            .extract_snippet("default".into(), snippet.into())
+            .await?
             .into_iter()
             .map(|split| async move {
                 let snippet = DocumentSnippet::new(split, usize::MAX)?;

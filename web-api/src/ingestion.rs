@@ -68,8 +68,7 @@ impl AppState {
         original: DocumentSnippet,
         preprocessing_step: &mut PreprocessingStep,
     ) -> Result<Vec<DocumentContent>, Error> {
-        let mut preprocessor =
-            Preprocessor::new(&self.embedder, self.snippet_extractor.get().await?);
+        let preprocessor = Preprocessor::new(&self.embedder, self.snippet_extractor.get().await?);
         preprocessor.preprocess(original, preprocessing_step).await
     }
 }
