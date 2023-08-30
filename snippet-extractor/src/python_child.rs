@@ -16,6 +16,8 @@ use std::{
     io::{self, BufReader, Write},
     path::Path,
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
+    thread,
+    time::{Duration, Instant},
 };
 
 use rmp_serde::{
@@ -27,15 +29,11 @@ use serde::{de::DeserializeOwned, Serialize};
 pub(crate) struct PythonChild {
     child: Child,
     // Hint: We always write the whole package at once, so no point in using a BufWriter
-    write_to: rmp_serde::Serializer<ChildStdin, StructMapConfig<DefaultConfig>>,
-    read_from: rmp_serde::Deserializer<ReadReader<BufReader<ChildStdout>>, DefaultConfig>,
+    write_to: Option<rmp_serde::Serializer<ChildStdin, StructMapConfig<DefaultConfig>>>,
+    read_from: Option<rmp_serde::Deserializer<ReadReader<BufReader<ChildStdout>>, DefaultConfig>>,
 }
 
 impl PythonChild {
-    pub(crate) fn into_child_dropping_pipes(self) -> Child {
-        self.child
-    }
-
     pub(crate) fn spawn(
         workspace: impl AsRef<Path>,
         python_file: impl AsRef<Path>,
@@ -62,8 +60,8 @@ impl PythonChild {
         let read_from = rmp_serde::Deserializer::new(BufReader::new(read_from));
         Ok(PythonChild {
             child,
-            write_to,
-            read_from,
+            write_to: Some(write_to),
+            read_from: Some(read_from),
         })
     }
 
@@ -72,7 +70,8 @@ impl PythonChild {
         V: DeserializeOwned,
         E: From<rmp_serde::decode::Error>,
     {
-        V::deserialize(&mut self.read_from).map_err(E::from)
+        let deserializer = self.read_from.as_mut().unwrap(/* only None in Drop */);
+        V::deserialize(deserializer).map_err(E::from)
     }
 
     pub(crate) fn write_message<M, E>(&mut self, msg: &M) -> Result<(), E>
@@ -80,8 +79,9 @@ impl PythonChild {
         M: Serialize,
         E: From<rmp_serde::encode::Error> + From<io::Error>,
     {
-        msg.serialize(&mut self.write_to)?;
-        self.write_to.get_mut().flush()?;
+        let serializer = self.write_to.as_mut().unwrap(/* only None in Drop */);
+        msg.serialize(&mut *serializer)?;
+        serializer.get_mut().flush()?;
         Ok(())
     }
 
@@ -94,6 +94,22 @@ impl PythonChild {
         self.write_message::<_, E>(&Message { tag: C::TAG, cmd })?;
         self.read_message::<Result<C::Value, String>, E>()?
             .map_err(map_err)
+    }
+}
+
+impl Drop for PythonChild {
+    fn drop(&mut self) {
+        // drop/close pipes first which will trigger the childs shutdown
+        drop(self.write_to.take());
+        drop(self.read_from.take());
+
+        let start = Instant::now();
+        while self.child.try_wait().is_ok_and(|exited| exited.is_none()) {
+            if Instant::now().duration_since(start) > Duration::from_millis(150) {
+                self.child.kill().ok();
+            }
+            thread::yield_now();
+        }
     }
 }
 

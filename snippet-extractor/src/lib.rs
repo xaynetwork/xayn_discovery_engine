@@ -32,13 +32,7 @@
 pub mod pool;
 mod python_child;
 
-use std::{
-    collections::HashMap,
-    io,
-    path::PathBuf,
-    thread,
-    time::{Duration, Instant},
-};
+use std::{collections::HashMap, io, path::PathBuf};
 
 use displaydoc::Display;
 use python_child::{PipeCommand, PythonChild};
@@ -190,22 +184,6 @@ impl SnippetExtractor {
         }
 
         Ok(child)
-    }
-}
-
-impl Drop for SnippetExtractor {
-    fn drop(&mut self) {
-        if let Some(child) = self.child.take() {
-            let mut child = child.into_child_dropping_pipes();
-            let start = Instant::now();
-            // we dropped stdin on which the child reads so exit is imminent
-            while child.try_wait().is_ok_and(|exited| exited.is_none()) {
-                if Instant::now().duration_since(start) > Duration::from_millis(150) {
-                    child.kill().ok();
-                }
-                thread::yield_now();
-            }
-        }
     }
 }
 
