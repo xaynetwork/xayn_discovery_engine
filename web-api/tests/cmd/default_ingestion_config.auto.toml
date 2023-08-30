@@ -65,6 +65,9 @@ stdout = """
     "use_pipenv": false,
     "python_workspace": "./",
     "language": "english",
+    "tokenizers": {
+      "default": "./assets/tokenizer.json"
+    },
     "chunk_size": 500,
     "hard_chunk_size_limit": 520
   }

@@ -84,7 +84,7 @@ impl<'a> Preprocessor<'a> {
         let snippets = self
             .snippet_extractor
             // TODO[pmk/now] spawn blocking
-            .extract_snippet(snippet)?
+            .extract_snippet("default", snippet)?
             .into_iter()
             .map(|split| async move {
                 let snippet = DocumentSnippet::new(split, usize::MAX)?;

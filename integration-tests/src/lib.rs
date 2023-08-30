@@ -136,10 +136,6 @@ mod env_vars {
     pub(super) const GITHUB_ACTIONS: &str = "GITHUB_ACTIONS";
 }
 
-/// Absolute path to the root of the project as determined by `just`.
-pub static PROJECT_ROOT: Lazy<PathBuf> =
-    Lazy::new(|| just(&["_test-project-root"]).unwrap().into());
-
 /// `true` if it runs in a container (e.g. github action)
 ///
 /// This is needed as in containers e.g. on github services
@@ -629,38 +625,12 @@ pub fn extend_config(current: &mut Table, extension: Table) {
 }
 
 #[instrument(skip_all)]
-pub async fn start_test_application<A>(services: &Services, mut configure: Table) -> AppHandle
+pub async fn start_test_application<A>(services: &Services, configure: Table) -> AppHandle
 where
     A: Application + 'static,
 {
-    if A::NAME == Ingestion::NAME {
-        let workspace = find_workspace_dir();
-        let python_workspace = workspace.join("./snippet-extractor").display().to_string();
-        //FIXME extract model name
-        let tokenizer = workspace
-            .join("./assets/xaynia_v0201/tokenizer.json")
-            .display()
-            .to_string();
-
-        extend_config(
-            &mut configure,
-            toml! {
-                [ingestion.index_update]
-                method = "danger_wait_for_completion"
-
-                [snippet_extractor]
-                language = "english"
-                chunk_size = 10
-                hard_chunk_size_limit = 10
-                use_pipenv = true
-                python_workspace = python_workspace
-
-                [snippet.tokenizers]
-                default = tokenizer
-            },
-        );
-    }
     let config = build_test_config_from_parts(
+        A::NAME,
         services.silo.postgres_config(),
         services.silo.elastic_config(),
         configure,
@@ -686,23 +656,22 @@ where
 pub const TEST_EMBEDDING_SIZE: usize = 384;
 
 pub fn build_test_config_from_parts_and_names(
+    app_name: &str,
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
     configure: Table,
     model_name: &str,
     runtime_name: &str,
 ) -> Table {
+    let workspace = find_workspace_dir();
     let pg_password = pg_config.password.expose_secret().as_str();
     let pg_config = Value::try_from(pg_config).unwrap();
     let es_config = Value::try_from(es_config).unwrap();
 
     // Hint: Relative path doesn't work with `cargo flamegraph`
-    let model_dir = PROJECT_ROOT
-        .join("assets")
-        .join(model_name)
-        .display()
-        .to_string();
-    let runtime_dir = PROJECT_ROOT
+    let model_dir = workspace.join("assets").join(model_name);
+    let model_dir_str = model_dir.display().to_string();
+    let runtime_dir = workspace
         .join("assets")
         .join(runtime_name)
         .display()
@@ -715,7 +684,7 @@ pub fn build_test_config_from_parts_and_names(
 
         [embedding]
         type = "pipeline"
-        directory = model_dir
+        directory = model_dir_str
         runtime = runtime_dir
     };
 
@@ -728,17 +697,42 @@ pub fn build_test_config_from_parts_and_names(
         },
     );
 
+    if app_name == Ingestion::NAME {
+        let python_workspace = workspace.join("./snippet-extractor").display().to_string();
+        let tokenizer = model_dir.join("tokenizer.json").display().to_string();
+
+        extend_config(
+            &mut config,
+            toml! {
+                [ingestion.index_update]
+                method = "danger_wait_for_completion"
+
+                [snippet_extractor]
+                language = "english"
+                chunk_size = 10
+                hard_chunk_size_limit = 10
+                use_pipenv = true
+                python_workspace = python_workspace
+
+                [snippet_extractor.tokenizers]
+                default = tokenizer
+            },
+        );
+    }
+
     extend_config(&mut config, configure);
 
     config
 }
 
 pub fn build_test_config_from_parts(
+    app_name: &str,
     pg_config: &postgres::Config,
     es_config: &elastic::Config,
     configure: Table,
 ) -> Table {
     build_test_config_from_parts_and_names(
+        app_name,
         pg_config,
         es_config,
         configure,
@@ -784,8 +778,7 @@ impl TestId {
     }
 
     pub fn make_artifact_file_path(&self, name: &str) -> Result<PathBuf, io::Error> {
-        let mut path = PROJECT_ROOT.clone();
-        path.push("test-artifacts");
+        let mut path = find_workspace_dir().join("test-artifacts");
         path.push(format!("web-api.{}", &self.0));
         create_dir_all(&path)?;
         path.push(name);

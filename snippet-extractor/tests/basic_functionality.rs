@@ -49,7 +49,7 @@ fn test_snippet_extraction_works() -> Result<(), Error> {
         python_workspace: workspace.join("snippet-extractor"),
     })?;
 
-    assert_eq!(extractor.extract_snippet(TEST_TEXT)?, [
+    assert_eq!(extractor.extract_snippet("default", TEST_TEXT)?, [
         "The GNU Affero General Public License is a free, copyleft license for software and other kinds of works, specifically designed to ensure cooperation with the community in the case of network server software.",
         "The licenses for most software and other practical works are designed to take away your freedom to share and change the works.",
         "By contrast, our General Public Licenses are intended to guarantee your freedom to share and change all versions of a program--to make sure it remains free software for all its users.",

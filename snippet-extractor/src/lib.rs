@@ -105,8 +105,6 @@ pub struct SnippetExtractor {
 }
 
 impl SnippetExtractor {
-    const DEFAULT_TOKENIZER_NAME: &str = "t0";
-
     pub fn new(config: Config) -> Result<Self, Error> {
         for (name, path) in &config.tokenizers {
             if path.to_str().is_none() {
@@ -122,11 +120,7 @@ impl SnippetExtractor {
         })
     }
 
-    pub fn extract_snippet(&mut self, document: &str) -> Result<Vec<String>, Error> {
-        self.extract_snippet_with_tokenizer(Self::DEFAULT_TOKENIZER_NAME, document)
-    }
-
-    pub fn extract_snippet_with_tokenizer(
+    pub fn extract_snippet(
         &mut self,
         tokenizer: &str,
         document: &str,
