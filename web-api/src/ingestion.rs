@@ -20,17 +20,18 @@ use anyhow::bail;
 use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
-use tracing::info;
-use xayn_snippet_extractor::SnippetExtractor;
+use xayn_snippet_extractor::pool::SnippetExtractorPool;
 
 use self::preprocessor::Preprocessor;
 use crate::{
     app::{self, Application, SetupError},
     embedding,
     logging,
+    models::{DocumentContent, DocumentSnippet, PreprocessingStep},
     net,
     storage::{self, elastic::IndexUpdateConfig},
     tenants,
+    Error,
 };
 
 pub struct Ingestion;
@@ -53,11 +54,8 @@ impl Application for Ingestion {
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         config.ingestion.validate()?;
 
-        pyo3::prepare_freethreaded_python();
-        info!("initialized python runtime");
-
         let snippet_extractor =
-            SnippetExtractor::initialize(config.as_ref(), &config.embedding.tokenizer_file())?;
+            SnippetExtractorPool::new(config.as_ref(), &config.embedding.tokenizer_file())?;
 
         Ok(Extension { snippet_extractor })
     }
@@ -66,8 +64,14 @@ impl Application for Ingestion {
 type AppState = app::AppState<Ingestion>;
 
 impl AppState {
-    pub(crate) fn preprocessor(&self) -> Preprocessor<'_> {
-        Preprocessor::new(&self.embedder, &self.snippet_extractor)
+    pub(crate) async fn preprocess(
+        &self,
+        original: DocumentSnippet,
+        preprocessing_step: &mut PreprocessingStep,
+    ) -> Result<Vec<DocumentContent>, Error> {
+        let mut preprocessor =
+            Preprocessor::new(&self.embedder, self.snippet_extractor.get().await?);
+        preprocessor.preprocess(original, preprocessing_step).await
     }
 }
 
@@ -121,7 +125,7 @@ impl IngestionConfig {
 
 #[derive(AsRef)]
 pub struct Extension {
-    snippet_extractor: SnippetExtractor,
+    snippet_extractor: SnippetExtractorPool,
 }
 
 #[cfg(test)]

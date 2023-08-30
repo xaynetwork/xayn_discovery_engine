@@ -61,7 +61,7 @@ use tracing_subscriber::{
     EnvFilter,
     Layer,
 };
-use xayn_test_utils::{asset::ort_target, env::clear_env, python::initialize_python};
+use xayn_test_utils::{asset::ort_target, env::clear_env, workspace::find_workspace_dir};
 use xayn_web_api::{config, start, AppHandle, Application, Ingestion};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
@@ -436,8 +436,6 @@ where
 
         let span = error_span!(parent: None, "test", %test_id);
         span.in_scope(|| {
-            initialize_python();
-
             let body = test(test_id);
 
             // more or less what #[tokio::test] does
@@ -636,6 +634,11 @@ where
     A: Application + 'static,
 {
     if A::NAME == Ingestion::NAME {
+        let python_workspace = find_workspace_dir()
+            .join("./snippet-extractor")
+            .display()
+            .to_string();
+
         extend_config(
             &mut configure,
             toml! {
@@ -646,6 +649,8 @@ where
                 language = "english"
                 chunk_size = 10
                 hard_chunk_size_limit = 10
+                use_pipenv = true
+                python_workspace = python_workspace
             },
         );
     }

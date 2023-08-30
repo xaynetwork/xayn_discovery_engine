@@ -13,7 +13,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
-use xayn_snippet_extractor::SnippetExtractor;
+use xayn_snippet_extractor::pool::PooledSnippetExtractor;
 use xayn_summarizer::{self as summarizer, summarize, Source, Summarizer};
 
 use crate::{
@@ -25,11 +25,11 @@ use crate::{
 
 pub(crate) struct Preprocessor<'a> {
     embedder: &'a Embedder,
-    snippet_extractor: &'a SnippetExtractor,
+    snippet_extractor: PooledSnippetExtractor,
 }
 
 impl<'a> Preprocessor<'a> {
-    pub(crate) fn new(embedder: &'a Embedder, snippet_extractor: &'a SnippetExtractor) -> Self {
+    pub(crate) fn new(embedder: &'a Embedder, snippet_extractor: PooledSnippetExtractor) -> Self {
         Self {
             embedder,
             snippet_extractor,
@@ -37,7 +37,7 @@ impl<'a> Preprocessor<'a> {
     }
 
     pub(crate) async fn preprocess(
-        &self,
+        &mut self,
         original: DocumentSnippet,
         preprocessing_step: &mut PreprocessingStep,
     ) -> Result<Vec<DocumentContent>, Error> {
@@ -77,16 +77,18 @@ impl<'a> Preprocessor<'a> {
     }
 
     async fn embed_with_nltk(
-        &self,
+        &mut self,
         snippet: &DocumentSnippet,
     ) -> Result<Vec<DocumentContent>, Error> {
+        let embedder = &self.embedder;
         let snippets = self
             .snippet_extractor
-            .run(snippet)?
+            // TODO[pmk/now] spawn blocking
+            .extract_snippet(snippet)?
             .into_iter()
             .map(|split| async move {
                 let snippet = DocumentSnippet::new(split, usize::MAX)?;
-                let embedding = self.embedder.run(&snippet).await?;
+                let embedding = embedder.run(&snippet).await?;
                 Ok::<_, Error>(DocumentContent { snippet, embedding })
             })
             .collect::<FuturesOrdered<_>>()

@@ -7,8 +7,11 @@ description = "Library for extracting multiple snippets from a document."
 license = { workspace = true }
 
 [dependencies]
+anyhow = { workspace = true }
+deadpool = { version = "0.9.5", default-features = true, features = [ "managed", "rt_tokio_1" ] }
 displaydoc = { workspace = true }
-pyo3 = { workspace = true }
+num_cpus = "1.16.0"
+rmp-serde = "1.1.2"
 serde = { workspace = true }
 thiserror = { workspace = true }
 

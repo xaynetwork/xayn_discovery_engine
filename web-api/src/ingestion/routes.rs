@@ -418,7 +418,6 @@ async fn upsert_documents(
             let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
 
             match state
-                .preprocessor()
                 .preprocess(document.original, &mut document.preprocessing_step)
                 .await
             {

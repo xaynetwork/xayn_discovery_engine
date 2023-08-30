@@ -11,7 +11,6 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 from typing import List, Callable
 from nltk.tokenize import sent_tokenize
 from langchain.text_splitter import (
@@ -20,6 +19,7 @@ from langchain.text_splitter import (
     NLTKTextSplitter,
 )
 from transformers import PreTrainedTokenizerFast
+from msgpack import Packer, Unpacker
 
 
 # like `langchain.text_splitter.NLTKTextSplitter` but with configurable language and not small split merging
@@ -80,9 +80,8 @@ class SnippetExtractor(TextSplitterWithBigChunkSplitter):
         language: str,
         chunk_size: int,
         hard_chunk_size_limit: int,
-        tokenizer_file: str,
+        tokenizer,
     ):
-        tokenizer = PreTrainedTokenizerFast(tokenizer_file=tokenizer_file)
         token_len = lambda s: len(tokenizer(s).input_ids)
         super().__init__(
             primary=NLTKTextSplitter(
@@ -97,3 +96,53 @@ class SnippetExtractor(TextSplitterWithBigChunkSplitter):
             hard_chunk_size_limit=hard_chunk_size_limit,
             length_function=token_len,
         )
+
+def ok(value: any) -> dict:
+    return { 'Ok': value }
+def err(value: any) -> dict:
+    return { 'Err': str(value) }
+
+
+def run_stdio_client():
+    import sys
+    tokenizers = {}
+
+    # There is some bad interaction between stdin Binary I/O buffering code
+    # and the Unpacker with can lead to hangs. Using Raw I/O avoids this issue.
+    stdin = sys.stdin.buffer.raw
+    stdout = sys.stdout.buffer
+
+    # Disable buffer size safety check, we already checked it on the rust side
+    # and keeping that option is sync is another potential source of bugs.
+    unpacker = Unpacker(stdin, max_buffer_size = 0)
+    packer = Packer()
+
+    stdout.write(packer.pack("ready"));
+    stdout.flush()
+
+    for msg in unpacker:
+        result = None
+        try:
+            tag = msg['tag']
+            cmd = msg['cmd']
+            if tag == 'initialize_tokenizer':
+                tokenizers[cmd['name']] = PreTrainedTokenizerFast(tokenizer_file=cmd['path'])
+                result = ok(True)
+            elif tag == 'extract':
+                snippets = SnippetExtractor(
+                    language = cmd['language'],
+                    chunk_size = cmd['chunk_size'],
+                    hard_chunk_size_limit = cmd['hard_chunk_size_limit'],
+                    tokenizer = tokenizers[cmd['tokenizer']],
+                ).split_text(cmd['document'])
+                result = ok(snippets)
+            else:
+                result = err(f"unknown command: {tag}")
+        except Exception as error:
+            result = err(error)
+        finally:
+            stdout.write(packer.pack(result))
+            stdout.flush()
+
+if __name__ == '__main__':
+    run_stdio_client()

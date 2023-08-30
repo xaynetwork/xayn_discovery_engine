@@ -12,16 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{
-    path::Path,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-};
-
 use xayn_snippet_extractor::{Config, Error, SnippetExtractor};
-use xayn_test_utils::python::initialize_python;
+use xayn_test_utils::workspace::find_workspace_dir;
 
 const TEST_TEXT: &str = r"
 The GNU Affero General Public License is a free, copyleft license for software and other kinds of works, specifically designed to ensure cooperation with the community in the case of network server software.
@@ -43,18 +35,19 @@ The precise terms and conditions for copying, distribution and modification foll
 
 #[test]
 fn test_snippet_extraction_works() -> Result<(), Error> {
-    initialize_python();
-
-    let extractor = SnippetExtractor::initialize(
-        &Config {
+    let workspace = find_workspace_dir();
+    let mut extractor = SnippetExtractor::new_with_tokenizer(
+        Config {
             language: "english".into(),
             chunk_size: 50,
             hard_chunk_size_limit: 55,
+            use_pipenv: true,
+            python_workspace: workspace.join("snippet-extractor"),
         },
-        Path::new("/home/user/projects/de2/assets/xaynia_v0002/tokenizer.json"),
+        workspace.join("assets/xaynia_v0201/tokenizer.json"),
     )?;
 
-    assert_eq!(extractor.run(TEST_TEXT)?, [
+    assert_eq!(extractor.extract_snippet(TEST_TEXT)?, [
         "The GNU Affero General Public License is a free, copyleft license for software and other kinds of works, specifically designed to ensure cooperation with the community in the case of network server software.",
         "The licenses for most software and other practical works are designed to take away your freedom to share and change the works.",
         "By contrast, our General Public Licenses are intended to guarantee your freedom to share and change all versions of a program--to make sure it remains free software for all its users.",
@@ -72,42 +65,6 @@ fn test_snippet_extraction_works() -> Result<(), Error> {
         "This is a different license, not a version of the Affero GPL, but Affero has released a new version of the Affero GPL which permits relicensing under this license.",
         "The precise terms and conditions for copying, distribution and modification follow.",
     ]);
-
-    Ok(())
-}
-
-#[test]
-fn test_multi_threaded_snippet_extraction_works() -> Result<(), Error> {
-    initialize_python();
-
-    let extractor = SnippetExtractor::initialize(
-        &Default::default(),
-        Path::new("/home/user/projects/de2/assets/xaynia_v0002/tokenizer.json"),
-    )?;
-
-    let wait = Arc::new(AtomicBool::new(true));
-
-    let handles = (0..100)
-        .map(|i| {
-            let wait = wait.clone();
-            let extractor = extractor.clone();
-            std::thread::spawn(move || {
-                println!("spawned {i}");
-                while wait.load(Ordering::Acquire) {
-                    std::thread::yield_now();
-                }
-                extractor.run(TEST_TEXT)
-            })
-        })
-        .collect::<Vec<_>>();
-
-    wait.store(false, Ordering::Release);
-
-    for res in handles {
-        res.join().unwrap()?;
-    }
-
-    println!("Ok");
 
     Ok(())
 }

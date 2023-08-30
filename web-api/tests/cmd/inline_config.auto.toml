@@ -62,7 +62,9 @@ stdout = """
     "enable_dev": false
   },
   "snippet_extractor": {
-    "language": "german",
+    "use_pipenv": false,
+    "python_workspace": "./",
+    "language": "english",
     "chunk_size": 500,
     "hard_chunk_size_limit": 520
   }

@@ -34,8 +34,8 @@ mod approx_eq;
 pub mod asset;
 pub mod env;
 pub mod error;
-pub mod python;
 pub mod uuid;
+pub mod workspace;
 
 #[doc(hidden)] // required for standalone export of assert_approx_eq!
 pub use float_cmp::approx_eq;

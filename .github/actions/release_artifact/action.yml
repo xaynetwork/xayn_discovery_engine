@@ -68,6 +68,7 @@ runs:
         cp "$BIN_PATH" ./$ARCHIVE_NAME/server.bin
         cp "$PYTHON_WORKSPACE/Pipfile" "./$ARCHIVE_NAME/Pipfile"
         cp "$PYTHON_WORKSPACE/Pipfile.lock" "./$ARCHIVE_NAME/Pipfile.lock"
+        cp -r "$PYTHON_WORKSPACE/python_src/" "./$ARCHIVE_NAME/python_src"
         cp "$DOCKERFILE_PATH" ./$ARCHIVE_NAME/Dockerfile
         cp "$MODEL_PATH/config.toml" ./$ARCHIVE_NAME/assets/config.toml
         # Hint: Even when removing the model for sagemaker we want to keep the tokenizer.json

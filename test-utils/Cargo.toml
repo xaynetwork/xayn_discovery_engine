@@ -12,6 +12,5 @@ cfg-if = { workspace = true }
 float-cmp = "0.9.0"
 ndarray = { workspace = true }
 once_cell = { workspace = true }
-pyo3 = { workspace = true }
 regex = { workspace = true }
 uuid = { workspace = true }

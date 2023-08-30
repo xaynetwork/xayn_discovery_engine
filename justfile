@@ -124,13 +124,6 @@ upload-assets *args:
     {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     ./.github/scripts/prepare_data.sh {{args}} --upload
 
-# TODO[pmk/now]
-#   1. fn to extract python lib from python:{version}-slim-bookworm i.e. extract `/usr/local/lib/python{version_no_patch}/`
-#      e.g. version = 3.11 for the later part it must not contain a patch number
-#   2. make that an asset, but don't download it by default
-#   3. but do download it for build
-#   4. set PYO3_CROSS_LIB_DIR=~/..extracted/usr/local/lib/python3.11/
-
 build-service-args name target="default" features="":
     #!/usr/bin/env -S bash -eux -o pipefail
     if [[ -z "{{features}}" ]]; then
