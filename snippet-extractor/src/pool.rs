@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::{path::Path, time::Duration};
+use std::time::Duration;
 
 use deadpool::{
     unmanaged::{Object, Pool, PoolConfig},
@@ -32,7 +32,7 @@ pub struct SnippetExtractorPool {
 
 impl SnippetExtractorPool {
     #[allow(clippy::missing_panics_doc)]
-    pub fn new(config: &Config, tokenizer: &Path) -> Result<Self, Error> {
+    pub fn new(config: &Config) -> Result<Self, Error> {
         let num_cpus = num_cpus::get();
         let pool = Pool::from_config(&PoolConfig {
             max_size: num_cpus,
@@ -42,7 +42,7 @@ impl SnippetExtractorPool {
         });
 
         for _ in 0..num_cpus {
-            let extractor = SnippetExtractor::new_with_tokenizer(config.clone(), tokenizer)?;
+            let extractor = SnippetExtractor::new(config.clone())?;
             pool.try_add(extractor).map_err(|(_, err)| err).unwrap(/* can't happen */);
         }
         Ok(Self { pool })

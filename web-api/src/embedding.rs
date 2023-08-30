@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::path::PathBuf;
-
 use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Serialize};
@@ -27,15 +25,6 @@ use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBu
 pub enum Config {
     Pipeline(Pipeline),
     Sagemaker(Sagemaker),
-}
-
-impl Config {
-    pub(crate) fn tokenizer_file(&self) -> PathBuf {
-        match self {
-            Config::Pipeline(pipeline) => pipeline.directory.relative().join("tokenizer.json"),
-            Config::Sagemaker(_) => unimplemented!(),
-        }
-    }
 }
 
 impl Default for Config {

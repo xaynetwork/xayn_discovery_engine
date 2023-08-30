@@ -634,8 +634,11 @@ where
     A: Application + 'static,
 {
     if A::NAME == Ingestion::NAME {
-        let python_workspace = find_workspace_dir()
-            .join("./snippet-extractor")
+        let workspace = find_workspace_dir();
+        let python_workspace = workspace.join("./snippet-extractor").display().to_string();
+        //FIXME extract model name
+        let tokenizer = workspace
+            .join("./assets/xaynia_v0201/tokenizer.json")
             .display()
             .to_string();
 
@@ -651,6 +654,9 @@ where
                 hard_chunk_size_limit = 10
                 use_pipenv = true
                 python_workspace = python_workspace
+
+                [snippet.tokenizers]
+                default = tokenizer
             },
         );
     }

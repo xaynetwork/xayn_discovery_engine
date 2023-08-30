@@ -54,8 +54,7 @@ impl Application for Ingestion {
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         config.ingestion.validate()?;
 
-        let snippet_extractor =
-            SnippetExtractorPool::new(config.as_ref(), &config.embedding.tokenizer_file())?;
+        let snippet_extractor = SnippetExtractorPool::new(config.as_ref())?;
 
         Ok(Extension { snippet_extractor })
     }

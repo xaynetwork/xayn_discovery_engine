@@ -36,16 +36,18 @@ The precise terms and conditions for copying, distribution and modification foll
 #[test]
 fn test_snippet_extraction_works() -> Result<(), Error> {
     let workspace = find_workspace_dir();
-    let mut extractor = SnippetExtractor::new_with_tokenizer(
-        Config {
-            language: "english".into(),
-            chunk_size: 50,
-            hard_chunk_size_limit: 55,
-            use_pipenv: true,
-            python_workspace: workspace.join("snippet-extractor"),
-        },
-        workspace.join("assets/xaynia_v0201/tokenizer.json"),
-    )?;
+    let mut extractor = SnippetExtractor::new(Config {
+        language: "english".into(),
+        chunk_size: 50,
+        hard_chunk_size_limit: 55,
+        use_pipenv: true,
+        tokenizers: [(
+            "default".into(),
+            workspace.join("assets/xaynia_v0201/tokenizer.json"),
+        )]
+        .into(),
+        python_workspace: workspace.join("snippet-extractor"),
+    })?;
 
     assert_eq!(extractor.extract_snippet(TEST_TEXT)?, [
         "The GNU Affero General Public License is a free, copyleft license for software and other kinds of works, specifically designed to ensure cooperation with the community in the case of network server software.",

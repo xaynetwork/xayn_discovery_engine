@@ -35,7 +35,7 @@ mod python_child;
 use std::{
     collections::HashMap,
     io,
-    path::{Path, PathBuf},
+    path::PathBuf,
     thread,
     time::{Duration, Instant},
 };
@@ -80,6 +80,8 @@ pub struct Config {
     pub use_pipenv: bool,
     pub python_workspace: PathBuf,
     pub language: String,
+    // TODO[pmk/now] use relative path buf
+    pub tokenizers: HashMap<String, PathBuf>,
     pub chunk_size: usize,
     pub hard_chunk_size_limit: usize,
 }
@@ -91,59 +93,33 @@ impl Default for Config {
             language: "english".into(),
             chunk_size: 500,
             hard_chunk_size_limit: 520,
+            tokenizers: [("default".into(), "./assets/tokenizer.json".into())].into(),
             python_workspace: "./".into(),
         }
     }
 }
 
-type StringPath = String;
-
 pub struct SnippetExtractor {
     config: Config,
-    // Hint: If we ever allow unloading tokenizers this needs to be a map.
-    tokenizers: HashMap<String, StringPath>,
     child: Option<PythonChild>,
 }
 
 impl SnippetExtractor {
     const DEFAULT_TOKENIZER_NAME: &str = "t0";
 
-    pub fn new_with_tokenizer(
-        config: Config,
-        tokenizer_file: impl AsRef<Path>,
-    ) -> Result<Self, Error> {
-        let mut this = Self::new(config);
-        this.add_tokenizer(Self::DEFAULT_TOKENIZER_NAME, tokenizer_file.as_ref())?;
-        Ok(this)
-    }
+    pub fn new(config: Config) -> Result<Self, Error> {
+        for (name, path) in &config.tokenizers {
+            if path.to_str().is_none() {
+                return Err(Error::LoadingTokenizerFailed {
+                    msg: format!("tokenizer ({name}) path needs to be utf-8"),
+                });
+            }
+        }
 
-    pub fn new(config: Config) -> Self {
-        Self {
+        Ok(Self {
             config,
-            tokenizers: HashMap::new(),
             child: None,
-        }
-    }
-
-    pub fn add_tokenizer(&mut self, name: &str, path: impl AsRef<Path>) -> Result<(), Error> {
-        let path = path
-            .as_ref()
-            .to_str()
-            .ok_or_else(|| Error::LoadingTokenizerFailed {
-                msg: "tokenizer path needs to be utf-8".into(),
-            })?;
-
-        if self.child.is_some() {
-            self.with_child(|child, _config| {
-                child.send_command(&LoadTokenizer { name, path }, |msg| {
-                    Error::LoadingTokenizerFailed { msg }
-                })
-            })?;
-        }
-
-        self.tokenizers.insert(name.to_owned(), path.to_owned());
-
-        Ok(())
+        })
     }
 
     pub fn extract_snippet(&mut self, document: &str) -> Result<Vec<String>, Error> {
@@ -155,7 +131,7 @@ impl SnippetExtractor {
         tokenizer: &str,
         document: &str,
     ) -> Result<Vec<String>, Error> {
-        if !self.tokenizers.contains_key(tokenizer) {
+        if !self.config.tokenizers.contains_key(tokenizer) {
             return Err(Error::UnknownTokenizer {
                 name: tokenizer.into(),
             });
@@ -212,7 +188,8 @@ impl SnippetExtractor {
         let ready = child.read_message::<String, Error>()?;
         assert_eq!(ready, "ready");
 
-        for (name, path) in &self.tokenizers {
+        for (name, path) in &self.config.tokenizers {
+            let path = path.to_str().unwrap(/* we validated this in the constructor */);
             child.send_command(&LoadTokenizer { name, path }, |msg| {
                 Error::LoadingTokenizerFailed { msg }
             })?;
