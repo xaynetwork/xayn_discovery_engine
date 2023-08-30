@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-langchain = "*"
+langchain = ">= 0.0.276"
 transformers = ">=4.31.0, ==4.*"
 nltk = ">= 3.8.1, == 3.*"
 msgpack = ">= 1.0.1, == 1.*"
