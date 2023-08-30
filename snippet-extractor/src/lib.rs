@@ -29,6 +29,8 @@
     clippy::must_use_candidate
 )]
 
+//! This library provides functionality to extract snippets from a document.
+
 pub mod pool;
 mod python_child;
 
