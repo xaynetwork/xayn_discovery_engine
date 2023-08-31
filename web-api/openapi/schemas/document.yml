@@ -69,7 +69,7 @@ Snippet:
     document from which it stems was ingested.
 
     Be aware that whitespace can differ between the original and the returned snippet.
-  type: text
+  type: string
 
 DocumentProperties:
   description: |-
