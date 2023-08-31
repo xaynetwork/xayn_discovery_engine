@@ -66,7 +66,7 @@ Snippet:
     The text of the found snippet.
 
     This can be the whole ingested document or a part of it depending on how the
-    document from which it stems was ingested.
+    document was ingested.
 
     Be aware that whitespace can differ between the original and the returned snippet.
   type: string
