@@ -391,7 +391,7 @@ fn test_semantic_search_with_dev_option_snippet() {
                     .json(&json!({
                         "document": { "query": "this is one sentence" },
                         "count": 3,
-                        "_dev": { "include_snippet": true }
+                        "include_snippet": true,
                     }))
                     .build()?,
                 StatusCode::OK,

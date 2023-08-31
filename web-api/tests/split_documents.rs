@@ -96,7 +96,7 @@ async fn query(
                 "document": { "query": text },
                 "count": count,
                 "filter": filter,
-                "_dev": { "include_snippet": true }
+                "include_snippet": true,
             }))
             .build()?,
         StatusCode::OK,

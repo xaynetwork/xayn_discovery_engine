@@ -117,6 +117,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/IncludeProperties'
+        - name: include_snippet
+          in: query
+          description:
+            $ref: '#/components/schemas/IncludeSnippet/description'
+          required: false
+          schema:
+            $ref: '#/components/schemas/IncludeSnippet'
         - name: filter
           in: query
           description:
@@ -224,6 +231,10 @@ components:
       description: Include the properties of each document in the response.
       type: boolean
       default: true
+    IncludeSnippet:
+      description: Includes the snippets text for each search result.
+      type: boolean
+      default: true
     FilterCompare:
       type: object
       additionalProperties:
@@ -301,6 +312,8 @@ components:
           $ref: './schemas/time.yml#/PublishedAfter'
         include_properties:
           $ref: '#/components/schemas/IncludeProperties'
+        include_snippet:
+          $ref: '#/components/schemas/IncludeSnippet'
         filter:
           description:
             $ref: '#/components/schemas/Filter/description'
@@ -316,6 +329,8 @@ components:
           $ref: './schemas/document.yml#/DocumentId'
         snippet_id:
           $ref: './schemas/document.yml#/SnippetId'
+        snippet:
+          $ref: './schemas/document.yml#/Snippet'
         score:
           description: A number where higher means better.
           type: number
@@ -354,6 +369,8 @@ components:
           $ref: './schemas/time.yml#/PublishedAfter'
         include_properties:
           $ref: '#/components/schemas/IncludeProperties'
+        include_snippet:
+          $ref: '#/components/schemas/IncludeSnippet'
         personalize:
           description: Personalize the ranking of candidates based on a users preferences.
           type: object
