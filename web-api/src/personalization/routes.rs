@@ -164,6 +164,8 @@ struct UnvalidatedPersonalizedDocumentsRequest {
     filter: Option<Filter>,
     #[serde(default = "default_include_properties")]
     include_properties: bool,
+    #[serde(default)]
+    include_snippet: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -174,6 +176,8 @@ struct UnvalidatedPersonalizedDocumentsQuery {
     filter: Option<String>,
     #[serde(default = "default_include_properties")]
     include_properties: bool,
+    #[serde(default)]
+    include_snippet: bool,
 }
 
 #[derive(Debug)]
@@ -181,6 +185,7 @@ struct PersonalizedDocumentsRequest {
     count: usize,
     filter: Option<Filter>,
     include_properties: bool,
+    include_snippet: bool,
     is_deprecated: bool,
 }
 
@@ -195,6 +200,7 @@ impl UnvalidatedPersonalizedDocumentsRequest {
             published_after,
             filter,
             include_properties,
+            include_snippet,
         } = self;
         let config = config.as_ref();
 
@@ -214,6 +220,7 @@ impl UnvalidatedPersonalizedDocumentsRequest {
             count,
             filter,
             include_properties,
+            include_snippet,
             is_deprecated,
         })
     }
@@ -231,6 +238,7 @@ async fn personalized_documents(
         count,
         filter,
         include_properties,
+        include_snippet,
         is_deprecated,
     } = if let Some(Json(body)) = body {
         body.validate_and_resolve_defaults(&state.config, &storage)
@@ -244,6 +252,7 @@ async fn personalized_documents(
                 .map(|filter| serde_json::from_str(&filter))
                 .transpose()?,
             include_properties: params.include_properties,
+            include_snippet: params.include_snippet,
         }
         .validate_and_resolve_defaults(&state.config, &storage)
         .await?
@@ -267,7 +276,7 @@ async fn personalized_documents(
         },
         Utc::now(),
         include_properties,
-        false,
+        include_snippet,
     )
     .await?
     {

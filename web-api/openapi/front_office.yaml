@@ -117,6 +117,13 @@ paths:
           required: false
           schema:
             $ref: '#/components/schemas/IncludeProperties'
+        - name: include_snippet
+          in: query
+          description:
+            $ref: '#/components/schemas/IncludeSnippet/description'
+          required: false
+          schema:
+            $ref: '#/components/schemas/IncludeSnippet'
         - name: filter
           in: query
           description:
@@ -305,6 +312,8 @@ components:
           $ref: './schemas/time.yml#/PublishedAfter'
         include_properties:
           $ref: '#/components/schemas/IncludeProperties'
+        include_snippet:
+          $ref: '#/components/schemas/IncludeSnippet'
         filter:
           description:
             $ref: '#/components/schemas/Filter/description'
