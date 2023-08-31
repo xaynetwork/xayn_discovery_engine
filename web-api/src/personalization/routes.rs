@@ -466,6 +466,8 @@ struct UnvalidatedSemanticSearchRequest {
     dev: DevOption,
     #[serde(default = "default_include_properties")]
     include_properties: bool,
+    #[serde(default)]
+    include_snippet: bool,
     filter: Option<Filter>,
 }
 
@@ -474,16 +476,11 @@ struct UnvalidatedSemanticSearchRequest {
 struct DevOption {
     hybrid: Option<DevHybrid>,
     max_number_candidates: Option<usize>,
-    include_snippet: Option<bool>,
 }
 
 impl DevOption {
     fn validate(&self, enable_dev: bool) -> Result<(), Error> {
-        if !enable_dev
-            && (self.hybrid.is_some()
-                || self.max_number_candidates.is_some()
-                || self.include_snippet.is_some())
-        {
+        if !enable_dev && (self.hybrid.is_some() || self.max_number_candidates.is_some()) {
             // notify the caller instead of silently discarding the dev option
             return Err(ForbiddenDevOption::DevDisabled.into());
         }
@@ -550,6 +547,7 @@ impl UnvalidatedSemanticSearchRequest {
             enable_hybrid_search,
             dev,
             include_properties,
+            include_snippet,
             filter,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
@@ -584,7 +582,7 @@ impl UnvalidatedSemanticSearchRequest {
             enable_hybrid_search,
             dev_hybrid_search,
             include_properties,
-            include_snippet: dev.include_snippet.unwrap_or_default(),
+            include_snippet,
             filter,
             is_deprecated,
         })

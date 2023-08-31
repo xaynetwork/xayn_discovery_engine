@@ -61,6 +61,16 @@ DocumentProperty:
     - $ref: '#/DocumentPropertyArrayString'
     - $ref: './time.yml#/Timestamp'
 
+Snippet:
+  description: |-
+    The text of the found snippet.
+
+    This can be the whole ingested document or a part of it depending on how the
+    document from which it stems was ingested.
+
+    Be aware that whitespace can differ between the original and the returned snippet.
+  type: text
+
 DocumentProperties:
   description: |-
     Mostly arbitrary properties that can be attached to a document, up to 2.5KB in size.
