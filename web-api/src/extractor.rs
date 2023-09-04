@@ -25,6 +25,7 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use url::Url;
+use xayn_web_api_shared::elastic::SegmentableUrl;
 
 use crate::{
     error::common::{FileUploadNotEnabled, InvalidBinary},
@@ -133,14 +134,9 @@ impl TextExtractor {
                 url,
                 allowed_content_type,
             } => {
-                let url = Url::parse(url)?;
-                if url.cannot_be_a_base() {
-                    return Err::<_, anyhow::Error>(anyhow::anyhow!("invalid url"));
-                }
-
                 ExtractorInner::Tika {
                     client: Client::new(),
-                    url,
+                    url: url.parse()?,
                     allowed_content_type: allowed_content_type
                         .iter()
                         .map(|m| CmpMime(m.0.clone()))
@@ -165,7 +161,7 @@ enum ExtractorInner {
     Disabled,
     Tika {
         client: Client,
-        url: Url,
+        url: SegmentableUrl,
         allowed_content_type: HashSet<CmpMime>,
     },
 }
@@ -188,7 +184,7 @@ impl ExtractorInner {
                 url,
                 allowed_content_type,
             } => {
-                let url = url.join("/rmeta/text").unwrap(/* url is a valid base */);
+                let url: Url = url.with_segments(["rmeta", "text"]).into();
                 let mut response: Vec<TikaResponse> = client
                     .put(url)
                     .body(data)
