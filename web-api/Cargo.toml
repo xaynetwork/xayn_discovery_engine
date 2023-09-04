@@ -18,7 +18,6 @@ chrono = { workspace = true }
 clap = { version = "4.3.4", features = ["derive"] }
 const_format = "0.2.31"
 csv = { workspace = true }
-cutters = "0.1.4"
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 dotenvy = "0.15.7"
@@ -44,6 +43,7 @@ url = { version = "2.4.0", features = ["serde"] }
 uuid = { workspace = true }
 xayn-ai-bert = { path = "../bert", features = ["sqlx"] }
 xayn-ai-coi = { path = "../coi", features = ["sqlx"] }
+xayn-snippet-extractor = { path = "../snippet-extractor" }
 xayn-summarizer = { path = "../summarizer" }
 xayn-web-api-db-ctrl = { path = "../web-api-db-ctrl" }
 xayn-web-api-shared = { path = "../web-api-shared" }

@@ -3,6 +3,7 @@ members = [
     "bert",
     "coi",
     "integration-tests",
+    "snippet-extractor",
     "summarizer",
     "test-utils",
     "web-api",

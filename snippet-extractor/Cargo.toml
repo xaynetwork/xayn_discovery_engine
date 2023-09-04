@@ -1,0 +1,22 @@
+[package]
+name = "xayn-snippet-extractor"
+version = { workspace = true }
+edition = { workspace = true }
+rust-version = { workspace = true }
+description = "Library for extracting multiple snippets from a document."
+license = { workspace = true }
+
+[dependencies]
+anyhow = { workspace = true }
+deadpool = { version = "0.9.5", default-features = true, features = [ "managed", "rt_tokio_1" ] }
+derive_more = { workspace = true }
+displaydoc = { workspace = true }
+num_cpus = "1.16.0"
+rmp-serde = "1.1.2"
+serde = { workspace = true }
+thiserror = { workspace = true }
+tokio =  { workspace = true }
+xayn-web-api-shared = { path = "../web-api-shared" }
+
+[dev-dependencies]
+xayn-test-utils = { path = "../test-utils" }

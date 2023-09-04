@@ -42,7 +42,7 @@ use crate::{
         FailedToSetSomeDocumentCandidates,
         FailedToValidateDocuments,
     },
-    ingestion::{preprocess::preprocess_document, IngestionConfig},
+    ingestion::IngestionConfig,
     models::{
         self,
         DocumentId,
@@ -224,7 +224,7 @@ impl UnvalidatedDocumentForIngestion {
             )
                 .into())
             }
-            (true, false) => PreprocessingStep::CuttersSplit,
+            (true, false) => PreprocessingStep::default_split(),
             (false, true) => PreprocessingStep::Summarize,
             (false, false) => PreprocessingStep::None,
         };
@@ -413,17 +413,19 @@ async fn upsert_documents(
     let new_documents_len = new_documents.len();
     let (new_documents, mut failed_documents) = new_documents
         .into_iter()
-        .map(|(document, new_is_candidate)| async move {
+        .map(|(mut document, new_is_candidate)| async move {
             let id = document.id;
             let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
-            let preprocessing_step = document.preprocessing_step;
-            match preprocess_document(&state.embedder, document.original, preprocessing_step).await
+
+            match state
+                .preprocess(document.original, &mut document.preprocessing_step)
+                .await
             {
                 Ok(snippets) => Ok(models::DocumentForIngestion {
                     id,
                     original_sha256,
                     snippets,
-                    preprocessing_step,
+                    preprocessing_step: document.preprocessing_step,
                     properties: document.properties,
                     tags: document.tags,
                     is_candidate: new_is_candidate.value,

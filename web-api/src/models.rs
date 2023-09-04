@@ -536,6 +536,13 @@ pub(crate) enum PreprocessingStep {
     None,
     Summarize,
     CuttersSplit,
+    NltkSplitV1,
+}
+
+impl PreprocessingStep {
+    pub(crate) fn default_split() -> Self {
+        Self::NltkSplitV1
+    }
 }
 
 #[cfg(test)]

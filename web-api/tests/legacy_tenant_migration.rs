@@ -35,7 +35,7 @@ use xayn_integration_tests::{
     TEST_EMBEDDING_SIZE,
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env};
-use xayn_web_api::{config, start, Ingestion, Personalization};
+use xayn_web_api::{config, start, Application, Ingestion, Personalization};
 use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
     elastic,
@@ -180,7 +180,17 @@ fn test_full_migration() {
         info!("entered async test");
 
         let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
-        let config = build_test_config_from_parts_and_names(
+        let ingestion_config = build_test_config_from_parts_and_names(
+            Ingestion::NAME,
+            &pg_config,
+            &es_config,
+            Table::new(),
+            "smbert_v0003",
+            &format!("ort_v1.15.1/{}", ort_target().unwrap()),
+        );
+
+        let personalization_config = build_test_config_from_parts_and_names(
+            Personalization::NAME,
             &pg_config,
             &es_config,
             Table::new(),
@@ -209,19 +219,30 @@ fn test_full_migration() {
 
         info!("legacy es setup done");
 
-        let args = &[
-            "integration-test",
-            "--bind-to",
-            "127.0.0.1:0",
-            "--config",
-            &format!("inline:{config}"),
-        ];
-
-        let config = old_config::load_with_args([""; 0], args);
+        let config = old_config::load_with_args(
+            [""; 0],
+            [
+                "integration-test",
+                "--bind-to",
+                "127.0.0.1:0",
+                "--config",
+                &format!("inline:{ingestion_config}"),
+            ],
+        );
         let ingestion = start_old::<OldIngestion>(config).await?;
         info!("started old ingestion");
         let ingestion_url = ingestion.url();
-        let config = old_config::load_with_args([""; 0], args);
+
+        let config = old_config::load_with_args(
+            [""; 0],
+            [
+                "integration-test",
+                "--bind-to",
+                "127.0.0.1:0",
+                "--config",
+                &format!("inline:{personalization_config}"),
+            ],
+        );
         let personalization = start_old::<OldPersonalization>(config).await?;
         info!("started old personalization");
         let personalization_url = personalization.url();
@@ -285,26 +306,43 @@ fn test_full_migration() {
             .await?;
         conn.close().await?;
 
-        let config = build_test_config_from_parts_and_names(
-            &pg_config,
-            &es_config,
-            Table::new(),
-            "smbert_v0005",
-            &format!("ort_v1.15.1/{}", ort_target().unwrap()),
-        );
-        let args = &[
-            "integration-test",
-            "--bind-to",
-            "127.0.0.1:0",
-            "--config",
-            &format!("inline:{config}"),
-        ];
-
-        let config = config::load_with_args([""; 0], args);
+        let config = config::load_with_args([""; 0], {
+            let config = build_test_config_from_parts_and_names(
+                Ingestion::NAME,
+                &pg_config,
+                &es_config,
+                Table::new(),
+                "smbert_v0005",
+                &format!("ort_v1.15.1/{}", ort_target().unwrap()),
+            );
+            &[
+                "integration-test",
+                "--bind-to",
+                "127.0.0.1:0",
+                "--config",
+                &format!("inline:{config}"),
+            ]
+        });
         let ingestion = start::<Ingestion>(config).await?;
         info!("started new ingestion");
         let ingestion_url = ingestion.url();
-        let config = config::load_with_args([""; 0], args);
+        let config = config::load_with_args([""; 0], {
+            let config = build_test_config_from_parts_and_names(
+                Personalization::NAME,
+                &pg_config,
+                &es_config,
+                Table::new(),
+                "smbert_v0005",
+                &format!("ort_v1.15.1/{}", ort_target().unwrap()),
+            );
+            &[
+                "integration-test",
+                "--bind-to",
+                "127.0.0.1:0",
+                "--config",
+                &format!("inline:{config}"),
+            ]
+        });
         let personalization = start::<Personalization>(config).await?;
         info!("started new personalization");
         let personalization_url = personalization.url();

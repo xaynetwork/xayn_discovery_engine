@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-mod preprocess;
+mod preprocessor;
 mod routes;
 
 use actix_web::web::ServiceConfig;
@@ -20,14 +20,18 @@ use anyhow::bail;
 use async_trait::async_trait;
 use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
+use xayn_snippet_extractor::pool::SnippetExtractorPool;
 
+use self::preprocessor::Preprocessor;
 use crate::{
     app::{self, Application, SetupError},
     embedding,
     logging,
+    models::{DocumentContent, DocumentSnippet, PreprocessingStep},
     net,
     storage::{self, elastic::IndexUpdateConfig},
     tenants,
+    Error,
 };
 
 pub struct Ingestion;
@@ -50,11 +54,24 @@ impl Application for Ingestion {
     fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
         config.ingestion.validate()?;
 
-        Ok(Extension {})
+        let snippet_extractor = SnippetExtractorPool::new(config.as_ref())?;
+
+        Ok(Extension { snippet_extractor })
     }
 }
 
 type AppState = app::AppState<Ingestion>;
+
+impl AppState {
+    pub(crate) async fn preprocess(
+        &self,
+        original: DocumentSnippet,
+        preprocessing_step: &mut PreprocessingStep,
+    ) -> Result<Vec<DocumentContent>, Error> {
+        let preprocessor = Preprocessor::new(&self.embedder, self.snippet_extractor.get().await?);
+        preprocessor.preprocess(original, preprocessing_step).await
+    }
+}
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -65,6 +82,7 @@ pub struct Config {
     pub(crate) ingestion: IngestionConfig,
     pub(crate) embedding: embedding::Config,
     pub(crate) tenants: tenants::Config,
+    pub(crate) snippet_extractor: xayn_snippet_extractor::Config,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -104,7 +122,9 @@ impl IngestionConfig {
 }
 
 #[derive(AsRef)]
-pub struct Extension {}
+pub struct Extension {
+    snippet_extractor: SnippetExtractorPool,
+}
 
 #[cfg(test)]
 mod tests {

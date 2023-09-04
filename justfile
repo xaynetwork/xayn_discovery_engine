@@ -26,6 +26,11 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
 default:
     @{{just_executable()}} --list
 
+python-deps:
+    #!/usr/bin/env bash
+    cd snippet-extractor
+    pipenv install
+
 # Fetches rust dependencies
 rust-deps:
     #!/usr/bin/env bash
@@ -71,10 +76,10 @@ rust-build:
     cargo build --locked
 
 # Builds all code
-build: rust-build
+build: rust-build python-deps
 
 # Tests rust
-rust-test: download-assets
+rust-test: download-assets python-deps
     #!/usr/bin/env -S bash -eu -o pipefail
     export RUST_BACKTRACE=1
     cargo test --lib --bins --tests --locked
@@ -104,11 +109,15 @@ _pre-push: deps fmt check test
 pre-push $CI="true":
     @{{just_executable()}} _pre-push
 
-download-assets *args:
+download-assets *args: python-deps
     #!/usr/bin/env -S bash -eu -o pipefail
+    BASE_DIR="$(pwd)"
     cd {{justfile_directory()}}/.github/scripts
     {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     ./download_assets.sh {{args}}
+    cd "${BASE_DIR}/snippet-extractor"
+    pipenv run python -c 'import nltk; nltk.download("punkt")'
+
 
 upload-assets *args:
     #!/usr/bin/env -S bash -eu -o pipefail
