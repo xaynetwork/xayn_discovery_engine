@@ -40,7 +40,6 @@ fn test_snippet_extraction_works() -> Result<(), Error> {
         language: "english".into(),
         chunk_size: 50,
         hard_chunk_size_limit: 55,
-        use_pipenv: true,
         tokenizers: [(
             "default".into(),
             workspace.join("assets/xaynia_v0201/tokenizer.json"),

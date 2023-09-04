@@ -73,7 +73,6 @@ impl Error {
 #[serde(default, deny_unknown_fields)]
 #[must_use]
 pub struct Config {
-    pub use_pipenv: bool,
     pub python_workspace: PathBuf,
     pub language: String,
     // TODO[pmk/now] use relative path buf
@@ -88,7 +87,6 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            use_pipenv: false,
             language: "english".into(),
             chunk_size: 500,
             hard_chunk_size_limit: 520,
@@ -176,7 +174,6 @@ impl SnippetExtractor {
         let mut child = PythonChild::spawn(
             &self.config.python_workspace,
             "./python_src/snippet_extractor.py",
-            self.config.use_pipenv,
         )?;
 
         let ready = child.read_message::<String, Error>()?;

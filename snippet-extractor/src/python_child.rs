@@ -37,17 +37,9 @@ impl PythonChild {
     pub(crate) fn spawn(
         workspace: impl AsRef<Path>,
         python_file: impl AsRef<Path>,
-        use_pipenv: bool,
     ) -> Result<Self, io::Error> {
-        let mut cmd = if use_pipenv {
-            let mut cmd = Command::new("pipenv");
-            cmd.args(["run", "python"]);
-            cmd
-        } else {
-            Command::new("python")
-        };
-
-        let mut child = cmd
+        let mut child = Command::new("pipenv")
+            .args(["run", "python"])
             .arg(python_file.as_ref())
             .current_dir(workspace.as_ref())
             .stdin(Stdio::piped())

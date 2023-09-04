@@ -711,7 +711,6 @@ pub fn build_test_config_from_parts_and_names(
                 language = "english"
                 chunk_size = 10
                 hard_chunk_size_limit = 10
-                use_pipenv = true
                 python_workspace = python_workspace
 
                 [snippet_extractor.tokenizers]

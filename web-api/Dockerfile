@@ -11,6 +11,6 @@ RUN set -eux; \
 WORKDIR /app
 COPY ./ ./
 
-RUN pipenv install --system --deploy
+RUN pipenv install --deploy
 
 ENTRYPOINT ["/app/server.bin"]

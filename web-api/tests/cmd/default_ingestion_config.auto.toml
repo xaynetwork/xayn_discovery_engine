@@ -62,7 +62,6 @@ stdout = """
     "enable_dev": false
   },
   "snippet_extractor": {
-    "use_pipenv": false,
     "python_workspace": "./",
     "language": "english",
     "tokenizers": {
