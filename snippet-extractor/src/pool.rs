@@ -50,6 +50,11 @@ impl SnippetExtractorPool {
     #[allow(clippy::missing_panics_doc)]
     pub fn new(config: &super::Config) -> Result<Self, Error> {
         let num_cpus = num_cpus::get();
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            clippy::cast_precision_loss
+        )]
         let max_size = (num_cpus as f32 * config.pool.threads_per_cpu)
             .ceil()
             .max(1.0) as usize;
