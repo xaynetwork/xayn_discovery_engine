@@ -11,6 +11,6 @@ RUN set -eux; \
 WORKDIR /app
 COPY ./ ./
 
-RUN pipenv install --deploy
+RUN pipenv install --deploy && pipenv run python -c 'import nltk; nltk.download("punkt")'
 
 ENTRYPOINT ["/app/server.bin"]
