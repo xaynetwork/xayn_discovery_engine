@@ -69,7 +69,11 @@ stdout = """
       "default": "./assets/tokenizer.json"
     },
     "chunk_size": 500,
-    "hard_chunk_size_limit": 520
+    "hard_chunk_size_limit": 520,
+    "pool": {
+      "threads_per_cpu": 1.0,
+      "acquisition_timeout": "15s"
+    }
   }
 }
 """

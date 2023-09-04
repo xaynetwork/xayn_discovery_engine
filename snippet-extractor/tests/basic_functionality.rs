@@ -47,6 +47,7 @@ fn test_snippet_extraction_works() -> Result<(), Error> {
         )]
         .into(),
         python_workspace: workspace.join("snippet-extractor"),
+        pool: Default::default(),
     })?;
 
     assert_eq!(extractor.extract_snippet("default", TEST_TEXT)?, [

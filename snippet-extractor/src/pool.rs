@@ -20,9 +20,27 @@ use deadpool::{
     Runtime,
 };
 use derive_more::{Deref, DerefMut};
+use serde::{Deserialize, Serialize};
 use tokio::task::spawn_blocking;
+use xayn_web_api_shared::serde::serde_duration_in_config;
 
-use crate::{Config, Error, SnippetExtractor};
+use crate::{Error, SnippetExtractor};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    threads_per_cpu: f32,
+    #[serde(with = "serde_duration_in_config")]
+    acquisition_timeout: Duration,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            threads_per_cpu: 1.0,
+            acquisition_timeout: Duration::from_secs(15),
+        }
+    }
+}
 
 pub struct SnippetExtractorPool {
     pool: Pool<SnippetExtractor>,
@@ -30,12 +48,14 @@ pub struct SnippetExtractorPool {
 
 impl SnippetExtractorPool {
     #[allow(clippy::missing_panics_doc)]
-    pub fn new(config: &Config) -> Result<Self, Error> {
+    pub fn new(config: &super::Config) -> Result<Self, Error> {
         let num_cpus = num_cpus::get();
+        let max_size = (num_cpus as f32 * config.pool.threads_per_cpu)
+            .ceil()
+            .max(1.0) as usize;
         let pool = Pool::from_config(&PoolConfig {
-            max_size: num_cpus,
-            // TODO[pmk/now] decide value based on whole request timeout and make configurable
-            timeout: Some(Duration::from_secs(15)),
+            max_size,
+            timeout: Some(config.pool.acquisition_timeout),
             runtime: Some(Runtime::Tokio1),
         });
 

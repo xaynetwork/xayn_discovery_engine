@@ -16,6 +16,7 @@ rmp-serde = "1.1.2"
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio =  { workspace = true }
+xayn-web-api-shared = { path = "../web-api-shared" }
 
 [dev-dependencies]
 xayn-test-utils = { path = "../test-utils" }

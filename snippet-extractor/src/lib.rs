@@ -80,6 +80,9 @@ pub struct Config {
     pub tokenizers: HashMap<String, PathBuf>,
     pub chunk_size: usize,
     pub hard_chunk_size_limit: usize,
+    // Hint: From a per-crate design POV this shouldn't be a member of Config,
+    //       but from a application level POV this is much more convenient.
+    pub pool: pool::Config,
 }
 
 impl Default for Config {
@@ -91,6 +94,7 @@ impl Default for Config {
             hard_chunk_size_limit: 520,
             tokenizers: [("default".into(), "./assets/tokenizer.json".into())].into(),
             python_workspace: "./".into(),
+            pool: pool::Config::default(),
         }
     }
 }
