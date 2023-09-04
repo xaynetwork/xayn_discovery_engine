@@ -133,16 +133,14 @@ impl TextExtractor {
             ExtractorConfig::Tika {
                 url,
                 allowed_content_type,
-            } => {
-                ExtractorInner::Tika {
-                    client: Client::new(),
-                    url: url.parse()?,
-                    allowed_content_type: allowed_content_type
-                        .iter()
-                        .map(|m| CmpMime(m.0.clone()))
-                        .collect(),
-                }
-            }
+            } => ExtractorInner::Tika {
+                client: Client::new(),
+                url: url.parse()?,
+                allowed_content_type: allowed_content_type
+                    .iter()
+                    .map(|m| CmpMime(m.0.clone()))
+                    .collect(),
+            },
         };
 
         Ok(Self { inner })
