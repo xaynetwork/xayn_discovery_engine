@@ -218,7 +218,7 @@ impl ExtractorInner {
                 if !allowed_content_type.is_empty() && !allowed_content_type.contains(&content_type)
                 {
                     return Err(PreprocessError::Invalid(
-                        InvalidBinary::ContentType {
+                        InvalidBinary::MediaType {
                             found: content_type.to_string(),
                         }
                         .into(),

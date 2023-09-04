@@ -170,8 +170,8 @@ impl_application_error!(FileUploadNotEnabled => BAD_REQUEST, INFO);
 pub(crate) enum InvalidBinary {
     /// Unrecognized content-type.
     Unrecognized,
-    /// Unsupported content-type. Found {found}
-    ContentType { found: String },
+    /// Unsupported media type. Found {found}
+    MediaType { found: String },
     /// Invalid content
     InvalidContent,
 }
