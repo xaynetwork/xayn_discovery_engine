@@ -433,6 +433,7 @@ components:
             **Important note:** Uploading a file is not enabled by default, please write us if you needed it. If you try to use this when disabled
             a bed request error will be returned.
           type: string
+          format: byte
           minLength: 1
           maxLength: 10000000
         properties:
