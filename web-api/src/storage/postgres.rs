@@ -303,12 +303,20 @@ impl Database {
     ) -> Result<Vec<PersonalizedDocument>, Error> {
         let mut documents = Vec::with_capacity(scores.len());
 
+        // The is_candidate filter exists to make sure we only consider candidates for following reasons:
+        // 1. We have/had a bug (ET-4957) where on a test system ES got out of sync containing
+        //    some deleted documents.
+        // 2. With ES being eventual consistent we always can have situations where ES
+        //    returned "just" deleted documents.
+        // 3. In some use-cases we have far more non candidates then candidates, in this
+        //    case this can yield a performance boost due to the is_candidate partial index
+        //    we have for other endpoints.
         let mut builder = QueryBuilder::new(format!(
             "SELECT
                 s.document_id, s.sub_id, s.embedding {snippet},
                 d.tags {properties}
             FROM snippet s JOIN document d USING (document_id)
-            WHERE (s.document_id, s.sub_id) IN ",
+            WHERE d.is_candidate AND (s.document_id, s.sub_id) IN ",
             properties = include_properties
                 .then_some(", d.properties")
                 .unwrap_or_default(),
