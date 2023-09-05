@@ -23,6 +23,7 @@ use url::Url;
 use xayn_integration_tests::{
     send_assert,
     send_assert_json,
+    test_app,
     test_two_apps,
     Services,
     UNCHANGED_CONFIG,
@@ -308,4 +309,83 @@ fn test_deletes_them_from_elastic_search() {
             Ok(())
         },
     );
+}
+
+#[test]
+fn test_deletes_them_from_elastic_search_2() {
+    test_app::<Ingestion, _>(
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, services| async move {
+            ingest(
+                &client,
+                &ingestion_url,
+                [("d1", "foo"), ("d2", "bar"), ("d3", "baz"), ("d4", "bat")],
+            )
+            .await?;
+            set_candidates(&client, &ingestion_url, []).await?;
+            assert!(documents_from_es(&services).await?.is_empty());
+            set_candidates(&client, &ingestion_url, ["d3", "d4"]).await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d3", "d4"])
+            );
+            set_candidates(&client, &ingestion_url, ["d1", "d4"]).await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d1", "d4"])
+            );
+            set_candidates(&client, &ingestion_url, ["d1", "d2", "d3"]).await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d1", "d2", "d3"])
+            );
+            set_candidates(&client, &ingestion_url, []).await?;
+            assert!(documents_from_es(&services).await?.is_empty());
+
+            ingest(
+                &client,
+                &ingestion_url,
+                [("d1", "foo2"), ("d2", "bar2"), ("d3", "baz"), ("d4", "bat")],
+            )
+            .await?;
+            set_candidates(&client, &ingestion_url, ["d3", "d4"]).await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d3", "d4"])
+            );
+            set_candidates(&client, &ingestion_url, ["d1", "d4"]).await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d1", "d4"])
+            );
+            set_candidates(&client, &ingestion_url, ["d1", "d2", "d3"]).await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d1", "d2", "d3"])
+            );
+
+            delete(&client, &ingestion_url, ["d1", "d3", "d4"]).await?;
+            assert_eq!(documents_from_es(&services).await?, string_set(["d2"]));
+            set_candidates(&client, &ingestion_url, []).await?;
+            assert!(documents_from_es(&services).await?.is_empty());
+
+            ingest(
+                &client,
+                &ingestion_url,
+                [("d1", "foo2"), ("d3", "baz"), ("d4", "bat")],
+            )
+            .await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d1", "d3", "d4"])
+            );
+
+            set_candidates(&client, &ingestion_url, ["d1", "d2", "d3", "d4"]).await?;
+            assert_eq!(
+                documents_from_es(&services).await?,
+                string_set(["d1", "d2", "d3", "d4"])
+            );
+            Ok(())
+        },
+    )
 }
