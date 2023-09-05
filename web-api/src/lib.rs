@@ -43,6 +43,7 @@ mod mind;
 mod models;
 mod net;
 mod personalization;
+pub mod rank_merge;
 mod storage;
 mod tenants;
 mod utils;

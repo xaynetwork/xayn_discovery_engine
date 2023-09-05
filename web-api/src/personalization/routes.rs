@@ -28,7 +28,7 @@ use xayn_ai_coi::{CoiConfig, CoiSystem};
 use super::{
     filter::Filter,
     knn,
-    rerank::rerank_by_scores,
+    rerank::rerank,
     stateless::{
         derive_interests_and_tag_weights,
         load_history,
@@ -410,7 +410,7 @@ pub(crate) async fn personalize_documents_by(
     let tag_weights = storage::Tag::get(storage, user_id).await?;
 
     normalize_knn_scores(&mut documents);
-    rerank_by_scores(
+    rerank(
         coi_system,
         &mut documents,
         &interests,
@@ -870,7 +870,7 @@ async fn personalize_knn_search_result(
     };
 
     if interests.len() >= AsRef::<CoiConfig>::as_ref(config).min_cois() {
-        rerank_by_scores(
+        rerank(
             coi_system,
             documents,
             &interests,
