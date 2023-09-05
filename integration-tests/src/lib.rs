@@ -611,12 +611,12 @@ pub fn with_dev_options() -> Option<Table> {
     })
 }
 
-pub fn with_text_extractor_options(allowed_content_type: Vec<String>) -> Option<Table> {
+pub fn with_text_extractor_options(allowed_media_type: Vec<String>) -> Option<Table> {
     Some(toml! {
         [text_extractor]
         enabled = true
         extractor = "tika"
-        allowed_content_type = allowed_content_type
+        allowed_media_type = allowed_media_type
     })
 }
 

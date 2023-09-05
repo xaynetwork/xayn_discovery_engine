@@ -50,9 +50,9 @@ pub enum ExtractorConfig {
         /// Tika server to contact
         #[serde(default = "default_text_extractor_url")]
         url: String,
-        /// Allowed content-type. If empty everything is allowed.
+        /// Allowed media type. If empty allows everything.
         #[serde(default)]
-        allowed_content_type: Vec<SerDeMime>,
+        allowed_media_type: Vec<SerDeMime>,
     },
 }
 
@@ -66,7 +66,7 @@ impl Default for Config {
             enabled: false,
             config: ExtractorConfig::Tika {
                 url: default_text_extractor_url(),
-                allowed_content_type: Vec::new(),
+                allowed_media_type: Vec::new(),
             },
         }
     }
@@ -75,7 +75,7 @@ impl Default for Config {
 #[derive(Debug, Deserialize)]
 struct TikaResponse {
     #[serde(rename = "Content-Type")]
-    content_type: String,
+    media_type: String,
 
     #[serde(rename = "X-TIKA:content")]
     content: Option<String>,
@@ -132,11 +132,11 @@ impl TextExtractor {
         let inner = match &config.config {
             ExtractorConfig::Tika {
                 url,
-                allowed_content_type,
+                allowed_media_type,
             } => ExtractorInner::Tika {
                 client: Client::new(),
                 url: url.parse()?,
-                allowed_content_type: allowed_content_type
+                allowed_media_type: allowed_media_type
                     .iter()
                     .map(|m| CmpMime(m.0.clone()))
                     .collect(),
@@ -160,7 +160,7 @@ enum ExtractorInner {
     Tika {
         client: Client,
         url: SegmentableUrl,
-        allowed_content_type: HashSet<CmpMime>,
+        allowed_media_type: HashSet<CmpMime>,
     },
 }
 
@@ -180,7 +180,7 @@ impl ExtractorInner {
             Self::Tika {
                 client,
                 url,
-                allowed_content_type,
+                allowed_media_type,
             } => {
                 let url: Url = url.with_segments(["rmeta", "text"]).into();
                 let mut response: Vec<TikaResponse> = client
@@ -199,17 +199,17 @@ impl ExtractorInner {
                 }
                 let response = response.remove(0);
 
-                let content_type =
+                let media_type =
                     response
-                        .content_type
+                        .media_type
                         .parse()
                         .map_err(|e: mime::FromStrError| {
-                            info!("Unrecognized content-type from document: {}", e.to_string());
+                            info!("Unrecognized media type: {}", e.to_string());
                             PreprocessError::Invalid(InvalidBinary::Unrecognized.into())
                         })?;
-                let content_type = CmpMime(content_type);
+                let content_type = CmpMime(media_type);
 
-                if !allowed_content_type.is_empty() && !allowed_content_type.contains(&content_type)
+                if !allowed_media_type.is_empty() && !allowed_media_type.contains(&content_type)
                 {
                     return Err(PreprocessError::Invalid(
                         InvalidBinary::MediaType {
