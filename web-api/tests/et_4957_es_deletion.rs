@@ -16,21 +16,24 @@
 //!
 //! Bug:
 //!
-//! Sometimes some documents do not get deleted from ES.
+//! We had and inconsistent state in ES where some documents/snippets
+//! had not been deleted. The state in postgres was correct.
 //!
 //! We found it happen when:
 //!
-//! - deletion documents
-//! - setting candidates
+//! - deleting documents
+//! - (un-)setting candidates
 //! - potentially in relation with upserts
-//! - happens with simple snippets
+//! - happens with simple documents which have
+//!   a single simple snippets (might also happen
+//!   with documents with multiple snippets)
 //!
 //! Reproducing the bug failed, it is likely that it's related to
 //! eventual consistency or document versioning of elastic search
 //! in ways our local tests currently can not reproduce without doing
 //! some major changes.
 //!
-//! Either way having this additional tests is still good.
+//! Having this additional tests is still good.
 
 use std::collections::HashSet;
 
