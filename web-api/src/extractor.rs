@@ -199,18 +199,16 @@ impl ExtractorInner {
                 }
                 let response = response.remove(0);
 
-                let media_type =
-                    response
-                        .media_type
-                        .parse()
-                        .map_err(|e: mime::FromStrError| {
-                            info!("Unrecognized media type: {}", e.to_string());
-                            PreprocessError::Invalid(InvalidBinary::Unrecognized.into())
-                        })?;
+                let media_type = response
+                    .media_type
+                    .parse()
+                    .map_err(|e: mime::FromStrError| {
+                        info!("Unrecognized media type: {}", e.to_string());
+                        PreprocessError::Invalid(InvalidBinary::Unrecognized.into())
+                    })?;
                 let content_type = CmpMime(media_type);
 
-                if !allowed_media_type.is_empty() && !allowed_media_type.contains(&content_type)
-                {
+                if !allowed_media_type.is_empty() && !allowed_media_type.contains(&content_type) {
                     return Err(PreprocessError::Invalid(
                         InvalidBinary::MediaType {
                             found: content_type.to_string(),
