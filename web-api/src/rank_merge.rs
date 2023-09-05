@@ -97,12 +97,14 @@ where
             .into_iter()
             .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
             .enumerate()
-            .map(move |(rank0, (document, _))| {
-                #[allow(clippy::cast_precision_loss)]
-                (document, (k + rank0 as f32 + 1.).recip() * weight)
-            })
+            .map(move |(rank0, (document, _))| (document, rrf_score(k, rank0, weight)))
     });
     collect_summing_repeated(rrf_scores)
+}
+
+pub fn rrf_score(k: f32, rank0: usize, weight: f32) -> f32 {
+    #[allow(clippy::cast_precision_loss)]
+    ((k + rank0 as f32 + 1.).recip() * weight)
 }
 
 pub(crate) fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> ScoreMap<K>

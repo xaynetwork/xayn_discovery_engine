@@ -114,7 +114,7 @@ impl Default for PersonalizationConfig {
             default_number_documents: 10,
             // FIXME: what is a default value we know works well with how we do knn?
             max_cois_for_knn: 10,
-            score_weights: [0.5, 0.5, 0.0],
+            score_weights: [1.; 3],
             store_user_history: true,
             max_stateless_history_size: 200,
             max_stateless_history_for_cois: 20,
@@ -130,14 +130,6 @@ impl PersonalizationConfig {
         }
         if self.default_number_documents > self.max_number_documents {
             bail!("invalid PersonalizationConfig, default_number_documents must be <= max_number_documents");
-        }
-        if self
-            .score_weights
-            .iter()
-            .any(|weight| !(0. ..=1.).contains(weight))
-            || (self.score_weights.iter().sum::<f32>() - 1.).abs() > f32::EPSILON
-        {
-            bail!("invalid PersonalizationConfig, score_weights must be in [0, 1] each and add up to 1");
         }
 
         Ok(())
@@ -168,7 +160,7 @@ impl Default for SemanticSearchConfig {
             max_number_documents: 100,
             max_number_candidates: 100,
             default_number_documents: 10,
-            score_weights: [0.4, 0.4, 0.2],
+            score_weights: [1.; 3],
         }
     }
 }
@@ -181,14 +173,6 @@ impl SemanticSearchConfig {
         }
         if self.default_number_documents > self.max_number_documents {
             bail!("invalid SemanticSearchConfig, default_number_documents must be <= max_number_documents");
-        }
-        if self
-            .score_weights
-            .iter()
-            .any(|weight| !(0. ..=1.).contains(weight))
-            || (self.score_weights.iter().sum::<f32>() - 1.).abs() > f32::EPSILON
-        {
-            bail!("invalid SemanticSearchConfig, score_weights must be in [0, 1] each and add up to 1");
         }
 
         Ok(())

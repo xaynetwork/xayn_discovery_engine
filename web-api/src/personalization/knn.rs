@@ -24,6 +24,7 @@ use crate::{
     error::common::InternalError,
     models::{PersonalizedDocument, SnippetId},
     personalization::filter::Filter,
+    rank_merge::{rrf_score, DEFAULT_RRF_K},
     storage::{self, Exclusions, KnnSearchParams, SearchStrategy},
     Error,
 };
@@ -118,13 +119,12 @@ async fn merge_knn_searchs(
             Ok(documents) => {
                 // the same document can be returned with different elastic scores, hence the
                 // documents are deduplicated and only the highest score is retained for each
-                for document in documents {
+                for (idx, mut document) in documents.into_iter().enumerate() {
+                    document.score = rrf_score(DEFAULT_RRF_K, idx, 1.0);
                     all_documents
                         .entry(document.id.clone())
                         .and_modify(|PersonalizedDocument { score, .. }| {
-                            if *score < document.score {
-                                *score = document.score;
-                            }
+                            *score += document.score;
                         })
                         .or_insert(document);
                 }
