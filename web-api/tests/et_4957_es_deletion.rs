@@ -44,7 +44,12 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use url::Url;
 use xayn_integration_tests::{
-    send_assert, send_assert_json, test_app, test_two_apps, Services, UNCHANGED_CONFIG,
+    send_assert,
+    send_assert_json,
+    test_app,
+    test_two_apps,
+    Services,
+    UNCHANGED_CONFIG,
 };
 use xayn_web_api::{Ingestion, Personalization};
 use xayn_web_api_shared::json_object;
