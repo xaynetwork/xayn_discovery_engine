@@ -12,6 +12,26 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//! This tests where added to try to reproduce bug ET-4957.
+//!
+//! Bug:
+//!
+//! Sometimes some documents do not get deleted from ES.
+//!
+//! We found it happen when:
+//!
+//! - deletion documents
+//! - setting candidates
+//! - potentially in relation with upserts
+//! - happens with simple snippets
+//!
+//! Reproducing the bug failed, it is likely that it's related to
+//! eventual consistency or document versioning of elastic search
+//! in ways our local tests currently can not reproduce without doing
+//! some major changes.
+//!
+//! Either way having this additional tests is still good.
+
 use std::collections::HashSet;
 
 use anyhow::Error;
@@ -21,12 +41,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 use url::Url;
 use xayn_integration_tests::{
-    send_assert,
-    send_assert_json,
-    test_app,
-    test_two_apps,
-    Services,
-    UNCHANGED_CONFIG,
+    send_assert, send_assert_json, test_app, test_two_apps, Services, UNCHANGED_CONFIG,
 };
 use xayn_web_api::{Ingestion, Personalization};
 use xayn_web_api_shared::json_object;
