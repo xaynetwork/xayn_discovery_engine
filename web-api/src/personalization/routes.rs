@@ -409,7 +409,6 @@ pub(crate) async fn personalize_documents_by(
 
     let tag_weights = storage::Tag::get(storage, user_id).await?;
 
-    normalize_knn_scores(&mut documents);
     rerank(
         coi_system,
         &mut documents,
@@ -789,9 +788,6 @@ async fn semantic_search(
     .await?;
 
     if let Some(personalize) = personalize {
-        if matches!(strategy, SearchStrategy::Knn) {
-            normalize_knn_scores(&mut documents);
-        }
         personalize_knn_search_result(
             &storage,
             &state.config,
@@ -881,11 +877,4 @@ async fn personalize_knn_search_result(
     }
 
     Ok(())
-}
-
-/// Normalize knn similarity scores for `rerank_by_scores()`.
-fn normalize_knn_scores(documents: &mut [PersonalizedDocument]) {
-    for document in documents {
-        document.score = (document.score + 1.) / 2.;
-    }
 }

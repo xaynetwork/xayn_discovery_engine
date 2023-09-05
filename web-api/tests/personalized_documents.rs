@@ -319,7 +319,7 @@ fn test_personalization_with_tags() {
             personalize(&client, &personalization_url, None, None, |documents| {
                 assert_order!(
                     documents,
-                    ["d5", "d6", "d1", "d8"],
+                    ["d6", "d8", "d1", "d5"],
                     "unexpected personalized documents: {documents:?}"
                 )
             })

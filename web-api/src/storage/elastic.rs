@@ -110,7 +110,7 @@ impl Client {
             .search_request(request, SnippetId::try_from_es_id)
             .await?;
 
-        Ok(rescale_knn_scores(scores))
+        Ok(scores)
     }
 
     async fn hybrid_search(
@@ -507,15 +507,6 @@ impl KnnSearchParams<'_> {
         }
         obj
     }
-}
-
-// https://www.elastic.co/guide/en/elasticsearch/reference/current/dense-vector.html#dense-vector-similarity
-fn rescale_knn_scores<K>(mut scores: ScoreMap<K>) -> ScoreMap<K> {
-    for score in scores.values_mut() {
-        *score = *score * 2. - 1.;
-    }
-
-    scores
 }
 
 impl NormalizationFn {
