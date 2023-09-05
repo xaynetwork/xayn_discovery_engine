@@ -733,6 +733,7 @@ pub fn build_test_config_from_parts_and_names(
             &mut config,
             toml! {
                 [text_extractor]
+                extractor = "tika"
                 url = "http://tika:9998/"
             },
         );
