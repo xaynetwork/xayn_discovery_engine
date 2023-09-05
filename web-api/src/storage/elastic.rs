@@ -64,10 +64,8 @@ impl Client {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::Hybrid { query } => {
-                let normalize_knn = identity;
-                let normalize_bm25 = normalize_scores_if_max_gt_1;
-                let merge_fn = merge_scores_average_duplicates_only;
-                self.hybrid_search(params, query, normalize_knn, normalize_bm25, merge_fn)
+                let merge_fn = |knn, bm25| rrf(60., [(1.0, knn), (1.0, bm25)]);
+                self.hybrid_search(params, query, identity, identity, merge_fn)
                     .await
             }
             SearchStrategy::HybridDev {
