@@ -728,7 +728,6 @@ pub fn build_test_config_from_parts_and_names(
                 [snippet_extractor.pool]
                 threads_per_cpu = limit_to_two_threads
 
-
                 [snippet_extractor.tokenizers]
                 default = tokenizer
             },

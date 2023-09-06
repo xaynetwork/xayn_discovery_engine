@@ -27,6 +27,8 @@ use xayn_web_api_shared::serde::serde_duration_in_config;
 use crate::{Error, SnippetExtractor};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+#[must_use]
 pub struct Config {
     pub threads_per_cpu: f32,
     #[serde(with = "serde_duration_in_config")]
