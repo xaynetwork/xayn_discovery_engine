@@ -58,6 +58,8 @@ pub enum Error {
     UnknownTokenizer { name: String },
     /// Unexpected error response: {msg}
     UnexpectedErrorResponse { msg: String },
+    /// Health check failed and automatic restarts was disabled: {0}
+    HealthCheckFailed(Box<Self>),
 }
 
 impl Error {
@@ -82,6 +84,8 @@ pub struct Config {
     pub tokenizers: HashMap<String, PathBuf>,
     pub chunk_size: usize,
     pub hard_chunk_size_limit: usize,
+    pub automatically_restart_child: bool,
+    pub force_initialization: bool,
     // Hint: From a per-crate design POV this shouldn't be a member of Config,
     //       but from a application level POV this is much more convenient.
     pub pool: pool::Config,
@@ -95,6 +99,8 @@ impl Default for Config {
             hard_chunk_size_limit: 520,
             tokenizers: [("default".into(), "./assets/tokenizer.json".into())].into(),
             python_workspace: "./".into(),
+            automatically_restart_child: true,
+            force_initialization: true,
             pool: pool::Config::default(),
         }
     }
@@ -115,10 +121,16 @@ impl SnippetExtractor {
             }
         }
 
-        Ok(Self {
+        let mut this = Self {
             config,
             child: None,
-        })
+        };
+
+        if this.config.force_initialization {
+            this.force_initialization()?;
+        }
+
+        Ok(this)
     }
 
     pub fn force_initialization(&mut self) -> Result<(), Error> {
@@ -173,8 +185,12 @@ impl SnippetExtractor {
             match child.send_command(&Ping {}, |msg| Error::UnexpectedErrorResponse { msg }) {
                 Ok(_) => Ok(child),
                 Err(error) => {
-                    error!("Health check failed: {}", error);
-                    self.spawn_child()
+                    if self.config.automatically_restart_child {
+                        error!("Health check failed: {}", error);
+                        self.spawn_child()
+                    } else {
+                        Err(Error::HealthCheckFailed(Box::new(error)))
+                    }
                 }
             }
         } else {

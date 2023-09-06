@@ -28,9 +28,9 @@ use crate::{Error, SnippetExtractor};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
-    threads_per_cpu: f32,
+    pub threads_per_cpu: f32,
     #[serde(with = "serde_duration_in_config")]
-    acquisition_timeout: Duration,
+    pub acquisition_timeout: Duration,
 }
 
 impl Default for Config {
@@ -49,13 +49,13 @@ pub struct SnippetExtractorPool {
 impl SnippetExtractorPool {
     #[allow(clippy::missing_panics_doc)]
     pub fn new(config: &super::Config) -> Result<Self, Error> {
-        let num_cpus = num_cpus::get();
+        let max_size = num_cpus::get();
         #[allow(
             clippy::cast_possible_truncation,
             clippy::cast_sign_loss,
             clippy::cast_precision_loss
         )]
-        let max_size = (num_cpus as f32 * config.pool.threads_per_cpu)
+        let max_size = (max_size as f32 * config.pool.threads_per_cpu)
             .ceil()
             .max(1.0) as usize;
         let pool = Pool::from_config(&PoolConfig {
@@ -64,9 +64,8 @@ impl SnippetExtractorPool {
             runtime: Some(Runtime::Tokio1),
         });
 
-        for _ in 0..num_cpus {
-            let mut extractor = SnippetExtractor::new(config.clone())?;
-            extractor.force_initialization()?;
+        for _ in 0..max_size {
+            let extractor = SnippetExtractor::new(config.clone())?;
             pool.try_add(extractor).map_err(|(_, err)| err).unwrap(/* can't happen */);
         }
         Ok(Self { pool })

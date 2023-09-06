@@ -4981,6 +4981,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "derive_more",
+ "num_cpus",
  "once_cell",
  "rand",
  "regex",

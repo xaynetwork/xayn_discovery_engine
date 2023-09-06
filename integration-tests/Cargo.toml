@@ -10,6 +10,7 @@ publish = false
 anyhow = { workspace = true, features = ["backtrace"] }
 chrono = { workspace = true }
 derive_more = { workspace = true }
+num_cpus = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }

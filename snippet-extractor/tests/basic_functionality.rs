@@ -12,7 +12,12 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use xayn_snippet_extractor::{Config, Error, SnippetExtractor};
+use xayn_snippet_extractor::{
+    pool::{self, SnippetExtractorPool},
+    Config,
+    Error,
+    SnippetExtractor,
+};
 use xayn_test_utils::workspace::find_workspace_dir;
 
 const TEST_TEXT: &str = r"
@@ -46,7 +51,7 @@ fn test_snippet_extraction_works() -> Result<(), Error> {
         )]
         .into(),
         python_workspace: workspace.join("snippet-extractor"),
-        pool: Default::default(),
+        ..Default::default()
     })?;
 
     assert_eq!(extractor.extract_snippet("default", TEST_TEXT)?, [
@@ -69,4 +74,39 @@ fn test_snippet_extraction_works() -> Result<(), Error> {
     ]);
 
     Ok(())
+}
+
+#[tokio::test]
+async fn test_extractor_can_be_reused() {
+    let limit_to_one_thread = (num_cpus::get() as f32).recip() / 2.;
+    let workspace = find_workspace_dir();
+    let pool = SnippetExtractorPool::new(&Config {
+        language: "english".into(),
+        chunk_size: 50,
+        hard_chunk_size_limit: 55,
+        tokenizers: [(
+            "default".into(),
+            workspace.join("assets/xaynia_v0201/tokenizer.json"),
+        )]
+        .into(),
+        python_workspace: workspace.join("snippet-extractor"),
+        pool: pool::Config {
+            threads_per_cpu: limit_to_one_thread,
+            ..Default::default()
+        },
+        automatically_restart_child: false,
+        force_initialization: true,
+    })
+    .unwrap();
+
+    let extractor = pool.get().await.unwrap();
+    extractor
+        .extract_snippet("default".into(), TEST_TEXT.into())
+        .await
+        .unwrap();
+    let extractor = pool.get().await.unwrap();
+    extractor
+        .extract_snippet("default".into(), TEST_TEXT.into())
+        .await
+        .unwrap();
 }
