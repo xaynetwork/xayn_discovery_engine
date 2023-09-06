@@ -4,7 +4,7 @@ Here we take a high-level look at how the system works. The API is divided into 
 
 The back office system can be used to ingest your content into the system. Every piece of content you ingest is stored as one document with one or more snippets.
 
-A snippet is a bit of text which the user might search for. In the simplest case you only have one snippet per document in which case the snippet is roughly equivalent to the document. If you have such a use case you can mentally replace snippet with document in most of the remaining documentation. Through as there are limits on
+A document is comprised of one or more snippets. Each snippet represents a piece of the content of the document. In the simplest case, you only have one snippet per document in such a case you can mentally replace snippet with document in most of the remaining documentation. Through as there are limits on
 how long a snippet can be, we provide functionality to either summarize the content or split the content of a document into multiple snippets. In many places both a document id and the id of a specific snippet can be used.
 
 During ingestion, the system creates a mathematical representation of each snippet which is used to match the snippets to the user's interests and searches.
@@ -128,7 +128,7 @@ curl -X PATCH "$URL/users/u1234/interactions" \
 ```
 
 ```{note}
-Please note that if an interaction between a user and a document is added, all snippets of a document will **not** be part of the documents returned for future calls to the personalised endpoint.
+Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the personalised endpoint. This includes all snippets associated to that document```
 ```
 
 Let's ask for personalised documents again now:
@@ -167,7 +167,7 @@ In the request, we ask the system to include the properties of the returned docu
 We also have a `score` field which represents how well the documents match the user's interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
 scores from the same requests.
 
-`snippet_id` is the id of the snippet which was found. The `document_id` in the `snippet_id` is the id of the document associated with the snippet. If you do not use ingestion options like `split` and in turn only have
+The field `snippet_id` identifies a specific snippet. The `document_id` in the `snippet_id` is the id of the document associated with the snippet. If you do not use ingestion options like `split` and in turn only have
 one snippet per document then you can always use `snippet_id.document_id` and ignore the rest. In many places
 both a the full snippet id object or a document id string can be used. If documents which have multiple snippets are ingested it's highly recommended to always use the full snippet id.
 
@@ -177,7 +177,7 @@ Depending on the use-case searching for documents can be achieved as a search fo
 
 ## Similar documents
 
-In this search variant either a _document id_ string or a _snippet id_ object must be provided to the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) endpoint.
+In this search variant either a _document id_ or a _snippet id_ must be provided to the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) endpoint.
 
 ```bash
 curl -X POST "$URL/semantic_search" \
@@ -189,13 +189,13 @@ curl -X POST "$URL/semantic_search" \
     }'
 ```
 
-The result contains a list of snippets that are similar to the identified snippet/document.
+The result contains a list of snippets that are similar to the identified snippet.
 
 If only documents with a single snippet are used you can provide only the document id
 like this: `"document": { "id": "xayn_cd5604c" },`.
 
-Be aware that until our implementation is further improved this is equivalent to doing
-a semantic search on the first snippet of a document.
+Be aware that at this moment, this is equivalent to doing a semantic search on the first snippet of a document.
+In the future, this behaviour could change to better represent the intent to search for something similar to the whole document. If you want to explicitly search for the first snippet use a _snippet id_.
 
 ## Free Text search
 
@@ -410,12 +410,7 @@ The candidates can facilitate fast transitions between different sets of documen
 
 We provide a functionality to extract multiple snippets from the provided content of a document.
 
-This is roughly equivalent to splitting the document into multiple parts.
+The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
 
-We try to have natural language boundaries between snippets as far as possible. For example while the
-algorithm tries to split at sentence boundaries it doesn't do so by naively splitting based on dots as
-they are also e.g. used with abbreviations. Instead it uses a natural language aware approach.
-
-Currently the splitting will only work reliable well with text of the language configured by Xayn for
-a specific tenant (i.e. a specific front office/back office instance pair). We are currently working on integrating language detection to make this more convenient usable and allow having documents of different
-languages in the same system.
+Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
+We are working to add support for multiple languages to our text-splitting algorithms.
