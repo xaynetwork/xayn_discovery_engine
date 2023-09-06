@@ -14,12 +14,12 @@
 
 use std::{io, time::Duration};
 
-pub use deadpool::unmanaged::PoolError;
 use deadpool::{
-    unmanaged::{Object, Pool, PoolConfig},
+    unmanaged::{Object, Pool, PoolConfig, PoolError},
     Runtime,
 };
-use derive_more::{Deref, DerefMut};
+use derive_more::{Deref, DerefMut, From};
+use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use tokio::task::spawn_blocking;
 use xayn_web_api_shared::serde::serde_duration_in_config;
@@ -71,12 +71,16 @@ impl SnippetExtractorPool {
         Ok(Self { pool })
     }
 
-    pub async fn get(&self) -> Result<PooledSnippetExtractor, PoolError> {
-        self.pool.get().await.map(PooledSnippetExtractor)
+    pub async fn get(&self) -> Result<PooledSnippetExtractor, PoolAcquisitionError> {
+        Ok(self.pool.get().await?.into())
     }
 }
 
-#[derive(Deref, DerefMut)]
+/// Failed to acquire snippet extractor: {0}
+#[derive(Debug, Display, thiserror::Error, From)]
+pub struct PoolAcquisitionError(PoolError);
+
+#[derive(Deref, DerefMut, From)]
 pub struct PooledSnippetExtractor(Object<SnippetExtractor>);
 
 impl PooledSnippetExtractor {

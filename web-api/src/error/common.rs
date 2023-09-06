@@ -25,7 +25,7 @@ use serde_json::Value;
 use thiserror::Error;
 use tracing::Level;
 use xayn_ai_bert::InvalidEmbedding;
-use xayn_snippet_extractor::pool::PoolError;
+use xayn_snippet_extractor::pool::PoolAcquisitionError;
 use xayn_web_api_shared::elastic;
 
 use super::application::{impl_application_error, ApplicationError};
@@ -363,7 +363,7 @@ impl_from_std_error!(
     xayn_snippet_extractor::Error,
 );
 
-impl ApplicationError for PoolError {
+impl ApplicationError for PoolAcquisitionError {
     fn status_code(&self) -> StatusCode {
         match self {
             PoolError::Timeout => StatusCode::SERVICE_UNAVAILABLE,
