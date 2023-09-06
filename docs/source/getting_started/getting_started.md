@@ -2,7 +2,7 @@
 
 Here we take a high-level look at how the system works. The API is divided into two parts: the back office and the front office.
 
-The back office system can be used to ingest your content into the system. Every piece of content you ingest is stored as one document with one or more snippets.
+The back office system can be used to ingest your content into the system. Every piece of content you ingest is managed as one document within the Xayn system.
 
 A document is comprised of one or more snippets. Each snippet represents a piece of the content of the document. In the simplest case, you only have one snippet per document in such a case you can mentally replace snippet with document in most of the remaining documentation. Through as there are limits on
 how long a snippet can be, we provide functionality to either summarize the content or split the content of a document into multiple snippets. In many places both a document id and the id of a specific snippet can be used.
@@ -74,6 +74,15 @@ The `properties` field is completely optional. It can contain custom data that c
 The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see [createDocuments](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) for more information on properties.
 
 This example assumes that we will eventually display the returned documents as a 'for-you' section, where we want to display an article's image, title, text preview, and a link (for click-through), so we have included these specific properties during ingestion.
+
+## Split Documents
+
+We provide a functionality to extract multiple snippets from the provided content of a document.
+
+The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
+
+Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
+We are working to add support for multiple languages to our text-splitting algorithms.
 
 # Recommendations: Personalised documents
 
@@ -167,9 +176,9 @@ In the request, we ask the system to include the properties of the returned docu
 We also have a `score` field which represents how well the documents match the user's interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
 scores from the same requests.
 
-The field `snippet_id` identifies a specific snippet. The `document_id` in the `snippet_id` is the id of the document associated with the snippet. If you do not use ingestion options like `split` and in turn only have
-one snippet per document then you can always use `snippet_id.document_id` and ignore the rest. In many places
-both a the full snippet id object or a document id string can be used. If documents which have multiple snippets are ingested it's highly recommended to always use the full snippet id.
+The field `snippet_id` identifies a specific snippet. The `document_id` in the `snippet_id` is the id of the document associated with the snippet.
+
+If you do not use ingestion options like `split` and in turn only have one snippet per document then you can always use `snippet_id.document_id` and ignore the rest. In many places both a the full snippet id object or a document id string can be used. If documents which have multiple snippets are ingested it's highly recommended to always use the full snippet id.
 
 # Search
 
@@ -405,12 +414,3 @@ Please note, that setting candidates can only be undone by sending the complete 
 ```
 
 The candidates can facilitate fast transitions between different sets of documents without compromising the users' centers of interest (COIs) with which they were engaging. One practical scenario is handling outdated news articles that should not reappear in the recommendations. However, the past user interactions with those outdated articles should still influence the suggested documents.
-
-# Split Documents
-
-We provide a functionality to extract multiple snippets from the provided content of a document.
-
-The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
-
-Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
-We are working to add support for multiple languages to our text-splitting algorithms.
