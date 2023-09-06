@@ -102,7 +102,12 @@ pub(super) fn rerank(
         document.score = *scores.get(&document.id).unwrap(/* rrf does create a score for each id*/);
     }
 
-    documents.sort_unstable_by(|d1, d2| d1.score.total_cmp(&d2.score).reverse());
+    documents.sort_unstable_by(|d1, d2| {
+        d1.score
+            .total_cmp(&d2.score)
+            .then_with(|| d1.id.cmp(&d2.id))
+            .reverse()
+    });
 }
 
 #[doc(hidden)]

@@ -114,7 +114,7 @@ impl Default for PersonalizationConfig {
             default_number_documents: 10,
             // FIXME: what is a default value we know works well with how we do knn?
             max_cois_for_knn: 10,
-            score_weights: [1.; 3],
+            score_weights: [1., 1., 0.],
             store_user_history: true,
             max_stateless_history_size: 200,
             max_stateless_history_for_cois: 20,
@@ -160,7 +160,7 @@ impl Default for SemanticSearchConfig {
             max_number_documents: 100,
             max_number_candidates: 100,
             default_number_documents: 10,
-            score_weights: [1.; 3],
+            score_weights: [1., 1., 0.5],
         }
     }
 }

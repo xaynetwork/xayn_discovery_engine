@@ -97,7 +97,7 @@ where
             .into_iter()
             // For testing we want to make sure that in case of s1 == s2 we still get a
             // deterministic result, for this we use the key ordering for equal scores
-            .sorted_by(|(k1, s1), (k2, s2)| s1.total_cmp(s2).then(k1.cmp(k2)).reverse())
+            .sorted_by(|(k1, s1), (k2, s2)| s1.total_cmp(s2).then_with(|| k1.cmp(k2)).reverse())
             .enumerate()
             .map(move |(rank0, (document, _))| (document, rrf_score(k, rank0, weight)))
     });
@@ -123,7 +123,7 @@ where
 
 pub(crate) fn take_highest_n_scores<K>(n: usize, scores: ScoreMap<K>) -> ScoreMap<K>
 where
-    K: Eq + Hash,
+    K: Eq + Hash + Ord,
 {
     if scores.len() <= n {
         return scores;
@@ -131,7 +131,9 @@ where
 
     scores
         .into_iter()
-        .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
+        .sorted_unstable_by(|(k1, s1), (k2, s2)| {
+            s1.total_cmp(s2).then_with(|| k1.cmp(k2)).reverse()
+        })
         .take(n)
         .collect()
 }

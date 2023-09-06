@@ -57,7 +57,11 @@ where
         let coi_weights = compute_coi_weights(interests.clone(), self.horizon, self.time);
         let cois = interests
             .zip(coi_weights)
-            .sorted_by(|(_, w1), (_, w2)| w1.total_cmp(w2).reverse())
+            .sorted_by(|(coi1, w1), (coi2, w2)| {
+                w1.total_cmp(w2)
+                    .then_with(|| coi1.id.cmp(&coi2.id))
+                    .reverse()
+            })
             .take(self.max_cois)
             .collect_vec();
 

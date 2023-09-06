@@ -359,7 +359,12 @@ impl Database {
             );
         }
 
-        documents.sort_unstable_by(|d1, d2| d1.score.total_cmp(&d2.score).reverse());
+        documents.sort_unstable_by(|d1, d2| {
+            d1.score
+                .total_cmp(&d2.score)
+                .then_with(|| d1.id.cmp(&d2.id))
+                .reverse()
+        });
 
         Ok(documents)
     }
