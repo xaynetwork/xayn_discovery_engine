@@ -16,8 +16,7 @@ use std::{collections::HashMap, matches};
 
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
-    HttpResponse,
-    Responder,
+    HttpResponse, Responder,
 };
 use anyhow::anyhow;
 use base64::{engine::general_purpose, Engine as _};
@@ -34,28 +33,14 @@ use super::{preprocessor::PreprocessError, AppState};
 use crate::{
     app::TenantState,
     error::common::{
-        BadRequest,
-        DocumentInBatchError,
-        DocumentNotFound,
-        DocumentPropertyNotFound,
-        FailedToDeleteSomeDocuments,
-        FailedToIngestDocuments,
-        FailedToSetSomeDocumentCandidates,
-        FailedToValidateDocuments,
-        FileUploadNotEnabled,
-        InvalidDocumentSnippet,
+        BadRequest, DocumentInBatchError, DocumentNotFound, DocumentPropertyNotFound,
+        FailedToDeleteSomeDocuments, FailedToIngestDocuments, FailedToSetSomeDocumentCandidates,
+        FailedToValidateDocuments, FileUploadNotEnabled, InvalidDocumentSnippet,
     },
     ingestion::IngestionConfig,
     models::{
-        self,
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        DocumentSnippet,
-        DocumentTags,
-        PreprocessingStep,
-        Sha256Hash,
+        self, DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId,
+        DocumentSnippet, DocumentTags, PreprocessingStep, Sha256Hash,
     },
     storage::{self, property_filter::IndexedPropertiesSchemaUpdate},
     utils::deprecate,
@@ -504,7 +489,7 @@ async fn upsert_documents(
                 match document {
                     Ok(document) => new_documents.push(document),
                     Err((id, PreprocessError::Fatal(error))) => {
-                        error!("Failed to preprocess document '{id}': {error:#?}");
+                        error!("Failed to preprocess document '{id}': {error} ({error:#?})");
                         failed_documents.push(DocumentInBatchError::new(id, &*error));
                     },
                     Err((id, PreprocessError::Invalid(error))) => invalid_documents.push(DocumentInBatchError::new(id, &*error))

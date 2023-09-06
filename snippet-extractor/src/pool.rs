@@ -80,6 +80,12 @@ impl SnippetExtractorPool {
 #[derive(Debug, Display, thiserror::Error, From)]
 pub struct PoolAcquisitionError(PoolError);
 
+impl PoolAcquisitionError {
+    pub fn is_timeout(&self) -> bool {
+        matches!(self.0, PoolError::Timeout)
+    }
+}
+
 #[derive(Deref, DerefMut, From)]
 pub struct PooledSnippetExtractor(Object<SnippetExtractor>);
 
