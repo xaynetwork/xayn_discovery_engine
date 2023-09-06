@@ -16,7 +16,8 @@ use std::{collections::HashMap, matches};
 
 use actix_web::{
     web::{self, Data, Json, Path, ServiceConfig},
-    HttpResponse, Responder,
+    HttpResponse,
+    Responder,
 };
 use anyhow::anyhow;
 use base64::{engine::general_purpose, Engine as _};
@@ -33,14 +34,28 @@ use super::{preprocessor::PreprocessError, AppState};
 use crate::{
     app::TenantState,
     error::common::{
-        BadRequest, DocumentInBatchError, DocumentNotFound, DocumentPropertyNotFound,
-        FailedToDeleteSomeDocuments, FailedToIngestDocuments, FailedToSetSomeDocumentCandidates,
-        FailedToValidateDocuments, FileUploadNotEnabled, InvalidDocumentSnippet,
+        BadRequest,
+        DocumentInBatchError,
+        DocumentNotFound,
+        DocumentPropertyNotFound,
+        FailedToDeleteSomeDocuments,
+        FailedToIngestDocuments,
+        FailedToSetSomeDocumentCandidates,
+        FailedToValidateDocuments,
+        FileUploadNotEnabled,
+        InvalidDocumentSnippet,
     },
     ingestion::IngestionConfig,
     models::{
-        self, DocumentId, DocumentProperties, DocumentProperty, DocumentPropertyId,
-        DocumentSnippet, DocumentTags, PreprocessingStep, Sha256Hash,
+        self,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentSnippet,
+        DocumentTags,
+        PreprocessingStep,
+        Sha256Hash,
     },
     storage::{self, property_filter::IndexedPropertiesSchemaUpdate},
     utils::deprecate,

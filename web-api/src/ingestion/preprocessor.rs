@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::future::Future;
+
 use displaydoc::Display;
 use futures_util::{stream::FuturesOrdered, TryStreamExt};
 use thiserror::Error;
@@ -35,95 +37,90 @@ pub(crate) enum PreprocessError {
     Invalid(Error),
 }
 
-pub(crate) struct Preprocessor<'a> {
-    embedder: &'a Embedder,
-    snippet_extractor: PooledSnippetExtractor,
-    text_extractor: &'a TextExtractor,
+pub(crate) async fn preprocess<Fun, Fut>(
+    embedder: &Embedder,
+    snippet_extractor: Fun,
+    text_extractor: &TextExtractor,
+    original: InputData,
+    preprocessing_step: &mut PreprocessingStep,
+) -> Result<Vec<DocumentContent>, PreprocessError>
+where
+    Fun: FnOnce() -> Fut,
+    Fut: Future<Output = Result<PooledSnippetExtractor, Error>>,
+{
+    let original = match original {
+        InputData::Snippet(snippet) => snippet,
+        InputData::Binary(binary) => text_extractor.extract_text(binary).await?,
+    };
+
+    let res = match *preprocessing_step {
+        PreprocessingStep::None => embed_whole(embedder, original).await,
+        PreprocessingStep::Summarize => embed_with_summarizer(embedder, original).await,
+        PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
+            *preprocessing_step = PreprocessingStep::NltkSplitV1;
+            embed_with_nltk(embedder, snippet_extractor, original).await
+        }
+    };
+
+    res.map_err(PreprocessError::Fatal)
 }
 
-impl<'a> Preprocessor<'a> {
-    pub(crate) fn new(
-        embedder: &'a Embedder,
-        snippet_extractor: PooledSnippetExtractor,
-        text_extractor: &'a TextExtractor,
-    ) -> Self {
-        Self {
-            embedder,
-            snippet_extractor,
-            text_extractor,
-        }
-    }
+async fn embed_whole(
+    embedder: &Embedder,
+    snippet: DocumentSnippet,
+) -> Result<Vec<DocumentContent>, Error> {
+    let embedding = embedder.run(&snippet).await?;
+    Ok(vec![DocumentContent { snippet, embedding }])
+}
 
-    pub(crate) async fn preprocess(
-        self,
-        original: InputData,
-        preprocessing_step: &mut PreprocessingStep,
-    ) -> Result<Vec<DocumentContent>, PreprocessError> {
-        let original = match original {
-            InputData::Snippet(snippet) => snippet,
-            InputData::Binary(binary) => self.text_extractor.extract_text(binary).await?,
-        };
+async fn embed_with_summarizer(
+    embedder: &Embedder,
+    snippet: DocumentSnippet,
+) -> Result<Vec<DocumentContent>, Error> {
+    let summary = summarize(
+        &Summarizer::Naive,
+        &Source::PlainText {
+            text: snippet.to_string(),
+        },
+        &summarizer::Config::default(),
+    );
+    let embedding = embedder.run(&summary).await?;
+    Ok(vec![DocumentContent {
+        // Hint: Yes we do not use the summary, this is so that keyword/text search
+        //       can use the original text.
+        snippet,
+        embedding,
+    }])
+}
 
-        let res = match *preprocessing_step {
-            PreprocessingStep::None => self.embed_whole(original).await,
-            PreprocessingStep::Summarize => self.embed_with_summarizer(original).await,
-            PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
-                *preprocessing_step = PreprocessingStep::NltkSplitV1;
-                self.embed_with_nltk(original).await
-            }
-        };
+async fn embed_with_nltk<Fun, Fut>(
+    embedder: &Embedder,
+    snippet_extractor: Fun,
+    snippet: DocumentSnippet,
+) -> Result<Vec<DocumentContent>, Error>
+where
+    Fun: FnOnce() -> Fut,
+    Fut: Future<Output = Result<PooledSnippetExtractor, Error>>,
+{
+    let snippets = snippet_extractor()
+        .await?
+        .extract_snippet("default".into(), snippet.into())
+        .await?;
 
-        res.map_err(PreprocessError::Fatal)
-    }
+    let snippets = snippets
+        .into_iter()
+        .map(|split| async move {
+            let snippet = DocumentSnippet::new(split, usize::MAX)?;
+            let embedding = embedder.run(&snippet).await?;
+            Ok::<_, Error>(DocumentContent { snippet, embedding })
+        })
+        .collect::<FuturesOrdered<_>>()
+        .try_collect::<Vec<_>>()
+        .await?;
 
-    async fn embed_whole(&self, snippet: DocumentSnippet) -> Result<Vec<DocumentContent>, Error> {
-        let embedding = self.embedder.run(&snippet).await?;
-        Ok(vec![DocumentContent { snippet, embedding }])
-    }
-
-    async fn embed_with_summarizer(
-        &self,
-        snippet: DocumentSnippet,
-    ) -> Result<Vec<DocumentContent>, Error> {
-        let summary = summarize(
-            &Summarizer::Naive,
-            &Source::PlainText {
-                text: snippet.to_string(),
-            },
-            &summarizer::Config::default(),
-        );
-        let embedding = self.embedder.run(&summary).await?;
-        Ok(vec![DocumentContent {
-            // Hint: Yes we do not use the summary, this is so that keyword/text search
-            //       can use the original text.
-            snippet,
-            embedding,
-        }])
-    }
-
-    async fn embed_with_nltk(
-        self,
-        snippet: DocumentSnippet,
-    ) -> Result<Vec<DocumentContent>, Error> {
-        let embedder = &self.embedder;
-        let snippets = self
-            .snippet_extractor
-            .extract_snippet("default".into(), snippet.into())
-            .await?
-            .into_iter()
-            .map(|split| async move {
-                let snippet = DocumentSnippet::new(split, usize::MAX)?;
-                let embedding = embedder.run(&snippet).await?;
-                Ok::<_, Error>(DocumentContent { snippet, embedding })
-            })
-            .collect::<FuturesOrdered<_>>()
-            .try_collect::<Vec<_>>()
-            .await?;
-
-        if snippets.is_empty() {
-            Err(InvalidDocumentSnippet::NoSnippets {}.into())
-        } else {
-            Ok(snippets)
-        }
+    if snippets.is_empty() {
+        Err(InvalidDocumentSnippet::NoSnippets {}.into())
+    } else {
+        Ok(snippets)
     }
 }
