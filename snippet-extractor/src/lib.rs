@@ -118,6 +118,10 @@ impl SnippetExtractor {
         })
     }
 
+    pub fn force_initialization(&mut self) -> Result<(), Error> {
+        self.with_child(|_child, _config| Ok(()))
+    }
+
     pub fn extract_snippet(
         &mut self,
         tokenizer: &str,

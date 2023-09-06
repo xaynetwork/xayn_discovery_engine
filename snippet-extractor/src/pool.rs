@@ -65,7 +65,8 @@ impl SnippetExtractorPool {
         });
 
         for _ in 0..num_cpus {
-            let extractor = SnippetExtractor::new(config.clone())?;
+            let mut extractor = SnippetExtractor::new(config.clone())?;
+            extractor.force_initialization()?;
             pool.try_add(extractor).map_err(|(_, err)| err).unwrap(/* can't happen */);
         }
         Ok(Self { pool })
