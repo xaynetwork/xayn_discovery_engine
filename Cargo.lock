@@ -2473,6 +2473,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6877bb514081ee2a7ff5ef9de3281f14a4dd4bceac4c09388074a6b5df8a139a"
 
 [[package]]
+name = "mime_serde_shim"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab9c5b33b135e34aab675cef7f678c688b30740ba299d75e3a8c0af89b5d5cea"
+dependencies = [
+ "mime",
+ "serde",
+]
+
+[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5106,6 +5116,7 @@ dependencies = [
  "async-trait",
  "aws-config",
  "aws-sdk-sagemakerruntime",
+ "base64 0.21.2",
  "bincode",
  "chrono",
  "clap",
@@ -5121,6 +5132,7 @@ dependencies = [
  "instant-distance",
  "itertools 0.10.5",
  "mime",
+ "mime_serde_shim",
  "ndarray",
  "npyz",
  "once_cell",

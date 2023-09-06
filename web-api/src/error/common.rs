@@ -153,9 +153,30 @@ pub(crate) enum InvalidDocumentSnippet {
     InvalidString(InvalidString),
     /// Input document didn't yield any snippets
     NoSnippets {},
+    /// File is not base64 encoded
+    FileNotBase64Encoded,
 }
 
 impl_application_error!(InvalidDocumentSnippet => BAD_REQUEST, INFO);
+
+/// Binary upload feature it is not available.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) struct FileUploadNotEnabled;
+
+impl_application_error!(FileUploadNotEnabled => BAD_REQUEST, INFO);
+
+/// Content-type of the uploaded file is not supported.
+#[derive(Debug, Error, Display, Serialize)]
+pub(crate) enum InvalidBinary {
+    /// Unrecognized content-type.
+    Unrecognized,
+    /// Unsupported media type. Found {found}
+    MediaType { found: String },
+    /// Invalid content
+    InvalidContent,
+}
+
+impl_application_error!(InvalidBinary => BAD_REQUEST, INFO);
 
 /// Malformed document query: {0}
 #[derive(Debug, Error, Display, Serialize)]

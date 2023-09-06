@@ -611,6 +611,15 @@ pub fn with_dev_options() -> Option<Table> {
     })
 }
 
+pub fn with_text_extractor_options(allowed_media_type: Vec<String>) -> Option<Table> {
+    Some(toml! {
+        [text_extractor]
+        enabled = true
+        extractor = "tika"
+        allowed_media_type = allowed_media_type
+    })
+}
+
 pub fn extend_config(current: &mut Table, extension: Table) {
     for (key, value) in extension {
         if let Some(current) = current.get_mut(&key) {
@@ -715,6 +724,17 @@ pub fn build_test_config_from_parts_and_names(
 
                 [snippet_extractor.tokenizers]
                 default = tokenizer
+            },
+        );
+    }
+
+    if *RUNS_IN_CONTAINER {
+        extend_config(
+            &mut config,
+            toml! {
+                [text_extractor]
+                extractor = "tika"
+                url = "http://tika:9998/"
             },
         );
     }

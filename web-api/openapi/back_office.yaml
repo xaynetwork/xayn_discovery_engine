@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Back Office API
-  version: 2.5.1
+  version: 2.6.0
   description: |-
     # Back Office
     This API acts as a create/read/update/delete interface for anything related to documents.
@@ -14,9 +14,9 @@ info:
     The API requires to set the `authorizationToken` header when used with the provided token.
 
     ## Document
-    As a document we consider a cohesive text, for example a complete news article.
-    However, we only require a simple representation for our system to work. Consisting just of a unique id, a text snippet, optional properties and optional tags.
+    As a document we consider a cohesive text, for example a complete news article. It consists just of a unique id, a text snippet or a file, optional properties and optional tags.
     The text snippet is ideally a short, meaningful representation of the larger document, reduced to just one paragraph.
+    In place of the text snippet it is possible to upload a file. The system will extract the text in the file and use that as the content of the document.
 
     ### Id
     The document id is a unique identifier for a single document.
@@ -80,8 +80,8 @@ paths:
       description: |-
         Upsert documents to the system, which creates a representation of the document that will be used to match it against the preferences of a user.
 
-        **Important note:** If you need to add more documents than the maximum batch size, then
-        please split up the total amount of documents in separate calls.
+        **Important note:** The maximum size for a request is 10Mb. This means that if you have big documents you would not be able to fill the request
+        to the maximum batch size.
 
         **Important note:** If a document id appears multiple times, only the last document with that id is retained.
       operationId: createDocuments
@@ -405,7 +405,7 @@ components:
             type: date
     IngestedDocument:
       type: object
-      required: [id, snippet]
+      required: [id]
       properties:
         id:
           $ref: './schemas/document.yml#/DocumentId'
@@ -415,10 +415,27 @@ components:
             Enclosing whitespace will be trimmed.
             The length constraints are in bytes, not characters.
             If `summarize` is enabled, then the length applies to the summarized instead of the original snippet.
+
+            One between `snippet` and `file` is required, but they are mutally exclusive.
           type: string
           minLength: 1
           maxLength: 2048
           pattern: '^[^\x00]+$'
+        file:
+          description: |-
+            A base64 encoded file. It file must be in one of the supported format (pdf, doc, etc.).
+            The text content will be automatically extracted and many snippets will be created for the given document id depeding on the length.
+            The length constraints are in bytes, not characters.
+            This option can only be used with split set to true and it does not work with summarization.
+
+            One between `file` and `snippet` is required, but they are mutally exclusive.
+
+            **Important note:** Uploading a file is not enabled by default, please write us if you needed it. If you try to use this when disabled
+            a bed request error will be returned.
+          type: string
+          format: byte
+          minLength: 1
+          maxLength: 10000000
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
         tags:

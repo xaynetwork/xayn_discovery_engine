@@ -52,6 +52,12 @@ stdout = """
     "runtime": "assets",
     "token_size": 250
   },
+  "text_extractor": {
+    "enabled": false,
+    "extractor": "tika",
+    "url": "http://localhost:9998",
+    "allowed_media_type": []
+  },
   "personalization": {
     "max_number_documents": 100,
     "max_number_candidates": 100,

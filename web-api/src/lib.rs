@@ -35,6 +35,7 @@ mod app;
 pub mod config;
 mod embedding;
 mod error;
+pub mod extractor;
 mod ingestion;
 pub mod logging;
 mod middleware;
