@@ -5014,6 +5014,7 @@ dependencies = [
  "serde",
  "thiserror",
  "tokio",
+ "tracing",
  "xayn-test-utils 0.2.0",
  "xayn-web-api-shared",
 ]

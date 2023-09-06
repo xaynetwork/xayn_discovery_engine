@@ -40,6 +40,7 @@ use displaydoc::Display;
 use python_child::{PipeCommand, PythonChild};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::error;
 
 #[derive(Debug, Display, Error)]
 pub enum Error {
@@ -55,6 +56,8 @@ pub enum Error {
     LoadingTokenizerFailed { msg: String },
     /// Unknown Tokenizer: {name}
     UnknownTokenizer { name: String },
+    /// Unexpected error response: {msg}
+    UnexpectedErrorResponse { msg: String },
 }
 
 impl Error {
@@ -154,7 +157,10 @@ impl SnippetExtractor {
         let mut child = self.take_child()?;
         let res = func(&mut child, &self.config);
         match res {
-            Err(err) if !err.can_child_be_reused() => Err(err),
+            Err(err) if !err.can_child_be_reused() => {
+                error!("discarding snippet extractor child process");
+                Err(err)
+            }
             reusable => {
                 self.child = Some(child);
                 reusable
@@ -164,10 +170,12 @@ impl SnippetExtractor {
 
     fn take_child(&mut self) -> Result<PythonChild, Error> {
         if let Some(mut child) = self.child.take() {
-            if child.send_command(&Ping {}, |_| DiscardError).is_ok() {
-                Ok(child)
-            } else {
-                self.spawn_child()
+            match child.send_command(&Ping {}, |msg| Error::UnexpectedErrorResponse { msg }) {
+                Ok(_) => Ok(child),
+                Err(error) => {
+                    error!("Health check failed: {}", error);
+                    self.spawn_child()
+                }
             }
         } else {
             self.spawn_child()
@@ -225,24 +233,4 @@ struct Extract<'a> {
 impl PipeCommand for Extract<'_> {
     type Value = Vec<String>;
     const TAG: &'static str = "extract";
-}
-
-struct DiscardError;
-
-impl From<rmp_serde::encode::Error> for DiscardError {
-    fn from(_: rmp_serde::encode::Error) -> Self {
-        Self
-    }
-}
-
-impl From<rmp_serde::decode::Error> for DiscardError {
-    fn from(_: rmp_serde::decode::Error) -> Self {
-        Self
-    }
-}
-
-impl From<io::Error> for DiscardError {
-    fn from(_: io::Error) -> Self {
-        Self
-    }
 }
