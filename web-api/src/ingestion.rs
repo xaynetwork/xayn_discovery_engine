@@ -19,11 +19,12 @@ use actix_web::web::ServiceConfig;
 use anyhow::bail;
 use async_trait::async_trait;
 use derive_more::AsRef;
+use futures_util::TryFutureExt;
 use serde::{Deserialize, Serialize};
 use xayn_snippet_extractor::pool::SnippetExtractorPool;
 
 use self::{
-    preprocessor::{PreprocessError, Preprocessor},
+    preprocessor::{preprocess, PreprocessError},
     routes::InputData,
 };
 use crate::{
@@ -35,6 +36,7 @@ use crate::{
     net,
     storage::{self, elastic::IndexUpdateConfig},
     tenants,
+    Error,
 };
 
 pub struct Ingestion;
@@ -71,15 +73,14 @@ impl AppState {
         original: InputData,
         preprocessing_step: &mut PreprocessingStep,
     ) -> Result<Vec<DocumentContent>, PreprocessError> {
-        let preprocessor = Preprocessor::new(
+        preprocess(
             &self.embedder,
-            self.snippet_extractor
-                .get()
-                .await
-                .map_err(|e| PreprocessError::Fatal(e.into()))?,
+            || self.snippet_extractor.get().map_err(Error::from),
             &self.extractor,
-        );
-        preprocessor.preprocess(original, preprocessing_step).await
+            original,
+            preprocessing_step,
+        )
+        .await
     }
 }
 

@@ -40,6 +40,7 @@ use displaydoc::Display;
 use python_child::{PipeCommand, PythonChild};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tracing::error;
 
 #[derive(Debug, Display, Error)]
 pub enum Error {
@@ -55,6 +56,10 @@ pub enum Error {
     LoadingTokenizerFailed { msg: String },
     /// Unknown Tokenizer: {name}
     UnknownTokenizer { name: String },
+    /// Unexpected error response: {msg}
+    UnexpectedErrorResponse { msg: String },
+    /// Health check failed and automatic restarts was disabled: {0}
+    HealthCheckFailed(Box<Self>),
 }
 
 impl Error {
@@ -79,6 +84,8 @@ pub struct Config {
     pub tokenizers: HashMap<String, PathBuf>,
     pub chunk_size: usize,
     pub hard_chunk_size_limit: usize,
+    pub automatically_restart_child: bool,
+    pub force_initialization: bool,
     // Hint: From a per-crate design POV this shouldn't be a member of Config,
     //       but from a application level POV this is much more convenient.
     pub pool: pool::Config,
@@ -92,6 +99,8 @@ impl Default for Config {
             hard_chunk_size_limit: 520,
             tokenizers: [("default".into(), "./assets/tokenizer.json".into())].into(),
             python_workspace: "./".into(),
+            automatically_restart_child: true,
+            force_initialization: true,
             pool: pool::Config::default(),
         }
     }
@@ -112,10 +121,20 @@ impl SnippetExtractor {
             }
         }
 
-        Ok(Self {
+        let mut this = Self {
             config,
             child: None,
-        })
+        };
+
+        if this.config.force_initialization {
+            this.force_initialization()?;
+        }
+
+        Ok(this)
+    }
+
+    pub fn force_initialization(&mut self) -> Result<(), Error> {
+        self.with_child(|_child, _config| Ok(()))
     }
 
     pub fn extract_snippet(
@@ -150,7 +169,10 @@ impl SnippetExtractor {
         let mut child = self.take_child()?;
         let res = func(&mut child, &self.config);
         match res {
-            Err(err) if !err.can_child_be_reused() => Err(err),
+            Err(err) if !err.can_child_be_reused() => {
+                error!("discarding snippet extractor child process");
+                Err(err)
+            }
             reusable => {
                 self.child = Some(child);
                 reusable
@@ -160,10 +182,16 @@ impl SnippetExtractor {
 
     fn take_child(&mut self) -> Result<PythonChild, Error> {
         if let Some(mut child) = self.child.take() {
-            if child.send_command(&Ping {}, |_| DiscardError).is_ok() {
-                Ok(child)
-            } else {
-                self.spawn_child()
+            match child.send_command(&Ping {}, |msg| Error::UnexpectedErrorResponse { msg }) {
+                Ok(_) => Ok(child),
+                Err(error) => {
+                    if self.config.automatically_restart_child {
+                        error!("Health check failed: {}", error);
+                        self.spawn_child()
+                    } else {
+                        Err(Error::HealthCheckFailed(Box::new(error)))
+                    }
+                }
             }
         } else {
             self.spawn_child()
@@ -221,24 +249,4 @@ struct Extract<'a> {
 impl PipeCommand for Extract<'_> {
     type Value = Vec<String>;
     const TAG: &'static str = "extract";
-}
-
-struct DiscardError;
-
-impl From<rmp_serde::encode::Error> for DiscardError {
-    fn from(_: rmp_serde::encode::Error) -> Self {
-        Self
-    }
-}
-
-impl From<rmp_serde::decode::Error> for DiscardError {
-    fn from(_: rmp_serde::decode::Error) -> Self {
-        Self
-    }
-}
-
-impl From<io::Error> for DiscardError {
-    fn from(_: io::Error) -> Self {
-        Self
-    }
 }

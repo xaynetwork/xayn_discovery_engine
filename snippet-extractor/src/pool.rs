@@ -14,12 +14,12 @@
 
 use std::{io, time::Duration};
 
-pub use deadpool::unmanaged::PoolError;
 use deadpool::{
-    unmanaged::{Object, Pool, PoolConfig},
+    unmanaged::{Object, Pool, PoolConfig, PoolError},
     Runtime,
 };
-use derive_more::{Deref, DerefMut};
+use derive_more::{Deref, DerefMut, From};
+use displaydoc::Display;
 use serde::{Deserialize, Serialize};
 use tokio::task::spawn_blocking;
 use xayn_web_api_shared::serde::serde_duration_in_config;
@@ -27,10 +27,12 @@ use xayn_web_api_shared::serde::serde_duration_in_config;
 use crate::{Error, SnippetExtractor};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+#[must_use]
 pub struct Config {
-    threads_per_cpu: f32,
+    pub threads_per_cpu: f32,
     #[serde(with = "serde_duration_in_config")]
-    acquisition_timeout: Duration,
+    pub acquisition_timeout: Duration,
 }
 
 impl Default for Config {
@@ -49,13 +51,13 @@ pub struct SnippetExtractorPool {
 impl SnippetExtractorPool {
     #[allow(clippy::missing_panics_doc)]
     pub fn new(config: &super::Config) -> Result<Self, Error> {
-        let num_cpus = num_cpus::get();
+        let max_size = num_cpus::get();
         #[allow(
             clippy::cast_possible_truncation,
             clippy::cast_sign_loss,
             clippy::cast_precision_loss
         )]
-        let max_size = (num_cpus as f32 * config.pool.threads_per_cpu)
+        let max_size = (max_size as f32 * config.pool.threads_per_cpu)
             .ceil()
             .max(1.0) as usize;
         let pool = Pool::from_config(&PoolConfig {
@@ -64,19 +66,29 @@ impl SnippetExtractorPool {
             runtime: Some(Runtime::Tokio1),
         });
 
-        for _ in 0..num_cpus {
+        for _ in 0..max_size {
             let extractor = SnippetExtractor::new(config.clone())?;
             pool.try_add(extractor).map_err(|(_, err)| err).unwrap(/* can't happen */);
         }
         Ok(Self { pool })
     }
 
-    pub async fn get(&self) -> Result<PooledSnippetExtractor, PoolError> {
-        self.pool.get().await.map(PooledSnippetExtractor)
+    pub async fn get(&self) -> Result<PooledSnippetExtractor, PoolAcquisitionError> {
+        Ok(self.pool.get().await?.into())
     }
 }
 
-#[derive(Deref, DerefMut)]
+/// Failed to acquire snippet extractor: {0}
+#[derive(Debug, Display, thiserror::Error, From)]
+pub struct PoolAcquisitionError(PoolError);
+
+impl PoolAcquisitionError {
+    pub fn is_timeout(&self) -> bool {
+        matches!(self.0, PoolError::Timeout)
+    }
+}
+
+#[derive(Deref, DerefMut, From)]
 pub struct PooledSnippetExtractor(Object<SnippetExtractor>);
 
 impl PooledSnippetExtractor {

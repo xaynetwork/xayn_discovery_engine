@@ -504,7 +504,7 @@ async fn upsert_documents(
                 match document {
                     Ok(document) => new_documents.push(document),
                     Err((id, PreprocessError::Fatal(error))) => {
-                        error!("Failed to preprocess document '{id}': {error:#?}");
+                        error!("Failed to preprocess document '{id}': {error} ({error:#?})");
                         failed_documents.push(DocumentInBatchError::new(id, &*error));
                     },
                     Err((id, PreprocessError::Invalid(error))) => invalid_documents.push(DocumentInBatchError::new(id, &*error))

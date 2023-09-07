@@ -25,7 +25,7 @@ use serde_json::Value;
 use thiserror::Error;
 use tracing::Level;
 use xayn_ai_bert::InvalidEmbedding;
-use xayn_snippet_extractor::pool::PoolError;
+use xayn_snippet_extractor::pool::PoolAcquisitionError;
 use xayn_web_api_shared::elastic;
 
 use super::application::{impl_application_error, ApplicationError};
@@ -363,25 +363,28 @@ impl_from_std_error!(
     xayn_snippet_extractor::Error,
 );
 
-impl ApplicationError for PoolError {
+impl ApplicationError for PoolAcquisitionError {
     fn status_code(&self) -> StatusCode {
-        match self {
-            PoolError::Timeout => StatusCode::SERVICE_UNAVAILABLE,
-            PoolError::Closed | PoolError::NoRuntimeSpecified => StatusCode::INTERNAL_SERVER_ERROR,
+        if self.is_timeout() {
+            StatusCode::SERVICE_UNAVAILABLE
+        } else {
+            StatusCode::INTERNAL_SERVER_ERROR
         }
     }
 
     fn kind(&self) -> &str {
-        match self {
-            PoolError::Timeout => "ServiceOverloaded",
-            PoolError::Closed | PoolError::NoRuntimeSpecified => "InternalServerError",
+        if self.is_timeout() {
+            "ServiceOverloaded"
+        } else {
+            "InternalServerError"
         }
     }
 
     fn level(&self) -> Level {
-        match self {
-            PoolError::Timeout => Level::WARN,
-            PoolError::Closed | PoolError::NoRuntimeSpecified => Level::ERROR,
+        if self.is_timeout() {
+            Level::WARN
+        } else {
+            Level::ERROR
         }
     }
 

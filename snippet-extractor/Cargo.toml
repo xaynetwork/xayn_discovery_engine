@@ -11,12 +11,14 @@ anyhow = { workspace = true }
 deadpool = { version = "0.9.5", default-features = true, features = [ "managed", "rt_tokio_1" ] }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
-num_cpus = "1.16.0"
+num_cpus = { workspace = true }
 rmp-serde = "1.1.2"
 serde = { workspace = true }
 thiserror = { workspace = true }
 tokio =  { workspace = true }
+tracing = { workspace = true }
 xayn-web-api-shared = { path = "../web-api-shared" }
 
 [dev-dependencies]
+tokio = { version = "*", features = ["macros"] }
 xayn-test-utils = { path = "../test-utils" }

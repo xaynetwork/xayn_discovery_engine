@@ -136,6 +136,8 @@ def run_stdio_client():
                     tokenizer = tokenizers[cmd['tokenizer']],
                 ).split_text(cmd['document'])
                 result = ok(snippets)
+            elif tag == 'ping':
+                result = ok(True)
             else:
                 result = err(f"unknown command: {tag}")
         except Exception as error:

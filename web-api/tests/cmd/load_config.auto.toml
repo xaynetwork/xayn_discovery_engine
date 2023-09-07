@@ -75,6 +75,8 @@ stdout = """
     },
     "chunk_size": 500,
     "hard_chunk_size_limit": 520,
+    "automatically_restart_child": true,
+    "force_initialization": true,
     "pool": {
       "threads_per_cpu": 1.0,
       "acquisition_timeout": "15s"

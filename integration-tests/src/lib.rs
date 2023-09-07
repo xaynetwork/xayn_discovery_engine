@@ -709,6 +709,7 @@ pub fn build_test_config_from_parts_and_names(
     if app_name == Ingestion::NAME {
         let python_workspace = workspace.join("./snippet-extractor").display().to_string();
         let tokenizer = model_dir.join("tokenizer.json").display().to_string();
+        let limit_to_two_threads = (num_cpus::get() as f32).recip() * 2.;
 
         extend_config(
             &mut config,
@@ -721,6 +722,11 @@ pub fn build_test_config_from_parts_and_names(
                 chunk_size = 10
                 hard_chunk_size_limit = 10
                 python_workspace = python_workspace
+                force_initialization = false
+                automatically_restart_child = false
+
+                [snippet_extractor.pool]
+                threads_per_cpu = limit_to_two_threads
 
                 [snippet_extractor.tokenizers]
                 default = tokenizer
