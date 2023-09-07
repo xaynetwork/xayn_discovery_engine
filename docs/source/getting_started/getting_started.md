@@ -176,6 +176,26 @@ scores from the same requests.
 
 The field `snippet_id` identifies a specific snippet. The `document_id` in the `snippet_id` is the id of the document associated with the snippet.
 
+TODO:
+            Here I would the same example of ingestion as above plus the split option and than show that it will split in multiple snippet.
+
+            For example the ingestion of:
+
+            curl ....
+
+            could add the following snippets to the system:
+
+            {
+            "snippet_id": { document_id: ,  seq_id}
+            "snippet": "Part 1"
+            }
+            {
+            "snippet_id": { document_id: ,  seq_id}
+            "snippet": "Part 2"
+            }
+
+            It doesn't have to be what the system generates now just to make it more clear what is happening.
+
 If you do not use ingestion options like `split` and in turn only have one snippet per document then you can always use `snippet_id.document_id` and ignore the rest. In many places both a the full snippet id object or a document id string can be used. If documents which have multiple snippets are ingested it's highly recommended to always use the full snippet id.
 
 # Search
