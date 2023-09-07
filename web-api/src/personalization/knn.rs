@@ -24,6 +24,7 @@ use crate::{
     error::common::InternalError,
     models::{PersonalizedDocument, SnippetId},
     personalization::filter::Filter,
+    rank_merge::{rrf_score, DEFAULT_RRF_K},
     storage::{self, Exclusions, KnnSearchParams, SearchStrategy},
     Error,
 };
@@ -56,7 +57,11 @@ where
         let coi_weights = compute_coi_weights(interests.clone(), self.horizon, self.time);
         let cois = interests
             .zip(coi_weights)
-            .sorted_by(|(_, w1), (_, w2)| w1.total_cmp(w2).reverse())
+            .sorted_by(|(coi1, w1), (coi2, w2)| {
+                w1.total_cmp(w2)
+                    .then_with(|| coi1.id.cmp(&coi2.id))
+                    .reverse()
+            })
             .take(self.max_cois)
             .collect_vec();
 
@@ -118,13 +123,12 @@ async fn merge_knn_searchs(
             Ok(documents) => {
                 // the same document can be returned with different elastic scores, hence the
                 // documents are deduplicated and only the highest score is retained for each
-                for document in documents {
+                for (idx, mut document) in documents.into_iter().enumerate() {
+                    document.score = rrf_score(DEFAULT_RRF_K, idx, 1.0);
                     all_documents
                         .entry(document.id.clone())
                         .and_modify(|PersonalizedDocument { score, .. }| {
-                            if *score < document.score {
-                                *score = document.score;
-                            }
+                            *score += document.score;
                         })
                         .or_insert(document);
                 }

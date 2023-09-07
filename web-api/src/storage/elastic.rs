@@ -15,7 +15,7 @@
 mod client;
 mod filter;
 
-use std::{collections::HashSet, convert::identity, hash::Hash, ops::AddAssign};
+use std::{collections::HashSet, convert::identity};
 
 use anyhow::bail;
 pub(crate) use client::{Client, ClientBuilder};
@@ -52,6 +52,15 @@ use crate::{
         DocumentTags,
         SnippetId,
     },
+    rank_merge::{
+        merge_scores_average_duplicates_only,
+        merge_scores_weighted,
+        normalize_scores,
+        normalize_scores_if_max_gt_1,
+        rrf,
+        take_highest_n_scores,
+        DEFAULT_RRF_K,
+    },
     storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
 };
@@ -64,10 +73,8 @@ impl Client {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::Hybrid { query } => {
-                let normalize_knn = identity;
-                let normalize_bm25 = normalize_scores_if_max_gt_1;
-                let merge_fn = merge_scores_average_duplicates_only;
-                self.hybrid_search(params, query, normalize_knn, normalize_bm25, merge_fn)
+                let merge_fn = |knn, bm25| rrf(DEFAULT_RRF_K, [(1.0, knn), (1.0, bm25)]);
+                self.hybrid_search(params, query, identity, identity, merge_fn)
                     .await
             }
             SearchStrategy::HybridDev {
@@ -103,7 +110,7 @@ impl Client {
             .search_request(request, SnippetId::try_from_es_id)
             .await?;
 
-        Ok(rescale_knn_scores(scores))
+        Ok(scores)
     }
 
     async fn hybrid_search(
@@ -502,126 +509,6 @@ impl KnnSearchParams<'_> {
     }
 }
 
-// https://www.elastic.co/guide/en/elasticsearch/reference/current/dense-vector.html#dense-vector-similarity
-fn rescale_knn_scores<K>(mut scores: ScoreMap<K>) -> ScoreMap<K> {
-    for score in scores.values_mut() {
-        *score = *score * 2. - 1.;
-    }
-
-    scores
-}
-
-fn normalize_scores<K>(mut scores: ScoreMap<K>) -> ScoreMap<K>
-where
-    K: Eq + Hash,
-{
-    let max_score = scores
-        .values()
-        .max_by(|l, r| l.total_cmp(r))
-        .copied()
-        .unwrap_or_default();
-
-    if max_score != 0. {
-        for score in scores.values_mut() {
-            *score /= max_score;
-        }
-    }
-
-    scores
-}
-
-fn normalize_scores_if_max_gt_1<K>(mut scores: ScoreMap<K>) -> ScoreMap<K>
-where
-    K: Eq + Hash,
-{
-    let max_score = scores
-        .values()
-        .max_by(|l, r| l.total_cmp(r))
-        .copied()
-        .unwrap_or_default()
-        .max(1.0);
-
-    for score in scores.values_mut() {
-        *score /= max_score;
-    }
-
-    scores
-}
-
-fn merge_scores_average_duplicates_only<K>(
-    mut scores_1: ScoreMap<K>,
-    scores_2: ScoreMap<K>,
-) -> ScoreMap<K>
-where
-    K: Eq + Hash,
-{
-    for (key, value) in scores_2 {
-        scores_1
-            .entry(key)
-            .and_modify(|score| *score = (*score + value) / 2.)
-            .or_insert(value);
-    }
-    scores_1
-}
-
-fn merge_scores_weighted<K>(scores: impl IntoIterator<Item = (f32, ScoreMap<K>)>) -> ScoreMap<K>
-where
-    K: Eq + Hash,
-{
-    let weighted = scores.into_iter().flat_map(|(weight, mut scores)| {
-        for score in scores.values_mut() {
-            *score *= weight;
-        }
-        scores
-    });
-    collect_summing_repeated(weighted)
-}
-
-/// Reciprocal Rank Fusion
-fn rrf<K>(k: f32, scores: impl IntoIterator<Item = (f32, ScoreMap<K>)>) -> ScoreMap<K>
-where
-    K: Eq + Hash,
-{
-    let rrf_scores = scores.into_iter().flat_map(|(weight, scores)| {
-        scores
-            .into_iter()
-            .sorted_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
-            .enumerate()
-            .map(move |(rank0, (document, _))| {
-                #[allow(clippy::cast_precision_loss)]
-                (document, (k + rank0 as f32 + 1.).recip() * weight)
-            })
-    });
-    collect_summing_repeated(rrf_scores)
-}
-
-fn collect_summing_repeated<K>(scores: impl IntoIterator<Item = (K, f32)>) -> ScoreMap<K>
-where
-    K: Eq + Hash,
-{
-    scores
-        .into_iter()
-        .fold(ScoreMap::new(), |mut acc, (key, value)| {
-            acc.entry(key).or_default().add_assign(value);
-            acc
-        })
-}
-
-fn take_highest_n_scores<K>(n: usize, scores: ScoreMap<K>) -> ScoreMap<K>
-where
-    K: Eq + Hash,
-{
-    if scores.len() <= n {
-        return scores;
-    }
-
-    scores
-        .into_iter()
-        .sorted_unstable_by(|(_, s1), (_, s2)| s1.total_cmp(s2).reverse())
-        .take(n)
-        .collect()
-}
-
 impl NormalizationFn {
     fn to_fn(self) -> Box<dyn Fn(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>> {
         match self {
@@ -652,7 +539,7 @@ impl MergeFn {
                 knn_weight,
                 bm25_weight,
             } => {
-                let rank_constant = rank_constant.unwrap_or(60.);
+                let rank_constant = rank_constant.unwrap_or(DEFAULT_RRF_K);
                 let knn_weight = knn_weight.unwrap_or(1.);
                 let bm25_weight = bm25_weight.unwrap_or(1.);
                 Box::new(move |knn, bm25| {
@@ -666,33 +553,6 @@ impl MergeFn {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_rrf_parameters_are_used() {
-        let id = |id: &str| id.try_into().unwrap();
-        let left: ScoreMap<DocumentId> = [(id("foo"), 2.), (id("bar"), 1.), (id("baz"), 3.)].into();
-        let right: ScoreMap<DocumentId> = [(id("baz"), 5.), (id("dodo"), 1.2)].into();
-        assert_eq!(
-            rrf(80., [(1., left.clone()), (1., right.clone())]),
-            [
-                (id("foo"), 1. / (80. + 2.)),
-                (id("bar"), 1. / (80. + 3.)),
-                (id("baz"), 1. / (80. + 1.) + 1. / (80. + 1.)),
-                (id("dodo"), 1. / (80. + 2.)),
-            ]
-            .into(),
-        );
-        assert_eq!(
-            rrf(80., [(0.2, left), (8., right)]),
-            [
-                (id("foo"), 0.2 / (80. + 2.)),
-                (id("bar"), 0.2 / (80. + 3.)),
-                (id("baz"), 0.2 / (80. + 1.) + 8. / (80. + 1.)),
-                (id("dodo"), 8. / (80. + 2.)),
-            ]
-            .into(),
-        );
-    }
 
     #[test]
     fn test_validate_default_index_update_config() {

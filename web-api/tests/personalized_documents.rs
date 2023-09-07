@@ -122,9 +122,8 @@ macro_rules! assert_order {
         );
         for documents in $documents.windows(2) {
             let [d1, d2] = documents else { unreachable!() };
-            assert!(1. >= d1.score, $($arg)*);
-            assert!(d1.score > d2.score, $($arg)*);
-            assert!(d2.score >= -1., $($arg)*);
+            assert!(d1.score >= d2.score, $($arg)*);
+            assert!(d2.score >= 0., $($arg)*);
         }
     }};
 }
@@ -319,7 +318,7 @@ fn test_personalization_with_tags() {
             personalize(&client, &personalization_url, None, None, |documents| {
                 assert_order!(
                     documents,
-                    ["d5", "d6", "d1", "d8"],
+                    ["d6", "d8", "d5", "d1"],
                     "unexpected personalized documents: {documents:?}"
                 )
             })

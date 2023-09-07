@@ -20,9 +20,10 @@ use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiSystem};
 use xayn_web_api_shared::elastic::ScoreMap;
 
+use super::PersonalizationConfig;
 use crate::{
     models::{DocumentTag, PersonalizedDocument, SnippetId},
-    personalization::PersonalizationConfig,
+    rank_merge::{rrf, DEFAULT_RRF_K},
 };
 
 fn rerank_by_interest<'a>(
@@ -73,7 +74,7 @@ fn rerank_by_tag_weight<'a>(
 /// The `score_weights` determine the ratios of the scores, it is ordered as
 /// `[interest_weight, tag_weight, elasticsearch_weight]`. The final score/ranking per document is
 /// calculated as the weighted sum of the scores.
-pub(super) fn rerank_by_scores(
+pub(super) fn rerank(
     coi_system: &CoiSystem,
     documents: &mut [PersonalizedDocument],
     interests: &[Coi],
@@ -81,30 +82,32 @@ pub(super) fn rerank_by_scores(
     score_weights: [f32; 3],
     time: DateTime<Utc>,
 ) {
+    let search_scores = documents.iter().map(|doc| (&doc.id, doc.score)).collect();
     let interest_scores = rerank_by_interest(coi_system, documents, interests, time);
     let tag_weight_scores = rerank_by_tag_weight(documents, tag_weights);
 
-    let scores = documents
-        .iter()
-        .map(|document| {
-            let interest_score = interest_scores
-                .get(&document.id)
-                .copied()
-                .unwrap_or_default();
-            let tag_weight_score = tag_weight_scores
-                .get(&document.id)
-                .copied()
-                .unwrap_or_default();
-            score_weights[0] * interest_score
-                + score_weights[1] * tag_weight_score
-                + score_weights[2] * document.score
-        })
-        .collect_vec();
-    for (document, score) in documents.iter_mut().zip(scores) {
-        document.score = score;
+    let scores = rrf(
+        DEFAULT_RRF_K,
+        [
+            (score_weights[0], interest_scores),
+            (score_weights[1], tag_weight_scores),
+            (score_weights[2], search_scores),
+        ],
+    )
+    .into_iter()
+    .map(|(id, score)| (id.clone(), score))
+    .collect::<HashMap<SnippetId, _>>();
+
+    for document in documents.iter_mut() {
+        document.score = *scores.get(&document.id).unwrap(/* rrf does create a score for each id*/);
     }
 
-    documents.sort_unstable_by(|d1, d2| d1.score.total_cmp(&d2.score).reverse());
+    documents.sort_unstable_by(|d1, d2| {
+        d1.score
+            .total_cmp(&d2.score)
+            .then_with(|| d1.id.cmp(&d2.id))
+            .reverse()
+    });
 }
 
 #[doc(hidden)]
@@ -140,7 +143,7 @@ pub fn bench_rerank<S>(
         .map(|(tag, weight)| (tag.try_into().unwrap(), weight))
         .collect();
     let score_weights = PersonalizationConfig::default().score_weights;
-    rerank_by_scores(
+    rerank(
         coi_system,
         &mut documents,
         interests,

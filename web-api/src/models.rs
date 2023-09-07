@@ -94,6 +94,8 @@ macro_rules! string_wrapper {
                 PartialEq,
                 Eq,
                 Hash,
+                PartialOrd,
+                Ord,
                 Serialize,
                 Deserialize,
                 Type,
@@ -170,7 +172,7 @@ string_wrapper! {
 }
 
 /// Id pointing to a specific snippet in a document.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 pub(crate) struct SnippetId {
     document_id: DocumentId,
     sub_id: u32,

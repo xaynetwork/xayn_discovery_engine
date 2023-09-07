@@ -21,7 +21,7 @@ use xayn_ai_bert::{InvalidEmbedding, NormalizedEmbedding};
 use crate::stats::Stats;
 
 /// A unique identifier of a [`Coi`].
-#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize)]
 #[serde(transparent)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::Type), sqlx(transparent))]
 pub struct Id(Uuid);

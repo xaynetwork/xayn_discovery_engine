@@ -64,8 +64,8 @@ stdout = """
     "default_number_documents": 10,
     "max_cois_for_knn": 10,
     "score_weights": [
-      0.5,
-      0.5,
+      1.0,
+      1.0,
       0.0
     ],
     "store_user_history": true,
@@ -77,9 +77,9 @@ stdout = """
     "max_number_candidates": 100,
     "default_number_documents": 10,
     "score_weights": [
-      0.4,
-      0.4,
-      0.2
+      1.0,
+      1.0,
+      0.5
     ]
   },
   "tenants": {
