@@ -64,8 +64,35 @@ Each document has a unique identifier that can be used to refer to it in the sys
 
 The `snippet` field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.
 
-For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyze is limited, if it is not possible to provide a concise snippet, we can use the per-document option `summarize`; when enabled, the system will summarise the content of the document to create a snippet. Alternatively the `split` option can be used which will split the document into multiple snippets,
+For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyze is limited, if it is not possible to provide a concise snippet, we can use the per-document option `summarize`; when enabled, the system will summarize the content of the document to create a snippet. Alternatively the `split` option can be used which will split the document into multiple snippets,
 this can be used to get better result on larger documents. More information on this can be found in the section  [split documents](#split-documents).
+
+For example the ingestion of:
+
+```bash
+curl -X POST "$URL/documents" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "documents": [
+            {
+                "id": "xayn_efd5604c",
+                "snippet": "In a world [.. trimmed make the example readable ..]. We semantic [.. trimmed make the example readable ..].",
+                "split": true,
+            }
+        ]
+    }'
+
+```
+
+could split the text into two part:
+
+- `"In a world [.. trimmed make the example readable ..]."` with `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 802 }` and
+- `"We semantic [.. trimmed make the example readable ..]."` with `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 4 }`
+
+Be aware that `sub_id` is **not** guaranteed to have any specific ordering or structure, even through in practice
+it will most times look sequential incremental. Similar the natural language based splitting is not
+guaranteed to be deterministic. Especially over time with the algorithm being improved it will change.
 
 The `properties` field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.
 
@@ -78,6 +105,9 @@ This example assumes that we will eventually display the returned documents as a
 We provide a functionality to extract multiple snippets from the provided content of a document.
 
 The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
+
+This algorithm will be improved over time. This means a document ingested now and a equal document ingested
+in the future might have different splits. Additionally not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even if changes to the algorithm are ignored.
 
 Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
 We are working to add support for multiple languages to our text-splitting algorithms.
@@ -175,26 +205,6 @@ We also have a `score` field which represents how well the documents match the u
 scores from the same requests.
 
 The field `snippet_id` identifies a specific snippet. The `document_id` in the `snippet_id` is the id of the document associated with the snippet.
-
-TODO:
-            Here I would the same example of ingestion as above plus the split option and than show that it will split in multiple snippet.
-
-            For example the ingestion of:
-
-            curl ....
-
-            could add the following snippets to the system:
-
-            {
-            "snippet_id": { document_id: ,  seq_id}
-            "snippet": "Part 1"
-            }
-            {
-            "snippet_id": { document_id: ,  seq_id}
-            "snippet": "Part 2"
-            }
-
-            It doesn't have to be what the system generates now just to make it more clear what is happening.
 
 If you do not use ingestion options like `split` and in turn only have one snippet per document then you can always use `snippet_id.document_id` and ignore the rest. In many places both a the full snippet id object or a document id string can be used. If documents which have multiple snippets are ingested it's highly recommended to always use the full snippet id.
 
