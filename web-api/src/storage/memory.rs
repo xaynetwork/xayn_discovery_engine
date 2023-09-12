@@ -757,7 +757,8 @@ mod tests {
                 id: id.document_id().clone(),
                 original_sha256: Sha256Hash::calculate(b"snippet"),
                 snippets: vec![DocumentContent {
-                    snippet: DocumentSnippet::new("snippet", 100).unwrap(),
+                    snippet: DocumentSnippet::new_with_length_constraint("snippet", 1..=100)
+                        .unwrap(),
                     embedding,
                 }],
                 preprocessing_step: PreprocessingStep::None,
@@ -820,7 +821,7 @@ mod tests {
     async fn test_serde() {
         let storage = Storage::default();
         let doc_id = SnippetId::new(DocumentId::try_from("42").unwrap(), 0);
-        let snippet = DocumentSnippet::new("snippet", 100).unwrap();
+        let snippet = DocumentSnippet::new_with_length_constraint("snippet", 1..=100).unwrap();
         let tags = DocumentTags::try_from(vec!["tag".try_into().unwrap()]).unwrap();
         let embedding = NormalizedEmbedding::try_from([1., 2., 3.]).unwrap();
         storage::Document::insert(

@@ -218,7 +218,7 @@ impl ExtractorInner {
                 }
 
                 if let Some(content) = response.content {
-                    DocumentSnippet::new(content, usize::MAX)
+                    DocumentSnippet::new_with_length_constraint(content, 1..)
                         .map_err(|e| PreprocessError::Invalid(e.into()))
                 } else {
                     Err(PreprocessError::Invalid(

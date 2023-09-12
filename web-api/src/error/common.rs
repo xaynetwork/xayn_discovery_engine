@@ -15,12 +15,13 @@
 use std::{
     borrow::Cow,
     fmt::{Debug, Display},
+    ops::{Bound, RangeBounds},
 };
 
 use actix_web::http::StatusCode;
 use derive_more::From;
 use displaydoc::Display;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 use serde_json::Value;
 use thiserror::Error;
 use tracing::Level;
@@ -53,10 +54,66 @@ impl_application_error!(DocumentPropertyNotFound => BAD_REQUEST, INFO);
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum InvalidString {
-    /// Invalid byte size. Got {got}, expected {min}..={max}.
-    Size { got: usize, min: usize, max: usize },
+    /// Invalid byte size. Got {got}, expected {bounds:?}.
+    Size {
+        got: usize,
+        bounds: RangeBoundsInError,
+    },
     /// Invalid syntax, expected: {expected}
     Syntax { expected: &'static str },
+}
+
+#[cfg_attr(test, derive(PartialEq))]
+pub(crate) struct RangeBoundsInError {
+    start: Bound<usize>,
+    end: Bound<usize>,
+}
+
+impl RangeBoundsInError {
+    pub(crate) fn new(bound: impl RangeBounds<usize>) -> Self {
+        Self {
+            start: bound.start_bound().cloned(),
+            end: bound.end_bound().cloned(),
+        }
+    }
+}
+
+impl<T> From<T> for RangeBoundsInError
+where
+    T: RangeBounds<usize>,
+{
+    fn from(value: T) -> Self {
+        RangeBoundsInError::new(value)
+    }
+}
+
+impl Debug for RangeBoundsInError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.start {
+            Bound::Included(bound) => write!(f, "{bound}")?,
+            Bound::Excluded(bound) => write!(f, "{bound}<")?,
+            Bound::Unbounded => (),
+        }
+
+        f.write_str("..")?;
+
+        match self.end {
+            Bound::Included(bound) => write!(f, "={bound}")?,
+            Bound::Excluded(bound) => write!(f, "{bound}")?,
+            Bound::Unbounded => (),
+        }
+
+        Ok(())
+    }
+}
+
+impl Serialize for RangeBoundsInError {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        format!("{self:?}").serialize(serializer)
+    }
 }
 
 /// Malformed user id: {0}
@@ -150,7 +207,7 @@ impl_application_error!(InvalidDocumentTags => BAD_REQUEST, INFO);
 #[serde(rename_all = "snake_case")]
 pub(crate) enum InvalidDocumentSnippet {
     /// Malformed document snippet: {0}
-    InvalidString(InvalidString),
+    InvalidString(#[from] InvalidString),
     /// Input document didn't yield any snippets
     NoSnippets {},
     /// File is not base64 encoded
@@ -390,5 +447,20 @@ impl ApplicationError for PoolAcquisitionError {
 
     fn encode_details(&self) -> Value {
         Value::Null
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_range_bound_formatting() {
+        assert_eq!(format!("{:?}", RangeBoundsInError::new(..)), "..");
+        assert_eq!(format!("{:?}", RangeBoundsInError::new(1..)), "1..");
+        assert_eq!(format!("{:?}", RangeBoundsInError::new(..1)), "..1");
+        assert_eq!(format!("{:?}", RangeBoundsInError::new(1..2)), "1..2");
+        assert_eq!(format!("{:?}", RangeBoundsInError::new(..=1)), "..=1");
+        assert_eq!(format!("{:?}", RangeBoundsInError::new(1..=2)), "1..=2");
     }
 }

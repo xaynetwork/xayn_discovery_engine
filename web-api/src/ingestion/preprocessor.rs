@@ -110,7 +110,7 @@ where
     let snippets = snippets
         .into_iter()
         .map(|split| async move {
-            let snippet = DocumentSnippet::new(split, usize::MAX)?;
+            let snippet = DocumentSnippet::new_with_length_constraint(split, 1..)?;
             let embedding = embedder.run(&snippet).await?;
             Ok::<_, Error>(DocumentContent { snippet, embedding })
         })

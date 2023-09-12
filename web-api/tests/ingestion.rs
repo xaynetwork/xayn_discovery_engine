@@ -163,8 +163,7 @@ fn test_ingestion_bad_request() {
                     "invalid_string": {
                         "size": {
                             "got": 2049,
-                            "min": 1,
-                            "max": 2048,
+                            "bounds": "1..=2048",
                         }
                     }
                 }
@@ -636,8 +635,7 @@ fn test_ingestion_validation() {
                         "invalid_string": {
                             "size": {
                                 "got": 11,
-                                "min": 1,
-                                "max": 10
+                                "bounds": "1..=10",
                             }
                         }
                     }

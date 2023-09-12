@@ -15,7 +15,8 @@
 use std::{
     borrow::{Borrow, Cow},
     collections::HashMap,
-    ops::RangeInclusive,
+    fmt::Debug,
+    ops::{RangeBounds, RangeInclusive},
     str::FromStr,
 };
 
@@ -28,17 +29,27 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use sqlx::{
     postgres::{PgHasArrayType, PgTypeInfo},
-    FromRow, Type,
+    FromRow,
+    Type,
 };
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Document as AiDocument;
 
 use crate::{
     error::common::{
-        InvalidDocumentId, InvalidDocumentProperties, InvalidDocumentProperty,
-        InvalidDocumentPropertyId, InvalidDocumentPropertyReason, InvalidDocumentQuery,
-        InvalidDocumentSnippet, InvalidDocumentTag, InvalidDocumentTags, InvalidEsSnippetIdFormat,
-        InvalidString, InvalidUserId,
+        InvalidDocumentId,
+        InvalidDocumentProperties,
+        InvalidDocumentProperty,
+        InvalidDocumentPropertyId,
+        InvalidDocumentPropertyReason,
+        InvalidDocumentQuery,
+        InvalidDocumentSnippet,
+        InvalidDocumentTag,
+        InvalidDocumentTags,
+        InvalidEsSnippetIdFormat,
+        InvalidString,
+        InvalidUserId,
+        RangeBoundsInError,
     },
     storage::property_filter::IndexedPropertyType,
     Error,
@@ -53,15 +64,14 @@ fn trim(string: &mut String) {
 
 fn validate_string(
     value: &str,
-    length_constraints: RangeInclusive<usize>,
+    length_constraints: impl RangeBounds<usize>,
     syntax: &'static Regex,
 ) -> Result<(), InvalidString> {
     let size = value.len();
     if !length_constraints.contains(&size) {
         Err(InvalidString::Size {
             got: size,
-            min: *length_constraints.start(),
-            max: *length_constraints.end(),
+            bounds: RangeBoundsInError::new(length_constraints),
         })
     } else if !syntax.is_match(value) {
         Err(InvalidString::Syntax {
@@ -102,7 +112,7 @@ macro_rules! string_wrapper {
         $visibility struct $name(String);
 
         impl $name {
-            $visibility fn new_with_length_constraint(value: impl Into<String>, length_constraints: RangeInclusive<usize>) -> Result<Self, $error> {
+            $visibility fn new_with_length_constraint(value: impl Into<String>, length_constraints: impl RangeBounds<usize> + Debug) -> Result<Self, $error> {
                 let mut value = value.into();
                 trim(&mut value);
                 validate_string(&value, length_constraints, &*$syntax)?;
@@ -176,6 +186,8 @@ string_wrapper! {
     pub(crate) DocumentTag, InvalidDocumentTag, GENERIC_STRING_SYNTAX, 1..=256;
     /// A document query.
     pub(crate) DocumentQuery, InvalidDocumentQuery, GENERIC_STRING_SYNTAX, 1..=512;
+    /// A document snippet.
+    pub(crate) DocumentSnippet, InvalidDocumentSnippet, GENERIC_STRING_SYNTAX;
 }
 
 /// Id pointing to a specific snippet in a document.
@@ -261,27 +273,6 @@ impl SnippetOrDocumentId {
             SnippetOrDocumentId::SnippetId(id) => Some(id.sub_id()),
             SnippetOrDocumentId::DocumentId(_) => None,
         }
-    }
-}
-
-/// A document snippet.
-#[derive(Clone, Debug, Deref, Deserialize, Into, PartialEq, Serialize, Type)]
-#[serde(transparent)]
-#[sqlx(transparent)]
-pub(crate) struct DocumentSnippet(String);
-
-impl DocumentSnippet {
-    pub(crate) fn new(
-        value: impl Into<String>,
-        max_size: usize,
-    ) -> Result<Self, InvalidDocumentSnippet> {
-        let mut value = value.into();
-        trim(&mut value);
-
-        validate_string(&value, 1..=max_size, &GENERIC_STRING_SYNTAX)
-            .map_err(InvalidDocumentSnippet::InvalidString)?;
-
-        Ok(Self(value))
     }
 }
 
@@ -577,8 +568,7 @@ mod tests {
             DocumentId::try_from(""),
             Err(InvalidDocumentId::from(InvalidString::Size {
                 got: 0,
-                min: 1,
-                max: 256
+                bounds: (1..=256).into(),
             }))
         );
         assert_eq!(
@@ -591,8 +581,7 @@ mod tests {
             DocumentId::try_from(["a"; 257].join("")),
             Err(InvalidDocumentId::from(InvalidString::Size {
                 got: 257,
-                min: 1,
-                max: 256
+                bounds: (1..=256).into(),
             }))
         );
         assert_eq!(
@@ -614,8 +603,7 @@ mod tests {
             DocumentPropertyId::try_from(""),
             Err(InvalidDocumentPropertyId::from(InvalidString::Size {
                 got: 0,
-                min: 1,
-                max: 256
+                bounds: (1..=256).into(),
             }))
         );
         assert_eq!(
@@ -634,8 +622,7 @@ mod tests {
             DocumentPropertyId::try_from(["a"; 257].join("")),
             Err(InvalidDocumentPropertyId::from(InvalidString::Size {
                 got: 257,
-                min: 1,
-                max: 256
+                bounds: (1..=256).into(),
             }))
         );
         assert_eq!(
@@ -657,16 +644,14 @@ mod tests {
             DocumentTag::try_from(""),
             Err(InvalidDocumentTag::from(InvalidString::Size {
                 got: 0,
-                min: 1,
-                max: 256
+                bounds: (1..=256).into(),
             }))
         );
         assert_eq!(
             DocumentTag::try_from(["a"; 257].join("")),
             Err(InvalidDocumentTag::from(InvalidString::Size {
                 got: 257,
-                min: 1,
-                max: 256
+                bounds: (1..=256).into(),
             }))
         );
         assert_eq!(
@@ -688,16 +673,14 @@ mod tests {
             DocumentQuery::try_from(""),
             Err(InvalidDocumentQuery::from(InvalidString::Size {
                 got: 0,
-                min: 1,
-                max: 512,
+                bounds: (1..=512).into(),
             }))
         );
         assert_eq!(
             DocumentQuery::try_from(["a"; 513].join("")),
             Err(InvalidDocumentQuery::from(InvalidString::Size {
                 got: 513,
-                min: 1,
-                max: 512,
+                bounds: (1..=512).into(),
             }))
         );
         assert_eq!(
