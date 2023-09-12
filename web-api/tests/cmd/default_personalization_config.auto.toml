@@ -80,7 +80,8 @@ stdout = """
       1.0,
       1.0,
       0.5
-    ]
+    ],
+    "max_query_size": 512
   },
   "tenants": {
     "enable_legacy_tenant": true,

@@ -185,7 +185,7 @@ string_wrapper! {
     /// A document tag.
     pub(crate) DocumentTag, InvalidDocumentTag, GENERIC_STRING_SYNTAX, 1..=256;
     /// A document query.
-    pub(crate) DocumentQuery, InvalidDocumentQuery, GENERIC_STRING_SYNTAX, 1..=512;
+    pub(crate) DocumentQuery, InvalidDocumentQuery, GENERIC_STRING_SYNTAX;
     /// A document snippet.
     pub(crate) DocumentSnippet, InvalidDocumentSnippet, GENERIC_STRING_SYNTAX;
 }
@@ -548,6 +548,7 @@ impl PreprocessingStep {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::personalization::SemanticSearchConfig;
 
     impl TryFrom<Value> for DocumentProperty {
         type Error = InvalidDocumentProperty;
@@ -664,27 +665,42 @@ mod tests {
 
     #[test]
     fn test_is_valid_query() {
-        assert!(DocumentQuery::try_from("abcdefghijklmnopqrstruvwxyz").is_ok());
-        assert!(DocumentQuery::try_from("ABCDEFGHIJKLMNOPQURSTUVWXYZ").is_ok());
-        assert!(DocumentQuery::try_from("0123456789").is_ok());
-        assert!(DocumentQuery::try_from(" .:,;-_#'+*^°!\"§$%&/()=?\\´`@€").is_ok());
+        let config = SemanticSearchConfig::default();
+        let bounds = 1..=config.max_query_size;
+
+        assert!(DocumentQuery::new_with_length_constraint(
+            "abcdefghijklmnopqrstruvwxyz",
+            bounds.clone()
+        )
+        .is_ok());
+        assert!(DocumentQuery::new_with_length_constraint(
+            "ABCDEFGHIJKLMNOPQURSTUVWXYZ",
+            bounds.clone()
+        )
+        .is_ok());
+        assert!(DocumentQuery::new_with_length_constraint("0123456789", bounds.clone()).is_ok());
+        assert!(DocumentQuery::new_with_length_constraint(
+            " .:,;-_#'+*^°!\"§$%&/()=?\\´`@€",
+            bounds.clone()
+        )
+        .is_ok());
 
         assert_eq!(
-            DocumentQuery::try_from(""),
+            DocumentQuery::new_with_length_constraint("", bounds.clone()),
             Err(InvalidDocumentQuery::from(InvalidString::Size {
                 got: 0,
                 bounds: (1..=512).into(),
             }))
         );
         assert_eq!(
-            DocumentQuery::try_from(["a"; 513].join("")),
+            DocumentQuery::new_with_length_constraint(["a"; 513].join(""), bounds.clone()),
             Err(InvalidDocumentQuery::from(InvalidString::Size {
                 got: 513,
                 bounds: (1..=512).into(),
             }))
         );
         assert_eq!(
-            DocumentQuery::try_from("\0"),
+            DocumentQuery::new_with_length_constraint("\0", bounds),
             Err(InvalidDocumentQuery::from(InvalidString::Syntax {
                 expected: GENERIC_STRING_SYNTAX.as_str()
             }))
