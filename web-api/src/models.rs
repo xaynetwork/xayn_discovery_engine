@@ -28,26 +28,17 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use sqlx::{
     postgres::{PgHasArrayType, PgTypeInfo},
-    FromRow,
-    Type,
+    FromRow, Type,
 };
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Document as AiDocument;
 
 use crate::{
     error::common::{
-        InvalidDocumentId,
-        InvalidDocumentProperties,
-        InvalidDocumentProperty,
-        InvalidDocumentPropertyId,
-        InvalidDocumentPropertyReason,
-        InvalidDocumentQuery,
-        InvalidDocumentSnippet,
-        InvalidDocumentTag,
-        InvalidDocumentTags,
-        InvalidEsSnippetIdFormat,
-        InvalidString,
-        InvalidUserId,
+        InvalidDocumentId, InvalidDocumentProperties, InvalidDocumentProperty,
+        InvalidDocumentPropertyId, InvalidDocumentPropertyReason, InvalidDocumentQuery,
+        InvalidDocumentSnippet, InvalidDocumentTag, InvalidDocumentTags, InvalidEsSnippetIdFormat,
+        InvalidString, InvalidUserId,
     },
     storage::property_filter::IndexedPropertyType,
     Error,
@@ -82,72 +73,88 @@ fn validate_string(
 }
 
 macro_rules! string_wrapper {
-    ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $syntax:expr, $full_range:expr);* $(;)?) => {
+    ($($(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $syntax:expr $(, $full_range:expr)?);* $(;)?) => (
         $(
-            $(#[$attribute])*
-            #[derive(
-                Deref,
-                Into,
-                Clone,
-                Debug,
-                Display,
-                PartialEq,
-                Eq,
-                Hash,
-                PartialOrd,
-                Ord,
-                Serialize,
-                Deserialize,
-                Type,
-                FromRow,
-            )]
-            #[serde(transparent)]
-            #[sqlx(transparent)]
-            $visibility struct $name(String);
-
-            impl TryFrom<String> for $name {
-                type Error = $error;
-
-                fn try_from(mut value: String) -> Result<Self, Self::Error> {
-                    trim(&mut value);
-
-                    let length_constraints = RangeInclusive::from($full_range);
-                    validate_string(&value, length_constraints, &*$syntax)
-                        .map_err($error)?;
-
-                    Ok(Self(value))
-                }
-            }
-
-            impl TryFrom<&str> for $name {
-                type Error = $error;
-
-                fn try_from(value: &str) -> Result<Self, Self::Error> {
-                    value.to_string().try_into()
-                }
-            }
-
-            impl FromStr for $name {
-                type Err = $error;
-
-                fn from_str(value: &str) -> Result<Self, Self::Err> {
-                    value.try_into()
-                }
-            }
-
-            impl PgHasArrayType for $name {
-                fn array_type_info() -> PgTypeInfo {
-                    <String as PgHasArrayType>::array_type_info()
-                }
-            }
-
-            impl Borrow<str> for $name {
-                fn borrow(&self) -> &str {
-                    self.as_ref()
-                }
-            }
+            string_wrapper!(@base $(#[$attribute])* $visibility $name, $error, $syntax);
+            string_wrapper!(@new $visibility $name, $error $(, $full_range)?);
         )*
-    };
+    );
+    (@base $(#[$attribute:meta])* $visibility:vis $name:ident, $error:ident, $syntax:expr) => (
+        $(#[$attribute])*
+        #[derive(
+            Deref,
+            Into,
+            Clone,
+            Debug,
+            Display,
+            PartialEq,
+            Eq,
+            Hash,
+            PartialOrd,
+            Ord,
+            Serialize,
+            Deserialize,
+            Type,
+            FromRow,
+        )]
+        #[serde(transparent)]
+        #[sqlx(transparent)]
+        $visibility struct $name(String);
+
+        impl $name {
+            $visibility fn new_with_length_constraint(value: impl Into<String>, length_constraints: RangeInclusive<usize>) -> Result<Self, $error> {
+                let mut value = value.into();
+                trim(&mut value);
+                validate_string(&value, length_constraints, &*$syntax)?;
+                Ok(Self(value))
+            }
+        }
+
+        impl PgHasArrayType for $name {
+            fn array_type_info() -> PgTypeInfo {
+                <String as PgHasArrayType>::array_type_info()
+            }
+        }
+
+        impl Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                self.as_ref()
+            }
+        }
+    );
+    (@new $visibility:vis $name:ident, $error:ident) => ();
+    (@new $visibility:vis $name:ident, $error:ident, $full_range:expr) => (
+        impl $name {
+            $visibility fn new(value: impl Into<String>) -> Result<Self, $error> {
+                let length_constraints = RangeInclusive::from($full_range);
+                Self::new_with_length_constraint(value.into(), length_constraints)
+            }
+        }
+
+        impl TryFrom<String> for $name {
+            type Error = $error;
+
+            fn try_from(value: String) -> Result<Self, Self::Error> {
+                Self::new(value)
+            }
+        }
+
+        impl TryFrom<&str> for $name {
+            type Error = $error;
+
+            fn try_from(value: &str) -> Result<Self, Self::Error> {
+                Self::new(value.to_string())
+            }
+        }
+
+        impl FromStr for $name {
+            type Err = $error;
+
+            fn from_str(value: &str) -> Result<Self, Self::Err> {
+                value.try_into()
+            }
+        }
+    );
 }
 
 static GENERIC_ID_SYNTAX: Lazy<Regex> =
@@ -568,7 +575,7 @@ mod tests {
 
         assert_eq!(
             DocumentId::try_from(""),
-            Err(InvalidDocumentId(InvalidString::Size {
+            Err(InvalidDocumentId::from(InvalidString::Size {
                 got: 0,
                 min: 1,
                 max: 256
@@ -576,13 +583,13 @@ mod tests {
         );
         assert_eq!(
             DocumentId::try_from("_"),
-            Err(InvalidDocumentId(InvalidString::Syntax {
+            Err(InvalidDocumentId::from(InvalidString::Syntax {
                 expected: GENERIC_ID_SYNTAX.as_str()
             }))
         );
         assert_eq!(
             DocumentId::try_from(["a"; 257].join("")),
-            Err(InvalidDocumentId(InvalidString::Size {
+            Err(InvalidDocumentId::from(InvalidString::Size {
                 got: 257,
                 min: 1,
                 max: 256
@@ -590,7 +597,7 @@ mod tests {
         );
         assert_eq!(
             DocumentId::try_from("!?ß"),
-            Err(InvalidDocumentId(InvalidString::Syntax {
+            Err(InvalidDocumentId::from(InvalidString::Syntax {
                 expected: GENERIC_ID_SYNTAX.as_str()
             }))
         );
@@ -605,7 +612,7 @@ mod tests {
 
         assert_eq!(
             DocumentPropertyId::try_from(""),
-            Err(InvalidDocumentPropertyId(InvalidString::Size {
+            Err(InvalidDocumentPropertyId::from(InvalidString::Size {
                 got: 0,
                 min: 1,
                 max: 256
@@ -613,19 +620,19 @@ mod tests {
         );
         assert_eq!(
             DocumentPropertyId::try_from("_"),
-            Err(InvalidDocumentPropertyId(InvalidString::Syntax {
+            Err(InvalidDocumentPropertyId::from(InvalidString::Syntax {
                 expected: PROPERTY_ID_SYNTAX.as_str()
             }))
         );
         assert_eq!(
             DocumentPropertyId::try_from("."),
-            Err(InvalidDocumentPropertyId(InvalidString::Syntax {
+            Err(InvalidDocumentPropertyId::from(InvalidString::Syntax {
                 expected: PROPERTY_ID_SYNTAX.as_str()
             }))
         );
         assert_eq!(
             DocumentPropertyId::try_from(["a"; 257].join("")),
-            Err(InvalidDocumentPropertyId(InvalidString::Size {
+            Err(InvalidDocumentPropertyId::from(InvalidString::Size {
                 got: 257,
                 min: 1,
                 max: 256
@@ -633,7 +640,7 @@ mod tests {
         );
         assert_eq!(
             DocumentPropertyId::try_from("!?ß"),
-            Err(InvalidDocumentPropertyId(InvalidString::Syntax {
+            Err(InvalidDocumentPropertyId::from(InvalidString::Syntax {
                 expected: PROPERTY_ID_SYNTAX.as_str()
             }))
         );
@@ -648,7 +655,7 @@ mod tests {
 
         assert_eq!(
             DocumentTag::try_from(""),
-            Err(InvalidDocumentTag(InvalidString::Size {
+            Err(InvalidDocumentTag::from(InvalidString::Size {
                 got: 0,
                 min: 1,
                 max: 256
@@ -656,7 +663,7 @@ mod tests {
         );
         assert_eq!(
             DocumentTag::try_from(["a"; 257].join("")),
-            Err(InvalidDocumentTag(InvalidString::Size {
+            Err(InvalidDocumentTag::from(InvalidString::Size {
                 got: 257,
                 min: 1,
                 max: 256
@@ -664,7 +671,7 @@ mod tests {
         );
         assert_eq!(
             DocumentTag::try_from("\0"),
-            Err(InvalidDocumentTag(InvalidString::Syntax {
+            Err(InvalidDocumentTag::from(InvalidString::Syntax {
                 expected: GENERIC_STRING_SYNTAX.as_str()
             }))
         );
@@ -679,7 +686,7 @@ mod tests {
 
         assert_eq!(
             DocumentQuery::try_from(""),
-            Err(InvalidDocumentQuery(InvalidString::Size {
+            Err(InvalidDocumentQuery::from(InvalidString::Size {
                 got: 0,
                 min: 1,
                 max: 512,
@@ -687,7 +694,7 @@ mod tests {
         );
         assert_eq!(
             DocumentQuery::try_from(["a"; 513].join("")),
-            Err(InvalidDocumentQuery(InvalidString::Size {
+            Err(InvalidDocumentQuery::from(InvalidString::Size {
                 got: 513,
                 min: 1,
                 max: 512,
@@ -695,7 +702,7 @@ mod tests {
         );
         assert_eq!(
             DocumentQuery::try_from("\0"),
-            Err(InvalidDocumentQuery(InvalidString::Syntax {
+            Err(InvalidDocumentQuery::from(InvalidString::Syntax {
                 expected: GENERIC_STRING_SYNTAX.as_str()
             }))
         );

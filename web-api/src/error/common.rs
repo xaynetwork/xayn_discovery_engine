@@ -49,7 +49,7 @@ pub(crate) struct DocumentPropertyNotFound;
 
 impl_application_error!(DocumentPropertyNotFound => BAD_REQUEST, INFO);
 
-#[derive(Debug, Display, Serialize)]
+#[derive(Debug, Error, Display, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(rename_all = "snake_case")]
 pub(crate) enum InvalidString {
@@ -62,7 +62,7 @@ pub(crate) enum InvalidString {
 /// Malformed user id: {0}
 #[derive(Debug, Error, Display, Serialize)]
 #[serde(transparent)]
-pub(crate) struct InvalidUserId(pub(crate) InvalidString);
+pub(crate) struct InvalidUserId(#[from] InvalidString);
 
 impl_application_error!(InvalidUserId => BAD_REQUEST, INFO);
 
@@ -70,7 +70,7 @@ impl_application_error!(InvalidUserId => BAD_REQUEST, INFO);
 #[derive(Debug, Error, Display, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(transparent)]
-pub(crate) struct InvalidDocumentId(pub(crate) InvalidString);
+pub(crate) struct InvalidDocumentId(#[from] InvalidString);
 
 impl_application_error!(InvalidDocumentId => BAD_REQUEST, INFO);
 
@@ -78,7 +78,7 @@ impl_application_error!(InvalidDocumentId => BAD_REQUEST, INFO);
 #[derive(Debug, Error, Display, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(transparent)]
-pub(crate) struct InvalidDocumentPropertyId(pub(crate) InvalidString);
+pub(crate) struct InvalidDocumentPropertyId(#[from] InvalidString);
 
 impl_application_error!(InvalidDocumentPropertyId => BAD_REQUEST, INFO);
 
@@ -133,7 +133,7 @@ impl_application_error!(InvalidDocumentProperties => BAD_REQUEST, INFO);
 #[derive(Debug, Error, Display, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(transparent)]
-pub(crate) struct InvalidDocumentTag(pub(crate) InvalidString);
+pub(crate) struct InvalidDocumentTag(#[from] InvalidString);
 
 impl_application_error!(InvalidDocumentTag => BAD_REQUEST, INFO);
 
@@ -182,7 +182,7 @@ impl_application_error!(InvalidBinary => BAD_REQUEST, INFO);
 #[derive(Debug, Error, Display, Serialize)]
 #[cfg_attr(test, derive(PartialEq))]
 #[serde(transparent)]
-pub(crate) struct InvalidDocumentQuery(pub(crate) InvalidString);
+pub(crate) struct InvalidDocumentQuery(#[from] InvalidString);
 
 impl_application_error!(InvalidDocumentQuery => BAD_REQUEST, INFO);
 
