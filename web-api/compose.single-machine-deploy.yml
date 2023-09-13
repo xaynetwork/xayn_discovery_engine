@@ -1,0 +1,144 @@
+services:
+  postgres:
+    image: postgres:15.2
+    mem_limit: 4g
+    cpus: 4
+    restart: always
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:-user}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-pw}"
+      POSTGRES_DB: "xayn"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${HOST_PORT_SCOPE:-30}54:5432"
+    networks:
+      - internal
+    healthcheck:
+      test: pg_isready
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  elasticsearch:
+    # Don't forget to apply mapping.json to elasticsearch
+    # See example mapping in web-api-db-ctrl
+    # Make sure vector dimensions match model and run something like
+    # curl -XPUT 'http://localhost:3092/xayn/_mapping' -H 'Content-Type: application/json' -d @mapping.json
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.8.0
+    mem_limit: 8g
+    cpus: 8
+    restart: always
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    ports:
+      - "${HOST_PORT_SCOPE:-30}92:9200"
+    networks:
+      - internal
+    healthcheck:
+      test: curl --fail 'http://localhost:9200/_cluster/health'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backoffice:
+    image: xaynetci/xayn_discovery_ingestion_service:main-230831084031-f320e8c-multilingual_e5_small_v0001-amd64
+    mem_limit: 1.5g
+    cpus: 2
+    restart: always
+    environment:
+      XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL:  "postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-pw}@postgres:5432/xayn"
+      XAYN_WEB_API__STORAGE__ELASTIC__URL: "http://elasticsearch:9200/"
+      XAYN_WEB_API__NET__BIND_TO: "0.0.0.0:8000"
+      XAYN_WEB_API__STORAGE__POSTGRES__USER: "${POSTGRES_USER:-user}"
+      XAYN_WEB_API__STORAGE__POSTGRES__PASSWORD: "${POSTGRES_PASSWORD:-pw}"
+      XAYN_WEB_API__STORAGE__POSTGRES__APPLICATION_NAME: "xayn"
+      XAYN_WEB_API__EMBEDDING__TOKEN_SIZE: "384"
+      XAYN_WEB_API__STORAGE__ELASTIC__USER: "elastic"
+      XAYN_WEB_API__EMBEDDING__TYPE: "pipeline"
+      XAYN_WEB_API__STORAGE__ELASTIC__INDEX_NAME: "xayn"
+    ports:
+      - "${HOST_PORT_SCOPE:-30}81:8000"
+    networks:
+      - internal
+    depends_on:
+      db_ready:
+        condition: service_completed_successfully
+
+  frontoffice:
+    image: xaynetci/xayn_discovery_web_service:main-230831084031-f320e8c-multilingual_e5_small_v0001-amd64
+    mem_limit: 1.5g
+    cpus: 2
+    restart: always
+    environment:
+      XAYN_WEB_API__STORAGE__POSTGRES__BASE_URL:  "postgres://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-pw}@postgres:5432/xayn"
+      XAYN_WEB_API__STORAGE__ELASTIC__URL: "http://elasticsearch:9200/"
+      XAYN_WEB_API__NET__BIND_TO: "0.0.0.0:8000"
+      XAYN_WEB_API__STORAGE__POSTGRES__USER: "${POSTGRES_USER:-user}"
+      XAYN_WEB_API__STORAGE__POSTGRES__PASSWORD: "${POSTGRES_PASSWORD:-pw}"
+      XAYN_WEB_API__STORAGE__POSTGRES__APPLICATION_NAME: "xayn"
+      XAYN_WEB_API__EMBEDDING__TOKEN_SIZE: "384"
+      XAYN_WEB_API__STORAGE__ELASTIC__USER: "elastic"
+      XAYN_WEB_API__EMBEDDING__TYPE: "pipeline"
+      XAYN_WEB_API__STORAGE__ELASTIC__INDEX_NAME: "xayn"
+    ports:
+      - "${HOST_PORT_SCOPE:-30}82:8000"
+    networks:
+      - internal
+    depends_on:
+      db_ready:
+        condition: service_completed_successfully
+
+  tika: 
+    image: apache/tika:2.8.0.0-full 
+    mem_limit: 512m 
+    restart: always 
+    ports: 
+      - "${HOST_PORT_SCOPE:-30}98:9998" 
+    networks: 
+      - internal 
+    healthcheck: 
+      test: wget --no-verbose --tries=1 --spider 'http://localhost:9998/' 
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: nginx:latest
+    mem_limit: 256m
+    restart: always
+    volumes:
+      - ./demo:/usr/share/nginx/html/ 
+      # The web interface is optional, but if it is needed,
+      # make sure the demo folder contains the compiled demo web app
+    ports:
+      - "${HOST_PORT_SCOPE:-30}80:8000"
+
+  db_ready:
+    image: debian:bookworm-slim
+    command: echo dummy
+    restart: "no"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      tika:
+        condition: service_healthy
+
+  # For the optional chatbot module, pull llama cpp from git and 
+  # build the docker image with the provided Dockerfile
+  # It is not included here because their public image builds crash.
+  # Building it locally works with the provided Dockerfile, though.
+  # The demo probably expects the chatbot server to listen on port 1337
+  
+
+volumes:
+  postgres_data:
+  elasticsearch_data:
+
+networks:
+  internal:
