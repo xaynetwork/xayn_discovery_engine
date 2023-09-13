@@ -126,7 +126,8 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
-
+      tika:
+        condition: service_healthy
 
   # For the optional chatbot module, pull llama cpp from git and 
   # build the docker image with the provided Dockerfile
