@@ -125,9 +125,9 @@ impl InputDataRequest {
 
     fn validate(self, config: &IngestionConfig) -> Result<InputData, InvalidDocumentSnippet> {
         Ok(match self {
-            InputDataRequest::Snippet(snippet) => {
-                InputData::Snippet(DocumentSnippet::new(snippet, config.max_snippet_size)?)
-            }
+            InputDataRequest::Snippet(snippet) => InputData::Snippet(
+                DocumentSnippet::new_with_length_constraint(snippet, 1..=config.max_snippet_size)?,
+            ),
             InputDataRequest::File(encoded_bin) => InputData::Binary(
                 general_purpose::STANDARD
                     .decode(encoded_bin)

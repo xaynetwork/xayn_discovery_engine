@@ -154,6 +154,9 @@ pub(crate) struct SemanticSearchConfig {
     /// Weights for reranking of the scores. Each weight is in `[0, 1]` and they add up to `1`. The
     /// order is `[interest_weight, tag_weight, elasticsearch_weight]`.
     pub(crate) score_weights: [f32; 3],
+
+    /// Max number of bytes a query can have
+    pub(crate) max_query_size: usize,
 }
 
 impl Default for SemanticSearchConfig {
@@ -163,6 +166,7 @@ impl Default for SemanticSearchConfig {
             max_number_candidates: 100,
             default_number_documents: 10,
             score_weights: [1., 1., 0.5],
+            max_query_size: 512,
         }
     }
 }
@@ -175,6 +179,9 @@ impl SemanticSearchConfig {
         }
         if self.default_number_documents > self.max_number_documents {
             bail!("invalid SemanticSearchConfig, default_number_documents must be <= max_number_documents");
+        }
+        if self.max_query_size < 1 {
+            bail!("max_query_size needs to be at least 1");
         }
 
         Ok(())

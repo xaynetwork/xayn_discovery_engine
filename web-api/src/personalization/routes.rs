@@ -561,7 +561,7 @@ impl UnvalidatedSemanticSearchRequest {
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         let tenants_config: &tenants::Config = config.as_ref();
 
-        let document = document.validate()?;
+        let document = document.validate(semantic_search_config)?;
         let count = count.unwrap_or(semantic_search_config.default_number_documents);
         dev.validate(tenants_config.enable_dev)?;
         let num_candidates = dev
@@ -635,7 +635,7 @@ struct UnvalidatedInputDocument {
 }
 
 impl UnvalidatedInputDocument {
-    fn validate(self) -> Result<InputDocument, Error> {
+    fn validate(self, config: &SemanticSearchConfig) -> Result<InputDocument, Error> {
         let id = self
             .id
             .map(|id| id.validate().map(InputDocument::from))
@@ -645,7 +645,9 @@ impl UnvalidatedInputDocument {
                 "either id or query must be present in the request, but both were found",
             )
             .into()),
-            (None, Some(query)) => Ok(InputDocument::Query(query.try_into()?)),
+            (None, Some(query)) => Ok(InputDocument::Query(
+                DocumentQuery::new_with_length_constraint(query, 1..config.max_query_size)?,
+            )),
             (Some(id), None) => Ok(id),
             (None, None) => {
                 Err(BadRequest::from("either id or query must be present in the request").into())
