@@ -646,7 +646,7 @@ impl UnvalidatedInputDocument {
             )
             .into()),
             (None, Some(query)) => Ok(InputDocument::Query(
-                DocumentQuery::new_with_length_constraint(query, 1..config.max_query_size)?,
+                DocumentQuery::new_with_length_constraint(query, config.query_size_bounds())?,
             )),
             (Some(id), None) => Ok(id),
             (None, None) => {
