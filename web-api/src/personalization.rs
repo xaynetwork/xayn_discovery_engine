@@ -165,7 +165,7 @@ pub(crate) struct SemanticSearchConfig {
 
 impl SemanticSearchConfig {
     pub(crate) fn query_size_bounds(&self) -> impl RangeBounds<usize> + Clone {
-        1..self.max_query_size
+        1..=self.max_query_size
     }
 }
 
