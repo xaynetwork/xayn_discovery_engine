@@ -112,7 +112,7 @@ macro_rules! string_wrapper {
         $visibility struct $name(String);
 
         impl $name {
-            $visibility fn new_with_length_constraint(value: impl Into<String>, length_constraints: impl RangeBounds<usize> + Debug) -> Result<Self, $error> {
+            $visibility fn new_with_length_constraint(value: impl Into<String>, length_constraints: impl RangeBounds<usize>) -> Result<Self, $error> {
                 let mut value = value.into();
                 trim(&mut value);
                 validate_string(&value, length_constraints, &*$syntax)?;
@@ -666,7 +666,7 @@ mod tests {
     #[test]
     fn test_is_valid_query() {
         let config = SemanticSearchConfig::default();
-        let bounds = 1..=config.max_query_size;
+        let bounds = config.query_size_bounds();
 
         assert!(DocumentQuery::new_with_length_constraint(
             "abcdefghijklmnopqrstruvwxyz",

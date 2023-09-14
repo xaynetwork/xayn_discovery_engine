@@ -18,6 +18,8 @@ mod rerank;
 pub(crate) mod routes;
 mod stateless;
 
+use std::ops::RangeBounds;
+
 use actix_web::web::ServiceConfig;
 use anyhow::bail;
 use async_trait::async_trait;
@@ -156,7 +158,15 @@ pub(crate) struct SemanticSearchConfig {
     pub(crate) score_weights: [f32; 3],
 
     /// Max number of bytes a query can have
-    pub(crate) max_query_size: usize,
+    ///
+    /// Hint: Use [`Self.query_size_bounds()`] to access this.
+    max_query_size: usize,
+}
+
+impl SemanticSearchConfig {
+    pub(crate) fn query_size_bounds(&self) -> impl RangeBounds<usize> + Clone {
+        1..self.max_query_size
+    }
 }
 
 impl Default for SemanticSearchConfig {
