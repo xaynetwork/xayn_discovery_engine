@@ -23,6 +23,7 @@ use itertools::Itertools;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use tokio::join;
 use tracing::info;
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
@@ -131,11 +132,9 @@ impl Client {
 
         let knn_request = merge_json_objects([knn_object, generic_parameters.clone()]);
         // don't rescale the knn_scores since they would need to be immediately normalized again to be fed into normalize_knn()
-        let knn_scores = self
-            .search_request(knn_request, SnippetId::try_from_es_id)
-            .await?;
+        let knn_scores = self.search_request(knn_request, SnippetId::try_from_es_id);
 
-        let bm_25 = merge_json_objects([
+        let bm25 = merge_json_objects([
             json_object!({
                 "query": { "bool": merge_json_objects([
                     inner_filter,
@@ -147,11 +146,11 @@ impl Client {
             generic_parameters,
         ]);
         // FIXME parallelize polling
-        let bm25_scores = self
-            .search_request(bm_25, SnippetId::try_from_es_id)
-            .await?;
+        let bm25_scores = self.search_request(bm25, SnippetId::try_from_es_id);
 
-        let merged = merge_function(normalize_knn(knn_scores), normalize_bm25(bm25_scores));
+        let (knn_scores, bm25_scores) = join!(knn_scores, bm25_scores);
+
+        let merged = merge_function(normalize_knn(knn_scores?), normalize_bm25(bm25_scores?));
         Ok(take_highest_n_scores(count, merged))
     }
 
