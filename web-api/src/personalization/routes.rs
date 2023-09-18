@@ -603,6 +603,7 @@ impl UnvalidatedSemanticSearchRequest {
             include_snippet,
             filter,
             is_deprecated,
+            use_elser,
         })
     }
 }
@@ -752,6 +753,7 @@ struct SemanticSearchRequest {
     include_snippet: bool,
     filter: Option<Filter>,
     is_deprecated: bool,
+    use_elser: bool,
 }
 
 struct RecommendationRequest {
