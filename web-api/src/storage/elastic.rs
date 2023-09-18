@@ -145,7 +145,6 @@ impl Client {
             }),
             generic_parameters,
         ]);
-        // FIXME parallelize polling
         let bm25_scores = self.search_request(bm25, SnippetId::try_from_es_id);
 
         let (knn_scores, bm25_scores) = join!(knn_scores, bm25_scores);
