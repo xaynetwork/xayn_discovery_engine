@@ -51,7 +51,22 @@ curl -X POST "$URL/documents" \
                     "link": "https://xayn.com/blog/the-initial-challenge",
                     "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
                     "location" : ["germany", "berlin", "conference"]
-                }
+                },
+            },
+            {
+                "id": "xayn_ff5604c",
+                "snippet": "If you only ingested one short document you can't really try out any of the functional, so here is another document",
+                "summarize": false,
+            },
+            {
+                "id": "00000",
+                "snippet": "There are just very few constraints on what an id can be, this means that most times you can just plug in ides from any other system you use to store documents in. But be aware tht ids are strings so 0, 00, and 000 are all different ids.",
+                "summarize": false,
+            },
+            {
+                "id": "xayn_604c",
+                "snippet": "Privacy protection and ownership is a topic of another document, so is semantic search.",
+                "summarize": false,
             }
         ]
     }'
