@@ -463,6 +463,7 @@ struct UnvalidatedSemanticSearchRequest {
     #[serde(default)]
     include_snippet: bool,
     filter: Option<Filter>,
+    use_elser: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -511,8 +512,14 @@ impl<'a> SearchStrategy<'a> {
     fn new(
         enable_hybrid_search: bool,
         dev_hybrid_search: Option<DevHybrid>,
+        use_elser: bool,
         query: Option<&'a DocumentQuery>,
     ) -> Self {
+        if use_elser {
+            return Self::HybridElser {
+                query: query.unwrap(),
+            };
+        }
         if !enable_hybrid_search {
             return Self::Knn;
         }
@@ -557,6 +564,7 @@ impl UnvalidatedSemanticSearchRequest {
             include_properties,
             include_snippet,
             filter,
+            use_elser,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         let tenants_config: &tenants::Config = config.as_ref();
@@ -641,6 +649,7 @@ impl UnvalidatedRecommendationRequest {
             include_snippet,
             filter,
             is_deprecated,
+            use_elser,
         })
     }
 }
@@ -752,6 +761,7 @@ struct RecommendationRequest {
     include_snippet: bool,
     filter: Option<Filter>,
     is_deprecated: bool,
+    use_elser: bool,
 }
 
 enum InputDocument {
@@ -800,6 +810,7 @@ async fn semantic_search(
         include_snippet,
         filter,
         is_deprecated,
+        use_elser,
     } = body
         .validate_and_resolve_defaults(&state.config, &storage, &mut warnings)
         .await?;
@@ -831,7 +842,7 @@ async fn semantic_search(
             (embedding, Some(query))
         }
     };
-    let strategy = SearchStrategy::new(enable_hybrid_search, dev_hybrid_search, query);
+    let strategy = SearchStrategy::new(enable_hybrid_search, dev_hybrid_search, use_elser, query);
 
     let mut documents = storage::Document::get_by_embedding(
         &storage,

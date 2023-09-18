@@ -511,6 +511,10 @@ components:
           oneOf:
             - $ref: '#/components/schemas/FilterCompare'
             - $ref: '#/components/schemas/FilterCombine'
+        use_elser:
+            description: Use the elser model for query expansion.
+            type: boolean
+            default: false
     SemanticSearchResponse:
       type: object
       required: [documents]

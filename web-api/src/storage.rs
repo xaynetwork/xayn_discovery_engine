@@ -88,6 +88,9 @@ pub(crate) enum SearchStrategy<'a> {
         normalize_bm25: NormalizationFn,
         merge_fn: MergeFn,
     },
+    HybridElser {
+        query: &'a DocumentQuery,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Deserialize)]
