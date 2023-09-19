@@ -123,7 +123,7 @@ We provide a functionality to extract multiple snippets from the provided conten
 The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
 
 This algorithm will be improved over time. This means a document ingested now and a equal document ingested
-in the future might have different splits. Additionally not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even if changes to the algorithm are ignored.
+in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even if changes to the algorithm are ignored.
 
 Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
 We are working to add support for multiple languages to our text-splitting algorithms.
