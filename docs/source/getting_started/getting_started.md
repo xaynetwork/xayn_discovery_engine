@@ -135,7 +135,7 @@ curl -X PATCH "$URL/users/u1234/interactions" \
 ```
 
 ```{note}
-Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the personalised endpoint. This includes all snippets associated to that document
+Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the personalised endpoint. This includes all snippets associated to that document.
 ```
 
 Let's ask for personalised documents again now:
