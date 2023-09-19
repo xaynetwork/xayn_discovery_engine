@@ -421,7 +421,8 @@ impl SerializeDocumentIds for HashSet<DocumentId> {}
 impl SerializeDocumentIds for HashSet<&'_ DocumentId> {}
 
 #[derive(Debug, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub(crate) struct IndexUpdateConfig {
     requests_per_second: usize,
     method: IndexUpdateMethod,

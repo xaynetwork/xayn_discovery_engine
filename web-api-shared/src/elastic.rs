@@ -50,7 +50,8 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub struct Config {
     pub url: String,
     pub user: String,

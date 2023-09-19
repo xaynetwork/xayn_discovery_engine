@@ -54,7 +54,8 @@ mod serde_level_filter {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub struct Config {
     pub file: Option<RelativePathBuf>,
     #[serde(with = "serde_level_filter")]

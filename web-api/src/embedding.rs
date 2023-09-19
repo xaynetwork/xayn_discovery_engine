@@ -34,7 +34,8 @@ impl Default for Config {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub struct Pipeline {
     #[serde(deserialize_with = "RelativePathBuf::deserialize_string")]
     pub(crate) directory: RelativePathBuf,
