@@ -108,7 +108,7 @@ could split the text into three part:
 
 Be aware that `sub_id` is **not** guaranteed to have any specific ordering or structure, even through in practice
 it will most times look sequential incremental. Similar the natural language based splitting is not
-guaranteed to be deterministic. Especially over time with the algorithm being improved it will change.
+guaranteed to be deterministic. Especially over time, as we continue to improve the algorithm, the splitting may change.
 
 The `properties` field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.
 
