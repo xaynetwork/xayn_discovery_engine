@@ -79,7 +79,7 @@ Each document has a unique identifier that can be used to refer to it in the sys
 
 The `snippet` field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.
 
-For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyze is limited, if it is not possible to provide a concise snippet, we can use the per-document option `summarize`; when enabled, the system will summarize the content of the document to create a snippet. Alternatively the `split` option can be used which will split the document into multiple snippets,
+For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyze is limited, we can use the per-document option `summarize` when it is not possible to provide a concise snippet; when enabled, the system will summarise the content of the document to create a snippet. Alternatively, the `split` option can be used which will split the document into multiple snippets,
 this can be used to get better result on larger documents. More information on this can be found in the section  [split documents](#split-documents).
 
 For example the ingestion of (the first few paragraphs of the public domain book DRACULA by Bram Stoker):
