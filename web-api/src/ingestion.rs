@@ -85,7 +85,8 @@ impl AppState {
 }
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub struct Config {
     pub(crate) logging: logging::Config,
     pub(crate) net: net::Config,
@@ -98,7 +99,8 @@ pub struct Config {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub struct IngestionConfig {
     pub(crate) max_document_batch_size: usize,
     pub(crate) max_indexed_properties: usize,

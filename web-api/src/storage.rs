@@ -298,7 +298,8 @@ pub(crate) trait IndexedProperties {
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub struct Config {
     elastic: elastic::Config,
     postgres: postgres_shared::Config,
