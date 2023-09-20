@@ -178,10 +178,10 @@ impl Client {
             generic_parameters.clone(),
         ]);
         // FIXME parallelize polling
-        let all_scores = self
+        let scores = self
             .search_request(req_body_merged, SnippetId::try_from_es_id)
             .await?;
-        Ok(take_highest_n_scores(count, all_scores))
+        Ok(scores)
     }
 
     async fn hybrid_search(
