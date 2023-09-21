@@ -279,6 +279,7 @@ impl<I> BulkResponse<I> {
 struct Hit<I> {
     #[serde(rename = "_id")]
     id: I,
+    #[serde(default)]
     #[serde(rename = "_score")]
     score: f32,
 }
