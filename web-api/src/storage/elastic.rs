@@ -189,6 +189,8 @@ impl Client {
         params: KnnSearchParams<'_>,
         query: &DocumentQuery,
     ) -> Result<ScoreMap<SnippetId>, Error> {
+        let count = params.count;
+
         let KnnSearchParts {
             knn_object,
             generic_parameters,
