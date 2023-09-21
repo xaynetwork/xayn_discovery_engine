@@ -120,10 +120,18 @@ impl<'de> Deserialize<'de> for CompareWith {
                     CompareOp::In => {
                         if let Some(unexpected) = match &*value {
                             // we only accept string arrays as valid properties
-                            Value::Array(value) => {
-                                let len = value.len();
+                            Value::Array(values) => {
+                                let len = values.len();
                                 if len > CompareOp::MAX_VALUES_PER_IN {
                                     return Err(A::Error::invalid_length(len, &Self));
+                                }
+                                for value in values {
+                                    if !matches!(value, Value::String(_)) {
+                                        return Err(A::Error::invalid_type(
+                                            Unexpected::Other("only string arrays are allowed"),
+                                            &Self,
+                                        ));
+                                    }
                                 }
                                 None
                             }
@@ -568,6 +576,12 @@ mod tests {
             CompareOp::MAX_VALUES_PER_IN + 1,
             2013,
         );
+        assert_invalid_type(r#"{ "$in": [null] }"#, "only string arrays are allowed", 17);
+        assert_invalid_type(r#"{ "$in": [0] }"#, "only string arrays are allowed", 14);
+        assert_invalid_type(r#"{ "$in": [1.0] }"#, "only string arrays are allowed", 16);
+        assert_invalid_type(r#"{ "$in": [true] }"#, "only string arrays are allowed", 17);
+        assert_invalid_type(r#"{ "$in": [[]] }"#, "only string arrays are allowed", 15);
+        //assert_invalid_type(r#"{ "$in": [{}}] }"#, "only string arrays are allowed", 15);
         assert_invalid_type(r#"{ "$eq": ["a", "b", "c"] }"#, "sequence", 26);
         assert_invalid_type(r#"{ "$gt": ["a", "b", "c"] }"#, "sequence", 26);
         assert_invalid_type(r#"{ "$gte": ["a", "b", "c"] }"#, "sequence", 27);
