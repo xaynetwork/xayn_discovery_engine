@@ -210,13 +210,7 @@ impl Client {
             }
         );
 
-        let rrf = json_object!(
-            {
-                "rank": {
-                "rrf": {}
-                }
-            }
-        );
+        let rrf = json_object!({ "rank": { "rrf": {} } });
 
         let req_body_merged = merge_json_objects([
             knn_object,
