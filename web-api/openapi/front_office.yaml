@@ -234,7 +234,7 @@ components:
     IncludeSnippet:
       description: Includes the snippets text for each search result.
       type: boolean
-      default: true
+      default: false
     FilterCompare:
       type: object
       additionalProperties:
