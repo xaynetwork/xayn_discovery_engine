@@ -65,19 +65,19 @@ curl -X POST "$URL/documents" \
                     "link": "https://xayn.com/blog/the-initial-challenge",
                     "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
                     "location" : ["germany", "berlin", "conference"]
-                },
+                }
             },
             {
                 "id": "xayn_ff5604c",
-                "snippet": "If you only ingested one short document you can't really try out any of the functional, so here is another document",
+                "snippet": "If you only ingested one short document you can't really try out any of the functional, so here is another document"
             },
             {
                 "id": "00000",
-                "snippet": "There are just very few constraints on what an id can be, this means that most times you can just plug in ides from any other system you use to store documents in. But be aware tht ids are strings so 0, 00, and 000 are all different ids.",
+                "snippet": "There are just very few constraints on what an id can be, this means that most times you can just plug in ides from any other system you use to store documents in. But be aware tht ids are strings so 0, 00, and 000 are all different ids."
             },
             {
                 "id": "xayn_604c",
-                "snippet": "Privacy protection and ownership is a topic of another document, so is semantic search.",
+                "snippet": "Privacy protection and ownership is a topic of another document, so is semantic search."
             }
         ]
     }'
@@ -92,7 +92,7 @@ The `snippet` field is used to inform the system about the content of the docume
 
 For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. If you
 intend to ingest larger documents the [preprocessing section](#document-preprocessing) contains some
-examples about enabling the usage of a summarizer or document splitting.
+examples about enabling the usage of a [summarizer](#summarizer) or [document splitting](#automatic-document-splitting).
 
 The `properties` field is completely optional. It can contain custom data that can be used for [filtering](#filters) and that the system will return when a document is part of the result of a query.
 
@@ -425,7 +425,7 @@ For example if we ingest a document like
 ```json
 {
     "id": "12345",
-    "snippet": "some text",
+    "snippet": "some text"
 },
 ```
 
@@ -486,9 +486,9 @@ curl -X POST "$URL/documents" \
                 "id": "affeffa",
                 "snippets": [
                     "mention dogs",
-                    "mention birds",
+                    "mention birds"
                 ]
-            },
+            }
         ]
     }'
 
@@ -581,11 +581,11 @@ processed similar to registering an interaction which each snippet of that docum
 
 The back office ingestion API provides functionality to automatically summarize the provided content.
 
+## Summarizer
+
 This can be used if the content is to large to be used directly as a snippet. Due to the fact that
 the summarized text still has to fit into the size constraints of a snippet it is often better to
 use the [automatic document splitting instead](#automatic-document-splitting).
-
-TODO example
 
 ## Automatic document splitting
 
@@ -618,7 +618,7 @@ curl -X POST "$URL/documents" \
             {
                 "id": "xayn_efd5604c",
                 "snippet": "6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.  Bei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.  Die  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an. Maßgeblich ist das Datum des Vertragsschlusses. Dabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags. Die Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.  den\nVergabeunterlagen bekannt sind.\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen. Dies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit. Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat. Hierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen. Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt.",
-                "split": true,
+                "split": true
             }
         ]
     }'
@@ -633,7 +633,41 @@ could split the text into three part:
 
 ## Text extraction
 
-TODO
+_The text extraction features is not enabled/available by default_ contact Xayn if you do need it.
+
+Documents are often in other format then plain text. When ingesting you can decide to provide a
+document "file" instead of a snippet. If you do so we will try to extract snippets from the given
+file.
+
+Currently this option can only be used together with the split option and follwing file formats are supported: `application/pdf`, `text/plain`, `text/html`.
+
+The "file" is provided base64 encoded, so if we reuse the example from the getting started section
+provding the snippet as `text/plain` file would be done like following:
+
+```bash
+curl -X POST "$URL/documents" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "documents": [
+            {
+                "id": "xayn_cd5604c",
+                "file": "VGhlIHZvaWNlcyB0aGF0IGFyZSBkZW1hbmRpbmcgYmV0dGVyIHByaXZhY3kgcHJvdGVjdGlvbiBhbmQgb3duZXJzaGlwIG9mIG91ciBvd24gZGF0YSBhcmUgaW5jcmVhc2luZ2x5IGxvdWRlciwgdGhlcmUgaXMgYSBiYWNrbGFzaCB0b3dhcmRzIHRoZXNlIHByYWN0aWNlcy4gQXQgWGF5biwgb3VyIG1pc3Npb24gaXMgdG8gcHJvdmlkZSBwZXJzb25hbGlzYXRpb24gd2l0aG91dCB1c2VyIGRhdGEgbGVhdmluZyB0aGUgZGV2aWNlLCBtYWludGFpbmluZyBhYnNvbHV0ZSBwcml2YWN5LiBXZSB1c2Ugc2VtYW50aWMgc2ltaWxhcml0eSBhbmQgY2VudGVycyBvZiBpbnRlcmVzdCB0byB1bmRlcnN0YW5kIHVzZXIgcHJlZmVyZW5jZXMgYW5kIHByZXNlbnQgYmV0dGVyIG1hdGNoaW5nIGFydGljbGVzLiBXaXRoIG91ciBtb2RlbCBYYXluaWEsIHdlIG9mZmVyIHNlbWFudGljIHNpbWlsYXJpdHkgYW5kIHNlYXJjaCB3aXRoIG1pbmltYWwgZW5lcmd5IGNvbnN1bXB0aW9uIGFuZCBhdCBhIGxvdyBwcmljZSwgbWFraW5nIGl0IGhpZ2hseSBlbmVyZ3ktZWZmaWNpZW50IGNvbXBhcmVkIHRvIG90aGVyIHRyYW5zZm9ybWVyIG1vZGVscy4=",
+                "properties": {
+                    "title": "The initial challange",
+                    "link": "https://xayn.com/blog/the-initial-challenge",
+                    "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
+                    "location" : ["germany", "berlin", "conference"]
+                },
+                "split": true
+            }
+        ]
+    }'
+
+```
+
+Be aware that this always has the potential to produce [multiple snippets](#documents-with-multiple-snippets).
+
 # Candidates API
 
 The [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates) api is a set back-office requests that allows to globally define the documents that all apis can recommend or generate search results from. Snippets from documents that are not part of the candidates set will not be included in search results or recommendations, but interactions with these documents are still stored and can still be recorded.
