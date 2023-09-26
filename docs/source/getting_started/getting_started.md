@@ -2,17 +2,32 @@
 
 Here we take a high-level look at how the system works. The API is divided into two parts: the back office and the front office.
 
-The back office system can be used to ingest your content into the system. Every piece of content you ingest is managed as one document within the Xayn system.
+The back office can be used to ingest your content into the system. Every piece of content you ingest is managed as one document within the Xayn system.
 
-A document is comprised of one or more snippets. Each snippet represents a piece of the content of the document. In the simplest case, you only have one snippet per document in such a case you can mentally replace snippet with document in most of the remaining documentation. Through as there are limits on
-how long a snippet can be, we provide functionality to either summarize the content or split the content of a document into multiple snippets. In many places both a document id and the id of a specific snippet can be used.
+The front office is used for all communication between a client form a user. The front office mainly provides following use cases:
 
-During ingestion, the system creates a mathematical representation of each snippet which is used to match the snippets to the user's interests and searches.
+- semantic search, i.e. trying to find documents which are semantically similar to
+    - ... a text query
+    - ... a document
+- personalized recommendations of documents for a  user
+    - this is based on semantic representations of the users interest
+    - this interests can either be aggregated on out system
+    - or provided ad-hoc so that we never store user specific information
+
+Based on this many other use cases can be implemented. For example the personalization API can be used to implement a 'for you' section and the semantic search based on a document can be used to provide a 'more like this' section or add 'more like this' functionality to a 'for you' section. Another common use-case is to use the document based semantic search to refine an existing search.
+
+![architectural overview](./architecture_overview.png)
+
+Before the search or personalization APIs can be used documents need to be ingested into our search system. In the simplest case each document will produce exactly one search target based on its content.
+Through in more complex cases it can produce multiple search target and/or pre-process the content in some way. In the first part of this documentation we will only cover the case where a document directly maps to a single snippet. The following parts will cover more advanced use-cases.
+
+In general we refer to this search targets as snippets, as at their core they are snippets of text.
+From each of this snippets we will derive a mathematical representation which is used to match the snippets to the provided search queries or user's interests.
 
 Once we have the documents in the system, we can use the front office to implement different use cases. For example, to have a ‘for you’ section, we need to add user interactions (clicks, reading, viewing) with documents or snippets. With each interaction, the system creates or updates a model that represents the user’s interests each time we add an interaction. Each user has a unique model that is used to return individually personalised search results and recommendations in form of a list of best matching snippets/documents.
 
-Later, we will discuss other ways to get personalised documents without adding interactions.
-With the front office, it is also possible to implement other use cases such as 'more like this', semantic and hybrid search.
+In following we will first explain the general usage of the APIs in the simplest use-cases. Then in [document preprocessing](#document-preprocessing) we will show some more advanced API usages. Lastly in
+the [use-cases](#use-cases) section we will highlight some additional specific example use-cases.
 
 # Getting started
 
