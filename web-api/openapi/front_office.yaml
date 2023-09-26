@@ -230,11 +230,9 @@ components:
     IncludeProperties:
       description: Include the properties of each document in the response.
       type: boolean
-      default: true
     IncludeSnippet:
       description: Includes the snippets text for each search result.
       type: boolean
-      default: false
     FilterCompare:
       type: object
       additionalProperties:
@@ -312,8 +310,10 @@ components:
           $ref: './schemas/time.yml#/PublishedAfter'
         include_properties:
           $ref: '#/components/schemas/IncludeProperties'
+          default: true
         include_snippet:
           $ref: '#/components/schemas/IncludeSnippet'
+          default: false
         filter:
           description:
             $ref: '#/components/schemas/Filter/description'
@@ -369,8 +369,10 @@ components:
           $ref: './schemas/time.yml#/PublishedAfter'
         include_properties:
           $ref: '#/components/schemas/IncludeProperties'
+          default: true
         include_snippet:
           $ref: '#/components/schemas/IncludeSnippet'
+          default: false
         personalize:
           description: Personalize the ranking of candidates based on a users preferences.
           type: object
