@@ -198,6 +198,10 @@ scores from the same requests.
 
 The field `snippet_id` identifies a specific snippet instead of just the document as a whole. If you do not plan to ever have documents with multiple snippets you can ignore it. But as it's hard to predict the future needs it's highly recommended to use the whole snippet idea for use cases search refinement or a 'more like this' section. [See documents with multiple snippets](#documents-with-multiple-snippets) for more details.
 
+If `include_properties` is set to false properties are not included in the output, you still can filter based on them.
+
+If `include_snippet` is set to true the plain text snippet of the search result is returned. Be aware that whitespace in returned snippet can differ to the text provided to the ingestion API.
+
 ## Search
 
 Depending on the use-case searching for documents can be achieved as a search for documents _similar_ to a given snippet/document or as a _free-text search_. Both variants can then be run as a anonymous search or a search that is personalized. Personalization comes in two fashions, with a _user-id_ or by providing a interaction _history_.
@@ -587,6 +591,8 @@ This can be used if the content is to large to be used directly as a snippet. Du
 the summarized text still has to fit into the size constraints of a snippet it is often better to
 use the [automatic document splitting instead](#automatic-document-splitting).
 
+If if a search using `include_snippet` returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.
+
 ## Automatic document splitting
 
 The back office ingestion API provides functionality to automatically split a document into
@@ -606,6 +612,8 @@ to `true` like shown in the example below.
 **Be aware that if documents with multiple snippets are used it is highly recommended to use
 the snippet id for many use-cases, more details can be found in the
 [section about documents with multiple snippets](#documents-with-multiple-snippets)**
+
+If if a search using `include_snippet` returns a snippet from a split document then the returned snippet will be the "split" segment produced by the splitting algorithm.
 
 For example the ingestion of (from BAnz AT 13.07.2023 B1 page 3):
 
