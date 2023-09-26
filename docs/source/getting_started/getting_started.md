@@ -26,8 +26,8 @@ From each of this snippets we will derive a mathematical representation which is
 
 Once we have the documents in the system, we can use the front office to implement different use cases. For example, to have a ‘for you’ section, we need to add user interactions (clicks, reading, viewing) with documents or snippets. With each interaction, the system creates or updates a model that represents the user’s interests each time we add an interaction. Each user has a unique model that is used to return individually personalised search results and recommendations in form of a list of best matching snippets/documents.
 
-In following we will first explain the general usage of the APIs in the simplest use-cases. Then in [document preprocessing](#document-preprocessing) we will show some more advanced API usages. Lastly in
-the [use-cases](#use-cases) section we will highlight some additional specific example use-cases.
+In following we will first explain the general usage of the APIs in the simplest use-cases. Further below
+you can find sections about [documents with multiple snippets](#documents-with-multiple-snippets), options for [document preprocessing](#document-preprocessing) and more.
 
 # Getting started
 
@@ -45,11 +45,11 @@ export BACKOFFICE_TOKEN="<backoffice_token>"
 export FRONTOFFICE_TOKEN="<frontoffice_token>"
 ```
 
-# Ingest
+## Ingest
 
 We can use the back office endpoint [`/documents`](https:/docs.xayn.com/back_office.html#operation/createDocuments) to ingest documents.
 
-We will ingest a document that represents this article: [https://xayn.com/blog/the-initial-challenge](https://xayn.com/blog/the-initial-challenge).
+We will ingest a document that represents this article: [https://xayn.com/blog/the-initial-challenge](https://xayn.com/blog/the-initial-challenge), as well as some less meaningful examples.
 
 ```bash
 curl -X POST "$URL/documents" \
@@ -60,7 +60,6 @@ curl -X POST "$URL/documents" \
             {
                 "id": "xayn_cd5604c",
                 "snippet": "The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there is a backlash towards these practices. At Xayn, our mission is to provide personalisation without user data leaving the device, maintaining absolute privacy. We use semantic similarity and centers of interest to understand user preferences and present better matching articles. With our model Xaynia, we offer semantic similarity and search with minimal energy consumption and at a low price, making it highly energy-efficient compared to other transformer models.",
-                "summarize": false,
                 "properties": {
                     "title": "The initial challange",
                     "link": "https://xayn.com/blog/the-initial-challenge",
@@ -71,17 +70,14 @@ curl -X POST "$URL/documents" \
             {
                 "id": "xayn_ff5604c",
                 "snippet": "If you only ingested one short document you can't really try out any of the functional, so here is another document",
-                "summarize": false,
             },
             {
                 "id": "00000",
                 "snippet": "There are just very few constraints on what an id can be, this means that most times you can just plug in ides from any other system you use to store documents in. But be aware tht ids are strings so 0, 00, and 000 are all different ids.",
-                "summarize": false,
             },
             {
                 "id": "xayn_604c",
                 "snippet": "Privacy protection and ownership is a topic of another document, so is semantic search.",
-                "summarize": false,
             }
         ]
     }'
@@ -94,56 +90,19 @@ Each document has a unique identifier that can be used to refer to it in the sys
 
 The `snippet` field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.
 
-For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyze is limited, we can use the per-document option `summarize` when it is not possible to provide a concise snippet; when enabled, the system will summarise the content of the document to create a snippet. Alternatively, the `split` option can be used which will split the document into multiple snippets,
-this can be used to get better result on larger documents. More information on this can be found in the section  [split documents](#split-documents).
+For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. If you
+intend to ingest larger documents the [preprocessing section](#document-preprocessing) contains some
+examples about enabling the usage of a summarizer or document splitting.
 
-For example the ingestion of (from BAnz AT 13.07.2023 B1 page 3):
-
-```bash
-curl -X POST "$URL/documents" \
-    --header "authorizationToken: $BACKOFFICE_TOKEN" \
-    --header "Content-Type: application/json" \
-    --data '{
-        "documents": [
-            {
-                "id": "xayn_efd5604c",
-                "snippet": "6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.  Bei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.  Die  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an. Maßgeblich ist das Datum des Vertragsschlusses. Dabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags. Die Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.  den\nVergabeunterlagen bekannt sind.\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen. Dies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit. Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat. Hierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen. Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt.",
-                "split": true,
-            }
-        ]
-    }'
-
-```
-
-could split the text into three part:
-
-- `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 802 }` containing `"6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.\n\nBei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.\n\nDie  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an.\n\nMaßgeblich ist das Datum des Vertragsschlusses.\n\nDabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags.\n\nDie Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.\n\nden\nVergabeunterlagen bekannt sind.\n\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen.\n\nDies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit."`
-- `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 4 }` containing `"Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat.\n\nHierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen."`
-- `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 300 }` containing `"Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\n\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt."`
-
-Be aware that `sub_id` is **not** guaranteed to have any specific ordering or structure, even through in practice
-it will most times look sequential incremental. Similar the natural language based splitting is not
-guaranteed to be deterministic. Especially over time, as we continue to improve the algorithm, the splitting may change.
-
-The `properties` field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.
+The `properties` field is completely optional. It can contain custom data that can be used for [filtering](#filters) and that the system will return when a document is part of the result of a query.
 
 The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see [createDocuments](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) for more information on properties.
 
-This example assumes that we will eventually display the returned documents as a 'for-you' section, where we want to display an article's image, title, text preview, and a link (for click-through), so we have included these specific properties during ingestion.
+For example in case of a 'for you' section you could include properties containing a link to the
+article, a title, a link to an image as well as a text preview or similar short description. Some
+of the examples below include properties like that.
 
-## Split Documents
-
-We provide a functionality to extract multiple snippets from the provided content of a document.
-
-The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
-
-This algorithm will be improved over time. This means a document ingested now and a equal document ingested
-in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even if changes to the algorithm are ignored.
-
-Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
-We are working to add support for multiple languages to our text-splitting algorithms.
-
-# Recommendations: Personalised documents
+## Recommendations: Personalised documents
 
 After ingestion, we can use the front office to retrieve recommendations, which we call personalised documents, and implement a 'for you' section.
 
@@ -165,9 +124,10 @@ As we can see, this returns with `409` status code and the following body:
 { "kind": "NotEnoughInteractions" }
 ```
 
-When there is an error, the system uses the 'kind' field to specify what kind of error has occurred. There may also be a `details` field.
+When there is an error, the system uses the `kind` field to specify what kind of error has occurred. There may also be a `details` field which can be used to better understand the error, be aware that
+the exact way details are encoded is not fixed and can change.
 
-In this case, we have 'NotEnoughInteractions'. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.
+In this case, we have `NotEnoughInteractions`. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.
 
 We can add an [interaction](https://docs.xayn.com/front_office.html#tag/interaction) between our user `u1234` and the document `xayn_cd5604c`:
 
@@ -216,6 +176,7 @@ As a result, we will get something like:
 {
   "documents": [
   {
+      "id": "xayn_5283ef3",
       "snippet_id": { "document_id": "xayn_5283ef3", "sub_id": 0 },
       "score": 0.8736,
       "properties": {
@@ -235,15 +196,13 @@ In the request, we ask the system to include the properties of the returned docu
 We also have a `score` field which represents how well the documents match the user's interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
 scores from the same requests.
 
-The field `snippet_id` identifies a specific snippet. The `document_id` in the `snippet_id` is the id of the document associated with the snippet.
+The field `snippet_id` identifies a specific snippet instead of just the document as a whole. If you do not plan to ever have documents with multiple snippets you can ignore it. But as it's hard to predict the future needs it's highly recommended to use the whole snippet idea for use cases search refinement or a 'more like this' section. [See documents with multiple snippets](#documents-with-multiple-snippets) for more details.
 
-If you do not use ingestion options like `split` and in turn only have one snippet per document then you can always use `snippet_id.document_id` and ignore the rest. In many places both a the full snippet id object or a document id string can be used. If documents which have multiple snippets are ingested it's highly recommended to always use the full snippet id.
-
-# Search
+## Search
 
 Depending on the use-case searching for documents can be achieved as a search for documents _similar_ to a given snippet/document or as a _free-text search_. Both variants can then be run as a anonymous search or a search that is personalized. Personalization comes in two fashions, with a _user-id_ or by providing a interaction _history_.
 
-## Similar documents
+### Similar documents
 
 In this search variant either a _document id_ or a _snippet id_ must be provided to the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments) endpoint.
 
@@ -252,20 +211,20 @@ curl -X POST "$URL/semantic_search" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
     --data '{
-        "document": { "id": { "document_id": "xayn_cd5604c", "sub_id": 2 } },
+        "document": { "id": "xayn_cd5604c" },
         "include_properties": true
     }'
 ```
 
 The result contains a list of snippets that are similar to the identified snippet.
 
-If only documents with a single snippet are used you can provide only the document id
-like this: `"document": { "id": "xayn_cd5604c" },`.
+```{note}
+If this is used like shown above with a [document with multiple snippets](#documents-with-multiple-snippets) it will currently do a semantic search based on the first
+snippet of the document instead of the document as a whole. In the future this behaviour likely
+will change to do a search based on the whole document instead.
+```
 
-Be aware that at this moment, this is equivalent to doing a semantic search on the first snippet of a document.
-In the future, this behaviour could change to better represent the intent to search for something similar to the whole document. If you want to explicitly search for the first snippet use a _snippet id_.
-
-## Free Text search
+### Free Text search
 
 Just like [Similar documents](#similar-documents) it is also possible to run a free text search.
 
@@ -293,11 +252,11 @@ The quality of the results can vary on the length of the provided query. Short q
 }
 ```
 
-## Personalised search
+### Personalised search
 
 To personalise search results for a specific user, any search can also be combined with an `user id` or a user `history`, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.
 
-This is how we ask the system for a personalised search result for a [user](#recommendations-personalised-documents):
+This is how we ask the system for a personalised search result for a [user](#recommendations-personalized-documents):
 
 ```bash
 curl -X POST "$URL/semantic_search" \
@@ -325,7 +284,7 @@ Alternatively a history of interactions can be used instead of a user id to ask 
     "user": {
          "history": [
              {
-                 "id": { "document_id": "valid_doc_id1", "sub_id": 2 },
+                 "id": "valid_doc_id1",
                  "timestamp": "2000-05-14T20:22:50Z"
              },
              {
@@ -341,7 +300,9 @@ Alternatively a history of interactions can be used instead of a user id to ask 
 Please note: `"exclude_seen": true` (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.
 ```
 
-# Filters
+Similar to other APIs it's recommended to use the snippet id instead in case you might use [documents with multiple snippets](#documents-with-multiple-snippets) in the future.
+
+### Filters
 
 Finding specific documents in large datasets based on a key-phrase or their relation to other documents can often be challenging. To address this issue, we can employ a structured filter on one or more of the `properties` fields to narrow down the search scope.
 
@@ -354,7 +315,7 @@ The `filter` functionality is available in the [`/semantic_search`](https://docs
 Please note that the __first step__ is necessary to leverage the filtering at all.
 ```
 
-## Indexing a filter property
+#### Indexing a filter property
 
 First lets check which properties are already indexed:
 
@@ -392,7 +353,7 @@ curl -X POST "$URL/documents/_indexed_properties" \
 
 After a short indexing period, depending on the number of ingested documents, we can apply filters to our requests.
 
-## Applying a Filter
+#### Applying a Filter
 
 Applying a filter then just requires to use the `filter` property in the `/semantic_search` or `/users/{user_id}/personalized_documents` query parameter. In the following two examples we simply filter for the tag `conference`.
 
@@ -438,7 +399,242 @@ curl -X POST "$URL/users/u1234/personalized_documents" \
     }'
 ```
 
-# Candidates
+# Documents with multiple Snippets
+
+Documents can have multiple snippets, and at the core our search and recommendation system is based on the searching for and recommending snippets not documents.
+
+When using documents with multiple snippets you need to be aware about a few things:
+
+- there is a snippet id for each specific snippet a document has
+- we search for snippets not documents, so results can contains multiple (different) snippets of the same document
+- many APIs which accepts either a document id for referring to a document as a whole or a snippet id to refer to a specific snippet
+    - some APIs currently fall back to using the first snippet if only document id is used, but this is intended to change in the future
+
+We made sure that all search APIs in which you can refer to a specific snippet also work with just the document id even if the document has multiple snippets. _But_ the results might not be quite as expected as there can be a huge difference in the search results.
+
+## Snippet Id
+
+Snippets are identified by a snippet id consisting of both the document id and a sub id.
+
+Each document is guaranteed to have a snippet with sub id equals `0`. But besides that
+there are no guarantees about the value of the `sub_id`. E.g. a document might have snippet
+id's with the sub ids `0`, `400`, `2334`.
+
+For example if we ingest a document like
+
+```json
+{
+    "id": "12345",
+    "snippet": "some text",
+},
+```
+
+It would have a single snippet with the id `{ "document_id": "12345", "sub_id": 0 }`.
+
+So if we have following semantic search example
+
+```bash
+curl -X POST "$URL/semantic_search" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "document": { "id": "12345" },
+        "include_properties": true
+    }'
+```
+
+we could also use the snippet id instead like shown below
+
+```bash
+curl -X POST "$URL/semantic_search" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "document": { "id": { "document_id": "12345", "sub_id": 0 },
+        "include_properties": true
+    }'
+```
+
+This pattern of replacing document id string with a snippet id struct is also used in all other places
+a snippet id can be used.
+
+Be aware that using `{ "id": "12345" }` represents the whole document but `{ "document_id": "12345", "sub_id": 0 }` represents the first snippet specifically and for some APIs this makes a difference
+for documents which have multiple embeddings as described in the sections below.
+
+## Ingestion
+
+Additionally to some preprocessing options producing multiple snippets you can ingest a document with
+multiple snippets yourself.
+
+For additional examples below we will use following document:
+
+```bash
+curl -X POST "$URL/documents" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "documents": [
+            {
+                "id": "effaffe",
+                "snippets": [
+                    "birds have feathers",
+                    "birds hide it if they are sick, this can lead sad outcomes for inexperienced pet owners",
+                    "dogs can be pets, too"
+                ]
+            },
+            {
+                "id": "affeffa",
+                "snippets": [
+                    "mention dogs",
+                    "mention birds",
+                ]
+            },
+        ]
+    }'
+
+```
+
+This will create three ids in the search system:
+
+- `{ "document_id": "effaffe", "sub_id": 0 }` for the snippet `"birds have feathers"`
+- `{ "document_id": "effaffe", "sub_id": 1 }` for the snippet `"birds hide it if they are sick, this can lead sad outcomes for inexperienced pet owners"`
+- `{ "document_id": "effaffe", "sub_id": 2 }` for the snippet `"dogs can be pets, too"`
+
+In difference other ways to ingest documents with multiple snippets (like e.g. splitting) the
+explicit ingestion of multiple snippets guarantees that the sub id's with the equal to the
+array indices of the snippets.
+
+## Semantic Search
+
+Like already mentioned the search results are based on snippets not documents so a search
+can yield multiple different snippets of the same document.
+
+The semantic search API can also be used based on a specific snippet (and for systems
+with documents with multiple embeddings that is recommended):
+
+```bash
+curl -X POST "$URL/semantic_search" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "document": { "id": { "document_id": "effaffe", "sub_id": 2 },
+        "include_properties": true
+    }'
+```
+
+This will return the snippets of which the semantic representation is closest to the
+semantic representation of the second snippet of the given document.
+
+```{note}
+Currently the whole document used for search is excluded from the search results.
+```
+
+For personalize semantic search with provided history snippet ids can also be used instead of
+document ids:
+
+```json
+"personalize": {
+    "exclude_seen": true,
+    "user": {
+         "history": [
+             {
+                 "id": { "document_id": "valid_doc_id1", "sub_id": 0 },
+                 "timestamp": "2000-05-14T20:22:50Z"
+             },
+             {
+                 "id": { "document_id": "valid_doc_id1", "sub_id": 1 },
+                 "timestamp": "2000-05-15T20:22:50Z"
+             }
+         ]
+    }
+}
+```
+
+When the history contains a interaction with a document which has multiple snippets it will be
+processed similar to registering an interaction which each snippet of that document.
+
+`exclude_seen` currently always refer to whole documents, i.e. in the example above even if there
+is a snippet with the id `{ "document_id": "valid_doc_id1", "sub_id": 30 }` it would be excluded as
+as the whole document `"valid_doc_id1"` is excluded.
+
+## Personalization
+
+It is possible to register interactions with specific snippets instead of whole documents:
+
+```bash
+curl -X PATCH "$URL/users/u1234/interactions" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "documents": [
+            { "id": { "document_id": "effaffe", "sub_id": 1 } },
+            { "id": { "document_id": "effaffe", "sub_id": 4 } },
+            { "id": { "document_id": "affeffa", "sub_id": 1 } }
+        ]
+    }'
+```
+
+When registering a interaction with a document which has multiple snippets it will be
+processed similar to registering an interaction which each snippet of that document.
+
+# Document preprocessing
+
+The back office ingestion API provides functionality to automatically summarize the provided content.
+
+This can be used if the content is to large to be used directly as a snippet. Due to the fact that
+the summarized text still has to fit into the size constraints of a snippet it is often better to
+use the [automatic document splitting instead](#automatic-document-splitting).
+
+TODO example
+
+## Automatic document splitting
+
+The back office ingestion API provides functionality to automatically split a document into
+multiple part and create a snippet for each of this parts.
+
+The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
+
+This algorithm will be improved over time. This means a document ingested now and a equal document ingested
+in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even if changes to the algorithm are ignored.
+
+Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
+We are working to add support for multiple languages to our text-splitting algorithms.
+
+Automatic splitting can be enabled on a per document bases by setting the `"split"` option
+to `true` like shown in the example below.
+
+**Be aware that if documents with multiple snippets are used it is highly recommended to use
+the snippet id for many use-cases, more details can be found in the
+[section about documents with multiple snippets](#documents-with-multiple-snippets)**
+
+For example the ingestion of (from BAnz AT 13.07.2023 B1 page 3):
+
+```bash
+curl -X POST "$URL/documents" \
+    --header "authorizationToken: $BACKOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "documents": [
+            {
+                "id": "xayn_efd5604c",
+                "snippet": "6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.  Bei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.  Die  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an. Maßgeblich ist das Datum des Vertragsschlusses. Dabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags. Die Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.  den\nVergabeunterlagen bekannt sind.\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen. Dies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit. Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat. Hierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen. Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt.",
+                "split": true,
+            }
+        ]
+    }'
+
+```
+
+could split the text into three part:
+
+- `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 802 }` containing `"6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.\n\nBei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.\n\nDie  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an.\n\nMaßgeblich ist das Datum des Vertragsschlusses.\n\nDabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags.\n\nDie Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.\n\nden\nVergabeunterlagen bekannt sind.\n\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen.\n\nDies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit."`
+- `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 4 }` containing `"Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat.\n\nHierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen."`
+- `"snippet_id": { document_id: "xayn_efd5604c",  sub_id: 300 }` containing `"Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\n\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt."`
+
+## Text extraction
+
+TODO
+# Candidates API
 
 The [`/candidates`](https://docs.xayn.com/back_office.html#tag/candidates) api is a set back-office requests that allows to globally define the documents that all apis can recommend or generate search results from. Snippets from documents that are not part of the candidates set will not be included in search results or recommendations, but interactions with these documents are still stored and can still be recorded.
 
