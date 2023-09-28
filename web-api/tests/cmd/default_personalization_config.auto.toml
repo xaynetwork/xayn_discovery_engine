@@ -56,7 +56,8 @@ stdout = """
     "enabled": false,
     "extractor": "tika",
     "url": "http://localhost:9998",
-    "allowed_media_type": []
+    "allowed_media_type": [],
+    "timeout": 5000
   },
   "personalization": {
     "max_number_documents": 100,

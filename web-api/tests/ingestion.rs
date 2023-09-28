@@ -218,7 +218,7 @@ fn test_ingestion_created_with_file() {
         .collect();
 
     test_app::<Ingestion, _>(
-        with_text_extractor_options(allowed_content_type),
+        with_text_extractor_options(allowed_content_type, None),
         |client, url, _| async move {
             send_assert(
                 &client,
@@ -258,7 +258,7 @@ fn test_ingestion_created_with_file() {
 
 #[test]
 fn test_ingestion_created_with_file_bad_request() {
-    let txt_content = general_purpose::STANDARD.encode("once in a spring there was a fall");
+    let txt_content_data = general_purpose::STANDARD.encode("once in a spring there was a fall");
     let html_content_empty = general_purpose::STANDARD.encode(
         "<!DOCTYPE html>
     <html>
@@ -269,8 +269,9 @@ fn test_ingestion_created_with_file_bad_request() {
     </html>",
     );
 
+    let txt_content = txt_content_data.clone();
     test_app::<Ingestion, _>(
-        with_text_extractor_options(vec![]),
+        with_text_extractor_options(vec![], None),
         |client, url, _| async move {
             send_assert(
                 &client,
@@ -339,6 +340,29 @@ fn test_ingestion_created_with_file_bad_request() {
                     .json(&json!({
                         "documents": [
                             { "id": "d1", "file": html_content_empty},
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
+
+    let txt_content = txt_content_data;
+    test_app::<Ingestion, _>(
+        with_text_extractor_options(vec![], Some(1)),
+        |client, url, _| async move {
+            send_assert(
+                &client,
+                client
+                    .post(url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            { "id": "d1", "file": txt_content },
                         ]
                     }))
                     .build()?,

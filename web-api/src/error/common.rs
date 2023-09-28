@@ -231,6 +231,8 @@ pub(crate) enum InvalidBinary {
     MediaType { found: String },
     /// Invalid content
     InvalidContent,
+    /// It takes too much time to extract the text
+    ContentTooComplex,
 }
 
 impl_application_error!(InvalidBinary => BAD_REQUEST, INFO);
