@@ -390,6 +390,24 @@ curl -X POST "$URL/users/u1234/personalized_documents" \
     }'
 ```
 
+Filter APIs can also work with rfc3339 formatted strings if the field is of type `date`:
+
+```{code-block} bash
+:caption: /users/{user_id}/personalized_documents
+
+curl -X POST "$URL/users/u1234/personalized_documents" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "filter": {
+            "publication_date": {
+                "$gte": "2022-12-30T11:30:32Z"
+            }
+        },
+        "include_properties": true
+    }'
+```
+
 # Documents with multiple Snippets
 
 Documents can have multiple snippets, and at the core our search and recommendation system is based on the searching for and recommending snippets not documents.
