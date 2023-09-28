@@ -16,6 +16,8 @@ use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tokio::time::Instant;
+use tracing::info;
 use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
@@ -163,7 +165,12 @@ impl Embedder {
             request = request.target_model(target_model);
         };
 
+        let start = Instant::now();
         let response = request.send().await.map_err(InternalError::from_std)?;
+        info!(
+            { sagemaker_time = start.elapsed().as_millis() },
+            "sagemaker run"
+        );
 
         let Some(body) = response.body() else {
             return Err(InternalError::from_message(
