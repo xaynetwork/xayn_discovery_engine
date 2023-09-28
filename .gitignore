@@ -1,6 +1,7 @@
 .vscode/
 .idea/
 .venv/
+/.local
 
 # MacOS files
 .DS_Store
