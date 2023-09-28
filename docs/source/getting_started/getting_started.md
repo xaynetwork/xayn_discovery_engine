@@ -472,27 +472,24 @@ for documents which have multiple embeddings as described in the sections below.
 
 ## Ingestion
 
-Currently there are two APIs with which you can ingest documents in a way where it might
-(depending on document size) produce multiple snippets:
+There are two APIs with which you can ingest documents in a way where it can
+produce multiple snippets:
 
 - using the [`split` option with `snippet`](#automatic-document-splitting)
 - using the [`split` option with `file`](#file-upload)
 
 be aware that you need to use sufficient long text for it to be split.
 
-You could use the example from the [`split` option](#automatic-document-splitting) or use
+You could use the example from the [`split` option section](#automatic-document-splitting) or use
 your own document, something along ~1000 words will likely generate multiple splits.
-
-Additionally to some preprocessing options producing multiple snippets you can ingest a document with
-multiple snippets yourself.
 
 ## Semantic Search
 
-Like already mentioned the search results are based on snippets not documents so a search
+As mentioned the search results are based on snippets not documents, as such a search
 can yield multiple different snippets of the same document.
 
 The semantic search API can also be used based on a specific snippet (and for systems
-with documents with multiple embeddings that is recommended):
+which have documents with multiple embeddings that is recommended):
 
 ```bash
 curl -X POST "$URL/semantic_search" \
@@ -536,8 +533,8 @@ When the history contains a interaction with a document which has multiple snipp
 processed similar to registering an interaction which each snippet of that document.
 
 `exclude_seen` currently always refer to whole documents, i.e. in the example above even if there
-is a snippet with the id `{ "document_id": "valid_doc_id1", "sub_id": 30 }` it would be excluded as
-as the whole document `"valid_doc_id1"` is excluded.
+is a snippet with the id `{ "document_id": "valid_doc_id1", "sub_id": 30 }` it would exclud a the
+whole document `"valid_doc_id1"` no matter how many snippets it has.
 
 ## Personalization
 
@@ -561,28 +558,29 @@ processed similar to registering an interaction which each snippet of that docum
 
 # Document preprocessing
 
-The back office ingestion API provides functionality to automatically summarize the provided content.
-
 ## Summarizer
 
-This can be used if the content is to large to be used directly as a snippet. Due to the fact that
+The back office ingestion API provides functionality to automatically summarize the provided content.
+
+This can be used if the content of a document is to large to be used directly as a snippet. Due to the fact that
 the summarized text still has to fit into the size constraints of a snippet it is often better to
 use the [automatic document splitting instead](#automatic-document-splitting).
 
-If if a search using `include_snippet` returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.
+If a search using `include_snippet` returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.
 
 ## Automatic document splitting
 
 The back office ingestion API provides functionality to automatically split a document into
-multiple part and create a snippet for each of this parts.
+multiple parts and create a snippet for each of this parts.
 
-The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.
+The system uses Natural language processing (NLP) algorithms to split the document.
 
 This algorithm will be improved over time. This means a document ingested now and a equal document ingested
 in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even if changes to the algorithm are ignored.
 
-Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
-We are working to add support for multiple languages to our text-splitting algorithms.
+Currently, the splitting works only with well for a language set when the system is set up.
+The default is English. If you need another language, please contact us.
+We are working to add support for multiple languages to our text-splitting algorithm.
 
 Automatic splitting can be enabled on a per document bases by setting the `"split"` option
 to `true` like shown in the example below.
@@ -591,7 +589,7 @@ to `true` like shown in the example below.
 the snippet id for many use-cases, more details can be found in the
 [section about documents with multiple snippets](#documents-with-multiple-snippets)**
 
-If if a search using `include_snippet` returns a snippet from a split document then the returned snippet will be the "split" segment produced by the splitting algorithm.
+If a search using `include_snippet` returns a snippet from a split document then the returned snippet will be the "split" segment produced by the splitting algorithm.
 
 For example the ingestion of (from BAnz AT 13.07.2023 B1 page 3):
 
@@ -619,16 +617,16 @@ could split the text into three part:
 
 ## File Upload
 
-_The text extraction features is not enabled/available by default_ contact Xayn if you do need it.
+_The file upload features is not enabled by default_ contact Xayn if you do need it.
 
-Documents are often in other format then plain text. When ingesting you can decide to provide a
+Documents are often in different formats then plain text. When ingesting you can decide to provide a
 document "file" instead of a snippet. If you do so we will try to extract snippets from the given
 file.
 
-Currently this option can only be used together with the split option and follwing file formats are supported: `application/pdf`, `text/plain`, `text/html`.
+Currently this option can only be used together with the `split` option and follwing file formats are supported: `application/pdf`, `text/plain`, `text/html`.
 
-The "file" is provided base64 encoded, so if we reuse the example from the getting started section
-provding the snippet as `text/plain` file would be done like following:
+The "file" needs to be provided as base64 encoded string.
+Reusing the example from the getting started section and provding the snippet as `text/plain` file leads to following example:
 
 ```bash
 curl -X POST "$URL/documents" \
