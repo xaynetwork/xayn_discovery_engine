@@ -76,7 +76,7 @@ curl -X POST "$URL/documents" \
                 "snippet": "There are just very few constraints on what an id can be, this means that most times you can just plug in ides from any other system you use to store documents in. But be aware tht ids are strings so 0, 00, and 000 are all different ids."
             },
             {
-                "id": "xayn_604c",
+                "id": "affeffa",
                 "snippet": "Privacy protection and ownership is a topic of another document, so is semantic search."
             }
         ]
@@ -130,19 +130,6 @@ the exact way details are encoded is not fixed and can change.
 In this case, we have `NotEnoughInteractions`. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.
 
 We can add an [interaction](https://docs.xayn.com/front_office.html#tag/interaction) between our user `u1234` and the document `xayn_cd5604c`:
-
-```bash
-curl -X PATCH "$URL/users/u1234/interactions" \
-    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
-    --header "Content-Type: application/json" \
-    --data '{
-        "documents": [
-             { "id": { "document_id": "xayn_cd5604c", "sub_id": 2 } }
-        ]
-    }'
-```
-
-Instead of a specific snippet a document as a whole can be specified, too:
 
 ```bash
 curl -X PATCH "$URL/users/u1234/interactions" \
