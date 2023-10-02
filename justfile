@@ -22,8 +22,14 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
     env_var_or_default("RUSTDOCFLAGS", "")
 }
 
-tool_root := justfile_directory() + "/.local"
-tool_bin_dir := tool_root + "/bin"
+# FIXME we should use `just install**` in `Docker.ci-image` to make sure
+#       we install it always the same way and then we would not need this here
+#       but that is a different PR
+tool_root := if env_var_or_default("GITHUB_ACTIONS", "false") == "true" {
+    "/usr/local"
+} else {
+    justfile_directory() + "/.local"
+}
 
 # this seems to be case sensitive in some situations
 export npm_config_prefix := tool_root
