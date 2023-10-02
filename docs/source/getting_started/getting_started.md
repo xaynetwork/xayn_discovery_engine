@@ -4,11 +4,9 @@ Here we take a high-level look at how the system works. The API is divided into 
 
 The back office can be used to ingest your content into the system. Every piece of content you ingest is managed as one document within the Xayn system.
 
-The front office is used for all communication between a client form a user. The front office mainly provides following use cases:
+The front office is used for all communication between the users and the service. It mainly provides the following use cases:
 
-- semantic search, i.e. trying to find documents which are semantically similar to
-    - ... a text query
-    - ... a document
+- Search: in particular, we specialize in semantic search that finds documents which are semantically similar to the given query or another document
 - personalized recommendations of documents for a  user
     - this is based on semantic representations of the users interest
     - this interests can either be aggregated on out system
@@ -49,7 +47,7 @@ export FRONTOFFICE_TOKEN="<frontoffice_token>"
 
 We can use the back office endpoint [`/documents`](https:/docs.xayn.com/back_office.html#operation/createDocuments) to ingest documents.
 
-We will ingest a document that represents this article: [https://xayn.com/blog/the-initial-challenge](https://xayn.com/blog/the-initial-challenge), as well as some less meaningful examples.
+We will ingest a document that represents this article: [https://xayn.com/blog/the-initial-challenge](https://xayn.com/blog/the-initial-challenge), together with other documents to better showcase other functionalities.
 
 ```bash
 curl -X POST "$URL/documents" \
@@ -91,16 +89,15 @@ Each document has a unique identifier that can be used to refer to it in the sys
 The `snippet` field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.
 
 For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. If you
-intend to ingest larger documents the [preprocessing section](#document-preprocessing) contains some
+intend to ingest larger documents the [preprocessing section](#document-preprocessing) contains
 examples about enabling the usage of a [summarizer](#summarizer) or [document splitting](#automatic-document-splitting).
 
 The `properties` field is completely optional. It can contain custom data that can be used for [filtering](#filters) and that the system will return when a document is part of the result of a query.
 
 The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see [createDocuments](https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments) for more information on properties.
 
-For example in case of a 'for you' section you could include properties containing a link to the
-article, a title, a link to an image as well as a text preview or similar short description. Some
-of the examples below include properties like that.
+For example, in the case of a 'for you' section, you could include properties containing a link to the
+article, a title, a link to an image, and a text preview. Some of the examples below include properties like that.
 
 ## Recommendations: Personalised documents
 
@@ -124,8 +121,8 @@ As we can see, this returns with `409` status code and the following body:
 { "kind": "NotEnoughInteractions" }
 ```
 
-When there is an error, the system uses the `kind` field to specify what kind of error has occurred. There may also be a `details` field which can be used to better understand the error, be aware that
-the exact way details are encoded is not fixed and can change.
+When there is an error, the system uses the `kind` field to specify what kind of error has occurred. There may also be a `details` field which can be used to understand the error better.
+Be aware that the exact way details are encoded is not fixed and can change. Feel free to contact us if you need support.
 
 In this case, we have `NotEnoughInteractions`. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.
 
@@ -180,14 +177,14 @@ As a result, we will get something like:
 
 In the request, we ask the system to include the properties of the returned documents. We can use this data to implement a 'more like this' section.
 
-We also have a `score` field which represents how well the documents match the user's interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
+The field `score` represents how well the documents match the user's interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
 scores from the same requests.
 
 The field `snippet_id` identifies a specific snippet instead of just the document as a whole. If you do not plan to ever have documents with multiple snippets you can ignore it. But as it's hard to predict the future needs it's highly recommended to use the whole snippet idea for use cases search refinement or a 'more like this' section. [See documents with multiple snippets](#documents-with-multiple-snippets) for more details.
 
-If `include_properties` is set to false properties are not included in the output, you still can filter based on them.
+If `include_properties` is false, properties are not included in the output, but you can still filter based on them.
 
-If `include_snippet` is set to true the plain text snippet of the search result is returned. Be aware that whitespace in returned snippet can differ to the text provided to the ingestion API.
+If `include_snippet` is true, the plain text snippet of the search result is returned. Be aware that whitespace in the returned snippet can differ from the text provided to the ingestion API.
 
 ## Search
 
@@ -291,7 +288,7 @@ Alternatively a history of interactions can be used instead of a user id to ask 
 Please note: `"exclude_seen": true` (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.
 ```
 
-Similar to other APIs it's recommended to use the snippet id instead in case you might use [documents with multiple snippets](#documents-with-multiple-snippets) in the future.
+Similar to other APIs, using the snippet id is recommended instead of the document one.
 
 ### Filters
 
@@ -410,12 +407,12 @@ curl -X POST "$URL/users/u1234/personalized_documents" \
 
 # Documents with multiple Snippets
 
-Documents can have multiple snippets, and at the core our search and recommendation system is based on the searching for and recommending snippets not documents.
+Documents can have multiple snippets, and at the core, our search and recommendation system is based on searching and recommending snippets, not documents.
 
-When using documents with multiple snippets you need to be aware about a few things:
+When using documents with multiple snippets, you need to be aware of a few things:
 
 - there is a snippet id for each specific snippet a document has
-- we search for snippets not documents, so results can contains multiple (different) snippets of the same document
+- we search for snippets, not documents, so results can contain multiple different snippets of the same document
 - many APIs which accepts either a document id for referring to a document as a whole or a snippet id to refer to a specific snippet
     - some APIs currently fall back to using the first snippet if only document id is used, but this is intended to change in the future
 
@@ -425,11 +422,11 @@ We made sure that all search APIs in which you can refer to a specific snippet a
 
 Snippets are identified by a snippet id consisting of both the document id and a sub id.
 
-Each document is guaranteed to have a snippet with sub id equals `0`. But besides that
+Each document is guaranteed to have a snippet with sub id equals `0`. But besides that,
 there are no guarantees about the value of the `sub_id`. E.g. a document might have snippet
 id's with the sub ids `0`, `400`, `2334`.
 
-For example if we ingest a document like
+For example, if we ingest a document like
 
 ```json
 {
@@ -478,7 +475,7 @@ produce multiple snippets:
 - using the [`split` option with `snippet`](#automatic-document-splitting)
 - using the [`split` option with `file`](#file-upload)
 
-be aware that you need to use sufficient long text for it to be split.
+Be aware that you need to use sufficient long text for it to be split.
 
 You could use the example from the [`split` option section](#automatic-document-splitting) or use
 your own document, something along ~1000 words will likely generate multiple splits.
@@ -488,8 +485,7 @@ your own document, something along ~1000 words will likely generate multiple spl
 As mentioned the search results are based on snippets not documents, as such a search
 can yield multiple different snippets of the same document.
 
-The semantic search API can also be used based on a specific snippet (and for systems
-which have documents with multiple embeddings that is recommended):
+The following is an example that performs a search for a specific snippet.
 
 ```bash
 curl -X POST "$URL/semantic_search" \
@@ -505,7 +501,7 @@ This will return the snippets of which the semantic representation is closest to
 semantic representation of the second snippet of the given document.
 
 ```{note}
-Currently the whole document used for search is excluded from the search results.
+Currently, the whole document used for the search is excluded from the search results, so, the result will not contain snippets from the same document.
 ```
 
 For personalize semantic search with provided history snippet ids can also be used instead of
@@ -529,12 +525,11 @@ document ids:
 }
 ```
 
-When the history contains a interaction with a document which has multiple snippets it will be
-processed similar to registering an interaction which each snippet of that document.
+When the history contains an interaction with a document which has multiple snippets, it will be
+processed similar to registering an interaction with each snippet of that document.
 
-`exclude_seen` currently always refer to whole documents, i.e. in the example above even if there
-is a snippet with the id `{ "document_id": "valid_doc_id1", "sub_id": 30 }` it would exclud a the
-whole document `"valid_doc_id1"` no matter how many snippets it has.
+`exclude_seen` always refers to whole documents.
+In the example above, even if there were a snippet with id `{ "document_id": "valid_doc_id1", "sub_id": 30 }` it would exclude the whole document `"valid_doc_id1"` no matter how many snippets it has.
 
 ## Personalization
 
@@ -562,8 +557,8 @@ processed similar to registering an interaction which each snippet of that docum
 
 The back office ingestion API provides functionality to automatically summarize the provided content.
 
-This can be used if the content of a document is to large to be used directly as a snippet. Due to the fact that
-the summarized text still has to fit into the size constraints of a snippet it is often better to
+This can be used if the content of a document is too large to be used directly as a snippet. Due to the fact that
+the summarized text still has to fit into the size constraints of a snippet it is better to
 use the [automatic document splitting instead](#automatic-document-splitting).
 
 If a search using `include_snippet` returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.
@@ -576,18 +571,18 @@ multiple parts and create a snippet for each of this parts.
 The system uses Natural language processing (NLP) algorithms to split the document.
 
 This algorithm will be improved over time. This means a document ingested now and a equal document ingested
-in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even if changes to the algorithm are ignored.
+in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even with the same algorithm.
 
-Currently, the splitting works only with well for a language set when the system is set up.
+Currently, the splitting works only for the language set when the system is configured.
 The default is English. If you need another language, please contact us.
 We are working to add support for multiple languages to our text-splitting algorithm.
 
 Automatic splitting can be enabled on a per document bases by setting the `"split"` option
 to `true` like shown in the example below.
 
-**Be aware that if documents with multiple snippets are used it is highly recommended to use
+When using documents with multiple snippets it is highly recommended to use
 the snippet id for many use-cases, more details can be found in the
-[section about documents with multiple snippets](#documents-with-multiple-snippets)**
+[section about documents with multiple snippets](#documents-with-multiple-snippets).
 
 If a search using `include_snippet` returns a snippet from a split document then the returned snippet will be the "split" segment produced by the splitting algorithm.
 
@@ -617,7 +612,7 @@ could split the text into three part:
 
 ## File Upload
 
-_The file upload features is not enabled by default_ contact Xayn if you do need it.
+The file upload features is _not_ enabled by default contact Xayn if you do need it.
 
 Documents are often in different formats then plain text. When ingesting you can decide to provide a
 document "file" instead of a snippet. If you do so we will try to extract snippets from the given
