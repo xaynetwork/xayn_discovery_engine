@@ -7,10 +7,7 @@ The back office can be used to ingest your content into the system. Every piece 
 The front office is used for all communication between the users and the service. It mainly provides the following use cases:
 
 - Search: in particular, we specialize in semantic search that finds documents which are semantically similar to the given query or another document
-- personalized recommendations of documents for a  user
-    - this is based on semantic representations of the users interest
-    - this interests can either be aggregated on out system
-    - or provided ad-hoc so that we never store user specific information
+- Recommendations: we can return documents based on the user's interests.
 
 Based on this many other use cases can be implemented. For example the personalization API can be used to implement a 'for you' section and the semantic search based on a document can be used to provide a 'more like this' section or add 'more like this' functionality to a 'for you' section. Another common use-case is to use the document based semantic search to refine an existing search.
 
@@ -180,7 +177,7 @@ In the request, we ask the system to include the properties of the returned docu
 The field `score` represents how well the documents match the user's interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
 scores from the same requests.
 
-The field `snippet_id` identifies a specific snippet instead of just the document as a whole. If you do not plan to ever have documents with multiple snippets you can ignore it. But as it's hard to predict the future needs it's highly recommended to use the whole snippet idea for use cases search refinement or a 'more like this' section. [See documents with multiple snippets](#documents-with-multiple-snippets) for more details.
+The field `snippet_id` identifies a specific snippet instead of just the document as a whole. The `document_id` field in it represents the whole document. It is the same as the field ìd` but `id` has been deprecated`.
 
 If `include_properties` is false, properties are not included in the output, but you can still filter based on them.
 
