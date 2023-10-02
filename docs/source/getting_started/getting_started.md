@@ -617,7 +617,10 @@ Documents are often in different formats then plain text. When ingesting you can
 document "file" instead of a snippet. If you do so we will try to extract snippets from the given
 file.
 
-Currently this option can only be used together with the `split` option and follwing file formats are supported: `application/pdf`, `text/plain`, `text/html`.
+File upload implies the [`split`](#automatic-document-splitting) option which means it might always produce documents which have multiple snippets.
+The [documents with multiple snippets chapter](#documents-with-multiple-snippets) contains more information about what this means.
+
+Follwing file formats are supported: `application/pdf`, `text/plain`, `text/html`.
 
 The "file" needs to be provided as base64 encoded string.
 Reusing the example from the getting started section and provding the snippet as `text/plain` file leads to following example:
@@ -636,16 +639,12 @@ curl -X POST "$URL/documents" \
                     "link": "https://xayn.com/blog/the-initial-challenge",
                     "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png",
                     "location" : ["germany", "berlin", "conference"]
-                },
-                "split": true
+                }
             }
         ]
     }'
 
 ```
-
-Be aware that this always has the potential to produce [multiple snippets](#documents-with-multiple-snippets).
-
 ## Summarizer
 
 The back office ingestion API provides functionality to automatically summarize the provided content.
