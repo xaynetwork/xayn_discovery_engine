@@ -174,10 +174,10 @@ As a result, we will get something like:
 
 In the request, we ask the system to include the properties of the returned documents. We can use this data to implement a 'more like this' section.
 
+The field [`snippet_id` identifies](#documents-with-multiple-snippets) a specific snippet of a document. The `document_id` field in it represents the whole document. It is the same as the field `id` but `id` has been deprecated.
+
 The field `score` represents how well the documents match the user's interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
 scores from the same requests.
-
-The field `snippet_id` identifies a specific snippet instead of just the document as a whole. The `document_id` field in it represents the whole document. It is the same as the field ìd` but `id` has been deprecated`.
 
 If `include_properties` is false, properties are not included in the output, but you can still filter based on them.
 
@@ -285,7 +285,7 @@ Alternatively a history of interactions can be used instead of a user id to ask 
 Please note: `"exclude_seen": true` (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.
 ```
 
-Similar to other APIs, using the snippet id is recommended instead of the document one.
+Similar to other APIs, using the [snippet id](#documents-with-multiple-snippets) is recommended instead of the document one.
 
 ### Filters
 
@@ -434,7 +434,7 @@ For example, if we ingest a document like
 
 It would have a single snippet with the id `{ "document_id": "12345", "sub_id": 0 }`.
 
-So if we have following semantic search example
+Given the following semantic search example
 
 ```bash
 curl -X POST "$URL/semantic_search" \
@@ -446,7 +446,8 @@ curl -X POST "$URL/semantic_search" \
     }'
 ```
 
-we could also use the snippet id instead like shown below
+we could use a snippet id instead of a document id as shown in the example below,
+through this is semantically _not_ the same.
 
 ```bash
 curl -X POST "$URL/semantic_search" \
@@ -458,11 +459,13 @@ curl -X POST "$URL/semantic_search" \
     }'
 ```
 
-This pattern of replacing document id string with a snippet id struct is also used in all other places
-a snippet id can be used.
+The document id string always represents the intend to refer to a document as a whole, no matter how many snippets that document has.
 
-Be aware that using `{ "id": "12345" }` represents the whole document but `{ "document_id": "12345", "sub_id": 0 }` represents the first snippet specifically and for some APIs this makes a difference
-for documents which have multiple embeddings as described in the sections below.
+The snippet id struct always represents the intend to refer to one specific snippet.
+
+This means that in the examples above the first represents the intend to search for snippets which are similar to the document as a whole, but the second represent a search for snippets which are similar to the specific snippet which is potentially just a small part of the document. (At the moment the search with the document as a whole has some technical limitations, but such limitations only affect systems which have documents with multiple snippets. Please consult the API documentation for the endpoints you want use it with.)
+
+We currently recommend using the snippet id for any system which _might maybe_ end up with multiple snippets.
 
 ## Ingestion
 
@@ -495,7 +498,7 @@ curl -X POST "$URL/semantic_search" \
 ```
 
 This will return the snippets of which the semantic representation is closest to the
-semantic representation of the second snippet of the given document.
+semantic representation of snippet with the `sub_id: 2` of the given document.
 
 ```{note}
 Currently, the whole document used for the search is excluded from the search results, so, the result will not contain snippets from the same document.
@@ -603,9 +606,18 @@ curl -X POST "$URL/documents" \
 
 could split the text into three part:
 
-- `"snippet_id": { document_id: "effaffe",  sub_id: 0 }` containing `"6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.\n\nBei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.\n\nDie  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an.\n\nMaßgeblich ist das Datum des Vertragsschlusses.\n\nDabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags.\n\nDie Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.\n\nden\nVergabeunterlagen bekannt sind.\n\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen.\n\nDies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit."`
-- `"snippet_id": { document_id: "effaffe",  sub_id: 1 }` containing `"Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat.\n\nHierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen."`
-- `"snippet_id": { document_id: "effaffe",  sub_id: 2 }` containing `"Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\n\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt."`
+- `"snippet_id": { document_id: "effaffe",  sub_id: 0 }` containing
+  ```
+  "6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.\n\nBei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.\n\nDie  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an.\n\nMaßgeblich ist das Datum des Vertragsschlusses.\n\nDabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags.\n\nDie Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.\n\nden\nVergabeunterlagen bekannt sind.\n\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen.\n\nDies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit."
+  ```
+- `"snippet_id": { document_id: "effaffe",  sub_id: 1 }` containing
+  ```
+  "Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat.\n\nHierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen."
+  ```
+- `"snippet_id": { document_id: "effaffe",  sub_id: 2 }` containing
+  ```
+  "Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\n\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt."
+  ```
 
 ## File Upload
 
