@@ -553,16 +553,6 @@ processed similar to registering an interaction which each snippet of that docum
 
 # Document preprocessing
 
-## Summarizer
-
-The back office ingestion API provides functionality to automatically summarize the provided content.
-
-This can be used if the content of a document is too large to be used directly as a snippet. Due to the fact that
-the summarized text still has to fit into the size constraints of a snippet it is better to
-use the [automatic document splitting instead](#automatic-document-splitting).
-
-If a search using `include_snippet` returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.
-
 ## Automatic document splitting
 
 The back office ingestion API provides functionality to automatically split a document into
@@ -655,6 +645,16 @@ curl -X POST "$URL/documents" \
 ```
 
 Be aware that this always has the potential to produce [multiple snippets](#documents-with-multiple-snippets).
+
+## Summarizer
+
+The back office ingestion API provides functionality to automatically summarize the provided content.
+
+This can be used if the content of a document is too large to be used directly as a snippet. Due to the fact that
+the summarized text still has to fit into the size constraints of a snippet it is better to
+use the [automatic document splitting instead](#automatic-document-splitting).
+
+If a search using `include_snippet` returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.
 
 # Candidates API
 
