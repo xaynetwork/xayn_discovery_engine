@@ -22,7 +22,13 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
     env_var_or_default("RUSTDOCFLAGS", "")
 }
 
-export npm_config_prefix := justfile_directory() + "/.local"
+tool_root := justfile_directory() + "/.local"
+tool_bin_dir := tool_root + "/bin"
+
+# this seems to be case sensitive in some situations
+export npm_config_prefix := tool_root
+
+export CARGO_INSTALL_ROOT := tool_root
 
 # Runs just --list
 default:
@@ -47,7 +53,7 @@ rust-fmt:
     #!/usr/bin/env bash
     set -eux -o pipefail
     cargo +nightly fmt --all -- {{ if env_var_or_default("CI", "false") == "true" { "--check" } else { "" } }};
-    cargo sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check --check-format" } else { "" } }}
+    {{tool_bin_dir}}/cargo-sort sort --grouped --workspace {{ if env_var_or_default("CI", "false") == "true" { "--check --check-format" } else { "" } }}
 
 # Formats all code (checks only on CI)
 fmt: rust-fmt
@@ -296,7 +302,7 @@ perf-flamegraph integration_test_bin:
     export CARGO_PROFILE_BENCH_DEBUG=true
     OUT_DIR="./test-artifacts/{{integration_test_bin}}"
     mkdir -p "$OUT_DIR"
-    cargo flamegraph -o "$OUT_DIR/flamegraph.svg"  --test {{integration_test_bin}}
+    {{tool_bin_dir}}/cargo-flamegraph flamegraph -o "$OUT_DIR/flamegraph.svg"  --test {{integration_test_bin}}
     if [ -e "$OUT_DIR/perf.data" ]; then
         mv "$OUT_DIR/perf.data" "$OUT_DIR/perf.data.old"
     fi
@@ -315,9 +321,19 @@ alias r := rust-test
 alias t := test
 alias pp := pre-push
 
+
+# Helpers to make sure you use the right env variables when running any commands.
 run *args:
-    #!/usr/bin/env -S bash -eu -o pipefail
     {{args}}
 
-shell:
-    pipenv shell
+pipenv *args:
+    pipenv {{args}}
+
+npm *args:
+    npm {{args}}
+
+npx *args:
+    npx {{args}}
+
+cargo *args:
+    cargo {{args}}
