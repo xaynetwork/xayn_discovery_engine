@@ -9,15 +9,11 @@ The front office is used for all communication between the users and the service
 - Search: in particular, we specialize in semantic search that finds documents which are semantically similar to the given query or another document
 - Recommendations: we can return documents based on the user's interests.
 
-Based on this many other use cases can be implemented. For example the personalization API can be used to implement a 'for you' section and the semantic search based on a document can be used to provide a 'more like this' section or add 'more like this' functionality to a 'for you' section. Another common use-case is to use the document based semantic search to refine an existing search.
+Based on this many other use cases can be implemented. For example, the recommendation API can be used to implement a 'for you' section, while the search API can be used to provide a 'more like this' section. We can also use both and provide 'more like this' functionality to a 'for you' section.
 
 ![architectural overview](./architecture_overview.png)
 
-Before the search or personalization APIs can be used documents need to be ingested into our search system. In the simplest case each document will produce exactly one search target based on its content.
-Through in more complex cases it can produce multiple search target and/or pre-process the content in some way. In the first part of this documentation we will only cover the case where a document directly maps to a single snippet. The following parts will cover more advanced use-cases.
-
-In general we refer to this search targets as snippets, as at their core they are snippets of text.
-From each of this snippets we will derive a mathematical representation which is used to match the snippets to the provided search queries or user's interests.
+Before the front office APIs can be used, documents need to be ingested into our system. In the simplest case each document will produce exactly one thing you can search for. We call them snippets, as at their core, they are based on snippets of text. From each of this snippets we will derive a mathematical representation which is used to match the snippets to the provided search queries or user's interests. There are more complex cases where we e.g. split documents. In the first part of this documentation we will only cover the case where a document directly maps to a single snippet. Later parts will cover more advanced use-cases.
 
 Once we have the documents in the system, we can use the front office to implement different use cases. For example, to have a ‘for you’ section, we need to add user interactions (clicks, reading, viewing) with documents or snippets. With each interaction, the system creates or updates a model that represents the user’s interests each time we add an interaction. Each user has a unique model that is used to return individually personalised search results and recommendations in form of a list of best matching snippets/documents.
 
@@ -201,13 +197,10 @@ curl -X POST "$URL/semantic_search" \
     }'
 ```
 
-The result contains a list of snippets that are similar to the identified snippet.
+The result contains a list of snippets similar to the identified document.
 
-```{note}
-If this is used like shown above with a [document with multiple snippets](#documents-with-multiple-snippets) it will currently do a semantic search based on the first
-snippet of the document instead of the document as a whole. In the future this behaviour likely
-will change to do a search based on the whole document instead.
-```
+Please note that when using [document with multiple snippets](#documents-with-multiple-snippets) it is recommended to use the snippet id instead of an document id. More details can be found in the chapter
+about documents with multiple snippets and the API documentation.
 
 ### Free Text search
 
@@ -410,10 +403,14 @@ When using documents with multiple snippets, you need to be aware of a few thing
 
 - there is a snippet id for each specific snippet a document has
 - we search for snippets, not documents, so results can contain multiple different snippets of the same document
-- many APIs which accepts either a document id for referring to a document as a whole or a snippet id to refer to a specific snippet
-    - some APIs currently fall back to using the first snippet if only document id is used, but this is intended to change in the future
+- APIs which operate on the document as a whole like the ingestion or candidates API only accept a document id
+- all search APIs do accept document and snippet ids with slightly different semantic meaning
+    - document ids always refer to the document as a whole
+    - while snippet ids refer to a specific snippet
+- for documents which only have exactly one snippet the document id and the snippet id with `sub_id: 0` can be used interchangeably
+    - as such if your system might have documents with multiple snippets in the future it's a good idea to always use the snippet id for forward compatibility
 
-We made sure that all search APIs in which you can refer to a specific snippet also work with just the document id even if the document has multiple snippets. _But_ the results might not be quite as expected as there can be a huge difference in the search results.
+Some of the search APIs currently have suboptimal implementations when using a document id of a document which has multiple snippets. But this _only_ affects documents which have multiple snippets. As such we recommend always using the snippet id until the implementation is improved.
 
 ## Snippet Id
 
@@ -530,6 +527,9 @@ processed similar to registering an interaction with each snippet of that docume
 
 `exclude_seen` always refers to whole documents.
 In the example above, even if there were a snippet with id `{ "document_id": "valid_doc_id1", "sub_id": 30 }` it would exclude the whole document `"valid_doc_id1"` no matter how many snippets it has.
+
+Please be aware that using semantic search based on a document id of a document with multiple snippets has some technical limitations. Mainly instead of searching based on the document as a whole it might search based on
+a single snippet of the document. This will change in the future but until then we recommend to always use the snippet id for now.
 
 ## Personalization
 
