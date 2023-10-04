@@ -92,7 +92,7 @@ The data that can be included in the properties is limited in terms of type and 
 For example, in the case of a 'for you' section, you could include properties containing a link to the
 article, a title, a link to an image, and a text preview. Some of the examples below include properties like that.
 
-## Recommendations: Personalised documents
+## Recommendations
 
 After ingestion, we can use the front office to retrieve recommendations, which we call personalised documents, and implement a 'for you' section.
 
@@ -117,7 +117,7 @@ As we can see, this returns with `409` status code and the following body:
 When there is an error, the system uses the `kind` field to specify what kind of error has occurred. There may also be a `details` field which can be used to understand the error better.
 Be aware that the exact way details are encoded is not fixed and can change. Feel free to contact us if you need support.
 
-In this case, we have `NotEnoughInteractions`. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.
+In this case, we have `NotEnoughInteractions`. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide recommendations at this time.
 
 We can add an [interaction](https://docs.xayn.com/front_office.html#tag/interaction) between our user `u1234` and the document `xayn_cd5604c`:
 
@@ -133,10 +133,10 @@ curl -X PATCH "$URL/users/u1234/interactions" \
 ```
 
 ```{note}
-Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the personalised endpoint. This includes all snippets associated to that document.
+Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the recommendation endpoint. This includes all snippets associated to that document.
 ```
 
-Let's ask for personalised documents again now:
+Let's ask for recommendations again:
 
 ```bash
 curl -X POST "$URL/users/u1234/personalized_documents" \
@@ -147,7 +147,7 @@ curl -X POST "$URL/users/u1234/personalized_documents" \
     }'
 ```
 
-As a result, we will get something like:
+As a result, we now will get something like:
 
 ```json
 {
@@ -182,6 +182,8 @@ If `include_snippet` is true, the plain text snippet of the search result is ret
 ## Search
 
 Depending on the use-case searching for documents can be achieved as a search for documents _similar_ to a given snippet/document or as a _free-text search_. Both variants can then be run as a anonymous search or a search that is personalized. Personalization comes in two fashions, with a _user-id_ or by providing a interaction _history_.
+
+Personalized search is a search where the results of the search are reordered based on the interests of the users, this makes it especially useful for use-cases like a 'more like this' section.
 
 ### Similar documents
 
@@ -234,7 +236,7 @@ The quality of the results can vary on the length of the provided query. Short q
 
 To personalise search results for a specific user, any search can also be combined with an `user id` or a user `history`, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.
 
-This is how we ask the system for a personalised search result for a [user](#recommendations-personalized-documents):
+This is how we ask the system for a personalised search result for a [user](#recommendations):
 
 ```bash
 curl -X POST "$URL/semantic_search" \
