@@ -1,0 +1,18 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+sphinx = "==7.0.1"
+furo = "==2023.05.20"
+sphinxcontrib-httpdomain = "==1.8.1"
+sphinxcontrib-openapi = {ref = "0cb4f46", git = "git+https://github.com/david-i-berry/sphinxcontrib-openapi"}
+sphinx-toolbox = "==3.4.0"
+myst-parser = "*"
+sphinx-copybutton = "*"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"

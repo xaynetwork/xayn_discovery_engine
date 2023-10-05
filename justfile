@@ -22,6 +22,18 @@ export RUSTDOCFLAGS := if env_var_or_default("CI", "false") == "true" {
     env_var_or_default("RUSTDOCFLAGS", "")
 }
 
+# FIXME we should use `just install**` in `Docker.ci-image` to make sure
+#       we install it always the same way and then we would not need this here
+#       but that is a different PR
+tool_root := if env_var_or_default("GITHUB_ACTIONS", "false") == "true" {
+    "/usr/local"
+} else {
+    justfile_directory() + "/.local"
+}
+
+# this seems to be case sensitive in some situations
+export npm_config_prefix := tool_root
+
 # Runs just --list
 default:
     @{{just_executable()}} --list
@@ -228,7 +240,7 @@ validate-openapi:
     # We need to call it once per file, if we pass in multiple files it will
     # have some bug where it does not report error correctly.
     for file in ls web-api/openapi/*.yaml; do
-        spectral lint --verbose -F warn "$file"
+        npx spectral lint --verbose -F warn "$file"
     done
 
 install-openapi-doc-generator:
@@ -239,14 +251,14 @@ install-openapi-doc-generator:
 generate-docs:
     #!/usr/bin/env -S bash -eux -o pipefail
     cd docs/
-    sphinx-build -M html source/ build/
-    redocly build-docs ../web-api/openapi/front_office.yaml -o build/html/front_office.html
-    redocly build-docs ../web-api/openapi/back_office.yaml -o build/html/back_office.html
+    pipenv run sphinx-build -M html source/ build/
+    npx redocly build-docs ../web-api/openapi/front_office.yaml -o build/html/front_office.html
+    npx redocly build-docs ../web-api/openapi/back_office.yaml -o build/html/back_office.html
     echo "docs.xayn.com" > build/html/CNAME
 
 generate-openapi-doc api:
     #!/usr/bin/env -S bash -eux -o pipefail
-    redocly preview-docs web-api/openapi/{{api}}.yaml
+    npx redocly preview-docs web-api/openapi/{{api}}.yaml
 
 validate-migrations-unchanged cmp_ref:
     #!/usr/bin/env -S bash -eu -o pipefail
@@ -312,3 +324,20 @@ _test-project-root:
 alias r := rust-test
 alias t := test
 alias pp := pre-push
+
+
+# Helpers to make sure you use the right env variables when running any commands.
+run *args:
+    {{args}}
+
+pipenv *args:
+    pipenv {{args}}
+
+npm *args:
+    npm {{args}}
+
+npx *args:
+    npx {{args}}
+
+cargo *args:
+    cargo {{args}}
