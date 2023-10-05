@@ -42,15 +42,18 @@ tags:
   - name: front office
     description: Handles interactions between users and documents and allows to fetch personalized documents per user.
     x-traitTag: true
+  - name: recommendation
+    x-displayName: Recommendation
   - name: interaction
     x-displayName: Interaction
   - name: search
     x-displayName: Search
 x-tagGroups:
-  - name: Interaction
+  - name: Recommendation API
     tags:
+      - recommendation
       - interaction
-  - name: Search
+  - name: Search API
     tags:
       - search
 
@@ -65,8 +68,8 @@ paths:
     post:
       tags:
         - front office
-        - search
-      summary: Personalize documents for the user
+        - recommendation
+      summary: Provides recommendations for a given user
       description: |-
         Finds a number of recommendations for the given `user_id`.
 
@@ -110,7 +113,7 @@ paths:
     post:
       tags:
         - front office
-        - search
+        - recommendation
       deprecated: true
       summary: Personalize documents for the user
       description: |-
@@ -149,7 +152,7 @@ paths:
     get:
       tags:
         - front office
-        - search
+        - recommendation
       deprecated: true
       summary: Get personalized snippets for the user
       description: Deprecated. Use `POST /users/{user_id}/personalized_documents` instead.
