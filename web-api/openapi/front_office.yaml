@@ -19,11 +19,28 @@ info:
     From our perspective, a `user_id` is simply required to group interactions together. We don't need to know who that user is, so it is preferred to create this `user_id` in a privacy-preserving way.
     For example, create a hash method which transforms your user into an ID hash.
 
-    ## Document
-    A document here is represented by its `id` and optional `properties`.
-    In order to display a document in an interface, it's preferred to use `properties`, which is an arbitrary collection of values.
-    For example, it could contain an image url, a full article url, the publication date, the author or much more.
-    The properties that were added when the document was submitted to us, are just mirrored here.
+    ## Documents & Snippets
+
+    In the _oversimplified_ case you can think of the search and recommendation API as that they return a list of documents,
+    with each entry having a score, the document id and potentially other data. This data can include additional
+    properties you can provide when when ingesting a document (set `include_properties` to `true`).
+
+    In practice our systems provides searches and recommendations based on a internal representation we call snippet,
+    as it's derived from a snippet of processed text. In many cases a document has exactly one snippet. But there are ways
+    in which you can ingest a document in which they have multiple snippets. This is also why results contain a snippet id
+    which consists of the document id the snippet is from and a `sub_id` which specifies which snippet exactly this result
+    is based on. The getting started documentation provides more details about this.
+
+    ### Document Id & Snippet Id
+
+    The document id is a string which always refers to the document as a whole, no matter how many snippets it has.
+
+    The snippet id is a struct containing a `document_id` field and a `sub_id` field, it always only refers to a
+    specific snippet even if the document has multiple snippets.
+
+    Currently it is recommended to use the snippet id where possible. So if you get recommendations or a search result
+    with a snippet id and you want to e.g. register an interaction or do a similarity search based on this previous results
+    you should use the full returned snippet id, not just the document id.
   x-logo:
     url: https://uploads-ssl.webflow.com/5ea197660b956f76d26f0026/637f7edd68c1ae2f12d4689e_Xayn%20Logo%202022%20-%20Footer.svg
     altText: Xayn
@@ -158,6 +175,10 @@ paths:
 
         For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
         For apps, consider implementing a "like" button, where the on-click triggers this method.
+
+        Be aware that when using documents which multiple snippets it is currently recommended to register a
+        reaction with the specific snippet the user interacted with instead of the document as a whole. You
+        can do so by providing snippet ids instead of document ids.
       operationId: updateUserInteractions
       parameters:
         - $ref: './parameters/path/id.yml#/UserId'
