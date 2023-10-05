@@ -58,7 +58,7 @@ security:
   - ApiKeyAuth: []
 
 paths:
-  /users/{user_id}/personalized_documents:
+  /users/{user_id}/recommendations:
     parameters:
       - $ref: './parameters/path/id.yml#/UserId'
 
@@ -68,6 +68,54 @@ paths:
         - search
       summary: Personalize documents for the user
       description: |-
+        Finds a number of recommendations for the given `user_id`.
+
+        Recommendations are based on snippets and each recommendation contains the snippet id it is based on as
+        well as a score. A higher score means that the document matches the preferences of the user better.
+        Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
+
+        Depending on the request parameters the recommendation can also include additional fields.
+
+        The recommendations also contain the properties of the snippets parent document if this is requested and the properties are not empty.
+
+        Documents that have been interacted with by the user are filtered out from the result.
+
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
+      operationId: getRecommendations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecommendationRequest'
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: Impossible to create a personalized documents for the user.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationError'
+
+  /users/{user_id}/personalized_documents:
+    parameters:
+      - $ref: './parameters/path/id.yml#/UserId'
+
+    post:
+      tags:
+        - front office
+        - search
+      deprecated: true
+      summary: Personalize documents for the user
+      description: |-
+        Use `/users/{user_id}/recommendations` instead.
+
         Get a list of snippets personalized for the given `user_id`.
 
         Each snippet has an id and contains the id of the document it originates from as well as a score. A higher score means that the document matches the preferences of the user better.
@@ -81,14 +129,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PersonalizedDocumentsRequest'
+              $ref: '#/components/schemas/RecommendationRequest'
       responses:
         '200':
           description: Successful operation.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+                $ref: '#/components/schemas/RecommendationResponse'
         '400':
           $ref: './responses/generic.yml#/BadRequest'
         '409':
@@ -96,7 +144,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonalizedDocumentsError'
+                $ref: '#/components/schemas/RecommendationError'
 
     get:
       tags:
@@ -148,7 +196,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonalizedDocumentsResponse'
+                $ref: '#/components/schemas/RecommendationResponse'
         '400':
           $ref: './responses/generic.yml#/BadRequest'
         '409':
@@ -156,7 +204,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PersonalizedDocumentsError'
+                $ref: '#/components/schemas/RecommendationError'
 
   /users/{user_id}/interactions:
     patch:
@@ -315,7 +363,7 @@ components:
       oneOf:
         - $ref: '#/components/schemas/FilterCompare'
         - $ref: '#/components/schemas/FilterCombine'
-    PersonalizedDocumentsRequest:
+    RecommendationRequest:
       type: object
       properties:
         count:
@@ -336,7 +384,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/FilterCompare'
             - $ref: '#/components/schemas/FilterCombine'
-    PersonalizedDocumentData:
+    SearchResultEntry:
       type: object
       required: [id, snippet_id, score]
       properties:
@@ -352,18 +400,18 @@ components:
           type: number
         properties:
           $ref: './schemas/document.yml#/DocumentProperties'
-    PersonalizedDocuments:
+    SearchResults:
       type: array
       minItems: 0
       maxItems: 100
       items:
-        $ref: '#/components/schemas/PersonalizedDocumentData'
-    PersonalizedDocumentsResponse:
+        $ref: '#/components/schemas/SearchResultEntry'
+    RecommendationResponse:
       type: object
       required: [documents]
       properties:
         documents:
-          $ref: '#/components/schemas/PersonalizedDocuments'
+          $ref: '#/components/schemas/SearchResults'
       example:
         documents:
           - id: 'document_id0'
@@ -422,7 +470,7 @@ components:
       required: [documents]
       properties:
         documents:
-          $ref: '#/components/schemas/PersonalizedDocuments'
+          $ref: '#/components/schemas/SearchResults'
       example:
         documents:
           - id: 'document_id0'
@@ -432,7 +480,7 @@ components:
             score: 0.87
             properties:
               title: "News title"
-    PersonalizedDocumentsError:
+    RecommendationError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
         - type: object
