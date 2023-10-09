@@ -20,11 +20,13 @@ jobs:
         run: sudo snap install --edge just --classic
 
       - name: Setup redocly
-        run: npm i -g @redocly/cli@latest
+        run: just install-openapi-doc-generator
 
       - name: Setup sphinx
         working-directory: ./docs
-        run: pip install -r requirements.txt
+        run: |
+          pip install pipenv --user
+          pipenv install --deploy
 
       - name:  Generate all documentation
         run: just generate-docs
