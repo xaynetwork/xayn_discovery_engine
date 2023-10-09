@@ -1,3 +1,10 @@
+# 2.7.0 - 2023-10-09
+
+- renamed `/users/{user_id}/personalized_documents` to `/users/{user_id}/recommendations`
+
+# 2.6.0 - 2023-09-06
+
+- added upload file API
 # 2.5.0 - 2023-07-31
 
 - Generalize scores in search results
