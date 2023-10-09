@@ -11,21 +11,14 @@ on:
 
 jobs:
   generate-docs:
-    runs-on: ubuntu-22.04
+    runs-on: xaynetci/yellow:v15
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: Setup just
-        run: sudo snap install --edge just --classic
-
-      - name: Setup redocly
-        run: just install-openapi-doc-generator
-
       - name: Setup sphinx
         working-directory: ./docs
         run: |
-          pip install pipenv --user
           pipenv install --deploy
 
       - name:  Generate all documentation
