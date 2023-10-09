@@ -66,11 +66,14 @@ use crate::{
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     let users = web::scope("/users/{user_id}")
         .service(web::resource("interactions").route(web::patch().to(interactions)))
+        .service(web::resource("recommendations").route(web::post().to(recommendations)))
         .service(
             web::resource("personalized_documents")
-                .route(web::post().to(personalized_documents))
+                .route(web::post().to(deprecate!(recommendations(
+                    state, user_id, body, params, storage,
+                ))))
                 // this route is deprecated and will be removed in the future
-                .route(web::get().to(deprecate!(personalized_documents(
+                .route(web::get().to(deprecate!(recommendations(
                     state, user_id, body, params, storage,
                 )))),
         );
@@ -226,7 +229,7 @@ impl UnvalidatedPersonalizedDocumentsRequest {
     }
 }
 
-async fn personalized_documents(
+async fn recommendations(
     state: Data<AppState>,
     user_id: Path<String>,
     body: Option<Json<UnvalidatedPersonalizedDocumentsRequest>>,
