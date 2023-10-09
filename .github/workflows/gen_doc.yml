@@ -18,8 +18,7 @@ jobs:
 
       - name: Setup sphinx
         working-directory: ./docs
-        run: |
-          pipenv install --deploy
+        run: pipenv install --deploy
 
       - name:  Generate all documentation
         run: just generate-docs
