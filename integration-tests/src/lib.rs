@@ -625,7 +625,10 @@ pub fn with_text_extractor_options(
     if let Some(timeout) = timeout {
         match config.get_mut("text_extractor") {
             Some(Value::Table(table)) => {
-                table.insert("timeout".to_string(), Value::Integer(timeout.into()));
+                table.insert(
+                    "timeout".to_string(),
+                    Value::String(format!("{}ms", timeout)),
+                );
             }
             _ => unreachable!(),
         }

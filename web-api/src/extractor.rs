@@ -26,7 +26,7 @@ use reqwest::{Client, ClientBuilder};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use url::Url;
-use xayn_web_api_shared::{elastic::SegmentableUrl, serde::serde_duration_as_millis};
+use xayn_web_api_shared::{elastic::SegmentableUrl, serde::serde_duration_in_config};
 
 use crate::{
     error::common::{FileUploadNotEnabled, InvalidBinary},
@@ -57,7 +57,7 @@ pub enum ExtractorConfig {
         /// Request timeout in milliseconds.
         /// If Tika takes more than this to extract the text the document is too complex
         /// and we mark the document as invalid.
-        #[serde(with = "serde_duration_as_millis", default = "default_timeout")]
+        #[serde(with = "serde_duration_in_config", default = "default_timeout")]
         timeout: Duration,
     },
 }
