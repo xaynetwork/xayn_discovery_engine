@@ -62,7 +62,7 @@ stdout = """
     "extractor": "tika",
     "url": "http://localhost:9998",
     "allowed_media_type": [],
-    "timeout": 5s
+    "timeout": "5s"
   },
   "tenants": {
     "enable_legacy_tenant": false,
