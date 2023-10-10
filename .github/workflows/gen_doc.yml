@@ -11,20 +11,16 @@ on:
 
 jobs:
   generate-docs:
-    runs-on: ubuntu-22.04
+    runs-on: hetzner-pm
+    container:
+      image: xaynetci/yellow:v15
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
-      - name: Setup just
-        run: sudo snap install --edge just --classic
-
-      - name: Setup redocly
-        run: npm i -g @redocly/cli@latest
-
       - name: Setup sphinx
         working-directory: ./docs
-        run: pip install -r requirements.txt
+        run: pipenv install --deploy
 
       - name:  Generate all documentation
         run: just generate-docs
