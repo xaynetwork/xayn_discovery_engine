@@ -16,16 +16,17 @@ use std::{
     cmp::Ordering,
     collections::HashSet,
     hash::{Hash, Hasher},
+    time::Duration,
 };
 
 use derive_more::Display;
 use mime::{Mime, Name};
 use mime_serde_shim::Wrapper as SerDeMime;
-use reqwest::Client;
+use reqwest::{Client, ClientBuilder};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use url::Url;
-use xayn_web_api_shared::elastic::SegmentableUrl;
+use xayn_web_api_shared::{elastic::SegmentableUrl, serde::serde_duration_in_config};
 
 use crate::{
     error::common::{FileUploadNotEnabled, InvalidBinary},
@@ -53,11 +54,20 @@ pub enum ExtractorConfig {
         /// Allowed media type. If empty allows everything.
         #[serde(default)]
         allowed_media_type: Vec<SerDeMime>,
+        /// Request timeout in milliseconds.
+        /// If Tika takes more than this to extract the text the document is too complex
+        /// and we mark the document as invalid.
+        #[serde(with = "serde_duration_in_config", default = "default_timeout")]
+        timeout: Duration,
     },
 }
 
 fn default_text_extractor_url() -> String {
     "http://localhost:9998".into()
+}
+
+fn default_timeout() -> Duration {
+    Duration::from_secs(5)
 }
 
 impl Default for Config {
@@ -67,6 +77,7 @@ impl Default for Config {
             config: ExtractorConfig::Tika {
                 url: default_text_extractor_url(),
                 allowed_media_type: Vec::new(),
+                timeout: default_timeout(),
             },
         }
     }
@@ -133,8 +144,9 @@ impl TextExtractor {
             ExtractorConfig::Tika {
                 url,
                 allowed_media_type,
+                timeout,
             } => ExtractorInner::Tika {
-                client: Client::new(),
+                client: ClientBuilder::new().timeout(*timeout).build()?,
                 url: url.parse()?,
                 allowed_media_type: allowed_media_type
                     .iter()
@@ -188,7 +200,13 @@ impl ExtractorInner {
                     .body(data)
                     .send()
                     .await
-                    .map_err(|e| PreprocessError::Fatal(e.into()))?
+                    .map_err(|e| {
+                        if e.is_timeout() {
+                            PreprocessError::Invalid(InvalidBinary::ContentTooComplex.into())
+                        } else {
+                            PreprocessError::Fatal(e.into())
+                        }
+                    })?
                     .json()
                     // tika wasn´t able to extract the text
                     .await

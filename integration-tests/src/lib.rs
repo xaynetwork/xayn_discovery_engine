@@ -611,13 +611,30 @@ pub fn with_dev_options() -> Option<Table> {
     })
 }
 
-pub fn with_text_extractor_options(allowed_media_type: Vec<String>) -> Option<Table> {
-    Some(toml! {
+pub fn with_text_extractor_options(
+    allowed_media_type: Vec<String>,
+    timeout: Option<u16>,
+) -> Option<Table> {
+    let mut config = toml! {
         [text_extractor]
         enabled = true
         extractor = "tika"
         allowed_media_type = allowed_media_type
-    })
+    };
+
+    if let Some(timeout) = timeout {
+        match config.get_mut("text_extractor") {
+            Some(Value::Table(table)) => {
+                table.insert(
+                    "timeout".to_string(),
+                    Value::String(format!("{}ms", timeout)),
+                );
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    Some(config)
 }
 
 pub fn extend_config(current: &mut Table, extension: Table) {
