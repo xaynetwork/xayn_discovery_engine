@@ -85,6 +85,7 @@ where
                         include_properties: self.include_properties,
                         include_snippet: self.include_snippet,
                         filter: self.filter,
+                        with_raw_scores: false,
                     },
                 )
                 .await

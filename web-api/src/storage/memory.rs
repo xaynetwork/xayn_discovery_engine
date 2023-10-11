@@ -286,6 +286,7 @@ impl storage::Document for Storage {
                             properties: include_properties.then(|| document.properties.clone()),
                             snippet: include_snippet.then(|| document.snippet.clone()),
                             tags: document.tags.clone(),
+                            dev: None,
                         })
                 })
             })
@@ -358,6 +359,7 @@ impl storage::Document for Storage {
                             .then(|| document.properties.clone()),
                         snippet: params.include_snippet.then(|| document.snippet.clone()),
                         tags: document.tags.clone(),
+                        dev: None,
                     })
                 }
             })
@@ -784,6 +786,7 @@ mod tests {
                 include_properties: false,
                 include_snippet: false,
                 filter: None,
+                with_raw_scores: false,
             },
         )
         .await
@@ -807,6 +810,7 @@ mod tests {
                 include_properties: false,
                 include_snippet: false,
                 filter: None,
+                with_raw_scores: false,
             },
         )
         .await

@@ -48,6 +48,7 @@ use crate::{
         warning::Warning,
     },
     models::{
+        DocumentDevData,
         DocumentId,
         DocumentProperties,
         DocumentQuery,
@@ -304,6 +305,8 @@ struct PersonalizedDocumentData {
     properties: Option<DocumentProperties>,
     #[serde(skip_serializing_if = "Option::is_none")]
     snippet: Option<DocumentSnippet>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dev: Option<DocumentDevData>,
 }
 
 fn no_properties(properties: &Option<DocumentProperties>) -> bool {
@@ -320,6 +323,7 @@ impl From<PersonalizedDocument> for PersonalizedDocumentData {
             score: document.score,
             properties: document.properties,
             snippet: document.snippet,
+            dev: document.dev,
         }
     }
 }
@@ -785,6 +789,7 @@ async fn semantic_search(
             include_properties,
             include_snippet,
             filter: filter.as_ref(),
+            with_raw_scores: false,
         },
     )
     .await?;

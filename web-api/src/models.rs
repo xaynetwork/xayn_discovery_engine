@@ -452,6 +452,23 @@ pub(crate) struct PersonalizedDocument {
 
     /// The tags associated to the document.
     pub(crate) tags: DocumentTags,
+
+    /// Additional data about the document that can be helpful while tuning or debugging the system.
+    pub(crate) dev: Option<DocumentDevData>,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub(crate) struct DocumentDevData {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) raw_scores: Option<RawScores>,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub(crate) struct RawScores {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) knn: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) bm25: Option<f32>,
 }
 
 impl AiDocument for PersonalizedDocument {
