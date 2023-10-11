@@ -197,7 +197,7 @@ impl Client {
             inner_filter: _,
         } = params.create_common_knn_search_parts();
 
-        let bm_25 =
+        let elser_search =
             json_object!({
                 "query": {
                     "text_expansion": {
@@ -210,11 +210,11 @@ impl Client {
             }
         );
 
-        let rrf = json_object!({ "rank": { "rrf": {} } });
+        let rrf = json_object!({ "rank": { "rrf": {"window_size": count} } });
 
         let req_body_merged = merge_json_objects([
             knn_object,
-            bm_25,
+            elser_search,
             rrf,
             generic_parameters.clone(),
         ]);
