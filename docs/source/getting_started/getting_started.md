@@ -9,15 +9,15 @@ The front office is used for all communication between the users and the service
 - Search: in particular, we specialize in semantic search that finds documents which are semantically similar to the given query or another document
 - Recommendations: we can return documents based on the user's interests.
 
-Based on this many other use cases can be implemented. For example, the recommendation API can be used to implement a 'for you' section, while the search API can be used to provide a 'more like this' section. We can also use both and provide 'more like this' functionality to a 'for you' section.
+Based on this, many other use cases can be implemented. For example, the recommendation API can be used to implement a 'for you' section, while the search API can be used to provide a 'more like this' section. We can also use both and provide 'more like this' functionality to a 'for you' section.
 
 ![architectural overview](./architecture_overview.png)
 
-Before the front office APIs can be used, documents need to be ingested into our system. In the simplest case each document will produce exactly one thing you can search for. We call them snippets, as at their core, they are based on snippets of text. From each of this snippets we will derive a mathematical representation which is used to match the snippets to the provided search queries or user's interests. There are more complex cases where we e.g. split documents. In the first part of this documentation we will only cover the case where a document directly maps to a single snippet. Later parts will cover more advanced use-cases.
+Before the front office APIs can be used, documents need to be ingested into our system. In the simplest case, each document will produce exactly one thing you can search for. We call them snippets, as, at their core, they are based on snippets of text. From each of these snippets, we derive a mathematical representation which is used to match the snippets to the provided search queries or user's interests. There are more complex cases where we, e.g. split documents. In the first part of this documentation, we will only cover the case where a document directly maps to a single snippet. Later parts will cover more advanced use cases.
 
 Once we have the documents in the system, we can use the front office to implement different use cases. For example, to have a ‘for you’ section, we need to add user interactions (clicks, reading, viewing) with documents or snippets. With each interaction, the system creates or updates a model that represents the user’s interests each time we add an interaction. Each user has a unique model that is used to return individually personalised search results and recommendations in form of a list of best matching snippets/documents.
 
-In following we will first explain the general usage of the APIs in the simplest use-cases. Further below
+In the following, we will first explain the general usage of the APIs in the simplest use cases. Further below
 you can find sections about [documents with multiple snippets](#documents-with-multiple-snippets), options for [document preprocessing](#document-preprocessing) and more.
 
 # Getting started
@@ -82,7 +82,7 @@ Each document has a unique identifier that can be used to refer to it in the sys
 The `snippet` field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.
 
 For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. If you
-intend to ingest larger documents the [preprocessing section](#document-preprocessing) contains
+intend to ingest larger documents, the [preprocessing section](#document-preprocessing) contains
 examples about enabling the usage of a [summarizer](#summarizer) or [document splitting](#automatic-document-splitting).
 
 The `properties` field is completely optional. It can contain custom data that can be used for [filtering](#filters) and that the system will return when a document is part of the result of a query.
@@ -133,7 +133,7 @@ curl -X PATCH "$URL/users/u1234/interactions" \
 ```
 
 ```{note}
-Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the recommendation endpoint. This includes all snippets associated to that document.
+Please note that if an interaction between a user and a document is added, the document will **not** be part of the documents returned for future calls to the recommendation endpoint. This includes all snippets associated with that document.
 ```
 
 Let's ask for recommendations again:
@@ -181,9 +181,9 @@ If `include_snippet` is true, the plain text snippet of the search result is ret
 
 ## Search
 
-Depending on the use-case searching for documents can be achieved as a search for documents _similar_ to a given snippet/document or as a _free-text search_. Both variants can then be run as a anonymous search or a search that is personalized. Personalization comes in two fashions, with a _user-id_ or by providing a interaction _history_.
+Depending on the use case, searching for documents can be achieved as a search for documents _similar_ to a given snippet/document or as a _free-text search_. Both variants can then be run as an anonymous search or a search that is personalized. Personalization comes in two fashions: with a _user-id_ or by providing an interaction _history_.
 
-Personalized search is a search where the results of the search are reordered based on the interests of the users, this makes it especially useful for use-cases like a 'more like this' section.
+Personalized search is a search where the results of the search are reordered based on the interests of the users; this makes it especially useful for use cases like a 'more like this' section.
 
 ### Similar documents
 
@@ -201,7 +201,7 @@ curl -X POST "$URL/semantic_search" \
 
 The result contains a list of snippets similar to the identified document.
 
-Please note that when using [document with multiple snippets](#documents-with-multiple-snippets) it is recommended to use the snippet id instead of an document id. More details can be found in the chapter
+Please note that when using [document with multiple snippets](#documents-with-multiple-snippets), it is recommended to use the snippet id instead of a document id. More details can be found in the chapter
 about documents with multiple snippets and the API documentation.
 
 ### Free Text search
@@ -405,21 +405,20 @@ When using documents with multiple snippets, you need to be aware of a few thing
 
 - there is a snippet id for each specific snippet a document has
 - we search for snippets, not documents, so results can contain multiple different snippets of the same document
-- APIs which operate on the document as a whole like the ingestion or candidates API only accept a document id
+- APIs which operate on the document as a whole, like the ingestion or candidates API, only accept a document id
 - all search APIs do accept document and snippet ids with slightly different semantic meaning
     - document ids always refer to the document as a whole
     - while snippet ids refer to a specific snippet
-- for documents which only have exactly one snippet the document id and the snippet id with `sub_id: 0` can be used interchangeably
-    - as such if your system might have documents with multiple snippets in the future it's a good idea to always use the snippet id for forward compatibility
+- for documents which only have exactly one snippet, the document id and the snippet id with `sub_id: 0` can be used interchangeably. As such if your system might have documents with multiple snippets in the future, it's a good idea to always use the snippet id for forward compatibility
 
-Some of the search APIs currently have suboptimal implementations when using a document id of a document which has multiple snippets. But this _only_ affects documents which have multiple snippets. As such we recommend always using the snippet id until the implementation is improved.
+Some of the search APIs currently have suboptimal implementations when using a document id of a document which has multiple snippets. But this _only_ affects documents which have multiple snippets. As such, we recommend always using the snippet id until the implementation is improved.
 
 ## Snippet Id
 
 Snippets are identified by a snippet id consisting of both the document id and a sub id.
 
 Each document is guaranteed to have a snippet with sub id equals `0`. But besides that,
-there are no guarantees about the value of the `sub_id`. E.g. a document might have snippet
+there are no guarantees about the value of the `sub_id`; this means that a document might have snippet
 id's with the sub ids `0`, `400`, `2334`.
 
 For example, if we ingest a document like
@@ -458,13 +457,13 @@ curl -X POST "$URL/semantic_search" \
     }'
 ```
 
-The document id string always represents the intend to refer to a document as a whole, no matter how many snippets that document has.
+The document id string always represents the intent to refer to a document as a whole, no matter how many snippets that document has.
 
-The snippet id struct always represents the intend to refer to one specific snippet.
+The snippet id struct always represents the intent to refer to one specific snippet.
 
-This means that in the examples above the first represents the intend to search for snippets which are similar to the document as a whole, but the second represent a search for snippets which are similar to the specific snippet which is potentially just a small part of the document. (At the moment the search with the document as a whole has some technical limitations, but such limitations only affect systems which have documents with multiple snippets. Please consult the API documentation for the endpoints you want use it with.)
+This means that in the examples above, the first represents the intent to search for snippets which are similar to the document as a whole, but the second represents a search for snippets which are similar to the specific snippet, which is potentially just a small part of the document. (At the moment, the search with the document as a whole has some technical limitations, but such limitations only affect systems which have documents with multiple snippets. Please consult the API documentation for the endpoints you want to use it with.)
 
-We currently recommend using the snippet id for any system which _might maybe_ end up with multiple snippets.
+We recommend using the snippet id for any system which might end up with multiple snippets.
 
 ## Ingestion
 
@@ -474,7 +473,7 @@ produce multiple snippets:
 - using the [`split` option with `snippet`](#automatic-document-splitting)
 - using the [`split` option with `file`](#file-upload)
 
-Be aware that you need to use sufficient long text for it to be split.
+Be aware that you need to use sufficient long text for it to be split in multiple snippets.
 
 You could use the example from the [`split` option section](#automatic-document-splitting) or use
 your own document, something along ~1000 words will likely generate multiple splits.
@@ -527,11 +526,11 @@ document ids:
 When the history contains an interaction with a document which has multiple snippets, it will be
 processed similar to registering an interaction with each snippet of that document.
 
-`exclude_seen` always refers to whole documents.
+The field `exclude_seen` always refers to whole documents.
 In the example above, even if there were a snippet with id `{ "document_id": "valid_doc_id1", "sub_id": 30 }` it would exclude the whole document `"valid_doc_id1"` no matter how many snippets it has.
 
-Please be aware that using semantic search based on a document id of a document with multiple snippets has some technical limitations. Mainly instead of searching based on the document as a whole it might search based on
-a single snippet of the document. This will change in the future but until then we recommend to always use the snippet id for now.
+Please be aware that using semantic search based on a document id of a document with multiple snippets has some limitations. Mainly, instead of searching based on the document as a whole, it searches based on
+a single snippet of the document. For this reason, we recommend to always use the snippet id for now.
 
 ## Personalization
 
@@ -558,25 +557,25 @@ processed similar to registering an interaction which each snippet of that docum
 ## Automatic document splitting
 
 The back office ingestion API provides functionality to automatically split a document into
-multiple parts and create a snippet for each of this parts.
+multiple parts and create a snippet for each of these parts.
 
 The system uses Natural language processing (NLP) algorithms to split the document.
 
-This algorithm will be improved over time. This means a document ingested now and a equal document ingested
-in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can't guarantee fully deterministic behavior even with the same algorithm.
+This algorithm will be improved over time. This means a document ingested now and an equal document ingested
+in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic, so we can't guarantee fully deterministic behaviour even with the same algorithm.
 
-Currently, the splitting works only for the language set when the system is configured.
+The splitting works only for the language set when the system is configured.
 The default is English. If you need another language, please contact us.
 We are working to add support for multiple languages to our text-splitting algorithm.
 
-Automatic splitting can be enabled on a per document bases by setting the `"split"` option
-to `true` like shown in the example below.
+Automatic splitting can be enabled on a per-document basis by setting the `"split"` option
+to `true` as shown in the example below.
 
-When using documents with multiple snippets it is highly recommended to use
-the snippet id for many use-cases, more details can be found in the
+When using documents with multiple snippets, it is highly recommended to use
+the snippet id for many use cases. More details can be found in the
 [section about documents with multiple snippets](#documents-with-multiple-snippets).
 
-If a search using `include_snippet` returns a snippet from a split document then the returned snippet will be the "split" segment produced by the splitting algorithm.
+If a search using `include_snippet` returns a snippet from a split document, the returned snippet will be the "split" segment produced by the splitting algorithm.
 
 For example the ingestion of (from BAnz AT 13.07.2023 B1 page 3):
 
@@ -615,8 +614,8 @@ could split the text into three part:
 
 The file upload features is _not_ enabled by default contact Xayn if you do need it.
 
-Documents are often in different formats then plain text. When ingesting you can decide to provide a
-document "file" instead of a snippet. If you do so we will try to extract snippets from the given
+Documents are often in different formats than plain text. When ingesting, you can decide to provide a
+document "file" instead of a snippet. If you do so, we will try to extract snippets from the given
 file.
 
 File upload implies the [`split`](#automatic-document-splitting) option which means it might always produce documents which have multiple snippets.
@@ -625,7 +624,7 @@ The [documents with multiple snippets chapter](#documents-with-multiple-snippets
 Follwing file formats are supported: `application/pdf`, `text/plain`, `text/html`.
 
 The "file" needs to be provided as base64 encoded string.
-Reusing the example from the getting started section and provding the snippet as `text/plain` file leads to following example:
+Reusing the example from the getting started section and providing the snippet as `text/plain` file leads to the following example:
 
 ```bash
 curl -X POST "$URL/documents" \
@@ -649,10 +648,10 @@ curl -X POST "$URL/documents" \
 ```
 ## Summarizer
 
-The back office ingestion API provides functionality to automatically summarize the provided content.
+The back office ingestion API provides functionality to summarize the provided content automatically.
 
-This can be used if the content of a document is too large to be used directly as a snippet. Due to the fact that
-the summarized text still has to fit into the size constraints of a snippet it is better to
+This can be used if the content of a document is too large to be used directly as a snippet. Because
+the summarized text still has to fit into the size constraints of a snippet; it is better to
 use the [automatic document splitting instead](#automatic-document-splitting).
 
 If a search using `include_snippet` returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.
