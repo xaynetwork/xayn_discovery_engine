@@ -103,7 +103,7 @@ enum PersonalizedDocumentsError {
 }
 
 #[derive(Debug, Deserialize, PartialEq)]
-enum PersonalizedDocumentsResponse {
+enum RecommendationsResponse {
     #[serde(rename = "documents")]
     Documents(Vec<PersonalizedDocumentData>),
     #[serde(rename = "kind")]
@@ -135,14 +135,21 @@ async fn personalize(
     include_properties: Option<bool>,
     assert: impl Fn(&[PersonalizedDocumentData]),
 ) -> Result<(), Error> {
+    //FIXME cleanup the way this uses DRY is not playing well with changes
+    enum Endpoint {
+        PersonalizedDocumentsGet,
+        PersonalizedDocumentsPost,
+        Recommendations,
+    }
+
     fn build_request(
         client: &Client,
         personalization_url: &Url,
         published_after: Option<&str>,
         include_properties: Option<bool>,
-        is_deprecated: bool,
+        endpoint: Endpoint,
     ) -> Result<Request, Error> {
-        if is_deprecated {
+        if let Endpoint::PersonalizedDocumentsGet = endpoint {
             let mut request = client
                 .get(personalization_url.join("/users/u1/personalized_documents")?)
                 .query(&[("count", "5")]);
@@ -167,22 +174,26 @@ async fn personalize(
             if let Some(include_properties) = include_properties {
                 body.insert("include_properties".into(), json!(include_properties));
             }
-            client
-                .post(personalization_url.join("/users/u1/personalized_documents")?)
-                .json(&body)
+
+            let route = match endpoint {
+                Endpoint::PersonalizedDocumentsGet => unreachable!(),
+                Endpoint::PersonalizedDocumentsPost => "/users/u1/personalized_documents",
+                Endpoint::Recommendations => "/users/u1/recommendations",
+            };
+            client.post(personalization_url.join(route)?).json(&body)
         }
         .build()
         .map_err(Into::into)
     }
 
-    let error = send_assert_json::<PersonalizedDocumentsResponse>(
+    let error = send_assert_json::<RecommendationsResponse>(
         client,
         build_request(
             client,
             personalization_url,
             published_after,
             include_properties,
-            false,
+            Endpoint::Recommendations,
         )?,
         StatusCode::CONFLICT,
         false,
@@ -190,17 +201,17 @@ async fn personalize(
     .await;
     assert_eq!(
         error,
-        PersonalizedDocumentsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
+        RecommendationsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
     );
 
-    let error = send_assert_json::<PersonalizedDocumentsResponse>(
+    let error = send_assert_json::<RecommendationsResponse>(
         client,
         build_request(
             client,
             personalization_url,
             published_after,
             include_properties,
-            true,
+            Endpoint::PersonalizedDocumentsPost,
         )?,
         StatusCode::CONFLICT,
         true,
@@ -208,51 +219,82 @@ async fn personalize(
     .await;
     assert_eq!(
         error,
-        PersonalizedDocumentsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
+        RecommendationsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
+    );
+
+    let error = send_assert_json::<RecommendationsResponse>(
+        client,
+        build_request(
+            client,
+            personalization_url,
+            published_after,
+            include_properties,
+            Endpoint::PersonalizedDocumentsGet,
+        )?,
+        StatusCode::CONFLICT,
+        true,
+    )
+    .await;
+    assert_eq!(
+        error,
+        RecommendationsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
     );
 
     interact(client, personalization_url).await?;
 
-    let documents = send_assert_json::<PersonalizedDocumentsResponse>(
+    let documents = send_assert_json::<RecommendationsResponse>(
         client,
         build_request(
             client,
             personalization_url,
             published_after,
             include_properties,
-            false,
+            Endpoint::Recommendations,
         )?,
         StatusCode::OK,
         false,
     )
     .await;
-    assert!(matches!(
-        documents,
-        PersonalizedDocumentsResponse::Documents(_),
-    ));
-    let PersonalizedDocumentsResponse::Documents(documents) = documents else {
+    assert!(matches!(documents, RecommendationsResponse::Documents(_),));
+    let RecommendationsResponse::Documents(documents) = documents else {
         unreachable!();
     };
     assert(&documents);
 
-    let documents = send_assert_json::<PersonalizedDocumentsResponse>(
+    let documents = send_assert_json::<RecommendationsResponse>(
         client,
         build_request(
             client,
             personalization_url,
             published_after,
             include_properties,
-            true,
+            Endpoint::PersonalizedDocumentsPost,
         )?,
         StatusCode::OK,
         true,
     )
     .await;
-    assert!(matches!(
-        documents,
-        PersonalizedDocumentsResponse::Documents(_),
-    ));
-    let PersonalizedDocumentsResponse::Documents(documents) = documents else {
+    assert!(matches!(documents, RecommendationsResponse::Documents(_),));
+    let RecommendationsResponse::Documents(documents) = documents else {
+        unreachable!();
+    };
+    assert(&documents);
+
+    let documents = send_assert_json::<RecommendationsResponse>(
+        client,
+        build_request(
+            client,
+            personalization_url,
+            published_after,
+            include_properties,
+            Endpoint::PersonalizedDocumentsGet,
+        )?,
+        StatusCode::OK,
+        true,
+    )
+    .await;
+    assert!(matches!(documents, RecommendationsResponse::Documents(_),));
+    let RecommendationsResponse::Documents(documents) = documents else {
         unreachable!();
     };
     assert(&documents);
@@ -379,7 +421,7 @@ fn test_personalize_no_body() {
             send_assert(
                 &client,
                 client
-                    .post(personalization_url.join("/users/u1/personalized_documents")?)
+                    .post(personalization_url.join("/users/u1/recommendations")?)
                     .build()?,
                 StatusCode::CONFLICT,
                 false,

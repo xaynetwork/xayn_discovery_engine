@@ -72,7 +72,7 @@ fn store_user_history(enabled: bool) {
             let documents = send_assert_json::<PersonalizedDocumentsResponse>(
                 &client,
                 client
-                    .post(personalization.join("/users/u0/personalized_documents")?)
+                    .post(personalization.join("/users/u0/recommendations")?)
                     .build()?,
                 StatusCode::OK,
                 false,

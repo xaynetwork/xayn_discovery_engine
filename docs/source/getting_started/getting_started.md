@@ -94,16 +94,16 @@ article, a title, a link to an image, and a text preview. Some of the examples b
 
 ## Recommendations
 
-After ingestion, we can use the front office to retrieve recommendations, which we call personalised documents, and implement a 'for you' section.
+After ingestion, we can use the front office to retrieve recommendations and implement a 'for you' section.
 
 From a system perspective, a user is represented by an ID that is needed to group their interactions. We don't need to know who this user is, so it is preferable to create this ID in a privacy-protecting way. For example, create a hash method that converts your user into an ID hash. Please ensure you don't use any sensitive or personally identifiable information (PII).
 
 Let's use `u1234` as the user ID for our example.
 
-We ask the system for [personalised documents](https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments) for this user.
+We ask the system for [recommendations](https://docs.xayn.com/front_office.html#tag/search/operation/getRecommendations) for this user.
 
 ```bash
-curl -X POST "$URL/users/u1234/personalized_documents" \
+curl -X POST "$URL/users/u1234/recommendations" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json"
 ```
@@ -139,7 +139,7 @@ Please note that if an interaction between a user and a document is added, the d
 Let's ask for recommendations again:
 
 ```bash
-curl -X POST "$URL/users/u1234/personalized_documents" \
+curl -X POST "$URL/users/u1234/recommendations" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
     --data '{
@@ -286,10 +286,10 @@ Similar to other APIs, using the [snippet id](#documents-with-multiple-snippets)
 
 Finding specific documents in large datasets based on a key-phrase or their relation to other documents can often be challenging. To address this issue, we can employ a structured filter on one or more of the `properties` fields to narrow down the search scope.
 
-The `filter` functionality is available in the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/search/operation/getSimilarDocuments) and [`/users/{user_id}/personalized_documents`](https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments) endpoints, and it involves a two-step process:
+The `filter` functionality is available in the [`/semantic_search`](https://docs.xayn.com/front_office.html#tag/search/operation/getSimilarDocuments) and [`/users/{user_id}/recommendations`](https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments) endpoints, and it involves a two-step process:
 
 1. Indexing the desired property field for the filter to operate on.
-2. Applying the `filter` in the request to `/semantic_search` or `/users/{user_id}/personalized_documents`.
+2. Applying the `filter` in the request to `/semantic_search` or `/users/{user_id}/recommendations`.
 
 ```{note}
 Please note that the __first step__ is necessary to leverage the filtering at all.
@@ -335,7 +335,7 @@ After a short indexing period, depending on the number of ingested documents, we
 
 #### Applying a Filter
 
-Applying a filter then just requires to use the `filter` property in the `/semantic_search` or `/users/{user_id}/personalized_documents` query parameter. In the following two examples we simply filter for the tag `conference`.
+Applying a filter then just requires to use the `filter` property in the `/semantic_search` or `/users/{user_id}/recommendations` query parameter. In the following two examples we simply filter for the tag `conference`.
 
 ```{code-block} bash
 :caption: /semantic_search
@@ -359,12 +359,12 @@ curl -X POST "$URL/semantic_search" \
     }'
 ```
 
-In `personalized_documents` the filter is applied in a similar way:
+In `recommendations` the filter is applied in a similar way:
 
 ```{code-block} bash
-:caption: /users/{user_id}/personalized_documents
+:caption: /users/{user_id}/recommendations
 
-curl -X POST "$URL/users/u1234/personalized_documents" \
+curl -X POST "$URL/users/u1234/recommendations" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
     --data '{
@@ -382,9 +382,9 @@ curl -X POST "$URL/users/u1234/personalized_documents" \
 Filter APIs can also work with rfc3339 formatted strings if the field is of type `date`:
 
 ```{code-block} bash
-:caption: /users/{user_id}/personalized_documents
+:caption: /users/{user_id}/recommendations
 
-curl -X POST "$URL/users/u1234/personalized_documents" \
+curl -X POST "$URL/users/u1234/recommendations" \
     --header "authorizationToken: $FRONTOFFICE_TOKEN" \
     --header "Content-Type: application/json" \
     --data '{

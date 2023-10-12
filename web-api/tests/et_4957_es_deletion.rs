@@ -190,15 +190,11 @@ async fn interact(
     Ok(())
 }
 
-async fn personalized_documents(
-    client: &Client,
-    url: &Url,
-    user: &str,
-) -> Result<Vec<String>, Error> {
+async fn recommendations(client: &Client, url: &Url, user: &str) -> Result<Vec<String>, Error> {
     let mut url = url.clone();
     url.path_segments_mut()
         .unwrap()
-        .extend(["users", user, "personalized_documents"]);
+        .extend(["users", user, "recommendations"]);
     let request = client.post(url).build()?;
     let response: Response = send_assert_json(client, request, StatusCode::OK, false).await;
     return Ok(response.documents.into_iter().map(|doc| doc.id).collect());
@@ -262,7 +258,7 @@ fn test_deletes_them_from_elastic_search() {
             interact(&client, &personalization_url, "u1", ["d3"]).await?;
             interact(&client, &personalization_url, "u1", ["d7"]).await?;
 
-            assert!(!personalized_documents(&client, &personalization_url, "u1")
+            assert!(!recommendations(&client, &personalization_url, "u1")
                 .await?
                 .is_empty());
 
@@ -318,7 +314,7 @@ fn test_deletes_them_from_elastic_search() {
             set_candidates(&client, &ingestion_url, ["d5"]).await?;
             assert_eq!(documents_from_es(&services).await?, string_set(["d5"]));
             assert_eq!(
-                personalized_documents(&client, &personalization_url, "u1").await?,
+                recommendations(&client, &personalization_url, "u1").await?,
                 vec!["d5".to_owned()]
             );
 

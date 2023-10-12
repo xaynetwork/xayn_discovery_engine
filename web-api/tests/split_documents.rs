@@ -454,7 +454,7 @@ fn test_endpoints_which_do_not_yet_fully_support_split_do_not_fall_over() {
             send_assert_json::<SearchResponse>(
                 &client,
                 client
-                    .post(personalization_url.join("/users/u1/personalized_documents")?)
+                    .post(personalization_url.join("/users/u1/recommendations")?)
                     .json(&json!({}))
                     .build()?,
                 StatusCode::OK,
