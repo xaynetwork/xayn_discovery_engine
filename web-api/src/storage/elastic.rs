@@ -65,11 +65,17 @@ use crate::{
     Error,
 };
 
+#[derive(Debug, Clone, Default, Serialize)]
+pub(crate) struct RawScores {
+    pub(crate) knn: Option<ScoreMap<SnippetId>>,
+    pub(crate) bm25: Option<ScoreMap<SnippetId>>,
+}
+
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<ScoreMap<SnippetId>, Error> {
+    ) -> Result<(ScoreMap<SnippetId>, RawScores), Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::Hybrid { query } => {
@@ -98,7 +104,7 @@ impl Client {
     async fn knn_search<'a>(
         &self,
         params: KnnSearchParams<'a>,
-    ) -> Result<ScoreMap<SnippetId>, Error> {
+    ) -> Result<(ScoreMap<SnippetId>, RawScores), Error> {
         let KnnSearchParts {
             knn_object,
             generic_parameters,
@@ -110,7 +116,16 @@ impl Client {
             .search_request(request, SnippetId::try_from_es_id)
             .await?;
 
-        Ok(scores)
+        let raw_scores = if params.with_raw_scores {
+            RawScores {
+                knn: Some(scores.clone()),
+                ..Default::default()
+            }
+        } else {
+            RawScores::default()
+        };
+
+        Ok((scores, raw_scores))
     }
 
     async fn hybrid_search(
@@ -120,7 +135,7 @@ impl Client {
         normalize_knn: impl FnOnce(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
         normalize_bm25: impl FnOnce(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
         merge_function: impl FnOnce(ScoreMap<SnippetId>, ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
-    ) -> Result<ScoreMap<SnippetId>, Error> {
+    ) -> Result<(ScoreMap<SnippetId>, RawScores), Error> {
         let count = params.count;
 
         let KnnSearchParts {
@@ -151,8 +166,18 @@ impl Client {
             .search_request(bm_25, SnippetId::try_from_es_id)
             .await?;
 
+        let raw_scores = if params.with_raw_scores {
+            RawScores {
+                knn: Some(knn_scores.clone()),
+                bm25: Some(bm25_scores.clone()),
+            }
+        } else {
+            RawScores::default()
+        };
+
         let merged = merge_function(normalize_knn(knn_scores), normalize_bm25(bm25_scores));
-        Ok(take_highest_n_scores(count, merged))
+
+        Ok((take_highest_n_scores(count, merged), raw_scores))
     }
 
     pub(super) async fn upsert_documents(

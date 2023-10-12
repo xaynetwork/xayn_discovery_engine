@@ -136,6 +136,7 @@ pub fn bench_rerank<S>(
                 .collect_vec()
                 .try_into()
                 .unwrap(),
+            dev: None,
         })
         .collect_vec();
     let tag_weights = tag_weights
@@ -190,6 +191,7 @@ mod tests {
                     properties: None,
                     snippet: None,
                     tags,
+                    dev: None,
                 }
             })
             .collect()

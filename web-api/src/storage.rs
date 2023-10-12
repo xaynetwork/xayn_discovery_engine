@@ -66,6 +66,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(super) include_properties: bool,
     pub(super) include_snippet: bool,
     pub(super) filter: Option<&'a Filter>,
+    pub(super) with_raw_scores: bool,
 }
 
 #[derive(Default)]

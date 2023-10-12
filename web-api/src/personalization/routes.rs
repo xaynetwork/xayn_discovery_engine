@@ -48,6 +48,7 @@ use crate::{
         warning::Warning,
     },
     models::{
+        DocumentDevData,
         DocumentId,
         DocumentProperties,
         DocumentQuery,
@@ -307,6 +308,8 @@ struct PersonalizedDocumentData {
     properties: Option<DocumentProperties>,
     #[serde(skip_serializing_if = "Option::is_none")]
     snippet: Option<DocumentSnippet>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    dev: Option<DocumentDevData>,
 }
 
 fn no_properties(properties: &Option<DocumentProperties>) -> bool {
@@ -323,6 +326,7 @@ impl From<PersonalizedDocument> for PersonalizedDocumentData {
             score: document.score,
             properties: document.properties,
             snippet: document.snippet,
+            dev: document.dev,
         }
     }
 }
@@ -487,6 +491,7 @@ struct UnvalidatedSemanticSearchRequest {
 struct DevOption {
     hybrid: Option<DevHybrid>,
     max_number_candidates: Option<usize>,
+    show_raw_scores: Option<bool>,
 }
 
 impl DevOption {
@@ -579,6 +584,7 @@ impl UnvalidatedSemanticSearchRequest {
             .map(|personalize| personalize.validate(config.as_ref(), warnings))
             .transpose()?;
         let dev_hybrid_search = dev.hybrid;
+        let dev_show_raw_scores = dev.show_raw_scores;
         let filter = Filter::insert_published_after(filter, published_after);
         if let Some(filter) = &filter {
             filter.validate(&storage.load_schema().await?)?;
@@ -592,6 +598,7 @@ impl UnvalidatedSemanticSearchRequest {
             personalize,
             enable_hybrid_search,
             dev_hybrid_search,
+            dev_show_raw_scores,
             include_properties,
             include_snippet,
             filter,
@@ -693,6 +700,7 @@ struct SemanticSearchRequest {
     personalize: Option<Personalize>,
     enable_hybrid_search: bool,
     dev_hybrid_search: Option<DevHybrid>,
+    dev_show_raw_scores: Option<bool>,
     include_properties: bool,
     include_snippet: bool,
     filter: Option<Filter>,
@@ -740,6 +748,7 @@ async fn semantic_search(
         personalize,
         enable_hybrid_search,
         dev_hybrid_search,
+        dev_show_raw_scores,
         include_properties,
         include_snippet,
         filter,
@@ -788,6 +797,7 @@ async fn semantic_search(
             include_properties,
             include_snippet,
             filter: filter.as_ref(),
+            with_raw_scores: dev_show_raw_scores.unwrap_or(false),
         },
     )
     .await?;

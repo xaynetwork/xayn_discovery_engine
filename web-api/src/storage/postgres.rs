@@ -59,6 +59,7 @@ use crate::{
     ingestion::IngestionConfig,
     models::{
         DocumentContent,
+        DocumentDevData,
         DocumentForIngestion,
         DocumentId,
         DocumentProperties,
@@ -69,6 +70,7 @@ use crate::{
         DocumentTags,
         ExcerptedDocument,
         PersonalizedDocument,
+        RawScores,
         Sha256Hash,
         SnippetForInteraction,
         SnippetId,
@@ -360,6 +362,7 @@ impl Database {
                             properties,
                             snippet,
                             tags,
+                            dev: None,
                         })
                     })
                     .fetch_all(&mut *tx)
@@ -922,11 +925,35 @@ impl storage::Document for Storage {
         let mut tx = self.postgres.begin().await?;
         let include_properties = params.include_properties;
         let include_snippet = params.include_snippet;
-        let scores = self.elastic.get_by_embedding(params).await?;
-        let documents =
+        let with_raw_scores = params.with_raw_scores;
+        let (scores, raw_scores) = self.elastic.get_by_embedding(params).await?;
+        let mut documents =
             Database::get_personalized(&mut tx, scores, include_properties, include_snippet)
                 .await?;
         tx.commit().await?;
+
+        if with_raw_scores {
+            for document in &mut documents {
+                let raw_scores = Some(RawScores {
+                    knn: raw_scores
+                        .knn
+                        .as_ref()
+                        .and_then(|knn_scores| knn_scores.get(&document.id))
+                        .copied(),
+                    bm25: raw_scores
+                        .bm25
+                        .as_ref()
+                        .and_then(|knn_scores| knn_scores.get(&document.id))
+                        .copied(),
+                });
+
+                if let Some(ref mut additional_data) = &mut document.dev {
+                    additional_data.raw_scores = raw_scores;
+                } else {
+                    document.dev = Some(DocumentDevData { raw_scores });
+                }
+            }
+        }
 
         Ok(documents)
     }
