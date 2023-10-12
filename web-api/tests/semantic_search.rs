@@ -377,10 +377,10 @@ fn test_semantic_search_with_dev_option_candidates() {
 }
 
 #[test]
-fn test_semantic_search_with_dev_option_snippet() {
+fn test_semantic_search_include_snippet() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        with_dev_options(),
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
             ingest(&client, &ingestion_url).await?;
 
