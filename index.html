@@ -174,11 +174,9 @@
   <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#getting-started">Getting started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#ingest">Ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#recommendations-personalised-documents">Recommendations: Personalised documents</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#search">Search</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#filters">Filters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates">Candidates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#documents-with-multiple-snippets">Documents with multiple Snippets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#document-preprocessing">Document preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates-api">Candidates API</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Api Reference</span></p>
 <ul>
@@ -232,24 +230,36 @@ The front office allows you to interact with the service to manage the users’ 
 <strong>A demo app that showcases, some of our features (<a class="reference external" href="https://xaynetwork.github.io/xayn_b2b_demo/search_movies_2/">Movies_Demo</a>)</strong></p><div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html">Overview</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#getting-started">Getting started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#ingest">Ingest</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#split-documents">Split Documents</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#getting-started">Getting started</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#ingest">Ingest</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#recommendations">Recommendations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#search">Search</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="getting_started/getting_started.html#similar-documents">Similar documents</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started/getting_started.html#free-text-search">Free Text search</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started/getting_started.html#personalised-search">Personalised search</a></li>
+<li class="toctree-l3"><a class="reference internal" href="getting_started/getting_started.html#filters">Filters</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="getting_started/getting_started.html#indexing-a-filter-property">Indexing a filter property</a></li>
+<li class="toctree-l4"><a class="reference internal" href="getting_started/getting_started.html#applying-a-filter">Applying a Filter</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#recommendations-personalised-documents">Recommendations: Personalised documents</a></li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#search">Search</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#similar-documents">Similar documents</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#free-text-search">Free Text search</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#personalised-search">Personalised search</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#filters">Filters</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#indexing-a-filter-property">Indexing a filter property</a></li>
-<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#applying-a-filter">Applying a Filter</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates">Candidates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#documents-with-multiple-snippets">Documents with multiple Snippets</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#snippet-id">Snippet Id</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#ingestion">Ingestion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#semantic-search">Semantic Search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#id1">Recommendations</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#document-preprocessing">Document preprocessing</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#automatic-document-splitting">Automatic document splitting</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#file-upload">File Upload</a></li>
+<li class="toctree-l2"><a class="reference internal" href="getting_started/getting_started.html#summarizer">Summarizer</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="getting_started/getting_started.html#candidates-api">Candidates API</a></li>
 </ul>
 </div>
 <p><div class="toctree-wrapper compound">

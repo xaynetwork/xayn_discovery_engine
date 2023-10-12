@@ -174,11 +174,9 @@
   <ul class="current">
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Overview</a></li>
 <li class="toctree-l1"><a class="reference internal" href="#getting-started">Getting started</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#ingest">Ingest</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#recommendations-personalised-documents">Recommendations: Personalised documents</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#search">Search</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#filters">Filters</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#candidates">Candidates</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#documents-with-multiple-snippets">Documents with multiple Snippets</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#document-preprocessing">Document preprocessing</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#candidates-api">Candidates API</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Api Reference</span></p>
 <ul>
@@ -225,13 +223,18 @@
           <section id="overview">
 <h1>Overview<a class="headerlink" href="#overview" title="Permalink to this heading">#</a></h1>
 <p>Here we take a high-level look at how the system works. The API is divided into two parts: the back office and the front office.</p>
-<p>The back office system can be used to ingest your content into the system. Every piece of content you ingest is managed as one document within the Xayn system.</p>
-<p>A document is comprised of one or more snippets. Each snippet represents a piece of the content of the document. In the simplest case, you only have one snippet per document in such a case you can mentally replace snippet with document in most of the remaining documentation. Through as there are limits on
-how long a snippet can be, we provide functionality to either summarize the content or split the content of a document into multiple snippets. In many places both a document id and the id of a specific snippet can be used.</p>
-<p>During ingestion, the system creates a mathematical representation of each snippet which is used to match the snippets to the user’s interests and searches.</p>
+<p>The back office can be used to ingest your content into the system. Every piece of content you ingest is managed as one document within the Xayn system.</p>
+<p>The front office is used for all communication between the users and the service. It mainly provides the following use cases:</p>
+<ul class="simple">
+<li><p>Search: in particular, we specialize in semantic search that finds documents which are semantically similar to the given query or another document</p></li>
+<li><p>Recommendations: we can return documents based on the user’s interests.</p></li>
+</ul>
+<p>Based on this, many other use cases can be implemented. For example, the recommendation API can be used to implement a ‘for you’ section, while the search API can be used to provide a ‘more like this’ section. We can also use both and provide ‘more like this’ functionality to a ‘for you’ section.</p>
+<p><img alt="architectural overview" src="../_images/architecture_overview.png" /></p>
+<p>Before the front office APIs can be used, documents need to be ingested into our system. In the simplest case, each document will produce exactly one thing you can search for. We call them snippets, as, at their core, they are based on snippets of text. From each of these snippets, we derive a mathematical representation which is used to match the snippets to the provided search queries or user’s interests. There are more complex cases where we, e.g. split documents. In the first part of this documentation, we will only cover the case where a document directly maps to a single snippet. Later parts will cover more advanced use cases.</p>
 <p>Once we have the documents in the system, we can use the front office to implement different use cases. For example, to have a ‘for you’ section, we need to add user interactions (clicks, reading, viewing) with documents or snippets. With each interaction, the system creates or updates a model that represents the user’s interests each time we add an interaction. Each user has a unique model that is used to return individually personalised search results and recommendations in form of a list of best matching snippets/documents.</p>
-<p>Later, we will discuss other ways to get personalised documents without adding interactions.
-With the front office, it is also possible to implement other use cases such as ‘more like this’, semantic and hybrid search.</p>
+<p>In the following, we will first explain the general usage of the APIs in the simplest use cases. Further below
+you can find sections about <a class="reference internal" href="#documents-with-multiple-snippets"><span class="xref myst">documents with multiple snippets</span></a>, options for <a class="reference internal" href="#document-preprocessing"><span class="xref myst">document preprocessing</span></a> and more.</p>
 </section>
 <section id="getting-started">
 <h1>Getting started<a class="headerlink" href="#getting-started" title="Permalink to this heading">#</a></h1>
@@ -246,11 +249,10 @@ To try the examples you need to set them to the values for your system beforehan
 <span class="nb">export</span><span class="w"> </span><span class="nv">FRONTOFFICE_TOKEN</span><span class="o">=</span><span class="s2">&quot;&lt;frontoffice_token&gt;&quot;</span>
 </pre></div>
 </div>
-</section>
 <section id="ingest">
-<h1>Ingest<a class="headerlink" href="#ingest" title="Permalink to this heading">#</a></h1>
+<h2>Ingest<a class="headerlink" href="#ingest" title="Permalink to this heading">#</a></h2>
 <p>We can use the back office endpoint <a class="reference external" href="https:/docs.xayn.com/back_office.html#operation/createDocuments"><code class="docutils literal notranslate"><span class="pre">/documents</span></code></a> to ingest documents.</p>
-<p>We will ingest a document that represents this article: <a class="reference external" href="https://xayn.com/blog/the-initial-challenge">https://xayn.com/blog/the-initial-challenge</a>.</p>
+<p>We will ingest a document that represents this article: <a class="reference external" href="https://xayn.com/blog/the-initial-challenge">https://xayn.com/blog/the-initial-challenge</a>, together with other documents to better showcase other functionalities.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -259,28 +261,24 @@ To try the examples you need to set them to the values for your system beforehan
 <span class="s1">            {</span>
 <span class="s1">                &quot;id&quot;: &quot;xayn_cd5604c&quot;,</span>
 <span class="s1">                &quot;snippet&quot;: &quot;The voices that are demanding better privacy protection and ownership of our own data are increasingly louder, there is a backlash towards these practices. At Xayn, our mission is to provide personalisation without user data leaving the device, maintaining absolute privacy. We use semantic similarity and centers of interest to understand user preferences and present better matching articles. With our model Xaynia, we offer semantic similarity and search with minimal energy consumption and at a low price, making it highly energy-efficient compared to other transformer models.&quot;,</span>
-<span class="s1">                &quot;summarize&quot;: false,</span>
 <span class="s1">                &quot;properties&quot;: {</span>
 <span class="s1">                    &quot;title&quot;: &quot;The initial challange&quot;,</span>
 <span class="s1">                    &quot;link&quot;: &quot;https://xayn.com/blog/the-initial-challenge&quot;,</span>
 <span class="s1">                    &quot;image&quot;: &quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png&quot;,</span>
 <span class="s1">                    &quot;location&quot; : [&quot;germany&quot;, &quot;berlin&quot;, &quot;conference&quot;]</span>
-<span class="s1">                },</span>
+<span class="s1">                }</span>
 <span class="s1">            },</span>
 <span class="s1">            {</span>
 <span class="s1">                &quot;id&quot;: &quot;xayn_ff5604c&quot;,</span>
-<span class="s1">                &quot;snippet&quot;: &quot;If you only ingested one short document you can&#39;</span>t<span class="w"> </span>really<span class="w"> </span>try<span class="w"> </span>out<span class="w"> </span>any<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>functional,<span class="w"> </span>so<span class="w"> </span>here<span class="w"> </span>is<span class="w"> </span>another<span class="w"> </span>document<span class="s2">&quot;,</span>
-<span class="s2">                &quot;</span>summarize<span class="s2">&quot;: false,</span>
+<span class="s1">                &quot;snippet&quot;: &quot;If you only ingested one short document you can&#39;</span>t<span class="w"> </span>really<span class="w"> </span>try<span class="w"> </span>out<span class="w"> </span>any<span class="w"> </span>of<span class="w"> </span>the<span class="w"> </span>functional,<span class="w"> </span>so<span class="w"> </span>here<span class="w"> </span>is<span class="w"> </span>another<span class="w"> </span>document<span class="s2">&quot;</span>
 <span class="s2">            },</span>
 <span class="s2">            {</span>
 <span class="s2">                &quot;</span>id<span class="s2">&quot;: &quot;</span><span class="m">00000</span><span class="s2">&quot;,</span>
-<span class="s2">                &quot;</span>snippet<span class="s2">&quot;: &quot;</span>There<span class="w"> </span>are<span class="w"> </span>just<span class="w"> </span>very<span class="w"> </span>few<span class="w"> </span>constraints<span class="w"> </span>on<span class="w"> </span>what<span class="w"> </span>an<span class="w"> </span>id<span class="w"> </span>can<span class="w"> </span>be,<span class="w"> </span>this<span class="w"> </span>means<span class="w"> </span>that<span class="w"> </span>most<span class="w"> </span><span class="nb">times</span><span class="w"> </span>you<span class="w"> </span>can<span class="w"> </span>just<span class="w"> </span>plug<span class="w"> </span><span class="k">in</span><span class="w"> </span>ides<span class="w"> </span>from<span class="w"> </span>any<span class="w"> </span>other<span class="w"> </span>system<span class="w"> </span>you<span class="w"> </span>use<span class="w"> </span>to<span class="w"> </span>store<span class="w"> </span>documents<span class="w"> </span><span class="k">in</span>.<span class="w"> </span>But<span class="w"> </span>be<span class="w"> </span>aware<span class="w"> </span>tht<span class="w"> </span>ids<span class="w"> </span>are<span class="w"> </span>strings<span class="w"> </span>so<span class="w"> </span><span class="m">0</span>,<span class="w"> </span><span class="m">00</span>,<span class="w"> </span>and<span class="w"> </span><span class="m">000</span><span class="w"> </span>are<span class="w"> </span>all<span class="w"> </span>different<span class="w"> </span>ids.<span class="s2">&quot;,</span>
-<span class="s2">                &quot;</span>summarize<span class="s2">&quot;: false,</span>
+<span class="s2">                &quot;</span>snippet<span class="s2">&quot;: &quot;</span>There<span class="w"> </span>are<span class="w"> </span>just<span class="w"> </span>very<span class="w"> </span>few<span class="w"> </span>constraints<span class="w"> </span>on<span class="w"> </span>what<span class="w"> </span>an<span class="w"> </span>id<span class="w"> </span>can<span class="w"> </span>be,<span class="w"> </span>this<span class="w"> </span>means<span class="w"> </span>that<span class="w"> </span>most<span class="w"> </span><span class="nb">times</span><span class="w"> </span>you<span class="w"> </span>can<span class="w"> </span>just<span class="w"> </span>plug<span class="w"> </span><span class="k">in</span><span class="w"> </span>ides<span class="w"> </span>from<span class="w"> </span>any<span class="w"> </span>other<span class="w"> </span>system<span class="w"> </span>you<span class="w"> </span>use<span class="w"> </span>to<span class="w"> </span>store<span class="w"> </span>documents<span class="w"> </span><span class="k">in</span>.<span class="w"> </span>But<span class="w"> </span>be<span class="w"> </span>aware<span class="w"> </span>tht<span class="w"> </span>ids<span class="w"> </span>are<span class="w"> </span>strings<span class="w"> </span>so<span class="w"> </span><span class="m">0</span>,<span class="w"> </span><span class="m">00</span>,<span class="w"> </span>and<span class="w"> </span><span class="m">000</span><span class="w"> </span>are<span class="w"> </span>all<span class="w"> </span>different<span class="w"> </span>ids.<span class="s2">&quot;</span>
 <span class="s2">            },</span>
 <span class="s2">            {</span>
-<span class="s2">                &quot;</span>id<span class="s2">&quot;: &quot;</span>xayn_604c<span class="s2">&quot;,</span>
-<span class="s2">                &quot;</span>snippet<span class="s2">&quot;: &quot;</span>Privacy<span class="w"> </span>protection<span class="w"> </span>and<span class="w"> </span>ownership<span class="w"> </span>is<span class="w"> </span>a<span class="w"> </span>topic<span class="w"> </span>of<span class="w"> </span>another<span class="w"> </span>document,<span class="w"> </span>so<span class="w"> </span>is<span class="w"> </span>semantic<span class="w"> </span>search.<span class="s2">&quot;,</span>
-<span class="s2">                &quot;</span>summarize<span class="s2">&quot;: false,</span>
+<span class="s2">                &quot;</span>id<span class="s2">&quot;: &quot;</span>affeffa<span class="s2">&quot;,</span>
+<span class="s2">                &quot;</span>snippet<span class="s2">&quot;: &quot;</span>Privacy<span class="w"> </span>protection<span class="w"> </span>and<span class="w"> </span>ownership<span class="w"> </span>is<span class="w"> </span>a<span class="w"> </span>topic<span class="w"> </span>of<span class="w"> </span>another<span class="w"> </span>document,<span class="w"> </span>so<span class="w"> </span>is<span class="w"> </span>semantic<span class="w"> </span>search.<span class="s2">&quot;</span>
 <span class="s2">            }</span>
 <span class="s2">        ]</span>
 <span class="s2">    }&#39;</span>
@@ -289,52 +287,21 @@ To try the examples you need to set them to the values for your system beforehan
 <p>The endpoint takes a list of documents to ingest.</p>
 <p>Each document has a unique identifier that can be used to refer to it in the system.</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">snippet</span></code> field is used to inform the system about the content of the document; it is used as input to Xaynia to generate a mathematical representation of the document that we can use to match similar documents.</p>
-<p>For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. Since the amount of data that Xaynia can analyze is limited, we can use the per-document option <code class="docutils literal notranslate"><span class="pre">summarize</span></code> when it is not possible to provide a concise snippet; when enabled, the system will summarise the content of the document to create a snippet. Alternatively, the <code class="docutils literal notranslate"><span class="pre">split</span></code> option can be used which will split the document into multiple snippets,
-this can be used to get better result on larger documents. More information on this can be found in the section  <a class="reference internal" href="#split-documents"><span class="xref myst">split documents</span></a>.</p>
-<p>For example the ingestion of (from BAnz AT 13.07.2023 B1 page 3):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">        &quot;documents&quot;: [</span>
-<span class="s1">            {</span>
-<span class="s1">                &quot;id&quot;: &quot;xayn_efd5604c&quot;,</span>
-<span class="s1">                &quot;snippet&quot;: &quot;6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.  Bei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.  Die  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an. Maßgeblich ist das Datum des Vertragsschlusses. Dabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags. Die Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.  den\nVergabeunterlagen bekannt sind.\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen. Dies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit. Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat. Hierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen. Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt.&quot;,</span>
-<span class="s1">                &quot;split&quot;: true,</span>
-<span class="s1">            }</span>
-<span class="s1">        ]</span>
-<span class="s1">    }&#39;</span>
-</pre></div>
-</div>
-<p>could split the text into three part:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;snippet_id&quot;:</span> <span class="pre">{</span> <span class="pre">document_id:</span> <span class="pre">&quot;xayn_efd5604c&quot;,</span>&#160; <span class="pre">sub_id:</span> <span class="pre">802</span> <span class="pre">}</span></code> containing <code class="docutils literal notranslate"><span class="pre">&quot;6.2</span>&#160; <span class="pre">Die</span>&#160; <span class="pre">Vergabe</span>&#160; <span class="pre">von</span>&#160; <span class="pre">Unteraufträgen</span>&#160; <span class="pre">hat</span>&#160; <span class="pre">nach</span>&#160; <span class="pre">Möglichkeit</span>&#160; <span class="pre">im</span>&#160; <span class="pre">Wettbewerb</span>&#160; <span class="pre">zu</span>&#160; <span class="pre">erfolgen.\n\nBei</span>&#160; <span class="pre">der</span>&#160; <span class="pre">Einholung</span>&#160; <span class="pre">von</span>&#160; <span class="pre">An-\ngeboten</span>&#160; <span class="pre">für</span>&#160; <span class="pre">Unteraufträge</span>&#160; <span class="pre">sind</span>&#160; <span class="pre">kleine</span>&#160; <span class="pre">und</span>&#160; <span class="pre">mittlere,</span>&#160; <span class="pre">nicht</span>&#160; <span class="pre">konzerngebundene</span>&#160; <span class="pre">Unternehmen</span>&#160; <span class="pre">soweit</span>&#160; <span class="pre">möglich</span>&#160; <span class="pre">zu</span>&#160; <span class="pre">betei-\nligen.\n\nDie</span>&#160; <span class="pre">in</span>&#160; <span class="pre">Betracht</span>&#160; <span class="pre">kommenden</span>&#160; <span class="pre">Unternehmen</span>&#160; <span class="pre">sind</span>&#160; <span class="pre">dem</span>&#160; <span class="pre">Auftraggeber</span>&#160; <span class="pre">vom</span>&#160; <span class="pre">Auftragnehmer</span>&#160; <span class="pre">auf</span>&#160; <span class="pre">Verlangen</span>&#160; <span class="pre">vor</span>&#160; <span class="pre">der\nErteilung</span> <span class="pre">des</span> <span class="pre">Unterauftrags</span> <span class="pre">zu</span> <span class="pre">benennen.\n\n6.3</span>&#160; <span class="pre">Der</span> <span class="pre">Auftragnehmer</span> <span class="pre">zeigt</span> <span class="pre">dem</span> <span class="pre">Auftraggeber</span> <span class="pre">jeden</span> <span class="pre">Unterauftrag</span> <span class="pre">sowie</span> <span class="pre">jeden</span> <span class="pre">Wechsel</span> <span class="pre">eines</span> <span class="pre">Unterauftragnehmers\nnach</span> <span class="pre">Erteilung</span> <span class="pre">des</span> <span class="pre">jeweiligen</span> <span class="pre">Unterauftrags</span> <span class="pre">bis</span> <span class="pre">zum</span> <span class="pre">Ende</span> <span class="pre">der</span> <span class="pre">jeweiligen</span> <span class="pre">Vertragslaufzeit</span> <span class="pre">unverzüglich</span> <span class="pre">und</span> <span class="pre">unaufge-\nfordert</span> <span class="pre">in</span> <span class="pre">Textform</span> <span class="pre">an.\n\nMaßgeblich</span> <span class="pre">ist</span> <span class="pre">das</span> <span class="pre">Datum</span> <span class="pre">des</span> <span class="pre">Vertragsschlusses.\n\nDabei</span> <span class="pre">teilt</span> <span class="pre">der</span> <span class="pre">Auftragnehmer</span>&#160; <span class="pre">mindestens\nden</span> <span class="pre">Namen</span> <span class="pre">und</span> <span class="pre">die</span> <span class="pre">Anschrift</span> <span class="pre">des</span> <span class="pre">Unterauftragnehmers</span> <span class="pre">mit</span> <span class="pre">sowie</span> <span class="pre">den</span> <span class="pre">Gegenstand</span> <span class="pre">des</span> <span class="pre">Unterauftrags.\n\nDie</span> <span class="pre">Anzeige-\npflicht</span>&#160; <span class="pre">entfällt,</span>&#160; <span class="pre">wenn</span>&#160; <span class="pre">dem</span>&#160; <span class="pre">Auftraggeber</span>&#160; <span class="pre">die</span>&#160; <span class="pre">Informationen</span>&#160; <span class="pre">bereits</span>&#160; <span class="pre">aus</span>&#160; <span class="pre">dem</span>&#160; <span class="pre">Angebot</span>&#160; <span class="pre">des</span>&#160; <span class="pre">Auftragnehmers</span>&#160; <span class="pre">bzw.\n\nden\nVergabeunterlagen</span> <span class="pre">bekannt</span> <span class="pre">sind.\n\n6.4</span>&#160; <span class="pre">Hat</span> <span class="pre">der</span> <span class="pre">Auftraggeber</span> <span class="pre">in</span> <span class="pre">der</span> <span class="pre">Bekanntmachung</span> <span class="pre">oder</span> <span class="pre">in</span> <span class="pre">den</span> <span class="pre">Vergabeunterlagen</span> <span class="pre">Anforderungen</span> <span class="pre">über</span> <span class="pre">die</span> <span class="pre">Eignung\noder</span> <span class="pre">Auftragserfüllung</span> <span class="pre">für</span> <span class="pre">Unterauftragnehmer</span> <span class="pre">aufgestellt,</span> <span class="pre">sind</span> <span class="pre">diese</span> <span class="pre">von</span> <span class="pre">allen</span> <span class="pre">Unterauftragnehmern</span> <span class="pre">zu</span> <span class="pre">erfüllen.\n\nDies\ngilt</span> <span class="pre">auch</span> <span class="pre">im</span> <span class="pre">Fall</span> <span class="pre">des</span> <span class="pre">Austauschs</span> <span class="pre">von</span> <span class="pre">Unterauftragnehmern</span> <span class="pre">während</span> <span class="pre">der</span> <span class="pre">Vertragslaufzeit.&quot;</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;snippet_id&quot;:</span> <span class="pre">{</span> <span class="pre">document_id:</span> <span class="pre">&quot;xayn_efd5604c&quot;,</span>&#160; <span class="pre">sub_id:</span> <span class="pre">4</span> <span class="pre">}</span></code> containing <code class="docutils literal notranslate"><span class="pre">&quot;Der</span> <span class="pre">Auftragnehmer</span> <span class="pre">legt</span> <span class="pre">dem\nAuftraggeber</span>&#160; <span class="pre">erforderliche</span>&#160; <span class="pre">Nachweise</span>&#160; <span class="pre">seiner</span>&#160; <span class="pre">Unterauftragnehmer</span>&#160; <span class="pre">unverzüglich</span>&#160; <span class="pre">und</span>&#160; <span class="pre">unaufgefordert</span>&#160; <span class="pre">mit</span>&#160; <span class="pre">der</span>&#160; <span class="pre">Anzeige\ngemäß</span> <span class="pre">Nummer</span> <span class="pre">6.3</span> <span class="pre">vor.\n\n6.5</span>&#160; <span class="pre">Vergibt</span> <span class="pre">der</span> <span class="pre">Auftragnehmer</span> <span class="pre">Unteraufträge,</span> <span class="pre">so</span> <span class="pre">hat</span> <span class="pre">er</span> <span class="pre">durch</span> <span class="pre">entsprechende</span> <span class="pre">Vereinbarungen</span> <span class="pre">mit</span> <span class="pre">den</span> <span class="pre">Unterauftrag-\nnehmern</span>&#160; <span class="pre">dem</span>&#160; <span class="pre">Auftraggeber</span>&#160; <span class="pre">die</span>&#160; <span class="pre">gleichen</span>&#160; <span class="pre">Rechte</span>&#160; <span class="pre">und</span>&#160; <span class="pre">Ansprüche</span>&#160; <span class="pre">zu</span>&#160; <span class="pre">verschaffen,</span>&#160; <span class="pre">die</span>&#160; <span class="pre">der</span>&#160; <span class="pre">Auftraggeber</span>&#160; <span class="pre">gegen</span>&#160; <span class="pre">den\nAuftragnehmer</span> <span class="pre">hat.\n\nHierzu</span> <span class="pre">gehören</span> <span class="pre">auch</span> <span class="pre">die</span> <span class="pre">Nutzungsrechte</span> <span class="pre">des</span> <span class="pre">Auftraggebers</span> <span class="pre">an</span> <span class="pre">allen</span> <span class="pre">vom</span> <span class="pre">Auftragnehmer</span> <span class="pre">geschul-\ndeten</span> <span class="pre">Vertragsergebnissen.\n\n6.6</span>&#160; <span class="pre">Gelingt</span> <span class="pre">dies</span> <span class="pre">dem</span> <span class="pre">Auftragnehmer</span> <span class="pre">im</span> <span class="pre">Einzelfall</span> <span class="pre">nicht,</span> <span class="pre">so</span> <span class="pre">hat</span> <span class="pre">er</span> <span class="pre">den</span> <span class="pre">Auftraggeber</span> <span class="pre">darüber</span> <span class="pre">unverzüglich</span> <span class="pre">in</span> <span class="pre">Textform\nzu</span>&#160; <span class="pre">unterrichten</span>&#160; <span class="pre">und</span>&#160; <span class="pre">ihm</span>&#160; <span class="pre">auf</span>&#160; <span class="pre">Verlangen</span>&#160; <span class="pre">Gelegenheit</span>&#160; <span class="pre">zu</span>&#160; <span class="pre">geben,</span>&#160; <span class="pre">an</span>&#160; <span class="pre">den</span>&#160; <span class="pre">weiteren</span>&#160; <span class="pre">Verhandlungen</span>&#160; <span class="pre">mit</span>&#160; <span class="pre">dem</span>&#160; <span class="pre">jeweiligen\nUnterauftragnehmer</span> <span class="pre">teilzunehmen</span> <span class="pre">und</span> <span class="pre">die</span> <span class="pre">Entscheidung</span> <span class="pre">des</span> <span class="pre">Auftraggebers</span> <span class="pre">abzuwarten.\n\n6.7</span>&#160; <span class="pre">Akzeptiert</span> <span class="pre">der</span> <span class="pre">Unterauftragnehmer</span> <span class="pre">die</span> <span class="pre">Vereinbarung</span> <span class="pre">entsprechender</span> <span class="pre">Regelungen</span> <span class="pre">nach</span> <span class="pre">Abschluss</span> <span class="pre">der</span> <span class="pre">weiteren\nVerhandlungen</span>&#160; <span class="pre">nicht,</span>&#160; <span class="pre">hat</span>&#160; <span class="pre">der</span>&#160; <span class="pre">Auftragnehmer</span>&#160; <span class="pre">dies</span>&#160; <span class="pre">dem</span>&#160; <span class="pre">Auftraggeber</span>&#160; <span class="pre">in</span>&#160; <span class="pre">Textform</span>&#160; <span class="pre">anzuzeigen,</span>&#160; <span class="pre">das</span>&#160; <span class="pre">Verhandlungs-\nergebnis</span> <span class="pre">vorzulegen</span> <span class="pre">und</span> <span class="pre">die</span> <span class="pre">Entscheidung</span> <span class="pre">des</span> <span class="pre">Auftraggebers</span> <span class="pre">darüber,</span> <span class="pre">ob</span> <span class="pre">er</span> <span class="pre">seine</span> <span class="pre">Einwilligung</span> <span class="pre">zum</span> <span class="pre">Vertragsschluss\nerklärt,</span> <span class="pre">einzuholen.&quot;</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">&quot;snippet_id&quot;:</span> <span class="pre">{</span> <span class="pre">document_id:</span> <span class="pre">&quot;xayn_efd5604c&quot;,</span>&#160; <span class="pre">sub_id:</span> <span class="pre">300</span> <span class="pre">}</span></code> containing <code class="docutils literal notranslate"><span class="pre">&quot;Entscheidet</span> <span class="pre">sich</span> <span class="pre">der</span> <span class="pre">Auftraggeber</span> <span class="pre">nicht</span> <span class="pre">binnen</span> <span class="pre">eines</span> <span class="pre">Monats</span> <span class="pre">nach</span> <span class="pre">Zugang</span> <span class="pre">der</span> <span class="pre">Anzeige,</span> <span class="pre">so</span> <span class="pre">ist</span> <span class="pre">der\nAuftragnehmer</span>&#160; <span class="pre">berechtigt,</span>&#160; <span class="pre">den</span>&#160; <span class="pre">Unterauftrag</span>&#160; <span class="pre">entsprechend</span>&#160; <span class="pre">dem</span>&#160; <span class="pre">vorgelegten</span>&#160; <span class="pre">Verhandlungsergebnis</span>&#160; <span class="pre">abzuschließen.\n\nErteilt</span> <span class="pre">der</span> <span class="pre">Auftraggeber</span> <span class="pre">seine</span> <span class="pre">ausdrückliche</span> <span class="pre">Einwilligung</span> <span class="pre">zum</span> <span class="pre">Vertragsschluss</span> <span class="pre">oder</span> <span class="pre">erfolgt</span> <span class="pre">der</span> <span class="pre">Vertragsschluss</span> <span class="pre">nach\nAblauf</span> <span class="pre">der</span> <span class="pre">Monatsfrist,</span> <span class="pre">bleibt</span> <span class="pre">die</span> <span class="pre">Haftung</span> <span class="pre">des</span> <span class="pre">Auftragnehmers</span> <span class="pre">für</span> <span class="pre">die</span> <span class="pre">vertragsgemäße</span> <span class="pre">Ausführung</span> <span class="pre">seiner</span> <span class="pre">Leistungen\ngegenüber</span> <span class="pre">dem</span> <span class="pre">Auftraggeber</span> <span class="pre">unberührt.&quot;</span></code></p></li>
-</ul>
-<p>Be aware that <code class="docutils literal notranslate"><span class="pre">sub_id</span></code> is <strong>not</strong> guaranteed to have any specific ordering or structure, even through in practice
-it will most times look sequential incremental. Similar the natural language based splitting is not
-guaranteed to be deterministic. Especially over time, as we continue to improve the algorithm, the splitting may change.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">properties</span></code> field is completely optional. It can contain custom data that can be used for filtering and that the system will return when a document is part of the result of a query.</p>
+<p>For this reason, it is essential that the snippet clearly represents the content of the document. In this case, we took a few representative sentences from the document and used them as a snippet. If you
+intend to ingest larger documents, the <a class="reference internal" href="#document-preprocessing"><span class="xref myst">preprocessing section</span></a> contains
+examples about enabling the usage of a <a class="reference internal" href="#summarizer"><span class="xref myst">summarizer</span></a> or <a class="reference internal" href="#automatic-document-splitting"><span class="xref myst">document splitting</span></a>.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">properties</span></code> field is completely optional. It can contain custom data that can be used for <a class="reference internal" href="#filters"><span class="xref myst">filtering</span></a> and that the system will return when a document is part of the result of a query.</p>
 <p>The data that can be included in the properties is limited in terms of type and size. We support numbers, strings, boolean, date and list of strings, none of which are nullable. Please see <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/documents/operation/createDocuments">createDocuments</a> for more information on properties.</p>
-<p>This example assumes that we will eventually display the returned documents as a ‘for-you’ section, where we want to display an article’s image, title, text preview, and a link (for click-through), so we have included these specific properties during ingestion.</p>
-<section id="split-documents">
-<h2>Split Documents<a class="headerlink" href="#split-documents" title="Permalink to this heading">#</a></h2>
-<p>We provide a functionality to extract multiple snippets from the provided content of a document.</p>
-<p>The system uses Natural language processing (NLP) algorithms to split the document into multiple parts.</p>
-<p>This algorithm will be improved over time. This means a document ingested now and a equal document ingested
-in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic so we can’t guarantee fully deterministic behavior even if changes to the algorithm are ignored.</p>
-<p>Currently, automatic splitting works only with one language set when the system is set up; by default, it is English. If you need another one, please contact us.
-We are working to add support for multiple languages to our text-splitting algorithms.</p>
+<p>For example, in the case of a ‘for you’ section, you could include properties containing a link to the
+article, a title, a link to an image, and a text preview. Some of the examples below include properties like that.</p>
 </section>
-</section>
-<section id="recommendations-personalised-documents">
-<h1>Recommendations: Personalised documents<a class="headerlink" href="#recommendations-personalised-documents" title="Permalink to this heading">#</a></h1>
-<p>After ingestion, we can use the front office to retrieve recommendations, which we call personalised documents, and implement a ‘for you’ section.</p>
+<section id="recommendations">
+<h2>Recommendations<a class="headerlink" href="#recommendations" title="Permalink to this heading">#</a></h2>
+<p>After ingestion, we can use the front office to retrieve recommendations and implement a ‘for you’ section.</p>
 <p>From a system perspective, a user is represented by an ID that is needed to group their interactions. We don’t need to know who this user is, so it is preferable to create this ID in a privacy-protecting way. For example, create a hash method that converts your user into an ID hash. Please ensure you don’t use any sensitive or personally identifiable information (PII).</p>
 <p>Let’s use <code class="docutils literal notranslate"><span class="pre">u1234</span></code> as the user ID for our example.</p>
-<p>We ask the system for <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments">personalised documents</a> for this user.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/personalized_documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<p>We ask the system for <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getRecommendations">recommendations</a> for this user.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/recommendations&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span>
 </pre></div>
@@ -343,20 +310,10 @@ We are working to add support for multiple languages to our text-splitting algor
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;kind&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;NotEnoughInteractions&quot;</span><span class="w"> </span><span class="p">}</span>
 </pre></div>
 </div>
-<p>When there is an error, the system uses the ‘kind’ field to specify what kind of error has occurred. There may also be a <code class="docutils literal notranslate"><span class="pre">details</span></code> field.</p>
-<p>In this case, we have ‘NotEnoughInteractions’. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide personalised documents at this time.</p>
+<p>When there is an error, the system uses the <code class="docutils literal notranslate"><span class="pre">kind</span></code> field to specify what kind of error has occurred. There may also be a <code class="docutils literal notranslate"><span class="pre">details</span></code> field which can be used to understand the error better.
+Be aware that the exact way details are encoded is not fixed and can change. Feel free to contact us if you need support.</p>
+<p>In this case, we have <code class="docutils literal notranslate"><span class="pre">NotEnoughInteractions</span></code>. This means that the system needs to receive more interactions from the user to learn their interests and cannot provide recommendations at this time.</p>
 <p>We can add an <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/interaction">interaction</a> between our user <code class="docutils literal notranslate"><span class="pre">u1234</span></code> and the document <code class="docutils literal notranslate"><span class="pre">xayn_cd5604c</span></code>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>PATCH<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/interactions&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">        &quot;documents&quot;: [</span>
-<span class="s1">             { &quot;id&quot;: { &quot;document_id&quot;: &quot;xayn_cd5604c&quot;, &quot;sub_id&quot;: 2 } }</span>
-<span class="s1">        ]</span>
-<span class="s1">    }&#39;</span>
-</pre></div>
-</div>
-<p>Instead of a specific snippet a document as a whole can be specified, too:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>PATCH<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/interactions&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -369,10 +326,10 @@ We are working to add support for multiple languages to our text-splitting algor
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Please note that if an interaction between a user and a document is added, the document will <strong>not</strong> be part of the documents returned for future calls to the personalised endpoint. This includes all snippets associated to that document.</p>
+<p>Please note that if an interaction between a user and a document is added, the document will <strong>not</strong> be part of the documents returned for future calls to the recommendation endpoint. This includes all snippets associated with that document.</p>
 </div>
-<p>Let’s ask for personalised documents again now:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/personalized_documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<p>Let’s ask for recommendations again:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/recommendations&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
@@ -380,10 +337,11 @@ We are working to add support for multiple languages to our text-splitting algor
 <span class="s1">    }&#39;</span>
 </pre></div>
 </div>
-<p>As a result, we will get something like:</p>
+<p>As a result, we now will get something like:</p>
 <div class="highlight-json notranslate"><div class="highlight"><pre><span></span>{
   &quot;documents&quot;: [
   {
+      &quot;id&quot;: &quot;xayn_5283ef3&quot;,
       &quot;snippet_id&quot;: { &quot;document_id&quot;: &quot;xayn_5283ef3&quot;, &quot;sub_id&quot;: 0 },
       &quot;score&quot;: 0.8736,
       &quot;properties&quot;: {
@@ -399,34 +357,34 @@ We are working to add support for multiple languages to our text-splitting algor
 </pre></div>
 </div>
 <p>In the request, we ask the system to include the properties of the returned documents. We can use this data to implement a ‘more like this’ section.</p>
-<p>We also have a <code class="docutils literal notranslate"><span class="pre">score</span></code> field which represents how well the documents match the user’s interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
+<p>The field <a class="reference internal" href="#documents-with-multiple-snippets"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">snippet_id</span></code> identifies</span></a> a specific snippet of a document. The <code class="docutils literal notranslate"><span class="pre">document_id</span></code> field in it represents the whole document. It is the same as the field <code class="docutils literal notranslate"><span class="pre">id</span></code> but <code class="docutils literal notranslate"><span class="pre">id</span></code> has been deprecated.</p>
+<p>The field <code class="docutils literal notranslate"><span class="pre">score</span></code> represents how well the documents match the user’s interests. The higher the number, the better the documents match. It should be noted that the scores only have meaning in relation to other
 scores from the same requests.</p>
-<p>The field <code class="docutils literal notranslate"><span class="pre">snippet_id</span></code> identifies a specific snippet. The <code class="docutils literal notranslate"><span class="pre">document_id</span></code> in the <code class="docutils literal notranslate"><span class="pre">snippet_id</span></code> is the id of the document associated with the snippet.</p>
-<p>If you do not use ingestion options like <code class="docutils literal notranslate"><span class="pre">split</span></code> and in turn only have one snippet per document then you can always use <code class="docutils literal notranslate"><span class="pre">snippet_id.document_id</span></code> and ignore the rest. In many places both a the full snippet id object or a document id string can be used. If documents which have multiple snippets are ingested it’s highly recommended to always use the full snippet id.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">include_properties</span></code> is false, properties are not included in the output, but you can still filter based on them.</p>
+<p>If <code class="docutils literal notranslate"><span class="pre">include_snippet</span></code> is true, the plain text snippet of the search result is returned. Be aware that whitespace in the returned snippet can differ from the text provided to the ingestion API.</p>
 </section>
 <section id="search">
-<h1>Search<a class="headerlink" href="#search" title="Permalink to this heading">#</a></h1>
-<p>Depending on the use-case searching for documents can be achieved as a search for documents <em>similar</em> to a given snippet/document or as a <em>free-text search</em>. Both variants can then be run as a anonymous search or a search that is personalized. Personalization comes in two fashions, with a <em>user-id</em> or by providing a interaction <em>history</em>.</p>
+<h2>Search<a class="headerlink" href="#search" title="Permalink to this heading">#</a></h2>
+<p>Depending on the use case, searching for documents can be achieved as a search for documents <em>similar</em> to a given snippet/document or as a <em>free-text search</em>. Both variants can then be run as an anonymous search or a search that is personalized. Personalization comes in two fashions: with a <em>user-id</em> or by providing an interaction <em>history</em>.</p>
+<p>Personalized search is a search where the results of the search are reordered based on the interests of the users; this makes it especially useful for use cases like a ‘more like this’ section.</p>
 <section id="similar-documents">
-<h2>Similar documents<a class="headerlink" href="#similar-documents" title="Permalink to this heading">#</a></h2>
+<h3>Similar documents<a class="headerlink" href="#similar-documents" title="Permalink to this heading">#</a></h3>
 <p>In this search variant either a <em>document id</em> or a <em>snippet id</em> must be provided to the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/front-office/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code></a> endpoint.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
-<span class="s1">        &quot;document&quot;: { &quot;id&quot;: { &quot;document_id&quot;: &quot;xayn_cd5604c&quot;, &quot;sub_id&quot;: 2 } },</span>
+<span class="s1">        &quot;document&quot;: { &quot;id&quot;: &quot;xayn_cd5604c&quot; },</span>
 <span class="s1">        &quot;include_properties&quot;: true</span>
 <span class="s1">    }&#39;</span>
 </pre></div>
 </div>
-<p>The result contains a list of snippets that are similar to the identified snippet.</p>
-<p>If only documents with a single snippet are used you can provide only the document id
-like this: <code class="docutils literal notranslate"><span class="pre">&quot;document&quot;:</span> <span class="pre">{</span> <span class="pre">&quot;id&quot;:</span> <span class="pre">&quot;xayn_cd5604c&quot;</span> <span class="pre">},</span></code>.</p>
-<p>Be aware that at this moment, this is equivalent to doing a semantic search on the first snippet of a document.
-In the future, this behaviour could change to better represent the intent to search for something similar to the whole document. If you want to explicitly search for the first snippet use a <em>snippet id</em>.</p>
+<p>The result contains a list of snippets similar to the identified document.</p>
+<p>Please note that when using <a class="reference internal" href="#documents-with-multiple-snippets"><span class="xref myst">document with multiple snippets</span></a>, it is recommended to use the snippet id instead of a document id. More details can be found in the chapter
+about documents with multiple snippets and the API documentation.</p>
 </section>
 <section id="free-text-search">
-<h2>Free Text search<a class="headerlink" href="#free-text-search" title="Permalink to this heading">#</a></h2>
+<h3>Free Text search<a class="headerlink" href="#free-text-search" title="Permalink to this heading">#</a></h3>
 <p>Just like <a class="reference internal" href="#similar-documents"><span class="xref myst">Similar documents</span></a> it is also possible to run a free text search.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -451,9 +409,9 @@ In the future, this behaviour could change to better represent the intent to sea
 </div>
 </section>
 <section id="personalised-search">
-<h2>Personalised search<a class="headerlink" href="#personalised-search" title="Permalink to this heading">#</a></h2>
+<h3>Personalised search<a class="headerlink" href="#personalised-search" title="Permalink to this heading">#</a></h3>
 <p>To personalise search results for a specific user, any search can also be combined with an <code class="docutils literal notranslate"><span class="pre">user</span> <span class="pre">id</span></code> or a user <code class="docutils literal notranslate"><span class="pre">history</span></code>, which is a list of interactions of a particular user. The option to use a user history of interactions instead of a user id enables a personalised search without the need for Xayn to store a user id or history of interactions.</p>
-<p>This is how we ask the system for a personalised search result for a <a class="reference internal" href="#recommendations-personalised-documents"><span class="xref myst">user</span></a>:</p>
+<p>This is how we ask the system for a personalised search result for a <a class="reference internal" href="#recommendations"><span class="xref myst">user</span></a>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -476,7 +434,7 @@ In the future, this behaviour could change to better represent the intent to sea
 <span class="w">    </span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
 <span class="w">         </span><span class="nt">&quot;history&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 <span class="w">             </span><span class="p">{</span>
-<span class="w">                 </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;document_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;sub_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                 </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id1&quot;</span><span class="p">,</span>
 <span class="w">                 </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-14T20:22:50Z&quot;</span>
 <span class="w">             </span><span class="p">},</span>
 <span class="w">             </span><span class="p">{</span>
@@ -492,22 +450,22 @@ In the future, this behaviour could change to better represent the intent to sea
 <p class="admonition-title">Note</p>
 <p>Please note: <code class="docutils literal notranslate"><span class="pre">&quot;exclude_seen&quot;:</span> <span class="pre">true</span></code> (default true) filters out documents from search results, that were interacted with by the user or have been provided in the history.</p>
 </div>
-</section>
+<p>Similar to other APIs, using the <a class="reference internal" href="#documents-with-multiple-snippets"><span class="xref myst">snippet id</span></a> is recommended instead of the document one.</p>
 </section>
 <section id="filters">
-<h1>Filters<a class="headerlink" href="#filters" title="Permalink to this heading">#</a></h1>
+<h3>Filters<a class="headerlink" href="#filters" title="Permalink to this heading">#</a></h3>
 <p>Finding specific documents in large datasets based on a key-phrase or their relation to other documents can often be challenging. To address this issue, we can employ a structured filter on one or more of the <code class="docutils literal notranslate"><span class="pre">properties</span></code> fields to narrow down the search scope.</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">filter</span></code> functionality is available in the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code></a> and <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments"><code class="docutils literal notranslate"><span class="pre">/users/{user_id}/personalized_documents</span></code></a> endpoints, and it involves a two-step process:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">filter</span></code> functionality is available in the <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getSimilarDocuments"><code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code></a> and <a class="reference external" href="https://docs.xayn.com/front_office.html#tag/search/operation/getPersonalizedDocuments"><code class="docutils literal notranslate"><span class="pre">/users/{user_id}/recommendations</span></code></a> endpoints, and it involves a two-step process:</p>
 <ol class="arabic simple">
 <li><p>Indexing the desired property field for the filter to operate on.</p></li>
-<li><p>Applying the <code class="docutils literal notranslate"><span class="pre">filter</span></code> in the request to <code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code> or <code class="docutils literal notranslate"><span class="pre">/users/{user_id}/personalized_documents</span></code>.</p></li>
+<li><p>Applying the <code class="docutils literal notranslate"><span class="pre">filter</span></code> in the request to <code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code> or <code class="docutils literal notranslate"><span class="pre">/users/{user_id}/recommendations</span></code>.</p></li>
 </ol>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Please note that the <strong>first step</strong> is necessary to leverage the filtering at all.</p>
 </div>
 <section id="indexing-a-filter-property">
-<h2>Indexing a filter property<a class="headerlink" href="#indexing-a-filter-property" title="Permalink to this heading">#</a></h2>
+<h4>Indexing a filter property<a class="headerlink" href="#indexing-a-filter-property" title="Permalink to this heading">#</a></h4>
 <p>First lets check which properties are already indexed:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>GET<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents/_indexed_properties&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span>
@@ -539,10 +497,10 @@ In the future, this behaviour could change to better represent the intent to sea
 <p>After a short indexing period, depending on the number of ingested documents, we can apply filters to our requests.</p>
 </section>
 <section id="applying-a-filter">
-<h2>Applying a Filter<a class="headerlink" href="#applying-a-filter" title="Permalink to this heading">#</a></h2>
-<p>Applying a filter then just requires to use the <code class="docutils literal notranslate"><span class="pre">filter</span></code> property in the <code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code> or <code class="docutils literal notranslate"><span class="pre">/users/{user_id}/personalized_documents</span></code> query parameter. In the following two examples we simply filter for the tag <code class="docutils literal notranslate"><span class="pre">conference</span></code>.</p>
-<div class="literal-block-wrapper docutils container" id="id1">
-<div class="code-block-caption"><span class="caption-text">/semantic_search</span><a class="headerlink" href="#id1" title="Permalink to this code">#</a></div>
+<h4>Applying a Filter<a class="headerlink" href="#applying-a-filter" title="Permalink to this heading">#</a></h4>
+<p>Applying a filter then just requires to use the <code class="docutils literal notranslate"><span class="pre">filter</span></code> property in the <code class="docutils literal notranslate"><span class="pre">/semantic_search</span></code> or <code class="docutils literal notranslate"><span class="pre">/users/{user_id}/recommendations</span></code> query parameter. In the following two examples we simply filter for the tag <code class="docutils literal notranslate"><span class="pre">conference</span></code>.</p>
+<div class="literal-block-wrapper docutils container" id="id2">
+<div class="code-block-caption"><span class="caption-text">/semantic_search</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -563,10 +521,10 @@ In the future, this behaviour could change to better represent the intent to sea
 </pre></div>
 </div>
 </div>
-<p>In <code class="docutils literal notranslate"><span class="pre">personalized_documents</span></code> the filter is applied in a similar way:</p>
-<div class="literal-block-wrapper docutils container" id="id2">
-<div class="code-block-caption"><span class="caption-text">/users/{user_id}/personalized_documents</span><a class="headerlink" href="#id2" title="Permalink to this code">#</a></div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/personalized_documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<p>In <code class="docutils literal notranslate"><span class="pre">recommendations</span></code> the filter is applied in a similar way:</p>
+<div class="literal-block-wrapper docutils container" id="id3">
+<div class="code-block-caption"><span class="caption-text">/users/{user_id}/recommendations</span><a class="headerlink" href="#id3" title="Permalink to this code">#</a></div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/recommendations&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
@@ -582,10 +540,255 @@ In the future, this behaviour could change to better represent the intent to sea
 </pre></div>
 </div>
 </div>
+<p>Filter APIs can also work with rfc3339 formatted strings if the field is of type <code class="docutils literal notranslate"><span class="pre">date</span></code>:</p>
+<div class="literal-block-wrapper docutils container" id="id4">
+<div class="code-block-caption"><span class="caption-text">/users/{user_id}/recommendations</span><a class="headerlink" href="#id4" title="Permalink to this code">#</a></div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/recommendations&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;filter&quot;: {</span>
+<span class="s1">            &quot;publication_date&quot;: {</span>
+<span class="s1">                &quot;$gte&quot;: &quot;2022-12-30T11:30:32Z&quot;</span>
+<span class="s1">            }</span>
+<span class="s1">        },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+</div>
 </section>
 </section>
-<section id="candidates">
-<h1>Candidates<a class="headerlink" href="#candidates" title="Permalink to this heading">#</a></h1>
+</section>
+</section>
+<section id="documents-with-multiple-snippets">
+<h1>Documents with multiple Snippets<a class="headerlink" href="#documents-with-multiple-snippets" title="Permalink to this heading">#</a></h1>
+<p>Documents can have multiple snippets, and at the core, our search and recommendation system is based on searching and recommending snippets, not documents.</p>
+<p>When using documents with multiple snippets, you need to be aware of a few things:</p>
+<ul class="simple">
+<li><p>there is a snippet id for each specific snippet a document has</p></li>
+<li><p>we search for snippets, not documents, so results can contain multiple different snippets of the same document</p></li>
+<li><p>APIs which operate on the document as a whole, like the ingestion or candidates API, only accept a document id</p></li>
+<li><p>all search APIs do accept document and snippet ids with slightly different semantic meaning</p>
+<ul>
+<li><p>document ids always refer to the document as a whole</p></li>
+<li><p>while snippet ids refer to a specific snippet</p></li>
+</ul>
+</li>
+<li><p>for documents which only have exactly one snippet, the document id and the snippet id with <code class="docutils literal notranslate"><span class="pre">sub_id:</span> <span class="pre">0</span></code> can be used interchangeably. As such if your system might have documents with multiple snippets in the future, it’s a good idea to always use the snippet id for forward compatibility</p></li>
+</ul>
+<p>Some of the search APIs currently have suboptimal implementations when using a document id of a document which has multiple snippets. But this <em>only</em> affects documents which have multiple snippets. As such, we recommend always using the snippet id until the implementation is improved.</p>
+<section id="snippet-id">
+<h2>Snippet Id<a class="headerlink" href="#snippet-id" title="Permalink to this heading">#</a></h2>
+<p>Snippets are identified by a snippet id consisting of both the document id and a sub id.</p>
+<p>Each document is guaranteed to have a snippet with sub id equals <code class="docutils literal notranslate"><span class="pre">0</span></code>. But besides that,
+there are no guarantees about the value of the <code class="docutils literal notranslate"><span class="pre">sub_id</span></code>; this means that a document might have snippet
+id’s with the sub ids <code class="docutils literal notranslate"><span class="pre">0</span></code>, <code class="docutils literal notranslate"><span class="pre">400</span></code>, <code class="docutils literal notranslate"><span class="pre">2334</span></code>.</p>
+<p>For example, if we ingest a document like</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;12345&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;snippet&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;some text&quot;</span>
+<span class="p">},</span>
+</pre></div>
+</div>
+<p>It would have a single snippet with the id <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&quot;document_id&quot;:</span> <span class="pre">&quot;12345&quot;,</span> <span class="pre">&quot;sub_id&quot;:</span> <span class="pre">0</span> <span class="pre">}</span></code>.</p>
+<p>Given the following semantic search example</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;document&quot;: { &quot;id&quot;: &quot;12345&quot; },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+<p>we could use a snippet id instead of a document id as shown in the example below,
+through this is semantically <em>not</em> the same.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;document&quot;: { &quot;id&quot;: { &quot;document_id&quot;: &quot;12345&quot;, &quot;sub_id&quot;: 0 },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+<p>The document id string always represents the intent to refer to a document as a whole, no matter how many snippets that document has.</p>
+<p>The snippet id struct always represents the intent to refer to one specific snippet.</p>
+<p>This means that in the examples above, the first represents the intent to search for snippets which are similar to the document as a whole, but the second represents a search for snippets which are similar to the specific snippet, which is potentially just a small part of the document. (At the moment, the search with the document as a whole has some technical limitations, but such limitations only affect systems which have documents with multiple snippets. Please consult the API documentation for the endpoints you want to use it with.)</p>
+<p>We recommend using the snippet id for any system which might end up with multiple snippets.</p>
+</section>
+<section id="ingestion">
+<h2>Ingestion<a class="headerlink" href="#ingestion" title="Permalink to this heading">#</a></h2>
+<p>There are two APIs with which you can ingest documents in a way where it can
+produce multiple snippets:</p>
+<ul class="simple">
+<li><p>using the <a class="reference internal" href="#automatic-document-splitting"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">split</span></code> option with <code class="docutils literal notranslate"><span class="pre">snippet</span></code></span></a></p></li>
+<li><p>using the <a class="reference internal" href="#file-upload"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">split</span></code> option with <code class="docutils literal notranslate"><span class="pre">file</span></code></span></a></p></li>
+</ul>
+<p>Be aware that you need to use sufficient long text for it to be split in multiple snippets.</p>
+<p>You could use the example from the <a class="reference internal" href="#automatic-document-splitting"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">split</span></code> option section</span></a> or use
+your own document, something along ~1000 words will likely generate multiple splits.</p>
+</section>
+<section id="semantic-search">
+<h2>Semantic Search<a class="headerlink" href="#semantic-search" title="Permalink to this heading">#</a></h2>
+<p>As mentioned the search results are based on snippets not documents, as such a search
+can yield multiple different snippets of the same document.</p>
+<p>The following is an example that performs a search for a specific snippet.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/semantic_search&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;document&quot;: { &quot;id&quot;: { &quot;document_id&quot;: &quot;effaffe&quot;, &quot;sub_id&quot;: 2 },</span>
+<span class="s1">        &quot;include_properties&quot;: true</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+<p>This will return the snippets of which the semantic representation is closest to the
+semantic representation of snippet with the <code class="docutils literal notranslate"><span class="pre">sub_id:</span> <span class="pre">2</span></code> of the given document.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Currently, the whole document used for the search is excluded from the search results, so, the result will not contain snippets from the same document.</p>
+</div>
+<p>For personalize semantic search with provided history snippet ids can also be used instead of
+document ids:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="nt">&quot;personalize&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;exclude_seen&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;user&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">         </span><span class="nt">&quot;history&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">             </span><span class="p">{</span>
+<span class="w">                 </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;document_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;sub_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                 </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-14T20:22:50Z&quot;</span>
+<span class="w">             </span><span class="p">},</span>
+<span class="w">             </span><span class="p">{</span>
+<span class="w">                 </span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;document_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;valid_doc_id1&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;sub_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">},</span>
+<span class="w">                 </span><span class="nt">&quot;timestamp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2000-05-15T20:22:50Z&quot;</span>
+<span class="w">             </span><span class="p">}</span>
+<span class="w">         </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>When the history contains an interaction with a document which has multiple snippets, it will be
+processed similar to registering an interaction with each snippet of that document.</p>
+<p>The field <code class="docutils literal notranslate"><span class="pre">exclude_seen</span></code> always refers to whole documents.
+In the example above, even if there were a snippet with id <code class="docutils literal notranslate"><span class="pre">{</span> <span class="pre">&quot;document_id&quot;:</span> <span class="pre">&quot;valid_doc_id1&quot;,</span> <span class="pre">&quot;sub_id&quot;:</span> <span class="pre">30</span> <span class="pre">}</span></code> it would exclude the whole document <code class="docutils literal notranslate"><span class="pre">&quot;valid_doc_id1&quot;</span></code> no matter how many snippets it has.</p>
+<p>Please be aware that using semantic search based on a document id of a document with multiple snippets has some limitations. Mainly, instead of searching based on the document as a whole, it searches based on
+a single snippet of the document. For this reason, we recommend to always use the snippet id for now.</p>
+</section>
+<section id="id1">
+<h2>Recommendations<a class="headerlink" href="#id1" title="Permalink to this heading">#</a></h2>
+<p>It is possible to register interactions with specific snippets instead of whole documents:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>PATCH<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/users/u1234/interactions&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;documents&quot;: [</span>
+<span class="s1">            { &quot;id&quot;: { &quot;document_id&quot;: &quot;effaffe&quot;, &quot;sub_id&quot;: 1 } },</span>
+<span class="s1">            { &quot;id&quot;: { &quot;document_id&quot;: &quot;effaffe&quot;, &quot;sub_id&quot;: 2 } },</span>
+<span class="s1">            { &quot;id&quot;: { &quot;document_id&quot;: &quot;affeffa&quot;, &quot;sub_id&quot;: 1 } }</span>
+<span class="s1">        ]</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+<p>When registering a interaction with a document which has multiple snippets it will be
+processed similar to registering an interaction which each snippet of that document.</p>
+</section>
+</section>
+<section id="document-preprocessing">
+<h1>Document preprocessing<a class="headerlink" href="#document-preprocessing" title="Permalink to this heading">#</a></h1>
+<section id="automatic-document-splitting">
+<h2>Automatic document splitting<a class="headerlink" href="#automatic-document-splitting" title="Permalink to this heading">#</a></h2>
+<p>The back office ingestion API provides functionality to automatically split a document into
+multiple parts and create a snippet for each of these parts.</p>
+<p>The system uses Natural language processing (NLP) algorithms to split the document.</p>
+<p>This algorithm will be improved over time. This means a document ingested now and an equal document ingested
+in the future might have different splits. Additionally, not all NLP splitting algorithms are deterministic, so we can’t guarantee fully deterministic behaviour even with the same algorithm.</p>
+<p>The splitting works only for the language set when the system is configured.
+The default is English. If you need another language, please contact us.
+We are working to add support for multiple languages to our text-splitting algorithm.</p>
+<p>Automatic splitting can be enabled on a per-document basis by setting the <code class="docutils literal notranslate"><span class="pre">&quot;split&quot;</span></code> option
+to <code class="docutils literal notranslate"><span class="pre">true</span></code> as shown in the example below.</p>
+<p>When using documents with multiple snippets, it is highly recommended to use
+the snippet id for many use cases. More details can be found in the
+<a class="reference internal" href="#documents-with-multiple-snippets"><span class="xref myst">section about documents with multiple snippets</span></a>.</p>
+<p>If a search using <code class="docutils literal notranslate"><span class="pre">include_snippet</span></code> returns a snippet from a split document, the returned snippet will be the “split” segment produced by the splitting algorithm.</p>
+<p>For example the ingestion of (from BAnz AT 13.07.2023 B1 page 3):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;documents&quot;: [</span>
+<span class="s1">            {</span>
+<span class="s1">                &quot;id&quot;: &quot;effaffe&quot;,</span>
+<span class="s1">                &quot;snippet&quot;: &quot;6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.  Bei  der  Einholung  von  An-\ngeboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-\nligen.  Die  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der\nErteilung des Unterauftrags zu benennen.\n6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers\nnach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-\nfordert in Textform an. Maßgeblich ist das Datum des Vertragsschlusses. Dabei teilt der Auftragnehmer  mindestens\nden Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags. Die Anzeige-\npflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.  den\nVergabeunterlagen bekannt sind.\n6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung\noder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen. Dies\ngilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit. Der Auftragnehmer legt dem\nAuftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige\ngemäß Nummer 6.3 vor.\n6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-\nnehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den\nAuftragnehmer hat. Hierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-\ndeten Vertragsergebnissen.\n6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform\nzu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen\nUnterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.\n6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren\nVerhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-\nergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss\nerklärt, einzuholen. Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der\nAuftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.\nErteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach\nAblauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen\ngegenüber dem Auftraggeber unberührt.&quot;,</span>
+<span class="s1">                &quot;split&quot;: true</span>
+<span class="s1">            }</span>
+<span class="s1">        ]</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+<p>could split the text into three part:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;snippet_id&quot;:</span> <span class="pre">{</span> <span class="pre">document_id:</span> <span class="pre">&quot;effaffe&quot;,</span>&#160; <span class="pre">sub_id:</span> <span class="pre">0</span> <span class="pre">}</span></code> containing</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;6.2  Die  Vergabe  von  Unteraufträgen  hat  nach  Möglichkeit  im  Wettbewerb  zu  erfolgen.</span><span class="se">\n\n</span><span class="s2">Bei  der  Einholung  von  An-</span><span class="se">\n</span><span class="s2">geboten  für  Unteraufträge  sind  kleine  und  mittlere,  nicht  konzerngebundene  Unternehmen  soweit  möglich  zu  betei-</span><span class="se">\n</span><span class="s2">ligen.</span><span class="se">\n\n</span><span class="s2">Die  in  Betracht  kommenden  Unternehmen  sind  dem  Auftraggeber  vom  Auftragnehmer  auf  Verlangen  vor  der</span><span class="se">\n</span><span class="s2">Erteilung des Unterauftrags zu benennen.</span><span class="se">\n\n</span><span class="s2">6.3  Der Auftragnehmer zeigt dem Auftraggeber jeden Unterauftrag sowie jeden Wechsel eines Unterauftragnehmers</span><span class="se">\n</span><span class="s2">nach Erteilung des jeweiligen Unterauftrags bis zum Ende der jeweiligen Vertragslaufzeit unverzüglich und unaufge-</span><span class="se">\n</span><span class="s2">fordert in Textform an.</span><span class="se">\n\n</span><span class="s2">Maßgeblich ist das Datum des Vertragsschlusses.</span><span class="se">\n\n</span><span class="s2">Dabei teilt der Auftragnehmer  mindestens</span><span class="se">\n</span><span class="s2">den Namen und die Anschrift des Unterauftragnehmers mit sowie den Gegenstand des Unterauftrags.</span><span class="se">\n\n</span><span class="s2">Die Anzeige-</span><span class="se">\n</span><span class="s2">pflicht  entfällt,  wenn  dem  Auftraggeber  die  Informationen  bereits  aus  dem  Angebot  des  Auftragnehmers  bzw.</span><span class="se">\n\n</span><span class="s2">den</span><span class="se">\n</span><span class="s2">Vergabeunterlagen bekannt sind.</span><span class="se">\n\n</span><span class="s2">6.4  Hat der Auftraggeber in der Bekanntmachung oder in den Vergabeunterlagen Anforderungen über die Eignung</span><span class="se">\n</span><span class="s2">oder Auftragserfüllung für Unterauftragnehmer aufgestellt, sind diese von allen Unterauftragnehmern zu erfüllen.</span><span class="se">\n\n</span><span class="s2">Dies</span><span class="se">\n</span><span class="s2">gilt auch im Fall des Austauschs von Unterauftragnehmern während der Vertragslaufzeit.&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;snippet_id&quot;:</span> <span class="pre">{</span> <span class="pre">document_id:</span> <span class="pre">&quot;effaffe&quot;,</span>&#160; <span class="pre">sub_id:</span> <span class="pre">1</span> <span class="pre">}</span></code> containing</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;Der Auftragnehmer legt dem</span><span class="se">\n</span><span class="s2">Auftraggeber  erforderliche  Nachweise  seiner  Unterauftragnehmer  unverzüglich  und  unaufgefordert  mit  der  Anzeige</span><span class="se">\n</span><span class="s2">gemäß Nummer 6.3 vor.</span><span class="se">\n\n</span><span class="s2">6.5  Vergibt der Auftragnehmer Unteraufträge, so hat er durch entsprechende Vereinbarungen mit den Unterauftrag-</span><span class="se">\n</span><span class="s2">nehmern  dem  Auftraggeber  die  gleichen  Rechte  und  Ansprüche  zu  verschaffen,  die  der  Auftraggeber  gegen  den</span><span class="se">\n</span><span class="s2">Auftragnehmer hat.</span><span class="se">\n\n</span><span class="s2">Hierzu gehören auch die Nutzungsrechte des Auftraggebers an allen vom Auftragnehmer geschul-</span><span class="se">\n</span><span class="s2">deten Vertragsergebnissen.</span><span class="se">\n\n</span><span class="s2">6.6  Gelingt dies dem Auftragnehmer im Einzelfall nicht, so hat er den Auftraggeber darüber unverzüglich in Textform</span><span class="se">\n</span><span class="s2">zu  unterrichten  und  ihm  auf  Verlangen  Gelegenheit  zu  geben,  an  den  weiteren  Verhandlungen  mit  dem  jeweiligen</span><span class="se">\n</span><span class="s2">Unterauftragnehmer teilzunehmen und die Entscheidung des Auftraggebers abzuwarten.</span><span class="se">\n\n</span><span class="s2">6.7  Akzeptiert der Unterauftragnehmer die Vereinbarung entsprechender Regelungen nach Abschluss der weiteren</span><span class="se">\n</span><span class="s2">Verhandlungen  nicht,  hat  der  Auftragnehmer  dies  dem  Auftraggeber  in  Textform  anzuzeigen,  das  Verhandlungs-</span><span class="se">\n</span><span class="s2">ergebnis vorzulegen und die Entscheidung des Auftraggebers darüber, ob er seine Einwilligung zum Vertragsschluss</span><span class="se">\n</span><span class="s2">erklärt, einzuholen.&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&quot;snippet_id&quot;:</span> <span class="pre">{</span> <span class="pre">document_id:</span> <span class="pre">&quot;effaffe&quot;,</span>&#160; <span class="pre">sub_id:</span> <span class="pre">2</span> <span class="pre">}</span></code> containing</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="s2">&quot;Entscheidet sich der Auftraggeber nicht binnen eines Monats nach Zugang der Anzeige, so ist der</span><span class="se">\n</span><span class="s2">Auftragnehmer  berechtigt,  den  Unterauftrag  entsprechend  dem  vorgelegten  Verhandlungsergebnis  abzuschließen.</span><span class="se">\n\n</span><span class="s2">Erteilt der Auftraggeber seine ausdrückliche Einwilligung zum Vertragsschluss oder erfolgt der Vertragsschluss nach</span><span class="se">\n</span><span class="s2">Ablauf der Monatsfrist, bleibt die Haftung des Auftragnehmers für die vertragsgemäße Ausführung seiner Leistungen</span><span class="se">\n</span><span class="s2">gegenüber dem Auftraggeber unberührt.&quot;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="file-upload">
+<h2>File Upload<a class="headerlink" href="#file-upload" title="Permalink to this heading">#</a></h2>
+<p>The file upload features is <em>not</em> enabled by default contact Xayn if you do need it.</p>
+<p>Documents are often in different formats than plain text. When ingesting, you can decide to provide a
+document “file” instead of a snippet. If you do so, we will try to extract snippets from the given
+file.</p>
+<p>File upload implies the <a class="reference internal" href="#automatic-document-splitting"><span class="xref myst"><code class="docutils literal notranslate"><span class="pre">split</span></code></span></a> option which means it might always produce documents which have multiple snippets.
+The <a class="reference internal" href="#documents-with-multiple-snippets"><span class="xref myst">documents with multiple snippets chapter</span></a> contains more information about what this means.</p>
+<p>Follwing file formats are supported: <code class="docutils literal notranslate"><span class="pre">application/pdf</span></code>, <code class="docutils literal notranslate"><span class="pre">text/plain</span></code>, <code class="docutils literal notranslate"><span class="pre">text/html</span></code>.</p>
+<p>The “file” needs to be provided as base64 encoded string.
+Reusing the example from the getting started section and providing the snippet as <code class="docutils literal notranslate"><span class="pre">text/plain</span></code> file leads to the following example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/documents&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$BACKOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;documents&quot;: [</span>
+<span class="s1">            {</span>
+<span class="s1">                &quot;id&quot;: &quot;xayn_cd5604c&quot;,</span>
+<span class="s1">                &quot;file&quot;: &quot;VGhlIHZvaWNlcyB0aGF0IGFyZSBkZW1hbmRpbmcgYmV0dGVyIHByaXZhY3kgcHJvdGVjdGlvbiBhbmQgb3duZXJzaGlwIG9mIG91ciBvd24gZGF0YSBhcmUgaW5jcmVhc2luZ2x5IGxvdWRlciwgdGhlcmUgaXMgYSBiYWNrbGFzaCB0b3dhcmRzIHRoZXNlIHByYWN0aWNlcy4gQXQgWGF5biwgb3VyIG1pc3Npb24gaXMgdG8gcHJvdmlkZSBwZXJzb25hbGlzYXRpb24gd2l0aG91dCB1c2VyIGRhdGEgbGVhdmluZyB0aGUgZGV2aWNlLCBtYWludGFpbmluZyBhYnNvbHV0ZSBwcml2YWN5LiBXZSB1c2Ugc2VtYW50aWMgc2ltaWxhcml0eSBhbmQgY2VudGVycyBvZiBpbnRlcmVzdCB0byB1bmRlcnN0YW5kIHVzZXIgcHJlZmVyZW5jZXMgYW5kIHByZXNlbnQgYmV0dGVyIG1hdGNoaW5nIGFydGljbGVzLiBXaXRoIG91ciBtb2RlbCBYYXluaWEsIHdlIG9mZmVyIHNlbWFudGljIHNpbWlsYXJpdHkgYW5kIHNlYXJjaCB3aXRoIG1pbmltYWwgZW5lcmd5IGNvbnN1bXB0aW9uIGFuZCBhdCBhIGxvdyBwcmljZSwgbWFraW5nIGl0IGhpZ2hseSBlbmVyZ3ktZWZmaWNpZW50IGNvbXBhcmVkIHRvIG90aGVyIHRyYW5zZm9ybWVyIG1vZGVscy4=&quot;,</span>
+<span class="s1">                &quot;properties&quot;: {</span>
+<span class="s1">                    &quot;title&quot;: &quot;The initial challange&quot;,</span>
+<span class="s1">                    &quot;link&quot;: &quot;https://xayn.com/blog/the-initial-challenge&quot;,</span>
+<span class="s1">                    &quot;image&quot;: &quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/641320bc6be72c5453f4d98d_Blog%20Posts%20Visuals%20-%2003%20Mar%202023-p-2600.png&quot;,</span>
+<span class="s1">                    &quot;location&quot; : [&quot;germany&quot;, &quot;berlin&quot;, &quot;conference&quot;]</span>
+<span class="s1">                }</span>
+<span class="s1">            }</span>
+<span class="s1">        ]</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="summarizer">
+<h2>Summarizer<a class="headerlink" href="#summarizer" title="Permalink to this heading">#</a></h2>
+<p>The back office ingestion API provides functionality to summarize the provided content automatically.</p>
+<p>This can be used if the content of a document is too large to be used directly as a snippet. Because
+the summarized text still has to fit into the size constraints of a snippet; it is better to
+use the <a class="reference internal" href="#automatic-document-splitting"><span class="xref myst">automatic document splitting instead</span></a>.</p>
+<p>If a search using <code class="docutils literal notranslate"><span class="pre">include_snippet</span></code> returns a summarized document then the returned snippet will be based on the snippet provided for ingestion, not the snippet internally produced through the summarizer. Whitespace can still differ.</p>
+</section>
+</section>
+<section id="candidates-api">
+<h1>Candidates API<a class="headerlink" href="#candidates-api" title="Permalink to this heading">#</a></h1>
 <p>The <a class="reference external" href="https://docs.xayn.com/back_office.html#tag/candidates"><code class="docutils literal notranslate"><span class="pre">/candidates</span></code></a> api is a set back-office requests that allows to globally define the documents that all apis can recommend or generate search results from. Snippets from documents that are not part of the candidates set will not be included in search results or recommendations, but interactions with these documents are still stored and can still be recorded.</p>
 <p>Be aware that the candidates API is based on whole documents, it is not possible to set specific snippets.</p>
 <p>After ingesting documents we can check the candidates:</p>
