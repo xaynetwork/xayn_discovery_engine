@@ -532,7 +532,7 @@ In the example above, even if there were a snippet with id `{ "document_id": "va
 Please be aware that using semantic search based on a document id of a document with multiple snippets has some limitations. Mainly, instead of searching based on the document as a whole, it searches based on
 a single snippet of the document. For this reason, we recommend to always use the snippet id for now.
 
-## Personalization
+## Recommendations
 
 It is possible to register interactions with specific snippets instead of whole documents:
 
