@@ -59,6 +59,7 @@ use crate::{
     ingestion::IngestionConfig,
     models::{
         DocumentContent,
+        DocumentDevData,
         DocumentForIngestion,
         DocumentId,
         DocumentProperties,
@@ -948,6 +949,8 @@ impl storage::Document for Storage {
 
                 if let Some(ref mut additional_data) = &mut document.dev {
                     additional_data.raw_scores = raw_scores;
+                } else {
+                    document.dev = Some(DocumentDevData { raw_scores });
                 }
             }
         }

@@ -55,6 +55,19 @@ struct PersonalizedDocumentData {
     properties: Option<serde_json::Value>,
     #[serde(default)]
     snippet: Option<String>,
+    #[serde(default)]
+    dev: Option<DocumentDevData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct DocumentDevData {
+    pub(crate) raw_scores: Option<RawScores>,
+}
+
+#[derive(Debug, Deserialize)]
+struct RawScores {
+    pub(crate) knn: Option<f32>,
+    pub(crate) bm25: Option<f32>,
 }
 
 #[derive(Deserialize)]
@@ -413,6 +426,71 @@ fn test_semantic_search_include_snippet() {
                 Some("this is another sentence which we have")
             );
             assert_eq!(documents[2].snippet.as_deref(), Some("duck duck quack"));
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_semantic_search_with_dev_option_raw_scores() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        with_dev_options(),
+        |client, ingestion_url, personalization_url, _| async move {
+            ingest(&client, &ingestion_url).await?;
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "_dev": { "show_raw_scores": true }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            assert!(documents.iter().all(|document| document
+                .dev
+                .as_ref()
+                .unwrap()
+                .raw_scores
+                .as_ref()
+                .unwrap()
+                .knn
+                .is_some()));
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/semantic_search")?)
+                    .json(&json!({
+                        "document": { "query": "this is one sentence" },
+                        "enable_hybrid_search": true,
+                        "count": 100,
+                        "_dev": { "show_raw_scores": true }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            let documents_with_bm25 = ["d1", "d3"];
+            assert!(documents.iter().all(|document| {
+                let raw_scores = document.dev.as_ref().unwrap().raw_scores.as_ref().unwrap();
+
+                raw_scores.knn.is_some()
+                    && if documents_with_bm25.contains(&document.id.as_str()) {
+                        raw_scores.bm25.is_some()
+                    } else {
+                        true
+                    }
+            }));
 
             Ok(())
         },
