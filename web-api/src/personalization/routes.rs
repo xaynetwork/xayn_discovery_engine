@@ -58,7 +58,15 @@ use crate::{
         SnippetOrDocumentId,
         UserId,
     },
-    storage::{self, Exclusions, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy},
+    storage::{
+        self,
+        Exclusions,
+        KnnSearchParams,
+        MergeFn,
+        NormalizationFn,
+        SearchStrategy,
+        Storage,
+    },
     tenants,
     utils::deprecate,
     Error,
@@ -67,20 +75,25 @@ use crate::{
 pub(super) fn configure_service(config: &mut ServiceConfig) {
     let users = web::scope("/users/{user_id}")
         .service(web::resource("interactions").route(web::patch().to(interactions)))
-        .service(web::resource("recommendations").route(web::post().to(recommendations)))
+        .service(web::resource("recommendations").route(web::post().to(user_recommendations)))
         .service(
             web::resource("personalized_documents")
-                .route(web::post().to(deprecate!(recommendations(
+                .route(web::post().to(deprecate!(user_recommendations(
                     state, user_id, body, params, storage,
                 ))))
                 // this route is deprecated and will be removed in the future
-                .route(web::get().to(deprecate!(recommendations(
+                .route(web::get().to(deprecate!(user_recommendations(
                     state, user_id, body, params, storage,
                 )))),
         );
     let semantic_search = web::resource("/semantic_search").route(web::post().to(semantic_search));
+    let recommendations_service =
+        web::resource("/recommendations").route(web::post().to(recommendations));
 
-    config.service(users).service(semantic_search);
+    config
+        .service(users)
+        .service(semantic_search)
+        .service(recommendations_service);
 }
 
 #[derive(Debug, Deserialize)]
@@ -170,6 +183,8 @@ struct UnvalidatedPersonalizedDocumentsRequest {
     include_properties: bool,
     #[serde(default)]
     include_snippet: bool,
+    #[serde(default = "default_exclude_seen")]
+    exclude_seen: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -182,15 +197,8 @@ struct UnvalidatedPersonalizedDocumentsQuery {
     include_properties: bool,
     #[serde(default)]
     include_snippet: bool,
-}
-
-#[derive(Debug)]
-struct PersonalizedDocumentsRequest {
-    count: usize,
-    filter: Option<Filter>,
-    include_properties: bool,
-    include_snippet: bool,
-    is_deprecated: bool,
+    #[serde(default = "default_exclude_seen")]
+    exclude_seen: bool,
 }
 
 impl UnvalidatedPersonalizedDocumentsRequest {
@@ -198,13 +206,15 @@ impl UnvalidatedPersonalizedDocumentsRequest {
         self,
         config: &impl AsRef<PersonalizationConfig>,
         storage: &impl storage::IndexedProperties,
-    ) -> Result<PersonalizedDocumentsRequest, Error> {
+        user_id: UserId,
+    ) -> Result<RecommendationRequest, Error> {
         let Self {
             count,
             published_after,
             filter,
             include_properties,
             include_snippet,
+            exclude_seen,
         } = self;
         let config = config.as_ref();
 
@@ -220,8 +230,14 @@ impl UnvalidatedPersonalizedDocumentsRequest {
         }
         let is_deprecated = published_after.is_some();
 
-        Ok(PersonalizedDocumentsRequest {
+        let personalize = Personalize {
+            exclude_seen: exclude_seen,
+            user: InputUser::Ref { id: user_id },
+        };
+
+        Ok(RecommendationRequest {
             count,
+            personalize,
             filter,
             include_properties,
             include_snippet,
@@ -230,7 +246,7 @@ impl UnvalidatedPersonalizedDocumentsRequest {
     }
 }
 
-async fn recommendations(
+async fn user_recommendations(
     state: Data<AppState>,
     user_id: Path<String>,
     body: Option<Json<UnvalidatedPersonalizedDocumentsRequest>>,
@@ -238,14 +254,8 @@ async fn recommendations(
     TenantState(storage): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
-    let PersonalizedDocumentsRequest {
-        count,
-        filter,
-        include_properties,
-        include_snippet,
-        is_deprecated,
-    } = if let Some(Json(body)) = body {
-        body.validate_and_resolve_defaults(&state.config, &storage)
+    let request: RecommendationRequest = if let Some(Json(body)) = body {
+        body.validate_and_resolve_defaults(&state.config, &storage, user_id)
             .await?
     } else {
         UnvalidatedPersonalizedDocumentsRequest {
@@ -257,8 +267,9 @@ async fn recommendations(
                 .transpose()?,
             include_properties: params.include_properties,
             include_snippet: params.include_snippet,
+            exclude_seen: params.exclude_seen,
         }
-        .validate_and_resolve_defaults(&state.config, &storage)
+        .validate_and_resolve_defaults(&state.config, &storage, user_id)
         .await?
         // TODO: once the deprecated params are removed use this instead in case of no request body
         // PersonalizedDocumentsRequest {
@@ -268,35 +279,7 @@ async fn recommendations(
         //     is_deprecated: false,
         // }
     };
-
-    let documents = if let Some(documents) = personalize_documents_by(
-        &storage,
-        &state.coi,
-        &user_id,
-        &state.config.personalization,
-        PersonalizeBy::KnnSearch {
-            count,
-            filter: filter.as_ref(),
-        },
-        Utc::now(),
-        include_properties,
-        include_snippet,
-    )
-    .await?
-    {
-        Either::Left(Json(PersonalizedDocumentsResponse {
-            documents: documents.into_iter().map_into().collect(),
-        }))
-    } else {
-        Either::Right((
-            Json(PersonalizedDocumentsError::NotEnoughInteractions),
-            StatusCode::CONFLICT,
-        ))
-    };
-
-    Ok(deprecate!(if is_deprecated {
-        documents
-    }))
+    _recommendations(state, request, storage).await
 }
 
 #[derive(Debug, Serialize)]
@@ -486,6 +469,19 @@ struct UnvalidatedSemanticSearchRequest {
     filter: Option<Filter>,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct UnvalidatedRecommendationRequest {
+    count: Option<usize>,
+    published_after: Option<DateTime<Utc>>,
+    personalize: UnvalidatedPersonalize,
+    #[serde(default = "default_include_properties")]
+    include_properties: bool,
+    #[serde(default)]
+    include_snippet: bool,
+    filter: Option<Filter>,
+}
+
 #[derive(Debug, Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct DevOption {
@@ -607,6 +603,52 @@ impl UnvalidatedSemanticSearchRequest {
     }
 }
 
+impl UnvalidatedRecommendationRequest {
+    async fn validate_and_resolve_defaults(
+        self,
+        config: &(impl AsRef<SemanticSearchConfig>
+              + AsRef<PersonalizationConfig>
+              + AsRef<tenants::Config>),
+        storage: &impl storage::IndexedProperties,
+        warnings: &mut Vec<Warning>,
+    ) -> Result<RecommendationRequest, Error> {
+        let Self {
+            count,
+            published_after,
+            personalize,
+            include_properties,
+            include_snippet,
+            filter,
+        } = self;
+
+        let semantic_search_config: &SemanticSearchConfig = config.as_ref();
+
+        let count = count.unwrap_or(semantic_search_config.default_number_documents);
+        validate_count(
+            count,
+            semantic_search_config.max_number_documents,
+            semantic_search_config.max_number_candidates,
+        )?;
+
+        let personalize = personalize.validate(config.as_ref(), warnings)?;
+        // let history = validate_history(history, personalize_config, warnings, Utc::now(), false)?;
+        let filter = Filter::insert_published_after(filter, published_after);
+        if let Some(filter) = &filter {
+            filter.validate(&storage.load_schema().await?)?;
+        }
+        let is_deprecated = published_after.is_some();
+
+        Ok(RecommendationRequest {
+            count,
+            personalize,
+            include_properties,
+            include_snippet,
+            filter,
+            is_deprecated,
+        })
+    }
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
@@ -701,6 +743,17 @@ struct SemanticSearchRequest {
     enable_hybrid_search: bool,
     dev_hybrid_search: Option<DevHybrid>,
     dev_show_raw_scores: Option<bool>,
+    include_properties: bool,
+    include_snippet: bool,
+    filter: Option<Filter>,
+    is_deprecated: bool,
+}
+
+#[allow(clippy::too_many_arguments)]
+#[allow(clippy::struct_excessive_bools)]
+struct RecommendationRequest {
+    count: usize,
+    personalize: Personalize,
     include_properties: bool,
     include_snippet: bool,
     filter: Option<Filter>,
@@ -818,6 +871,103 @@ async fn semantic_search(
             documents: documents.into_iter().map_into().collect(),
         })
     }))
+}
+
+#[instrument(skip(state, storage))]
+async fn recommendations(
+    state: Data<AppState>,
+    Json(body): Json<UnvalidatedRecommendationRequest>,
+    TenantState(storage): TenantState,
+) -> Result<impl Responder, Error> {
+    // TODO: actually return non-empty warnings in the response
+    let mut warnings = Vec::new();
+    let request = body
+        .validate_and_resolve_defaults(&state.config, &storage, &mut warnings)
+        .await?;
+
+    _recommendations(state, request, storage).await
+}
+
+async fn _recommendations(
+    state: Data<AppState>,
+    request: RecommendationRequest,
+    storage: Storage,
+) -> Result<impl Responder, Error> {
+    let RecommendationRequest {
+        count,
+        personalize,
+        include_properties,
+        include_snippet,
+        filter,
+        is_deprecated,
+    } = request;
+
+    let time = Utc::now();
+    let exclusions = personalized_exclusions(&storage, state.config.as_ref(), &personalize).await?;
+
+    let (interests, tag_weights) = match personalize.user {
+        InputUser::Ref { id } => {
+            storage::Interaction::user_seen(&storage, &id, time).await?;
+            (
+                storage::Interest::get(&storage, &id).await?,
+                storage::Tag::get(&storage, &id).await?,
+            )
+        }
+        InputUser::Inline { history } => {
+            let history = trim_history(
+                history,
+                state.config.personalization.max_stateless_history_for_cois,
+            );
+            let history = load_history(&storage, history).await?;
+            derive_interests_and_tag_weights(&state.coi, &history)
+        }
+    };
+
+    if interests.len() < state.coi.config().min_cois() {
+        return Ok(Either::Left((
+            deprecate!(if is_deprecated {
+                Json(PersonalizedDocumentsError::NotEnoughInteractions)
+            }),
+            StatusCode::CONFLICT,
+        )));
+    }
+
+    let mut documents = knn::CoiSearch {
+        interests: &interests,
+        excluded: &exclusions,
+        horizon: state.coi.config().horizon(),
+        max_cois: state.config.personalization.max_cois_for_knn,
+        count,
+        num_candidates: state.config.personalization.max_number_candidates,
+        time,
+        include_properties,
+        include_snippet,
+        filter: filter.as_ref(),
+    }
+    .run_on(&storage)
+    .await?;
+
+    rerank(
+        &state.coi,
+        &mut documents,
+        &interests,
+        &tag_weights,
+        state.config.semantic_search.score_weights,
+        time,
+    );
+
+    #[cfg_attr(not(test), allow(irrefutable_let_patterns))]
+    if documents.len() > count {
+        // due to ceiling the number of documents we fetch per COI
+        // we might end up with more documents than we want
+        documents.truncate(count);
+    }
+
+    Ok(Either::Right(deprecate!(if is_deprecated {
+        Json(SemanticSearchResponse {
+            documents: documents.into_iter().map_into().collect(),
+        })
+    })))
 }
 
 async fn personalized_exclusions(
