@@ -125,7 +125,8 @@ download-assets *args: python-deps
     #!/usr/bin/env -S bash -eu -o pipefail
     BASE_DIR="$(pwd)"
     cd {{justfile_directory()}}/.github/scripts
-    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
+    PROFILE="{{ env_var_or_default("AWS_PROFILE", "S3BucketsDeveloperAccess-690046978283") }}"
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"$PROFILE\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     ./download_assets.sh {{args}}
     cd "${BASE_DIR}/snippet-extractor"
     pipenv run python -c 'import nltk; nltk.download("punkt")'
@@ -133,7 +134,8 @@ download-assets *args: python-deps
 
 upload-assets *args:
     #!/usr/bin/env -S bash -eu -o pipefail
-    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
+    PROFILE="{{ env_var_or_default("AWS_PROFILE", "S3BucketsDeveloperAccess-690046978283") }}"
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"$PROFILE\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     ./.github/scripts/prepare_data.sh {{args}} --upload
 
 build-service-args name target="default" features="":
@@ -314,7 +316,8 @@ perf-flamegraph integration_test_bin:
 
 aws-login:
     #!/usr/bin/env bash
-    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"S3BucketsDeveloperAccess-690046978283\"" } else { "" } }}
+    PROFILE="{{ env_var_or_default("AWS_PROFILE", "S3BucketsDeveloperAccess-690046978283") }}"
+    {{ if env_var_or_default("CI", "false") == "false" { "export AWS_PROFILE=\"$PROFILE\"; echo AWS_PROFILE=$AWS_PROFILE;" } else { "" } }}
     aws sso login
 
 _test-project-root:
