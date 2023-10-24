@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::env;
+use std::{env, sync::Arc};
 
 use anyhow::{bail, Error};
 use ndarray::{Array, CowArray, IxDyn};
@@ -41,6 +41,8 @@ pub(crate) struct Model {
     runtime: Session,
     use_type_ids: bool,
     pub(crate) embedding_size: usize,
+    // we drop env last. This as been fixed upstream but not yet released.
+    _env: Arc<Environment>,
 }
 
 pub(crate) struct Embedding(Value<'static>);
