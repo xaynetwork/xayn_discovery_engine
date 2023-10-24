@@ -231,16 +231,16 @@ impl UnvalidatedPersonalizedDocumentsRequest {
         let is_deprecated = published_after.is_some();
 
         let personalize = Personalize {
-            exclude_seen: exclude_seen,
+            exclude_seen,
             user: InputUser::Ref { id: user_id },
         };
 
         Ok(RecommendationRequest {
             count,
             personalize,
-            filter,
             include_properties,
             include_snippet,
+            filter,
             is_deprecated,
         })
     }
@@ -326,7 +326,7 @@ struct PersonalizedDocumentsResponse {
 enum PersonalizedDocumentsError {
     NotEnoughInteractions,
 }
-
+#[cfg(test)]
 pub(crate) enum PersonalizeBy<'a> {
     KnnSearch {
         count: usize,
@@ -336,6 +336,7 @@ pub(crate) enum PersonalizeBy<'a> {
     Documents(&'a [&'a DocumentId]),
 }
 
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 pub(crate) async fn personalize_documents_by(
     storage: &(impl storage::Document + storage::Interaction + storage::Interest + storage::Tag),
