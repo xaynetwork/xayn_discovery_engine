@@ -83,6 +83,7 @@ impl Model {
             runtime: session,
             use_type_ids,
             embedding_size: embedding_size as usize,
+            _env: environment,
         })
     }
 
