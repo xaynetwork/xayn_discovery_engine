@@ -47,6 +47,20 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     Ok(())
 }
 
+async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Error> {
+    send_assert(
+        client,
+        client
+            .patch(personalization_url.join("/users/u1/interactions")?)
+            .json(&json!({ "documents": [ { "id": "d2" }, { "id": "d9" } ] }))
+            .build()?,
+        StatusCode::NO_CONTENT,
+        false,
+    )
+    .await;
+    Ok(())
+}
+
 #[derive(Debug, Deserialize, Clone)]
 struct PersonalizedDocumentData {
     id: String,
@@ -95,6 +109,66 @@ fn test_full_personalization_with_inline_history() {
                     .json(&json!({
                         "count": 5,
                         "personalize": { "user": { "history": [ { "id": "d2" }, { "id": "d9" } ] } }
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+            assert_order!(
+                documents,
+                ["d8", "d6", "d1", "d5"],
+                "Unexpected fully personalized documents"
+            );
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_full_personalization_with_user_id_that_does_not_exist() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _services| async move {
+            ingest(&client, &ingestion_url).await?;
+
+            send_assert(
+                &client,
+                client
+                    .post(personalization_url.join("/recommendations")?)
+                    .json(&json!({
+                        "count": 5,
+                        "personalize": { "user": { "id": "u1" } }
+                    }))
+                    .build()?,
+                StatusCode::CONFLICT,
+                false,
+            )
+            .await;
+
+            Ok(())
+        },
+    );
+}
+
+#[test]
+fn test_full_personalization_with_user_id_that_has_two_interactions() {
+    test_two_apps::<Ingestion, Personalization, _>(
+        UNCHANGED_CONFIG,
+        UNCHANGED_CONFIG,
+        |client, ingestion_url, personalization_url, _services| async move {
+            ingest(&client, &ingestion_url).await?;
+            interact(&client, &personalization_url).await?;
+
+            let SemanticSearchResponse { documents } = send_assert_json(
+                &client,
+                client
+                    .post(personalization_url.join("/recommendations")?)
+                    .json(&json!({
+                        "count": 5,
+                        "personalize": { "user": { "id": "u1" } }
                     }))
                     .build()?,
                 StatusCode::OK,
