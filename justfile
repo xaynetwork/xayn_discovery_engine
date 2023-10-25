@@ -104,6 +104,9 @@ test: rust-test
 rust-clean:
     cargo clean
 
+install-rust-tools:
+    cargo sort --help 2>/dev/null 1>&2 || cargo install cargo-sort
+
 # Removes all asset data
 remove-assets:
     rm -rf ./assets/*
@@ -250,6 +253,13 @@ install-openapi-doc-generator:
     npm install -g \
       @redocly/cli@${REDOCLY_CLI_VERSION}
 
+install-doc-generator:
+    #!/usr/bin/env -S bash -eux -o pipefail
+    cd docs
+    pipenv install --deploy
+
+install-tools: install-doc-generator install-openapi-doc-generator install-openapi-validator install-rust-tools
+
 generate-docs:
     #!/usr/bin/env -S bash -eux -o pipefail
     cd docs/
@@ -257,9 +267,18 @@ generate-docs:
     npx redocly build-docs ../web-api/openapi/front_office.yaml -o build/html/front_office.html
     npx redocly build-docs ../web-api/openapi/back_office.yaml -o build/html/back_office.html
     echo "docs.xayn.com" > build/html/CNAME
+    echo "WARNING: Docs will use existing openapi doc. Use just generate-openapi-doc {name} to update them fr."
 
-generate-openapi-doc api:
-    #!/usr/bin/env -S bash -eux -o pipefail
+generate-openapi-docs api:
+    #!/usr/bin/env -S bash -eu -o pipefail
+    case "{{api}}" in
+        front_office|back_office)
+            ;;
+        *)
+            echo "Usage: just generate-openapi-docs {front_office|back_office}" >&2
+            exit 1
+            ;;
+    esac
     npx redocly preview-docs web-api/openapi/{{api}}.yaml
 
 validate-migrations-unchanged cmp_ref:
@@ -330,17 +349,22 @@ alias pp := pre-push
 
 
 # Helpers to make sure you use the right env variables when running any commands.
+[no-cd]
 run *args:
     {{args}}
 
+[no-cd]
 pipenv *args:
     pipenv {{args}}
 
+[no-cd]
 npm *args:
     npm {{args}}
 
+[no-cd]
 npx *args:
     npx {{args}}
 
+[no-cd]
 cargo *args:
     cargo {{args}}
