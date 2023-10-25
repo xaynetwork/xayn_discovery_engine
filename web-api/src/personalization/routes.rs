@@ -183,8 +183,6 @@ struct UnvalidatedPersonalizedDocumentsRequest {
     include_properties: bool,
     #[serde(default)]
     include_snippet: bool,
-    #[serde(default = "default_exclude_seen")]
-    exclude_seen: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -197,8 +195,6 @@ struct UnvalidatedPersonalizedDocumentsQuery {
     include_properties: bool,
     #[serde(default)]
     include_snippet: bool,
-    #[serde(default = "default_exclude_seen")]
-    exclude_seen: bool,
 }
 
 impl UnvalidatedPersonalizedDocumentsRequest {
@@ -214,7 +210,6 @@ impl UnvalidatedPersonalizedDocumentsRequest {
             filter,
             include_properties,
             include_snippet,
-            exclude_seen,
         } = self;
         let config = config.as_ref();
 
@@ -231,7 +226,7 @@ impl UnvalidatedPersonalizedDocumentsRequest {
         let is_deprecated = published_after.is_some();
 
         let personalize = Personalize {
-            exclude_seen,
+            exclude_seen: true,
             user: InputUser::Ref { id: user_id },
         };
 
@@ -267,7 +262,6 @@ async fn user_recommendations(
                 .transpose()?,
             include_properties: params.include_properties,
             include_snippet: params.include_snippet,
-            exclude_seen: params.exclude_seen,
         }
         .validate_and_resolve_defaults(&state.config, &storage, user_id)
         .await?
@@ -957,7 +951,6 @@ async fn _recommendations(
         time,
     );
 
-    #[cfg_attr(not(test), allow(irrefutable_let_patterns))]
     if documents.len() > count {
         // due to ceiling the number of documents we fetch per COI
         // we might end up with more documents than we want
