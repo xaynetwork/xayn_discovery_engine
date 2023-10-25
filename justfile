@@ -267,7 +267,6 @@ generate-docs:
     npx redocly build-docs ../web-api/openapi/front_office.yaml -o build/html/front_office.html
     npx redocly build-docs ../web-api/openapi/back_office.yaml -o build/html/back_office.html
     echo "docs.xayn.com" > build/html/CNAME
-    echo "WARNING: Docs will use existing openapi doc. Use just generate-openapi-doc {name} to update them fr."
 
 generate-openapi-docs api:
     #!/usr/bin/env -S bash -eu -o pipefail
