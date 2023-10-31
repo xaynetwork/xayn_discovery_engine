@@ -17,9 +17,13 @@ For more information, please visit our [website](https://www.xayn.com).
 When using `just` commands we will set environment variables appropriately
 to install python and npm dependencies locally in the project.
 
-But when directly calling pipenv/npm without going through just you might not
-have the right environment variables set. For that case you can use `just run`,
-or either of `just pipenv`, `just npm` or `just npx`.
+Use `just install-tools` to install various tools (where possible they are installed
+locally in the project tree).
+
+When directly calling pipenv/npm/npx without going through `just` you might not have the right environment variables set.
+For that case you can use `just run`, or either of `just pipenv`, `just npm` or `just npx`.
+
+It can make sense to set `PIPENV_VENV_IN_PROJECT=1` in your user environment to make sure venvs are stored in the project tree and in turn deleted when you delete the project.
 
 ## License
 
