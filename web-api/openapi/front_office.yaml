@@ -287,7 +287,7 @@ paths:
         - recommendation
       summary: Recommendations for a given user_id or a history
       description: |-
-        Finds a number of recommendations for the given user_id or a history.
+        Finds a number of recommendations for the given `user_id` or a history.
 
         Recommendations are based on snippets and each recommendation contains the snippet id it is based on as well as a score. A higher score means that the document matches the preferences of the user or the history better. Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
 
@@ -297,7 +297,7 @@ paths:
 
         By default documents that have been interacted with by the user or are listed in the history are filtered out from the result. This behavior can be changed with `exclude_seen`.
 
-        Note that you can request personalized documents for a specific user_id, only after that same user_id has made enough interactions via our system.
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
 
         Histories are not stored in the system.
       operationId: getGenericRecommendations

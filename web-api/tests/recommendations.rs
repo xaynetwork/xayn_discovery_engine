@@ -17,7 +17,6 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
-use toml::toml;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
 use xayn_web_api::{Ingestion, Personalization};
 
@@ -68,7 +67,7 @@ struct PersonalizedDocumentData {
 }
 
 #[derive(Debug, Deserialize)]
-struct SemanticSearchResponse {
+struct RecommendationResponse {
     documents: Vec<PersonalizedDocumentData>,
 }
 
@@ -84,9 +83,10 @@ macro_rules! assert_order {
         );
         for documents in $documents.windows(2) {
             let [d1, d2] = documents else { unreachable!() };
+            // While score can be any arbitrary value it _currently_ should happen to be in [0;1]
             assert!(1. >= d1.score, $($arg)*);
-            assert!(d1.score > d2.score, $($arg)*);
-            assert!(d2.score >= -1., $($arg)*);
+            assert!(d1.score >= d2.score, $($arg)*);
+            assert!(d2.score >= 0., $($arg)*);
         }
     };
 }
@@ -95,14 +95,11 @@ macro_rules! assert_order {
 fn test_full_personalization_with_inline_history() {
     test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
-        Some(toml! {
-            [semantic_search]
-            score_weights = [0.5, 0.5, 0.]
-        }),
+        UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _services| async move {
             ingest(&client, &ingestion_url).await?;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
+            let RecommendationResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/recommendations")?)
@@ -162,7 +159,7 @@ fn test_full_personalization_with_user_id_that_has_two_interactions() {
             ingest(&client, &ingestion_url).await?;
             interact(&client, &personalization_url).await?;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
+            let RecommendationResponse { documents } = send_assert_json(
                 &client,
                 client
                     .post(personalization_url.join("/recommendations")?)

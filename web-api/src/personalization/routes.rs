@@ -273,7 +273,7 @@ async fn user_recommendations(
         //     is_deprecated: false,
         // }
     };
-    _recommendations(state, request, storage).await
+    recommendations_inner(state, request, storage).await
 }
 
 #[derive(Debug, Serialize)]
@@ -744,8 +744,6 @@ struct SemanticSearchRequest {
     is_deprecated: bool,
 }
 
-#[allow(clippy::too_many_arguments)]
-#[allow(clippy::struct_excessive_bools)]
 struct RecommendationRequest {
     count: usize,
     personalize: Personalize,
@@ -880,10 +878,10 @@ async fn recommendations(
         .validate_and_resolve_defaults(&state.config, &storage, &mut warnings)
         .await?;
 
-    _recommendations(state, request, storage).await
+    recommendations_inner(state, request, storage).await
 }
 
-async fn _recommendations(
+async fn recommendations_inner(
     state: Data<AppState>,
     request: RecommendationRequest,
     storage: Storage,
@@ -947,7 +945,7 @@ async fn _recommendations(
         &mut documents,
         &interests,
         &tag_weights,
-        state.config.semantic_search.score_weights,
+        state.config.personalization.score_weights,
         time,
     );
 
