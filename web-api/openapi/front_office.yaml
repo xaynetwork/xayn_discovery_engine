@@ -280,6 +280,49 @@ paths:
         '400':
           $ref: './responses/generic.yml#/BadRequest'
 
+  /recommendations:
+    post:
+      tags:
+        - front office
+        - recommendation
+      summary: Recommendations for a given user_id or a history
+      description: |-
+        Finds a number of recommendations for the given `user_id` or a history.
+
+        Recommendations are based on snippets and each recommendation contains the snippet id it is based on as well as a score. A higher score means that the document matches the preferences of the user or the history better. Scores can be compared only with other scores that belong to the same request; comparing scores of documents that have been obtained through different requests can lead to unexpected results.
+
+        Depending on the request parameters the recommendation can also include additional fields.
+
+        The recommendations also contain the properties of the snippets parent document if this is requested and the properties are not empty.
+
+        By default documents that have been interacted with by the user or are listed in the history are filtered out from the result. This behavior can be changed with `exclude_seen`.
+
+        Note that you can request personalized documents for a specific `user_id`, only after that same `user_id` has made enough interactions via our system.
+
+        Histories are not stored in the system.
+      operationId: getGenericRecommendations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenericRecommendationRequest'
+      responses:
+        '200':
+          description: Successful operation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationResponse'
+        '400':
+          $ref: './responses/generic.yml#/BadRequest'
+        '409':
+          description: Impossible to create a personalized documents for the user or the provided history.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationError'
+
 components:
   securitySchemes:
     ApiKeyAuth:
@@ -483,6 +526,44 @@ components:
             score: 0.87
             properties:
               title: "News title"
+    GenericRecommendationRequest:
+          type: object
+          required: [personalize]
+          properties:
+            count:
+              $ref: '#/components/schemas/Count'
+            published_after:
+              $ref: './schemas/time.yml#/PublishedAfter'
+            include_properties:
+              $ref: '#/components/schemas/IncludeProperties'
+              default:
+                $ref: '#/components/schemas/IncludeProperties/default'
+            include_snippet:
+              $ref: '#/components/schemas/IncludeSnippet'
+              default:
+                $ref: '#/components/schemas/IncludeSnippet/default'
+            personalize:
+              description: Personalize the ranking of candidates based on a users preferences.
+              type: object
+              required: [user]
+              properties:
+                exclude_seen:
+                  type: boolean
+                  default: true
+                  description: |-
+                    If true do not include documents the user has already seen as search candidate.
+
+                    A trimmed version of the users history might be used for this filter.
+
+                    This option is incompatible with not specifying a user.
+                user:
+                  $ref: './schemas/user.yml#/InputUser'
+            filter:
+              description:
+                $ref: '#/components/schemas/Filter/description'
+              oneOf:
+                - $ref: '#/components/schemas/FilterCompare'
+                - $ref: '#/components/schemas/FilterCombine'
     RecommendationError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
