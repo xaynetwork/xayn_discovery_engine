@@ -9,7 +9,7 @@ services:
     ports:
       - "${HOST_PORT_SCOPE:-30}30:3030"
     depends_on:
-      db_ready:
+      services_ready:
         condition: service_completed_successfully
     networks:
       - internal
