@@ -179,6 +179,56 @@ If `include_properties` is false, properties are not included in the output, but
 
 If `include_snippet` is true, the plain text snippet of the search result is returned. Be aware that whitespace in the returned snippet can differ from the text provided to the ingestion API.
 
+### Recommendations without a User
+
+In addition to stateful recommendations that require a `user_id`, it is also possible to generate ad-hoc recommendations by supplying only a `history`. The history is utilized to construct a temporary user profile, from which the system generates a list of relevant documents.
+
+This call could look like:
+
+```bash
+curl -X POST "$URL/recommendations" \
+    --header "authorizationToken: $FRONTOFFICE_TOKEN" \
+    --header "Content-Type: application/json" \
+    --data '{
+        "include_properties": true,
+        "personalize": {
+            "exclude_seen": true,
+            "user": {
+                "history": [
+                    {
+                        "id": "valid_doc_id1",
+                        "timestamp": "2000-05-14T20:22:50Z"
+                    },
+                    {
+                        "id": "valid_doc_id2",
+                        "timestamp": "2000-05-15T20:22:50Z"
+                    }
+                ]
+            }
+        }
+    }'
+```
+
+And its result is again a list of documents:
+
+```json
+{
+  "documents": [
+  {
+      "id": "xayn_5283ef3",
+      "score": 0.8736,
+      "properties": {
+          "title": "Why every bit matters",
+          "link": "https://www.xayn.com/blog/why-every-bit-matters",
+          "image": "https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg"
+      }
+  },
+  { ... },
+    ...
+  ]
+}
+```
+
 ## Search
 
 Depending on the use case, searching for documents can be achieved as a search for documents _similar_ to a given snippet/document or as a _free-text search_. Both variants can then be run as an anonymous search or a search that is personalized. Personalization comes in two fashions: with a _user-id_ or by providing an interaction _history_.

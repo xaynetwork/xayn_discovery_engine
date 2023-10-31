@@ -362,6 +362,52 @@ Be aware that the exact way details are encoded is not fixed and can change. Fee
 scores from the same requests.</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">include_properties</span></code> is false, properties are not included in the output, but you can still filter based on them.</p>
 <p>If <code class="docutils literal notranslate"><span class="pre">include_snippet</span></code> is true, the plain text snippet of the search result is returned. Be aware that whitespace in the returned snippet can differ from the text provided to the ingestion API.</p>
+<section id="recommendations-without-a-user">
+<h3>Recommendations without a User<a class="headerlink" href="#recommendations-without-a-user" title="Permalink to this heading">#</a></h3>
+<p>In addition to stateful recommendations that require a <code class="docutils literal notranslate"><span class="pre">user_id</span></code>, it is also possible to generate ad-hoc recommendations by supplying only a <code class="docutils literal notranslate"><span class="pre">history</span></code>. The history is utilized to construct a temporary user profile, from which the system generates a list of relevant documents.</p>
+<p>This call could look like:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>curl<span class="w"> </span>-X<span class="w"> </span>POST<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$URL</span><span class="s2">/recommendations&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;authorizationToken: </span><span class="nv">$FRONTOFFICE_TOKEN</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--header<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data<span class="w"> </span><span class="s1">&#39;{</span>
+<span class="s1">        &quot;include_properties&quot;: true,</span>
+<span class="s1">        &quot;personalize&quot;: {</span>
+<span class="s1">            &quot;exclude_seen&quot;: true,</span>
+<span class="s1">            &quot;user&quot;: {</span>
+<span class="s1">                &quot;history&quot;: [</span>
+<span class="s1">                    {</span>
+<span class="s1">                        &quot;id&quot;: &quot;valid_doc_id1&quot;,</span>
+<span class="s1">                        &quot;timestamp&quot;: &quot;2000-05-14T20:22:50Z&quot;</span>
+<span class="s1">                    },</span>
+<span class="s1">                    {</span>
+<span class="s1">                        &quot;id&quot;: &quot;valid_doc_id2&quot;,</span>
+<span class="s1">                        &quot;timestamp&quot;: &quot;2000-05-15T20:22:50Z&quot;</span>
+<span class="s1">                    }</span>
+<span class="s1">                ]</span>
+<span class="s1">            }</span>
+<span class="s1">        }</span>
+<span class="s1">    }&#39;</span>
+</pre></div>
+</div>
+<p>And its result is again a list of documents:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span>{
+  &quot;documents&quot;: [
+  {
+      &quot;id&quot;: &quot;xayn_5283ef3&quot;,
+      &quot;score&quot;: 0.8736,
+      &quot;properties&quot;: {
+          &quot;title&quot;: &quot;Why every bit matters&quot;,
+          &quot;link&quot;: &quot;https://www.xayn.com/blog/why-every-bit-matters&quot;,
+          &quot;image&quot;: &quot;https://uploads-ssl.webflow.com/5ef08ebd35ddb63551189655/61447d6ebda40f1487c6ed9a_noah-silliman-2ckQ4BrvpC4-unsplash-p-2000.jpeg&quot;
+      }
+  },
+  { ... },
+    ...
+  ]
+}
+</pre></div>
+</div>
+</section>
 </section>
 <section id="search">
 <h2>Search<a class="headerlink" href="#search" title="Permalink to this heading">#</a></h2>
