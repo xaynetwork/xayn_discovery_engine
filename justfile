@@ -191,7 +191,8 @@ build-service-image crate_path bin asset_dir="":
         --path "{{crate_path}}" \
         --bin "{{bin}}" \
         --debug \
-        --root "$out"
+        --root "$out" \
+        --locked
     # rename binary to the name the Dockerfile expects
     mv "$out/bin/{{bin}}" "$out/server.bin"
     rmdir "$out/bin"
