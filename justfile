@@ -199,12 +199,17 @@ build-service-image crate_path bin asset_dir="":
     if [ -n "{{asset_dir}}" ]; then
         cp -R "{{asset_dir}}" "$out/assets"
     fi
+
+    cp "snippet-extractor/Pipfile" "$out/Pipfile"
+    cp "snippet-extractor/Pipfile.lock" "$out/Pipfile.lock"
+    cp -r "snippet-extractor/python_src/" "$out/python_src"
+
     docker build -f "{{crate_path}}/Dockerfile" -t "xayn-{{crate_path}}-{{bin}}" "$out"
     rm -rf "$out"
 
 compose-all-build model="xaynia_v0201":
     #!/usr/bin/env -S bash -eux -o pipefail
-    {{just_executable()}} build-service-image web-api personalization
+    {{just_executable()}} build-service-image web-api personalization "assets/{{model}}"
     {{just_executable()}} build-service-image web-api ingestion "assets/{{model}}"
 
 compose-all-up *args:
