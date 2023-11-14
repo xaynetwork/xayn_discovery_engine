@@ -29,7 +29,7 @@ use self::{
 };
 use crate::{
     app::{self, Application, SetupError},
-    embedding,
+    embedding::{self, EmbeddingKind},
     extractor,
     logging,
     models::{DocumentContent, PreprocessingStep},
@@ -70,6 +70,7 @@ type AppState = app::AppState<Ingestion>;
 impl AppState {
     pub(crate) async fn preprocess(
         &self,
+        kind: EmbeddingKind,
         original: InputData,
         preprocessing_step: &mut PreprocessingStep,
     ) -> Result<Vec<DocumentContent>, PreprocessError> {
@@ -77,6 +78,7 @@ impl AppState {
             &self.embedder,
             || self.snippet_extractor.get().map_err(Error::from),
             &self.extractor,
+            kind,
             original,
             preprocessing_step,
         )
