@@ -10,8 +10,6 @@ services:
       POSTGRES_DB: "xayn"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432"
     networks:
       - internal
     healthcheck:
@@ -30,8 +28,6 @@ services:
       - xpack.security.enabled=false
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
-    ports:
-      - "9200"
     networks:
       - internal
     healthcheck:
@@ -95,8 +91,6 @@ services:
     image: apache/tika:2.8.0.0-full 
     mem_limit: 512m 
     restart: always 
-    ports: 
-      - "9998" 
     networks: 
       - internal 
     healthcheck: 
@@ -105,16 +99,6 @@ services:
       timeout: 5s
       retries: 5
 
-  web:
-    image: nginx:latest
-    mem_limit: 256m
-    restart: always
-    volumes:
-      - ./demo:/usr/share/nginx/html/ 
-      # The web interface is optional, but if it is needed,
-      # make sure the demo folder contains the compiled demo web app
-    ports:
-      - "8000:8000"
 
   db_ready:
     image: debian:bookworm-slim
@@ -128,12 +112,21 @@ services:
       tika:
         condition: service_healthy
 
+  #web:
+  #  image: nginx:latest
+  #  mem_limit: 256m
+  #  restart: always
+  #  volumes:
+  #    - ./demo:/usr/share/nginx/html/ 
+  #    # The web interface is optional, but if it is needed,
+  #    # make sure the demo folder contains the compiled demo web app
+  #  ports:
+  #    - "8000:8000"
   # For the optional chatbot module, pull llama cpp from git and 
   # build the docker image with the provided Dockerfile
   # It is not included here because their public image builds crash.
   # Building it locally works with the provided Dockerfile, though.
   # The demo probably expects the chatbot server to listen on port 1337
-  
 
 volumes:
   postgres_data:
