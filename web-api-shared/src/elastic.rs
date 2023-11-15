@@ -41,7 +41,6 @@ use serde::{
     Serialize,
 };
 use serde_json::{json, Value};
-use serde_with::{serde_as, DefaultOnNull};
 use thiserror::Error;
 use tracing::error;
 
@@ -276,12 +275,10 @@ impl<I> BulkResponse<I> {
     }
 }
 
-#[serde_as]
 #[derive(Debug, Deserialize)]
 struct Hit<I> {
     #[serde(rename = "_id")]
     id: I,
-    #[serde_as(deserialize_as = "DefaultOnNull")]
     #[serde(rename = "_score")]
     score: f32,
 }
