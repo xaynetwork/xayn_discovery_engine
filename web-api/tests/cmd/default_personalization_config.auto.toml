@@ -52,8 +52,8 @@ stdout = """
     "runtime": "assets",
     "token_size": 250,
     "prefix": {
-      "query": null,
-      "snippet": null
+      "query": "",
+      "snippet": ""
     }
   },
   "text_extractor": {
