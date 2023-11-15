@@ -15,7 +15,9 @@
 use actix_web::{
     http::StatusCode,
     web::{self, Data, Json, Path, Query, ServiceConfig},
-    Either, HttpResponse, Responder,
+    Either,
+    HttpResponse,
+    Responder,
 };
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
@@ -28,10 +30,16 @@ use super::{
     knn,
     rerank::rerank,
     stateless::{
-        derive_interests_and_tag_weights, load_history, trim_history, validate_history,
-        HistoryEntry, UnvalidatedHistoryEntry,
+        derive_interests_and_tag_weights,
+        load_history,
+        trim_history,
+        validate_history,
+        HistoryEntry,
+        UnvalidatedHistoryEntry,
     },
-    AppState, PersonalizationConfig, SemanticSearchConfig,
+    AppState,
+    PersonalizationConfig,
+    SemanticSearchConfig,
 };
 use crate::{
     app::TenantState,
@@ -41,11 +49,25 @@ use crate::{
         warning::Warning,
     },
     models::{
-        DocumentDevData, DocumentId, DocumentProperties, DocumentQuery, DocumentSnippet,
-        PersonalizedDocument, SnippetId, SnippetOrDocumentId, UserId,
+        DocumentDevData,
+        DocumentId,
+        DocumentProperties,
+        DocumentQuery,
+        DocumentSnippet,
+        PersonalizedDocument,
+        SnippetId,
+        SnippetOrDocumentId,
+        UserId,
     },
     storage::{
-        self, Exclusions, KnnSearchParams, MergeFn, NormalizationFn, SearchStrategy, Storage,
+        self,
+        Exclusions,
+        KeywordSearchVariant,
+        KnnSearchParams,
+        MergeFn,
+        NormalizationFn,
+        SearchStrategy,
+        Storage,
     },
     tenants,
     utils::deprecate,
@@ -428,6 +450,7 @@ impl UnvalidatedInputUser {
 
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
+#[allow(clippy::struct_excessive_bools)]
 struct UnvalidatedSemanticSearchRequest {
     document: UnvalidatedInputDocument,
     count: Option<usize>,
@@ -442,6 +465,7 @@ struct UnvalidatedSemanticSearchRequest {
     #[serde(default)]
     include_snippet: bool,
     filter: Option<Filter>,
+    #[serde(default)]
     use_elser: bool,
 }
 
@@ -494,19 +518,27 @@ impl<'a> SearchStrategy<'a> {
         use_elser: bool,
         query: Option<&'a DocumentQuery>,
     ) -> Self {
-        if use_elser {
-            return Self::HybridElser {
-                query: query.unwrap(),
-            };
-        }
         if !enable_hybrid_search {
             return Self::Knn;
         }
         let Some(query) = query else {
             return Self::Knn;
         };
+
+        let variant = if use_elser {
+            KeywordSearchVariant::Bm25
+        } else {
+            KeywordSearchVariant::Elser
+        };
+
         let Some(dev_hybrid_search) = dev_hybrid_search else {
-            return Self::Hybrid { query };
+            return Self::Hybrid {
+                query,
+                variant,
+                normalize_knn: None,
+                normalize_bm25: None,
+                merge_fn: None,
+            };
         };
 
         match dev_hybrid_search {
@@ -514,11 +546,12 @@ impl<'a> SearchStrategy<'a> {
                 normalize_knn,
                 normalize_bm25,
                 merge_fn,
-            } => Self::HybridDev {
+            } => Self::Hybrid {
                 query,
-                normalize_knn,
-                normalize_bm25,
-                merge_fn,
+                variant,
+                normalize_knn: Some(normalize_knn),
+                normalize_bm25: Some(normalize_bm25),
+                merge_fn: Some(merge_fn),
             },
         }
     }

@@ -34,6 +34,7 @@ use xayn_web_api_shared::{
 use self::filter::Clauses;
 use super::{
     property_filter::IndexedPropertiesSchemaUpdate,
+    KeywordSearchVariant,
     MergeFn,
     NormalizationFn,
     SearchStrategy,
@@ -78,13 +79,9 @@ impl Client {
     ) -> Result<(ScoreMap<SnippetId>, RawScores), Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
-            SearchStrategy::Hybrid { query } => {
-                let merge_fn = |knn, bm25| rrf(DEFAULT_RRF_K, [(1.0, knn), (1.0, bm25)]);
-                self.hybrid_search(params, query, identity, identity, merge_fn)
-                    .await
-            }
-            SearchStrategy::HybridDev {
+            SearchStrategy::Hybrid {
                 query,
+                variant,
                 normalize_knn,
                 normalize_bm25,
                 merge_fn,
@@ -92,20 +89,18 @@ impl Client {
                 self.hybrid_search(
                     params,
                     query,
-                    normalize_knn.to_fn(),
-                    normalize_bm25.to_fn(),
-                    merge_fn.to_fn(),
+                    variant,
+                    normalize_knn.unwrap_or(NormalizationFn::Identity).to_fn(),
+                    normalize_bm25.unwrap_or(NormalizationFn::Identity).to_fn(),
+                    merge_fn
+                        .unwrap_or(MergeFn::Rrf {
+                            rank_constant: None,
+                            knn_weight: None,
+                            bm25_weight: None,
+                        })
+                        .to_fn(),
                 )
                 .await
-            }
-            SearchStrategy::HybridElser {
-                query,
-            } => {
-                self.elser_hybrid_search(
-                    params,
-                    query,
-                )
-                    .await
             }
         }
     }
@@ -150,8 +145,7 @@ impl Client {
             inner_filter: _,
         } = params.create_common_knn_search_parts();
 
-        let bm_25 =
-            json_object!({
+        let bm_25 = json_object!({
                 "query": {
                     "text_expansion": {
                         "ml.tokens": {
@@ -171,53 +165,8 @@ impl Client {
             }
         );
 
-        let req_body_merged = merge_json_objects([
-            knn_object,
-            bm_25,
-            rrf,
-            generic_parameters.clone(),
-        ]);
-        // FIXME parallelize polling
-        let scores = self
-            .search_request(req_body_merged, SnippetId::try_from_es_id)
-            .await?;
-        Ok(scores)
-    }
-
-    async fn elser_hybrid_search(
-        &self,
-        params: KnnSearchParams<'_>,
-        query: &DocumentQuery,
-    ) -> Result<ScoreMap<SnippetId>, Error> {
-        let count = params.count;
-
-        let KnnSearchParts {
-            knn_object,
-            generic_parameters,
-            inner_filter: _,
-        } = params.create_common_knn_search_parts();
-
-        let elser_search =
-            json_object!({
-                "query": {
-                    "text_expansion": {
-                        "ml.tokens": {
-                            "model_id": ".elser_model_1",
-                            "model_text": query,
-                        }
-                    }
-                }
-            }
-        );
-
-        let rrf = json_object!({ "rank": { "rrf": {"window_size": count} } });
-
-        let req_body_merged = merge_json_objects([
-            knn_object,
-            elser_search,
-            rrf,
-            generic_parameters.clone(),
-        ]);
+        let req_body_merged =
+            merge_json_objects([knn_object, bm_25, rrf, generic_parameters.clone()]);
         // FIXME parallelize polling
         let scores = self
             .search_request(req_body_merged, SnippetId::try_from_es_id)
@@ -229,6 +178,7 @@ impl Client {
         &self,
         params: KnnSearchParams<'_>,
         query: &DocumentQuery,
+        variant: KeywordSearchVariant,
         normalize_knn: impl FnOnce(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
         normalize_bm25: impl FnOnce(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
         merge_function: impl FnOnce(ScoreMap<SnippetId>, ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,
@@ -247,20 +197,31 @@ impl Client {
             .search_request(knn_request, SnippetId::try_from_es_id)
             .await?;
 
-        let bm_25 = merge_json_objects([
+        let keyword_search_statement = match variant {
+            KeywordSearchVariant::Bm25 => json_object!({ "match": { "snippet": query }}),
+            KeywordSearchVariant::Elser => json_object!({ "text_expansion": {
+                "ml.tokens": {
+                    "model_id": ".elser_model_1",
+                    "model_text": query,
+                }
+            }}),
+        };
+
+        let query = merge_json_objects([
             json_object!({
                 "query": { "bool": merge_json_objects([
                     inner_filter,
                     json_object!({
-                        "must": { "match": { "snippet": query }}
+                        "must": keyword_search_statement,
                     })
                 ]) }
             }),
             generic_parameters,
         ]);
+
         // FIXME parallelize polling
         let bm25_scores = self
-            .search_request(bm_25, SnippetId::try_from_es_id)
+            .search_request(query, SnippetId::try_from_es_id)
             .await?;
 
         let raw_scores = if params.with_raw_scores {

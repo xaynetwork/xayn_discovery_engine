@@ -76,20 +76,21 @@ pub(crate) struct Exclusions {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub(crate) enum KeywordSearchVariant {
+    Bm25,
+    Elser,
+}
+
+#[derive(Clone, Copy, Debug)]
 pub(crate) enum SearchStrategy<'a> {
     Knn,
     Hybrid {
         /// An additional query which will be run in parallel with the KNN search.
         query: &'a DocumentQuery,
-    },
-    HybridDev {
-        query: &'a DocumentQuery,
-        normalize_knn: NormalizationFn,
-        normalize_bm25: NormalizationFn,
-        merge_fn: MergeFn,
-    },
-    HybridElser {
-        query: &'a DocumentQuery,
+        variant: KeywordSearchVariant,
+        normalize_knn: Option<NormalizationFn>,
+        normalize_bm25: Option<NormalizationFn>,
+        merge_fn: Option<MergeFn>,
     },
 }
 
