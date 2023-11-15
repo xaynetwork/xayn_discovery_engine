@@ -81,7 +81,7 @@ where
                         embedding: &coi.point,
                         count,
                         num_candidates,
-                        strategy: SearchStrategy::Knn,
+                        search_strategy: SearchStrategy::Knn,
                         include_properties: self.include_properties,
                         include_snippet: self.include_snippet,
                         filter: self.filter,

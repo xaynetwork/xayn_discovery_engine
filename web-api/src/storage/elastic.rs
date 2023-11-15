@@ -33,34 +33,18 @@ use xayn_web_api_shared::{
 
 use self::filter::Clauses;
 use super::{
-    property_filter::IndexedPropertiesSchemaUpdate,
-    KeywordSearchVariant,
-    MergeFn,
-    NormalizationFn,
+    property_filter::IndexedPropertiesSchemaUpdate, KeywordSearchVariant, MergeFn, NormalizationFn,
     SearchStrategy,
 };
 use crate::{
     app::SetupError,
     models::{
-        self,
-        DocumentContent,
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        DocumentQuery,
-        DocumentSnippet,
-        DocumentTags,
-        SnippetId,
+        self, DocumentContent, DocumentId, DocumentProperties, DocumentProperty,
+        DocumentPropertyId, DocumentQuery, DocumentSnippet, DocumentTags, SnippetId,
     },
     rank_merge::{
-        merge_scores_average_duplicates_only,
-        merge_scores_weighted,
-        normalize_scores,
-        normalize_scores_if_max_gt_1,
-        rrf,
-        take_highest_n_scores,
-        DEFAULT_RRF_K,
+        merge_scores_average_duplicates_only, merge_scores_weighted, normalize_scores,
+        normalize_scores_if_max_gt_1, rrf, take_highest_n_scores, DEFAULT_RRF_K,
     },
     storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
@@ -75,7 +59,7 @@ pub(crate) struct RawScores {
 impl Client {
     pub(super) async fn get_by_embedding<'a>(
         &self,
-        params: KnnSearchParams<'a>,
+        params: &KnnSearchParams<'a>,
     ) -> Result<(ScoreMap<SnippetId>, RawScores), Error> {
         match params.strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
@@ -89,7 +73,7 @@ impl Client {
                 self.hybrid_search(
                     params,
                     query,
-                    variant,
+                    *variant,
                     normalize_knn.unwrap_or(NormalizationFn::Identity).to_fn(),
                     normalize_bm25.unwrap_or(NormalizationFn::Identity).to_fn(),
                     merge_fn
@@ -107,7 +91,7 @@ impl Client {
 
     async fn knn_search<'a>(
         &self,
-        params: KnnSearchParams<'a>,
+        params: &KnnSearchParams<'a>,
     ) -> Result<(ScoreMap<SnippetId>, RawScores), Error> {
         let KnnSearchParts {
             knn_object,
@@ -176,7 +160,7 @@ impl Client {
 
     async fn hybrid_search(
         &self,
-        params: KnnSearchParams<'_>,
+        params: &KnnSearchParams<'_>,
         query: &DocumentQuery,
         variant: KeywordSearchVariant,
         normalize_knn: impl FnOnce(ScoreMap<SnippetId>) -> ScoreMap<SnippetId>,

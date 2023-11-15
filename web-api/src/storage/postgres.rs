@@ -32,12 +32,7 @@ use sqlx::{
         chrono::{DateTime, Utc},
         Json,
     },
-    Executor,
-    FromRow,
-    Postgres,
-    QueryBuilder,
-    Row,
-    Transaction,
+    Executor, FromRow, Postgres, QueryBuilder, Row, Transaction,
 };
 use tracing::{info, instrument};
 use xayn_ai_bert::NormalizedEmbedding;
@@ -46,36 +41,19 @@ use xayn_web_api_shared::elastic::ScoreMap;
 
 use super::{
     property_filter::{
-        IndexedPropertiesSchema,
-        IndexedPropertiesSchemaUpdate,
-        IndexedPropertyDefinition,
+        IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate, IndexedPropertyDefinition,
         IndexedPropertyType,
     },
     utils::{Chunks, IterAsTuple, SqlBitCastU32},
-    InteractionUpdateContext,
-    TagWeights,
+    InteractionUpdateContext, TagWeights,
 };
 use crate::{
     ingestion::IngestionConfig,
     models::{
-        DocumentContent,
-        DocumentDevData,
-        DocumentForIngestion,
-        DocumentId,
-        DocumentProperties,
-        DocumentProperty,
-        DocumentPropertyId,
-        DocumentSnippet,
-        DocumentTag,
-        DocumentTags,
-        ExcerptedDocument,
-        PersonalizedDocument,
-        RawScores,
-        Sha256Hash,
-        SnippetForInteraction,
-        SnippetId,
-        SnippetOrDocumentId,
-        UserId,
+        DocumentContent, DocumentDevData, DocumentForIngestion, DocumentId, DocumentProperties,
+        DocumentProperty, DocumentPropertyId, DocumentSnippet, DocumentTag, DocumentTags,
+        ExcerptedDocument, PersonalizedDocument, RawScores, Sha256Hash, SnippetForInteraction,
+        SnippetId, SnippetOrDocumentId, UserId,
     },
     storage::{self, utils::SqlxPushTupleExt, KnnSearchParams, Storage, Warning},
     Error,
@@ -926,7 +904,7 @@ impl storage::Document for Storage {
         let include_properties = params.include_properties;
         let include_snippet = params.include_snippet;
         let with_raw_scores = params.with_raw_scores;
-        let (scores, raw_scores) = self.elastic.get_by_embedding(params).await?;
+        let (scores, raw_scores) = self.elastic.get_by_embedding(&params).await?;
         let mut documents =
             Database::get_personalized(&mut tx, scores, include_properties, include_snippet)
                 .await?;
