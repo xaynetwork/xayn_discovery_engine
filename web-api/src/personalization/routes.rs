@@ -626,8 +626,6 @@ impl UnvalidatedSemanticSearchRequest {
         let personalize = personalize
             .map(|personalize| personalize.validate(config.as_ref(), warnings))
             .transpose()?;
-        let dev_hybrid_search = dev.hybrid;
-        let dev_show_raw_scores = dev.show_raw_scores;
         let filter = Filter::insert_published_after(filter, published_after);
         if let Some(filter) = &filter {
             filter.validate(&storage.load_schema().await?)?;
@@ -640,14 +638,11 @@ impl UnvalidatedSemanticSearchRequest {
             num_candidates,
             search_strategy,
             personalize,
-            enable_hybrid_search,
-            dev_hybrid_search,
-            dev_show_raw_scores,
+            dev_show_raw_scores: dev.show_raw_scores,
             include_properties,
             include_snippet,
             filter,
             is_deprecated,
-            use_elser,
         })
     }
 }
@@ -786,14 +781,11 @@ struct SemanticSearchRequest {
     num_candidates: usize,
     search_strategy: SearchStrategy,
     personalize: Option<Personalize>,
-    enable_hybrid_search: bool,
-    dev_hybrid_search: Option<DevHybrid>,
     dev_show_raw_scores: Option<bool>,
     include_properties: bool,
     include_snippet: bool,
     filter: Option<Filter>,
     is_deprecated: bool,
-    use_elser: bool,
 }
 
 struct RecommendationRequest {
@@ -844,8 +836,6 @@ async fn semantic_search(
         num_candidates,
         search_strategy,
         personalize,
-        enable_hybrid_search,
-        dev_hybrid_search,
         dev_show_raw_scores,
         include_properties,
         include_snippet,
@@ -875,7 +865,7 @@ async fn semantic_search(
                 .await?
                 .ok_or(DocumentNotFound)?;
             exclusions.snippets.push(id);
-            (embedding, None)
+            embedding
         }
         EmbeddingSource::Query(query) => state.embedder.run(EmbeddingKind::Query, &query).await?,
     };

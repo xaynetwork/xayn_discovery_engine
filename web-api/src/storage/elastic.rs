@@ -61,7 +61,7 @@ impl Client {
         &self,
         params: &KnnSearchParams<'a>,
     ) -> Result<(ScoreMap<SnippetId>, RawScores), Error> {
-        match params.strategy {
+        match &params.search_strategy {
             SearchStrategy::Knn => self.knn_search(params).await,
             SearchStrategy::Hybrid {
                 query,
@@ -114,48 +114,6 @@ impl Client {
         };
 
         Ok((scores, raw_scores))
-    }
-
-    async fn elser_hybrid_search(
-        &self,
-        params: KnnSearchParams<'_>,
-        query: &DocumentQuery,
-    ) -> Result<ScoreMap<SnippetId>, Error> {
-        let count = params.count;
-
-        let KnnSearchParts {
-            knn_object,
-            generic_parameters,
-            inner_filter: _,
-        } = params.create_common_knn_search_parts();
-
-        let bm_25 = json_object!({
-                "query": {
-                    "text_expansion": {
-                        "ml.tokens": {
-                            "model_id": ".elser_model_1",
-                            "model_text": query,
-                        }
-                    }
-                }
-            }
-        );
-
-        let rrf = json_object!(
-            {
-                "rank": {
-                "rrf": {}
-                }
-            }
-        );
-
-        let req_body_merged =
-            merge_json_objects([knn_object, bm_25, rrf, generic_parameters.clone()]);
-        // FIXME parallelize polling
-        let scores = self
-            .search_request(req_body_merged, SnippetId::try_from_es_id)
-            .await?;
-        Ok(scores)
     }
 
     async fn hybrid_search(
