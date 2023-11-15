@@ -194,6 +194,8 @@ impl Client {
         let query = merge_json_objects([
             json_object!({
                 "query": { "bool": merge_json_objects([
+                    //FIXME: This works only if inner_filter doesn't contain `must`.
+                    //       (Which it shouldn't as it should use `filter` and `must_not`.`)
                     inner_filter,
                     json_object!({
                         "must": keyword_search_statement,
