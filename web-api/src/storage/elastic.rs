@@ -33,18 +33,34 @@ use xayn_web_api_shared::{
 
 use self::filter::Clauses;
 use super::{
-    property_filter::IndexedPropertiesSchemaUpdate, KeywordSearchVariant, MergeFn, NormalizationFn,
+    property_filter::IndexedPropertiesSchemaUpdate,
+    KeywordSearchVariant,
+    MergeFn,
+    NormalizationFn,
     SearchStrategy,
 };
 use crate::{
     app::SetupError,
     models::{
-        self, DocumentContent, DocumentId, DocumentProperties, DocumentProperty,
-        DocumentPropertyId, DocumentQuery, DocumentSnippet, DocumentTags, SnippetId,
+        self,
+        DocumentContent,
+        DocumentId,
+        DocumentProperties,
+        DocumentProperty,
+        DocumentPropertyId,
+        DocumentQuery,
+        DocumentSnippet,
+        DocumentTags,
+        SnippetId,
     },
     rank_merge::{
-        merge_scores_average_duplicates_only, merge_scores_weighted, normalize_scores,
-        normalize_scores_if_max_gt_1, rrf, take_highest_n_scores, DEFAULT_RRF_K,
+        merge_scores_average_duplicates_only,
+        merge_scores_weighted,
+        normalize_scores,
+        normalize_scores_if_max_gt_1,
+        rrf,
+        take_highest_n_scores,
+        DEFAULT_RRF_K,
     },
     storage::{property_filter::IndexedPropertyType, KnnSearchParams, Warning},
     Error,
