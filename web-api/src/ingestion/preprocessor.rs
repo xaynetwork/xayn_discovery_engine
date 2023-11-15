@@ -22,7 +22,7 @@ use xayn_summarizer::{self as summarizer, summarize, Source, Summarizer};
 
 use super::routes::InputData;
 use crate::{
-    embedding::Embedder,
+    embedding::{Embedder, EmbeddingKind},
     error::common::InvalidDocumentSnippet,
     extractor::TextExtractor,
     models::{DocumentContent, DocumentSnippet, PreprocessingStep},
@@ -41,6 +41,7 @@ pub(crate) async fn preprocess<Fun, Fut>(
     embedder: &Embedder,
     snippet_extractor: Fun,
     text_extractor: &TextExtractor,
+    kind: EmbeddingKind,
     original: InputData,
     preprocessing_step: &mut PreprocessingStep,
 ) -> Result<Vec<DocumentContent>, PreprocessError>
@@ -54,11 +55,11 @@ where
     };
 
     let res = match *preprocessing_step {
-        PreprocessingStep::None => embed_whole(embedder, original).await,
-        PreprocessingStep::Summarize => embed_with_summarizer(embedder, original).await,
+        PreprocessingStep::None => embed_whole(embedder, kind, original).await,
+        PreprocessingStep::Summarize => embed_with_summarizer(embedder, kind, original).await,
         PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => {
             *preprocessing_step = PreprocessingStep::NltkSplitV1;
-            embed_with_nltk(embedder, snippet_extractor, original).await
+            embed_with_nltk(embedder, snippet_extractor, kind, original).await
         }
     };
 
@@ -67,14 +68,16 @@ where
 
 async fn embed_whole(
     embedder: &Embedder,
+    kind: EmbeddingKind,
     snippet: DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
-    let embedding = embedder.run(&snippet).await?;
+    let embedding = embedder.run(kind, &snippet).await?;
     Ok(vec![DocumentContent { snippet, embedding }])
 }
 
 async fn embed_with_summarizer(
     embedder: &Embedder,
+    kind: EmbeddingKind,
     snippet: DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error> {
     let summary = summarize(
@@ -84,7 +87,7 @@ async fn embed_with_summarizer(
         },
         &summarizer::Config::default(),
     );
-    let embedding = embedder.run(&summary).await?;
+    let embedding = embedder.run(kind, &summary).await?;
     Ok(vec![DocumentContent {
         // Hint: Yes we do not use the summary, this is so that keyword/text search
         //       can use the original text.
@@ -96,6 +99,7 @@ async fn embed_with_summarizer(
 async fn embed_with_nltk<Fun, Fut>(
     embedder: &Embedder,
     snippet_extractor: Fun,
+    kind: EmbeddingKind,
     snippet: DocumentSnippet,
 ) -> Result<Vec<DocumentContent>, Error>
 where
@@ -111,7 +115,7 @@ where
         .into_iter()
         .map(|split| async move {
             let snippet = DocumentSnippet::new_with_length_constraint(split, 1..)?;
-            let embedding = embedder.run(&snippet).await?;
+            let embedding = embedder.run(kind, &snippet).await?;
             Ok::<_, Error>(DocumentContent { snippet, embedding })
         })
         .collect::<FuturesOrdered<_>>()

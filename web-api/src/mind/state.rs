@@ -23,7 +23,7 @@ use xayn_test_utils::{
 };
 
 use crate::{
-    embedding::{self, Embedder, Pipeline},
+    embedding::{self, Embedder, EmbeddingKind, Pipeline},
     mind::{config::StateConfig, data::Document},
     models::{
         DocumentContent,
@@ -81,7 +81,10 @@ impl State {
         let documents = documents
             .into_iter()
             .map(|document| async move {
-                let embedding = self.embedder.run(&document.snippet).await?;
+                let embedding = self
+                    .embedder
+                    .run(EmbeddingKind::Content, &document.snippet)
+                    .await?;
                 Ok::<_, Panic>(DocumentForIngestion {
                     id: document.id,
                     original_sha256: Sha256Hash::calculate(document.snippet.as_bytes()),

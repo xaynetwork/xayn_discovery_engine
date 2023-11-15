@@ -50,7 +50,11 @@ stdout = """
     "type": "pipeline",
     "directory": "assets",
     "runtime": "assets",
-    "token_size": 250
+    "token_size": 250,
+    "prefix": {
+      "query": "",
+      "snippet": ""
+    }
   },
   "text_extractor": {
     "enabled": false,

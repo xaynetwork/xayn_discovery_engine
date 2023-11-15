@@ -33,6 +33,16 @@ impl Default for Config {
     }
 }
 
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
+pub(crate) struct Prefix {
+    /// Prefix prepended to search queries when embedding them.
+    pub(crate) query: String,
+    /// Prefix prepended to content when creating embedding for it.
+    pub(crate) snippet: String,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 #[cfg_attr(test, serde(deny_unknown_fields))]
@@ -42,6 +52,7 @@ pub struct Pipeline {
     #[serde(deserialize_with = "RelativePathBuf::deserialize_string")]
     pub(crate) runtime: RelativePathBuf,
     pub(crate) token_size: usize,
+    pub(crate) prefix: Prefix,
 }
 
 impl Default for Pipeline {
@@ -50,6 +61,7 @@ impl Default for Pipeline {
             directory: "assets".into(),
             runtime: "assets".into(),
             token_size: 250,
+            prefix: Prefix::default(),
         }
     }
 }
@@ -62,7 +74,10 @@ impl Pipeline {
         config.validate()?;
         let embedder = config.build()?;
 
-        Ok(Embedder::Pipeline(embedder))
+        Ok(Embedder {
+            prefix: self.prefix.clone(),
+            inner: InnerEmbedder::Pipeline(embedder),
+        })
     }
 }
 
@@ -75,6 +90,8 @@ pub struct Sagemaker {
     pub(crate) retry_max_attempts: Option<u32>,
     pub(crate) aws_region: Option<String>,
     pub(crate) aws_profile: Option<String>,
+    #[serde(default)]
+    pub(crate) prefix: Prefix,
 }
 
 impl Sagemaker {
@@ -96,16 +113,24 @@ impl Sagemaker {
         let sdk_config = config_loader.load().await;
         let client = Client::new(&sdk_config);
 
-        Ok(Embedder::Sagemaker {
-            client,
-            embedding_size: self.embedding_size,
-            endpoint: self.endpoint.clone(),
-            target_model: self.target_model.clone(),
+        Ok(Embedder {
+            prefix: self.prefix.clone(),
+            inner: InnerEmbedder::Sagemaker {
+                client,
+                embedding_size: self.embedding_size,
+                endpoint: self.endpoint.clone(),
+                target_model: self.target_model.clone(),
+            },
         })
     }
 }
 
-pub(crate) enum Embedder {
+pub(crate) struct Embedder {
+    prefix: Prefix,
+    inner: InnerEmbedder,
+}
+
+enum InnerEmbedder {
     Pipeline(AvgEmbedder),
     Sagemaker {
         client: Client,
@@ -120,6 +145,12 @@ struct SagemakerResponse {
     embeddings: Vec<NormalizedEmbedding>,
 }
 
+#[derive(Copy, Clone)]
+pub(crate) enum EmbeddingKind {
+    Query,
+    Content,
+}
+
 impl Embedder {
     pub(crate) async fn load(config: &Config) -> Result<Self, SetupError> {
         match config {
@@ -128,14 +159,28 @@ impl Embedder {
         }
     }
 
-    pub(crate) async fn run(&self, sequence: &str) -> Result<NormalizedEmbedding, InternalError> {
-        match self {
-            Embedder::Pipeline(embedder) => embedder
-                .run(sequence)
+    pub(crate) async fn run(
+        &self,
+        kind: EmbeddingKind,
+        sequence: &str,
+    ) -> Result<NormalizedEmbedding, InternalError> {
+        let prefix = match (kind, &self.prefix) {
+            (EmbeddingKind::Query, Prefix { query, .. }) => query,
+            (
+                EmbeddingKind::Content,
+                Prefix {
+                    snippet: content, ..
+                },
+            ) => content,
+        };
+
+        match &self.inner {
+            InnerEmbedder::Pipeline(embedder) => embedder
+                .run(format!("{prefix}{sequence}"))
                 .map_err(InternalError::from_std)?
                 .normalize()
                 .map_err(InternalError::from_std),
-            Embedder::Sagemaker {
+            InnerEmbedder::Sagemaker {
                 client,
                 endpoint,
                 target_model,
@@ -188,9 +233,9 @@ impl Embedder {
     }
 
     pub(crate) fn embedding_size(&self) -> usize {
-        match self {
-            Embedder::Pipeline(embedder) => embedder.embedding_size(),
-            Embedder::Sagemaker { embedding_size, .. } => *embedding_size,
+        match &self.inner {
+            InnerEmbedder::Pipeline(embedder) => embedder.embedding_size(),
+            InnerEmbedder::Sagemaker { embedding_size, .. } => *embedding_size,
         }
     }
 }
@@ -209,6 +254,6 @@ mod tests {
             ..Pipeline::default()
         });
         let embedder = Embedder::load(&config).await.unwrap();
-        embedder.run("test").await.unwrap();
+        embedder.run(EmbeddingKind::Query, "test").await.unwrap();
     }
 }

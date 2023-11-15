@@ -33,6 +33,7 @@ use xayn_web_api_db_ctrl::{Operation, Silo};
 use super::{preprocessor::PreprocessError, AppState};
 use crate::{
     app::TenantState,
+    embedding::EmbeddingKind,
     error::common::{
         BadRequest,
         DocumentInBatchError,
@@ -480,7 +481,7 @@ async fn upsert_documents(
             let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
 
             match state
-                .preprocess(document.original, &mut document.preprocessing_step)
+                .preprocess(EmbeddingKind::Content, document.original, &mut document.preprocessing_step)
                 .await
             {
                 Ok(snippets) => Ok(models::DocumentForIngestion {

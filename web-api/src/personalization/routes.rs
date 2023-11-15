@@ -43,6 +43,7 @@ use super::{
 };
 use crate::{
     app::TenantState,
+    embedding::EmbeddingKind,
     error::{
         common::{BadRequest, DocumentNotFound, ForbiddenDevOption, InvalidDocumentCount},
         warning::Warning,
@@ -826,7 +827,7 @@ async fn semantic_search(
             (embedding, None)
         }
         InputDocument::Query(ref query) => {
-            let embedding = state.embedder.run(query).await?;
+            let embedding = state.embedder.run(EmbeddingKind::Query, query).await?;
             (embedding, Some(query))
         }
     };
