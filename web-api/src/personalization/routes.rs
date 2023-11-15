@@ -434,10 +434,8 @@ struct UnvalidatedSemanticSearchRequest {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
-    #[serde(default)]
-    enable_hybrid_search: Option<bool>,
-    #[serde(default)]
-    hybrid_search: Option<UnvalidatedHybridSearch>,
+    #[serde(default, alias = "enable_hybrid_search")]
+    hybrid_search: UnvalidatedHybridSearch,
     #[serde(default, rename = "_dev")]
     dev: DevOption,
     #[serde(default = "default_include_properties")]
@@ -455,19 +453,9 @@ enum UnvalidatedHybridSearch {
     Variant(HybridSearchVariantWithSettings),
 }
 
-impl UnvalidatedHybridSearch {
-    fn merge(search: Option<Self>, enable_hybrid_search: Option<bool>) -> Result<Self, Error> {
-        Ok(match (search, enable_hybrid_search) {
-            (None, None) => UnvalidatedHybridSearch::Switch(false),
-            (Some(search), None) => search,
-            (None, Some(switch)) => UnvalidatedHybridSearch::Switch(switch),
-            (Some(_), Some(_)) => {
-                return Err(BadRequest::from(
-                    "use only either `hybrid_search` or `enable_hybrid_search`",
-                )
-                .into())
-            }
-        })
+impl Default for UnvalidatedHybridSearch {
+    fn default() -> Self {
+        Self::Switch(false)
     }
 }
 
@@ -596,7 +584,6 @@ impl UnvalidatedSemanticSearchRequest {
             count,
             published_after,
             personalize,
-            enable_hybrid_search,
             dev,
             include_properties,
             include_snippet,
@@ -617,8 +604,6 @@ impl UnvalidatedSemanticSearchRequest {
             semantic_search_config.max_number_documents,
             num_candidates,
         )?;
-
-        let hybrid_search = UnvalidatedHybridSearch::merge(hybrid_search, enable_hybrid_search)?;
 
         let search_strategy =
             SearchStrategy::validate_and_create_from(&embedding_source, hybrid_search, dev.hybrid)?;

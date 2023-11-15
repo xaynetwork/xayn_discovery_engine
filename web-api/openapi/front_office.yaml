@@ -221,7 +221,7 @@ paths:
         For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
         For apps, consider implementing a "like" button, where the on-click triggers this method.
 
-        Please remember that it is recommended to register a reaction with the specific snippet the user 
+        Please remember that it is recommended to register a reaction with the specific snippet the user
         interacted with instead of the document as a whole. You can do so by providing snippet ids instead of document ids.
       operationId: updateUserInteractions
       parameters:
@@ -502,8 +502,8 @@ components:
             user:
               $ref: './schemas/user.yml#/InputUser'
         enable_hybrid_search:
-          description: Enable the hybrid search mode.
-          deprecated: Use `hybrid_search` instead.
+          description: Deprecated, is now an alias for hybrid_search.
+          deprecated: true
           type: boolean
           default: false
         hybrid_search:
