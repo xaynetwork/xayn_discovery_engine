@@ -12,8 +12,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use std::borrow::Cow;
-
 use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
 use serde::{Deserialize, Serialize};
@@ -40,9 +38,9 @@ impl Default for Config {
 #[cfg_attr(test, serde(deny_unknown_fields))]
 pub(crate) struct Prefix {
     /// Prefix prepended to search queries when embedding them.
-    pub(crate) query: Option<String>,
+    pub(crate) query: String,
     /// Prefix prepended to content when creating embedding for it.
-    pub(crate) snippet: Option<String>,
+    pub(crate) snippet: String,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -176,15 +174,9 @@ impl Embedder {
             ) => content,
         };
 
-        let sequence = if let Some(prefix) = prefix {
-            Cow::Owned(format!("{prefix} {sequence}"))
-        } else {
-            Cow::Borrowed(sequence)
-        };
-
         match &self.inner {
             InnerEmbedder::Pipeline(embedder) => embedder
-                .run(sequence)
+                .run(format!("{prefix}{sequence}"))
                 .map_err(InternalError::from_std)?
                 .normalize()
                 .map_err(InternalError::from_std),
@@ -193,7 +185,7 @@ impl Embedder {
                 endpoint,
                 target_model,
                 ..
-            } => Self::run_sagemaker(client, endpoint, target_model.as_deref(), &sequence).await,
+            } => Self::run_sagemaker(client, endpoint, target_model.as_deref(), sequence).await,
         }
     }
 
