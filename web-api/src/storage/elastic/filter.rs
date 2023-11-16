@@ -329,6 +329,7 @@ enum Clause<'a> {
     Range(Range<'a>),
     Filter(Filter<'a>),
     Should(Should<'a>),
+    Ids(Ids<'a, DocumentId>),
 }
 
 fn merge_range_and(mut clause: Vec<Clause<'_>>) -> Vec<Clause<'_>> {
@@ -504,6 +505,10 @@ impl<'a> Clause<'a> {
                     }),
                 }
             }
+
+            filter::Filter::Ids(ids) => Self::Ids(Ids {
+                values: Cow::Borrowed(&ids.ids),
+            }),
         }
     }
 }
@@ -540,7 +545,10 @@ impl<'a> Clauses<'a> {
         };
         if let Some(filter) = filter {
             match Clause::new(filter, true) {
-                clause @ (Clause::Term(_) | Clause::Terms(_) | Clause::Range(_)) => {
+                clause @ (Clause::Term(_)
+                | Clause::Terms(_)
+                | Clause::Range(_)
+                | Clause::Ids(_)) => {
                     clauses.filter.filter.push(clause);
                 }
                 Clause::Filter(clause) => clauses.filter = clause,
