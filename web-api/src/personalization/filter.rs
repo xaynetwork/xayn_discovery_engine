@@ -370,10 +370,10 @@ impl<'de> Deserialize<'de> for Ids {
 
         let len = ids.len();
         let max = CompareOp::MAX_VALUES_PER_IN;
-        if !(1..=max).contains(&len) {
+        if len > max {
             return Err(D::Error::invalid_length(
                 len,
-                &format!("$ids must contain 1..={max} ids").as_str(),
+                &format!("$ids must contain 0..={max} ids").as_str(),
             ));
         }
 
@@ -1143,7 +1143,7 @@ mod tests {
         serde_json::from_value::<Filter>(json!({
             "$ids": []
         }))
-        .unwrap_err();
+        .unwrap();
 
         serde_json::from_value::<Filter>(json!({
             "$ids": vec!["foo"; CompareOp::MAX_VALUES_PER_IN]
