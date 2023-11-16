@@ -221,7 +221,7 @@ paths:
         For web sites, consider triggering this method whenever a certain document url loads, preferably after the user spent some time on the page, in order to prevent false positives.
         For apps, consider implementing a "like" button, where the on-click triggers this method.
 
-        Please remember that it is recommended to register a reaction with the specific snippet the user 
+        Please remember that it is recommended to register a reaction with the specific snippet the user
         interacted with instead of the document as a whole. You can do so by providing snippet ids instead of document ids.
       operationId: updateUserInteractions
       parameters:
@@ -396,6 +396,18 @@ components:
               - $ref: '#/components/schemas/FilterCombine'
       minProperties: 1
       maxProperties: 1
+    FilterIds:
+      type: object
+      properties:
+        $ids:
+          type: array
+          minItems: 0
+          maxItems: 500
+          items:
+            $ref: './schemas/document.yml#/DocumentId'
+      minProperties: 1
+      maxProperties: 1
+
     Filter:
       description: |-
         Filter the documents wrt their properties.
@@ -406,9 +418,17 @@ components:
 
         *Combination:*
         Combinators may only be nested two times.
+
+        *Ids:*
+        Works like the `$in` comparison operator but requires the returned documents id to be in the provided array of document ids.
+
+        Be aware that `$ids` will only work properly if document splitting isn't used.
+
+
       oneOf:
         - $ref: '#/components/schemas/FilterCompare'
         - $ref: '#/components/schemas/FilterCombine'
+        - $ref: '#/components/schemas/FilterIds'
     RecommendationRequest:
       type: object
       properties:
@@ -430,6 +450,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/FilterCompare'
             - $ref: '#/components/schemas/FilterCombine'
+            - $ref: '#/components/schemas/FilterIds'
     SearchResultEntry:
       type: object
       required: [id, snippet_id, score]
@@ -511,6 +532,7 @@ components:
           oneOf:
             - $ref: '#/components/schemas/FilterCompare'
             - $ref: '#/components/schemas/FilterCombine'
+            - $ref: '#/components/schemas/FilterIds'
     SemanticSearchResponse:
       type: object
       required: [documents]
@@ -564,6 +586,7 @@ components:
               oneOf:
                 - $ref: '#/components/schemas/FilterCompare'
                 - $ref: '#/components/schemas/FilterCombine'
+                - $ref: '#/components/schemas/FilterIds'
     RecommendationError:
       allOf:
         - $ref: './schemas/error.yml#/GenericError'
