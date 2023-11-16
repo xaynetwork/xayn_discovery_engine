@@ -860,7 +860,7 @@ mod tests {
                 .unwrap_err()
                 .to_string(),
                 format!(
-                    "invalid variant, expected one of: Compare(invalid length 2, expected {}); Combine(invalid length 2, expected {}) at line 1 column 40",
+                    "invalid variant, expected one of: Compare(invalid length 2, expected {}); Combine(invalid length 2, expected {}); Ids(missing field `$ids`) at line 1 column 40",
                     Compare::EXPECTING,
                     Combine::EXPECTING,
                 ),
