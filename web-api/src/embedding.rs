@@ -18,7 +18,7 @@ use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use url::Url;
-use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
+use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, Embedding1, NormalizedEmbedding};
 use xayn_web_api_shared::serde::serialize_redacted;
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
@@ -135,6 +135,7 @@ pub struct OpenAi {
     pub(crate) url: String,
     #[serde(serialize_with = "serialize_redacted")]
     pub(crate) api_key: Secret<String>,
+    pub(crate) embedding_size: usize,
     #[serde(default)]
     pub(crate) prefix: Prefix,
 }
@@ -161,7 +162,11 @@ impl OpenAi {
 
         Ok(Embedder {
             prefix: self.prefix.clone(),
-            inner: InnerEmbedder::OpenAI { client, url },
+            inner: InnerEmbedder::OpenAi {
+                client,
+                url,
+                embedding_size: self.embedding_size,
+            },
         })
     }
 }
@@ -179,9 +184,10 @@ enum InnerEmbedder {
         embedding_size: usize,
         target_model: Option<String>,
     },
-    OpenAI {
+    OpenAi {
         client: reqwest::Client,
         url: Url,
+        embedding_size: usize,
     },
 }
 
@@ -197,7 +203,7 @@ struct OpenAiResponse {
 
 #[derive(Debug, Deserialize)]
 struct OpenAiResponseData {
-    embedding: Vec<NormalizedEmbedding>,
+    embedding: Embedding1,
 }
 
 #[derive(Copy, Clone)]
@@ -229,10 +235,11 @@ impl Embedder {
                 },
             ) => content,
         };
+        let sequence = format!("{prefix}{sequence}");
 
         match &self.inner {
             InnerEmbedder::Pipeline(embedder) => embedder
-                .run(format!("{prefix}{sequence}"))
+                .run(sequence)
                 .map_err(InternalError::from_std)?
                 .normalize()
                 .map_err(InternalError::from_std),
@@ -241,7 +248,10 @@ impl Embedder {
                 endpoint,
                 target_model,
                 ..
-            } => Self::run_sagemaker(client, endpoint, target_model.as_deref(), sequence).await,
+            } => Self::run_sagemaker(client, endpoint, target_model.as_deref(), &sequence).await,
+            InnerEmbedder::OpenAi { client, url, .. } => {
+                Self::run_openai(client, url, &sequence).await
+            }
         }
     }
 
@@ -298,24 +308,30 @@ impl Embedder {
         });
 
         let response: OpenAiResponse = client
-            .post(url.into())
+            .post(url.clone())
             .json(&input)
             .send()
             .await
             .map_err(InternalError::from_std)?
-            .json();
+            .json()
+            .await
+            .map_err(InternalError::from_std)?;
 
-        response
+        let embedding = response
             .data
-            .get(0)
-            .and_then(|data| data.embedding.pop())
-            .ok_or(InternalError::from_message("Invalid response format"))
+            .into_iter()
+            .next()
+            .ok_or_else(|| InternalError::from_message("Invalid response format"))
+            .map(|data| data.embedding)?;
+
+        embedding.normalize().map_err(InternalError::from_std)
     }
 
     pub(crate) fn embedding_size(&self) -> usize {
         match &self.inner {
             InnerEmbedder::Pipeline(embedder) => embedder.embedding_size(),
-            InnerEmbedder::Sagemaker { embedding_size, .. } => *embedding_size,
+            InnerEmbedder::Sagemaker { embedding_size, .. }
+            | InnerEmbedder::OpenAi { embedding_size, .. } => *embedding_size,
         }
     }
 }
