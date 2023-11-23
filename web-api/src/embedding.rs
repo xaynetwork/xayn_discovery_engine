@@ -13,10 +13,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use aws_config::retry::RetryConfig;
-use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob, Client};
+use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob};
+use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, NormalizedEmbedding};
+use url::Url;
+use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, Embedding1, NormalizedEmbedding};
+use xayn_web_api_shared::serde::serialize_redacted;
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
 
@@ -25,6 +28,7 @@ use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBu
 pub enum Config {
     Pipeline(Pipeline),
     Sagemaker(Sagemaker),
+    OpenAi(OpenAi),
 }
 
 impl Default for Config {
@@ -82,7 +86,7 @@ impl Pipeline {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-#[serde(deny_unknown_fields)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
 pub struct Sagemaker {
     pub(crate) endpoint: String,
     pub(crate) embedding_size: usize,
@@ -111,7 +115,7 @@ impl Sagemaker {
         );
 
         let sdk_config = config_loader.load().await;
-        let client = Client::new(&sdk_config);
+        let client = aws_sdk_sagemakerruntime::Client::new(&sdk_config);
 
         Ok(Embedder {
             prefix: self.prefix.clone(),
@@ -125,6 +129,48 @@ impl Sagemaker {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
+pub struct OpenAi {
+    pub(crate) url: String,
+    #[serde(serialize_with = "serialize_redacted")]
+    pub(crate) api_key: Secret<String>,
+    pub(crate) embedding_size: usize,
+    #[serde(default)]
+    pub(crate) prefix: Prefix,
+}
+
+impl OpenAi {
+    fn load(&self) -> Result<Embedder, SetupError> {
+        use reqwest::{
+            header::{HeaderMap, HeaderValue},
+            ClientBuilder,
+        };
+
+        let headers = {
+            let mut api_key_value = HeaderValue::from_str(self.api_key.expose_secret())?;
+            api_key_value.set_sensitive(true);
+
+            let mut headers = HeaderMap::with_capacity(1);
+            headers.insert("api-key", api_key_value);
+
+            headers
+        };
+
+        let client = ClientBuilder::new().default_headers(headers).build()?;
+        let url = self.url.parse()?;
+
+        Ok(Embedder {
+            prefix: self.prefix.clone(),
+            inner: InnerEmbedder::OpenAi {
+                client,
+                url,
+                embedding_size: self.embedding_size,
+            },
+        })
+    }
+}
+
 pub(crate) struct Embedder {
     prefix: Prefix,
     inner: InnerEmbedder,
@@ -133,16 +179,31 @@ pub(crate) struct Embedder {
 enum InnerEmbedder {
     Pipeline(AvgEmbedder),
     Sagemaker {
-        client: Client,
+        client: aws_sdk_sagemakerruntime::Client,
         endpoint: String,
         embedding_size: usize,
         target_model: Option<String>,
+    },
+    OpenAi {
+        client: reqwest::Client,
+        url: Url,
+        embedding_size: usize,
     },
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct SagemakerResponse {
     embeddings: Vec<NormalizedEmbedding>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiResponse {
+    data: Vec<OpenAiResponseData>,
+}
+
+#[derive(Debug, Deserialize)]
+struct OpenAiResponseData {
+    embedding: Embedding1,
 }
 
 #[derive(Copy, Clone)]
@@ -156,6 +217,7 @@ impl Embedder {
         match config {
             Config::Pipeline(config) => config.load(),
             Config::Sagemaker(config) => config.load().await,
+            Config::OpenAi(config) => config.load(),
         }
     }
 
@@ -173,10 +235,11 @@ impl Embedder {
                 },
             ) => content,
         };
+        let sequence = format!("{prefix}{sequence}");
 
         match &self.inner {
             InnerEmbedder::Pipeline(embedder) => embedder
-                .run(format!("{prefix}{sequence}"))
+                .run(sequence)
                 .map_err(InternalError::from_std)?
                 .normalize()
                 .map_err(InternalError::from_std),
@@ -185,12 +248,15 @@ impl Embedder {
                 endpoint,
                 target_model,
                 ..
-            } => Self::run_sagemaker(client, endpoint, target_model.as_deref(), sequence).await,
+            } => Self::run_sagemaker(client, endpoint, target_model.as_deref(), &sequence).await,
+            InnerEmbedder::OpenAi { client, url, .. } => {
+                Self::run_openai(client, url, &sequence).await
+            }
         }
     }
 
     async fn run_sagemaker(
-        client: &Client,
+        client: &aws_sdk_sagemakerruntime::Client,
         endpoint: &str,
         target_model: Option<&str>,
         sequence: &str,
@@ -232,10 +298,40 @@ impl Embedder {
         }
     }
 
+    async fn run_openai(
+        client: &reqwest::Client,
+        url: &Url,
+        sequence: &str,
+    ) -> Result<NormalizedEmbedding, InternalError> {
+        let input = json!({
+            "input": sequence,
+        });
+
+        let response: OpenAiResponse = client
+            .post(url.clone())
+            .json(&input)
+            .send()
+            .await
+            .map_err(InternalError::from_std)?
+            .json()
+            .await
+            .map_err(InternalError::from_std)?;
+
+        let embedding = response
+            .data
+            .into_iter()
+            .next()
+            .ok_or_else(|| InternalError::from_message("Invalid response format"))
+            .map(|data| data.embedding)?;
+
+        embedding.normalize().map_err(InternalError::from_std)
+    }
+
     pub(crate) fn embedding_size(&self) -> usize {
         match &self.inner {
             InnerEmbedder::Pipeline(embedder) => embedder.embedding_size(),
-            InnerEmbedder::Sagemaker { embedding_size, .. } => *embedding_size,
+            InnerEmbedder::Sagemaker { embedding_size, .. }
+            | InnerEmbedder::OpenAi { embedding_size, .. } => *embedding_size,
         }
     }
 }

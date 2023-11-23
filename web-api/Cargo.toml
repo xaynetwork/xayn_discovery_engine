@@ -33,6 +33,7 @@ once_cell = { workspace = true }
 rand = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
+secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { version = "0.10.7", features = ["asm"] }
