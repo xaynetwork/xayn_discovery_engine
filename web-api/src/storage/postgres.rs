@@ -926,7 +926,7 @@ impl storage::Document for Storage {
         let include_properties = params.include_properties;
         let include_snippet = params.include_snippet;
         let with_raw_scores = params.with_raw_scores;
-        let (scores, raw_scores) = self.elastic.get_by_embedding(params).await?;
+        let (scores, raw_scores) = self.elastic.get_by_embedding(&params).await?;
         let mut documents =
             Database::get_personalized(&mut tx, scores, include_properties, include_snippet)
                 .await?;

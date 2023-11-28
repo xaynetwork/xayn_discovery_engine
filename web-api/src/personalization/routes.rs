@@ -62,6 +62,7 @@ use crate::{
     storage::{
         self,
         Exclusions,
+        KeywordSearchVariant,
         KnnSearchParams,
         MergeFn,
         NormalizationFn,
@@ -454,8 +455,8 @@ struct UnvalidatedSemanticSearchRequest {
     count: Option<usize>,
     published_after: Option<DateTime<Utc>>,
     personalize: Option<UnvalidatedPersonalize>,
-    #[serde(default)]
-    enable_hybrid_search: bool,
+    #[serde(default, alias = "enable_hybrid_search")]
+    hybrid_search: UnvalidatedHybridSearch,
     #[serde(default, rename = "_dev")]
     dev: DevOption,
     #[serde(default = "default_include_properties")]
@@ -463,6 +464,27 @@ struct UnvalidatedSemanticSearchRequest {
     #[serde(default)]
     include_snippet: bool,
     filter: Option<Filter>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum UnvalidatedHybridSearch {
+    Switch(bool),
+    VariantName(String),
+    Variant(HybridSearchVariantWithSettings),
+}
+
+impl Default for UnvalidatedHybridSearch {
+    fn default() -> Self {
+        Self::Switch(false)
+    }
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "variant", rename_all = "snake_case")]
+enum HybridSearchVariantWithSettings {
+    Bm25 {},
+    Elser {},
 }
 
 #[derive(Debug, Deserialize)]
@@ -507,20 +529,50 @@ enum DevHybrid {
     },
 }
 
-impl<'a> SearchStrategy<'a> {
-    fn new(
-        enable_hybrid_search: bool,
+impl SearchStrategy {
+    fn validate_and_create_from(
+        embedding_source: &EmbeddingSource,
+        hybrid_search: UnvalidatedHybridSearch,
         dev_hybrid_search: Option<DevHybrid>,
-        query: Option<&'a DocumentQuery>,
-    ) -> Self {
-        if !enable_hybrid_search {
-            return Self::Knn;
-        }
-        let Some(query) = query else {
-            return Self::Knn;
+    ) -> Result<Self, Error> {
+        let EmbeddingSource::Query(query) = embedding_source else {
+            //HINT: We can not error if hybrid search is enabled but no query is provided for backward compatibility.
+            return Ok(Self::Knn);
         };
+
+        let variant = match hybrid_search {
+            UnvalidatedHybridSearch::Switch(enabled) => {
+                if enabled {
+                    KeywordSearchVariant::Bm25
+                } else {
+                    return Ok(Self::Knn);
+                }
+            }
+            UnvalidatedHybridSearch::VariantName(name) => match &*name {
+                "bm25" => KeywordSearchVariant::Bm25,
+                "elser" => KeywordSearchVariant::Elser,
+                variant => {
+                    return Err(BadRequest::from(format!(
+                        "Only supported variants are bm25,elser. Got: {variant:?}"
+                    ))
+                    .into())
+                }
+            },
+            UnvalidatedHybridSearch::Variant(variant) => match variant {
+                HybridSearchVariantWithSettings::Bm25 {} => KeywordSearchVariant::Bm25,
+                HybridSearchVariantWithSettings::Elser {} => KeywordSearchVariant::Elser,
+            },
+        };
+
+        let query = query.clone();
         let Some(dev_hybrid_search) = dev_hybrid_search else {
-            return Self::Hybrid { query };
+            return Ok(Self::Hybrid {
+                query,
+                variant,
+                normalize_knn: None,
+                normalize_bm25: None,
+                merge_fn: None,
+            });
         };
 
         match dev_hybrid_search {
@@ -528,12 +580,13 @@ impl<'a> SearchStrategy<'a> {
                 normalize_knn,
                 normalize_bm25,
                 merge_fn,
-            } => Self::HybridDev {
+            } => Ok(Self::Hybrid {
                 query,
-                normalize_knn,
-                normalize_bm25,
-                merge_fn,
-            },
+                variant,
+                normalize_knn: Some(normalize_knn),
+                normalize_bm25: Some(normalize_bm25),
+                merge_fn: Some(merge_fn),
+            }),
         }
     }
 }
@@ -552,16 +605,16 @@ impl UnvalidatedSemanticSearchRequest {
             count,
             published_after,
             personalize,
-            enable_hybrid_search,
             dev,
             include_properties,
             include_snippet,
             filter,
+            hybrid_search,
         } = self;
         let semantic_search_config: &SemanticSearchConfig = config.as_ref();
         let tenants_config: &tenants::Config = config.as_ref();
 
-        let document = document.validate(semantic_search_config)?;
+        let embedding_source = document.validate(semantic_search_config)?;
         let count = count.unwrap_or(semantic_search_config.default_number_documents);
         dev.validate(tenants_config.enable_dev)?;
         let num_candidates = dev
@@ -572,11 +625,13 @@ impl UnvalidatedSemanticSearchRequest {
             semantic_search_config.max_number_documents,
             num_candidates,
         )?;
+
+        let search_strategy =
+            SearchStrategy::validate_and_create_from(&embedding_source, hybrid_search, dev.hybrid)?;
+
         let personalize = personalize
             .map(|personalize| personalize.validate(config.as_ref(), warnings))
             .transpose()?;
-        let dev_hybrid_search = dev.hybrid;
-        let dev_show_raw_scores = dev.show_raw_scores;
         let filter = Filter::insert_published_after(filter, published_after);
         if let Some(filter) = &filter {
             filter.validate(&storage.load_schema().await?)?;
@@ -584,13 +639,12 @@ impl UnvalidatedSemanticSearchRequest {
         let is_deprecated = published_after.is_some();
 
         Ok(SemanticSearchRequest {
-            document,
+            embedding_source,
             count,
             num_candidates,
+            search_strategy,
             personalize,
-            enable_hybrid_search,
-            dev_hybrid_search,
-            dev_show_raw_scores,
+            dev_show_raw_scores: dev.show_raw_scores,
             include_properties,
             include_snippet,
             filter,
@@ -653,15 +707,6 @@ pub(super) enum UnvalidatedSnippetOrDocumentId {
     SnippetId { document_id: String, sub_id: u32 },
 }
 
-impl From<SnippetOrDocumentId> for InputDocument {
-    fn from(value: SnippetOrDocumentId) -> Self {
-        match value {
-            SnippetOrDocumentId::SnippetId(id) => InputDocument::SnippetId(id),
-            SnippetOrDocumentId::DocumentId(id) => InputDocument::DocumentId(id),
-        }
-    }
-}
-
 impl UnvalidatedSnippetOrDocumentId {
     pub(super) fn validate(self) -> Result<SnippetOrDocumentId, Error> {
         Ok(match self {
@@ -683,23 +728,28 @@ struct UnvalidatedInputDocument {
 }
 
 impl UnvalidatedInputDocument {
-    fn validate(self, config: &SemanticSearchConfig) -> Result<InputDocument, Error> {
-        let id = self
-            .id
-            .map(|id| id.validate().map(InputDocument::from))
+    fn validate(self, config: &SemanticSearchConfig) -> Result<EmbeddingSource, Error> {
+        let Self { id, query } = self;
+        let id = id
+            .map(UnvalidatedSnippetOrDocumentId::validate)
             .transpose()?;
-        match (id, self.query) {
+        let query = query
+            .map(|query| {
+                DocumentQuery::new_with_length_constraint(query, config.query_size_bounds())
+            })
+            .transpose()?;
+
+        match (id, query) {
+            (Some(id), None) => Ok(EmbeddingSource::Id(id)),
+            (None, Some(query)) => Ok(EmbeddingSource::Query(query)),
             (Some(_), Some(_)) => Err(BadRequest::from(
                 "either id or query must be present in the request, but both were found",
             )
             .into()),
-            (None, Some(query)) => Ok(InputDocument::Query(
-                DocumentQuery::new_with_length_constraint(query, config.query_size_bounds())?,
-            )),
-            (Some(id), None) => Ok(id),
-            (None, None) => {
-                Err(BadRequest::from("either id or query must be present in the request").into())
-            }
+            (None, None) => Err(BadRequest::from(
+                "either document/snippet id or query must be present in the request",
+            )
+            .into()),
         }
     }
 }
@@ -732,12 +782,11 @@ impl UnvalidatedPersonalize {
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::struct_excessive_bools)]
 struct SemanticSearchRequest {
-    document: InputDocument,
+    embedding_source: EmbeddingSource,
     count: usize,
     num_candidates: usize,
+    search_strategy: SearchStrategy,
     personalize: Option<Personalize>,
-    enable_hybrid_search: bool,
-    dev_hybrid_search: Option<DevHybrid>,
     dev_show_raw_scores: Option<bool>,
     include_properties: bool,
     include_snippet: bool,
@@ -754,9 +803,8 @@ struct RecommendationRequest {
     is_deprecated: bool,
 }
 
-enum InputDocument {
-    DocumentId(DocumentId),
-    SnippetId(SnippetId),
+enum EmbeddingSource {
+    Id(SnippetOrDocumentId),
     Query(DocumentQuery),
 }
 
@@ -789,12 +837,11 @@ async fn semantic_search(
     // TODO: actually return non-empty warnings in the response
     let mut warnings = Vec::new();
     let SemanticSearchRequest {
-        document,
+        embedding_source,
         count,
         num_candidates,
+        search_strategy,
         personalize,
-        enable_hybrid_search,
-        dev_hybrid_search,
         dev_show_raw_scores,
         include_properties,
         include_snippet,
@@ -809,29 +856,25 @@ async fn semantic_search(
     } else {
         Exclusions::default()
     };
-    let (embedding, query) = match document {
-        InputDocument::DocumentId(id) => {
+    let embedding = match embedding_source {
+        EmbeddingSource::Id(SnippetOrDocumentId::DocumentId(id)) => {
             // TODO[pmk/ET-4933] how to handle by document search with multi-snippet documents
             let id = SnippetId::new(id, 0);
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
             exclusions.documents.push(id.into_document_id());
-            (embedding, None)
+            embedding
         }
-        InputDocument::SnippetId(id) => {
+        EmbeddingSource::Id(SnippetOrDocumentId::SnippetId(id)) => {
             let embedding = storage::Document::get_embedding(&storage, &id)
                 .await?
                 .ok_or(DocumentNotFound)?;
             exclusions.snippets.push(id);
-            (embedding, None)
+            embedding
         }
-        InputDocument::Query(ref query) => {
-            let embedding = state.embedder.run(EmbeddingKind::Query, query).await?;
-            (embedding, Some(query))
-        }
+        EmbeddingSource::Query(query) => state.embedder.run(EmbeddingKind::Query, &query).await?,
     };
-    let strategy = SearchStrategy::new(enable_hybrid_search, dev_hybrid_search, query);
 
     let mut documents = storage::Document::get_by_embedding(
         &storage,
@@ -840,7 +883,7 @@ async fn semantic_search(
             embedding: &embedding,
             count,
             num_candidates,
-            strategy,
+            search_strategy,
             include_properties,
             include_snippet,
             filter: filter.as_ref(),

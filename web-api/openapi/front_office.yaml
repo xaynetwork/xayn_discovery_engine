@@ -523,9 +523,34 @@ components:
             user:
               $ref: './schemas/user.yml#/InputUser'
         enable_hybrid_search:
-          description: Enable the hybrid search mode.
+          description: Deprecated, is now an alias for hybrid_search.
+          deprecated: true
           type: boolean
           default: false
+        hybrid_search:
+          description: |
+            Enable and configure hybrid search.
+
+            Set it to `true` to enable hybrid search with default values.
+
+            Set it to `<variant-name>` to enable a specific hybrid search variant, like
+            "bm25" or "elser", this is a short from for setting it to `{ "variant": "<variant-name>" }`.
+          default: false
+          oneOf:
+            - type: boolean
+            - type: string
+              enum: [ "bm25", "elser" ]
+            # If we stabilize any options like rrf weights this is where they go, through
+            # we then like change it to multiple different `type: object` oneOf entries
+            - type: object
+              required: [ variant ]
+              properties:
+                variant:
+                  type: string
+                  enum: [ "bm25", "elser" ]
+          example:
+            variant: "bm25"
+
         filter:
           description:
             $ref: '#/components/schemas/Filter/description'

@@ -62,7 +62,7 @@ pub(crate) struct KnnSearchParams<'a> {
     pub(crate) count: usize,
     // must be >= count
     pub(crate) num_candidates: usize,
-    pub(super) strategy: SearchStrategy<'a>,
+    pub(super) search_strategy: SearchStrategy,
     pub(super) include_properties: bool,
     pub(super) include_snippet: bool,
     pub(super) filter: Option<&'a Filter>,
@@ -76,17 +76,21 @@ pub(crate) struct Exclusions {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum SearchStrategy<'a> {
+pub(crate) enum KeywordSearchVariant {
+    Bm25,
+    Elser,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) enum SearchStrategy {
     Knn,
     Hybrid {
         /// An additional query which will be run in parallel with the KNN search.
-        query: &'a DocumentQuery,
-    },
-    HybridDev {
-        query: &'a DocumentQuery,
-        normalize_knn: NormalizationFn,
-        normalize_bm25: NormalizationFn,
-        merge_fn: MergeFn,
+        query: DocumentQuery,
+        variant: KeywordSearchVariant,
+        normalize_knn: Option<NormalizationFn>,
+        normalize_bm25: Option<NormalizationFn>,
+        merge_fn: Option<MergeFn>,
     },
 }
 
