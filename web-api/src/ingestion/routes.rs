@@ -124,10 +124,19 @@ impl InputDataRequest {
         matches!(self, InputDataRequest::File(_))
     }
 
-    fn validate(self, config: &IngestionConfig) -> Result<InputData, InvalidDocumentSnippet> {
+    fn validate(
+        self,
+        config: &IngestionConfig,
+        split_enabled: bool,
+    ) -> Result<InputData, InvalidDocumentSnippet> {
+        let size_constraint = if split_enabled {
+            1..=usize::MAX
+        } else {
+            1..=config.max_snippet_size
+        };
         Ok(match self {
             InputDataRequest::Snippet(snippet) => InputData::Snippet(
-                DocumentSnippet::new_with_length_constraint(snippet, 1..=config.max_snippet_size)?,
+                DocumentSnippet::new_with_length_constraint(snippet, size_constraint)?,
             ),
             InputDataRequest::File(encoded_bin) => InputData::Binary(
                 general_purpose::STANDARD
@@ -135,6 +144,10 @@ impl InputDataRequest {
                     .map_err(|_| InvalidDocumentSnippet::FileNotBase64Encoded)?,
             ),
         })
+    }
+
+    fn is_binary(&self) -> bool {
+        matches!(self, InputDataRequest::File(_))
     }
 }
 
@@ -165,10 +178,6 @@ pub(crate) enum InputData {
 }
 
 impl InputData {
-    fn is_binary(&self) -> bool {
-        matches!(self, InputData::Binary(_))
-    }
-
     fn as_bytes(&self) -> &[u8] {
         match self {
             InputData::Snippet(snippet) => snippet.as_bytes(),
@@ -265,9 +274,7 @@ impl UnvalidatedDocumentForIngestion {
         let config = config.as_ref();
 
         let id = self.id.as_str().try_into()?;
-        let data = self.data.validate(config)?;
-
-        let data_is_binary = data.is_binary();
+        let data_is_binary = self.data.is_binary();
         let preprocessing_step = match (self.split, self.summarize) {
             (Some(true), true) => {
                 return Err(anyhow!(
@@ -286,6 +293,9 @@ impl UnvalidatedDocumentForIngestion {
             (_, true) => PreprocessingStep::Summarize,
             (_, false) => PreprocessingStep::None,
         };
+        let data = self
+            .data
+            .validate(config, preprocessing_step.uses_splitting())?;
 
         let properties = validate_document_properties(
             self.properties,

@@ -560,6 +560,14 @@ impl PreprocessingStep {
     pub(crate) fn default_split() -> Self {
         Self::NltkSplitV1
     }
+
+    pub(crate) fn uses_splitting(self) -> bool {
+        //Hint: Don't use `matches!` here it's prone to introducing bugs when adding variants.
+        match self {
+            PreprocessingStep::None | PreprocessingStep::Summarize => false,
+            PreprocessingStep::CuttersSplit | PreprocessingStep::NltkSplitV1 => true,
+        }
+    }
 }
 
 #[cfg(test)]
