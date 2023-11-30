@@ -247,11 +247,10 @@ async fn run_saturation_benchmark() -> Result<(), Panic> {
             let to_be_clicked = personalised_documents
                 .iter()
                 .zip(scores)
-                .filter_map(|(id, score)| {
-                    ((score - 2.0).abs() < 0.001
-                        && rng.gen_bool(benchmark_config.click_probability))
-                    .then(|| id.clone())
+                .filter(|(_, score)| {
+                    (score - 2.0).abs() < 0.001 && rng.gen_bool(benchmark_config.click_probability)
                 })
+                .map(|(id, _)| id.clone())
                 .collect_vec();
             // interact with documents
             state
@@ -323,16 +322,18 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
             state
                 .interact(
                     user_id,
-                    hot_news.iter().filter_map(|doc| {
-                        (doc.is_interesting(interests)
-                            && rng.gen_bool(benchmark_config.click_probability))
-                        .then(|| {
+                    hot_news
+                        .iter()
+                        .filter(|doc| {
+                            doc.is_interesting(interests)
+                                && rng.gen_bool(benchmark_config.click_probability)
+                        })
+                        .map(|doc| {
                             (
                                 SnippetOrDocumentId::DocumentId(doc.id.clone()),
                                 state.time - Duration::days(0),
                             )
-                        })
-                    }),
+                        }),
                 )
                 .await?;
 
@@ -358,15 +359,15 @@ async fn run_persona_hot_news_benchmark() -> Result<(), Panic> {
                     personalised_documents
                         .iter()
                         .zip(scores)
-                        .filter_map(|(id, score)| {
-                            ((score - 2.0).abs() < 0.001
-                                && rng.gen_bool(benchmark_config.click_probability))
-                            .then(|| {
-                                (
-                                    SnippetOrDocumentId::DocumentId(id.clone()),
-                                    state.time - Duration::days(0),
-                                )
-                            })
+                        .filter(|(_, score)| {
+                            (score - 2.0).abs() < 0.001
+                                && rng.gen_bool(benchmark_config.click_probability)
+                        })
+                        .map(|(id, _)| {
+                            (
+                                SnippetOrDocumentId::DocumentId(id.clone()),
+                                state.time - Duration::days(0),
+                            )
                         }),
                 )
                 .await?;

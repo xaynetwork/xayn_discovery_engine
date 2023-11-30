@@ -430,7 +430,8 @@ impl storage::DocumentCandidate for Storage {
             .await
             .0
             .iter()
-            .filter_map(|(id, document)| document.is_candidate.then(|| id.clone()))
+            .filter(|(_, document)| document.is_candidate)
+            .map(|(id, _)| id.clone())
             .collect();
 
         Ok(documents)

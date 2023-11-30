@@ -59,7 +59,7 @@ struct CompareWith {
 }
 
 impl CompareWith {
-    const EXPECTING: &str = "a json object with exactly one right comparison argument and a matching type for the comparison operator";
+    const EXPECTING: &'static str = "a json object with exactly one right comparison argument and a matching type for the comparison operator";
 }
 
 impl<'de> Deserialize<'de> for CompareWith {
@@ -177,7 +177,7 @@ pub(crate) struct Compare {
 }
 
 impl Compare {
-    const EXPECTING: &str = "a json object with exactly one left comparison argument";
+    const EXPECTING: &'static str = "a json object with exactly one left comparison argument";
 }
 
 impl<'de> Deserialize<'de> for Compare {
@@ -238,7 +238,7 @@ pub(crate) struct Filters(Vec<Filter>);
 
 impl Filters {
     const MAX_FILTERS_PER_COMBINATION: usize = 10;
-    const EXPECTING: &str = formatcp!(
+    const EXPECTING: &'static str = formatcp!(
         "a json array with at most {} combination arguments",
         Filters::MAX_FILTERS_PER_COMBINATION,
     );
@@ -298,11 +298,11 @@ pub(crate) struct Combine {
 
 impl Combine {
     const MAX_DEPTH: usize = 2;
-    const EXPECTING: &str = formatcp!(
+    const EXPECTING: &'static str = formatcp!(
         "a json object with exactly one combination operator and at most {} times nested combinations",
         Combine::MAX_DEPTH,
     );
-    const UNEXPECTED_DEPTH: &str =
+    const UNEXPECTED_DEPTH: &'static str =
         formatcp!("more than {} times nested combinations", Combine::MAX_DEPTH);
 }
 

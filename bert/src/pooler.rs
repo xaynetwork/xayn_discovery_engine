@@ -72,7 +72,11 @@ pub type Embedding1 = Embedding<Ix1>;
 /// A normalized embedding.
 #[derive(Clone, Debug, Deref, Deserialize, Serialize)]
 #[serde(transparent)]
-#[cfg_attr(feature = "sqlx", derive(FromRow, Type), sqlx(transparent))]
+#[cfg_attr(
+    feature = "sqlx",
+    derive(FromRow, Type),
+    sqlx(transparent, no_pg_array)
+)]
 pub struct NormalizedEmbedding(Embedding1);
 
 /// Values don't represent a valid embedding.

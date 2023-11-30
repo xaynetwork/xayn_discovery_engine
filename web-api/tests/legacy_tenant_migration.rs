@@ -82,7 +82,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
         sqlx::query("INSERT INTO users(user_id, last_seen) VALUES ($1, $2)")
             .bind(user_id)
             .bind(last_seen)
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
 
         tx.commit().await?;
@@ -315,7 +315,7 @@ fn test_full_migration() {
                 "smbert_v0005",
                 &format!("ort_v1.15.1/{}", ort_target().unwrap()),
             );
-            &[
+            [
                 "integration-test",
                 "--bind-to",
                 "127.0.0.1:0",
@@ -335,7 +335,7 @@ fn test_full_migration() {
                 "smbert_v0005",
                 &format!("ort_v1.15.1/{}", ort_target().unwrap()),
             );
-            &[
+            [
                 "integration-test",
                 "--bind-to",
                 "127.0.0.1:0",

@@ -20,6 +20,11 @@ use std::{
 use anyhow::bail;
 use once_cell::sync::OnceCell;
 
+/// Tries to detect the workspace directory.
+///
+/// # Panics
+///
+/// Panics if this is not possible.
 pub fn find_workspace_dir() -> &'static Path {
     static WORKSPACE: OnceCell<PathBuf> = OnceCell::new();
 

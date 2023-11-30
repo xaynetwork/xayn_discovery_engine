@@ -103,13 +103,13 @@ impl Database {
 
     pub(crate) async fn acquire(&self) -> Result<PoolConnection<Postgres>, sqlx::Error> {
         let mut conn = self.pool.acquire().await?;
-        self.set_role(&mut conn).await?;
+        self.set_role(&mut *conn).await?;
         Ok(conn)
     }
 
     pub(crate) async fn begin(&self) -> Result<Transaction<'_, Postgres>, sqlx::Error> {
         let mut conn = self.pool.begin().await?;
-        self.set_role(&mut conn).await?;
+        self.set_role(&mut *conn).await?;
         Ok(conn)
     }
 }
