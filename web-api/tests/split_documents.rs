@@ -19,10 +19,12 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use serde_json::{json, Map, Value};
+use toml::toml;
 use url::Url;
 use xayn_integration_tests::{
     send_assert,
     send_assert_json,
+    test_app,
     test_two_apps,
     with_dev_options,
     UNCHANGED_CONFIG,
@@ -432,6 +434,61 @@ fn test_split_documents_with_property_updates() {
             Ok(())
         },
     );
+}
+
+#[test]
+fn test_split_allows_huge_snippets() {
+    test_app::<Ingestion, _>(
+        Some(toml! {
+            [ingestion]
+            max_snippet_size = 3
+        }),
+        |client, ingestion_url, _| async move {
+            send_assert(
+                &client,
+                client
+                    .post(ingestion_url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            {
+                                "id": "d1",
+                                "snippet": "Too long.",
+                                "properties": {
+                                    "foo": "filter-a",
+                                }
+                            },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::BAD_REQUEST,
+                false,
+            )
+            .await;
+
+            send_assert(
+                &client,
+                client
+                    .post(ingestion_url.join("/documents")?)
+                    .json(&json!({
+                        "documents": [
+                            {
+                                "id": "d1",
+                                "snippet": "Too long.",
+                                "split": true,
+                                "properties": {
+                                    "foo": "filter-a",
+                                }
+                            },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::CREATED,
+                false,
+            )
+            .await;
+            Ok(())
+        },
+    )
 }
 
 #[test]
