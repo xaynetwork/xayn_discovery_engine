@@ -74,7 +74,7 @@ impl IndexedPropertiesSchema {
                 allowed: max_total_properties,
             });
         }
-        self.properties.extend(schema_update.into_iter());
+        self.properties.extend(schema_update);
         Ok(())
     }
 

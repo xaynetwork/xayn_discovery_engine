@@ -152,7 +152,7 @@ where
     let legacy_tenant_id = sqlx::query_as::<_, (TenantId,)>(
         "SELECT tenant_id FROM tenant WHERE is_legacy_tenant FOR UPDATE;",
     )
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await?;
 
     let legacy_tenant_id = if let Some((legacy_tenant_id,)) = legacy_tenant_id {
@@ -280,7 +280,7 @@ pub(super) async fn delete_tenant(
            RETURNING is_legacy_tenant;",
     )
     .bind(&tenant_id)
-    .fetch_optional(&mut *tx)
+    .fetch_optional(&mut **tx)
     .await?
     .map(|(is_legacy_tenant,)| Tenant {
         tenant_id,
@@ -435,7 +435,7 @@ async fn create_tenant_role_and_schema(
     sqlx::query("INSERT INTO management.tenant (tenant_id, is_legacy_tenant) VALUES ($1, $2);")
         .bind(tenant_id)
         .bind(legacy_hint.is_legacy_tenant())
-        .execute(tx)
+        .execute(&mut **tx)
         .await?;
 
     Ok(())
@@ -493,7 +493,7 @@ async fn does_role_exist(
     Ok(
         sqlx::query("SELECT FROM pg_catalog.pg_roles WHERE rolname = $1;")
             .bind(role)
-            .execute(tx)
+            .execute(&mut **tx)
             .await?
             .rows_affected()
             > 0,
@@ -533,7 +533,7 @@ async fn lock_id_until_end_of_transaction(
     debug!({ lock_id }, "pg_advisory_xact_lock");
     sqlx::query("SELECT pg_advisory_xact_lock($1)")
         .bind(lock_id)
-        .execute(tx)
+        .execute(&mut **tx)
         .await?;
     Ok(())
 }

@@ -108,7 +108,7 @@ macro_rules! string_wrapper {
             FromRow,
         )]
         #[serde(transparent)]
-        #[sqlx(transparent)]
+        #[sqlx(transparent, no_pg_array)]
         $visibility struct $name(String);
 
         impl $name {
@@ -217,7 +217,7 @@ impl SnippetId {
         self.sub_id
     }
 
-    const ES_SNIPPET_ID_PREFIX: &str = "_s.";
+    const ES_SNIPPET_ID_PREFIX: &'static str = "_s.";
 
     pub(crate) fn try_from_es_id(es_id: impl AsRef<str>) -> Result<Self, Error> {
         let es_id = es_id.as_ref();
@@ -395,7 +395,7 @@ impl IntoIterator for DocumentProperties {
 /// Arbitrary tags that can be associated to a document.
 #[derive(Clone, Debug, Default, Deref, Deserialize, PartialEq, Serialize, Type)]
 #[serde(transparent)]
-#[sqlx(transparent)]
+#[sqlx(transparent, no_pg_array)]
 pub(crate) struct DocumentTags(Vec<DocumentTag>);
 
 impl TryFrom<Vec<DocumentTag>> for DocumentTags {

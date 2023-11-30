@@ -16,7 +16,7 @@ ort = { version = "1.15.2", default-features = false, features = ["load-dynamic"
 serde = { workspace = true }
 sqlx = { workspace = true, optional = true }
 thiserror = { workspace = true }
-tokenizers = { version = "0.13.3", default-features = false, features = ["onig"] }
+tokenizers = { version = "0.15.0", default-features = false, features = ["onig"] }
 xayn-test-utils = { path = "../test-utils" }
 
 [dev-dependencies]

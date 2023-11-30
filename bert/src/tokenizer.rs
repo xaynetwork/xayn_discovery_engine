@@ -58,7 +58,7 @@ impl Tokenizer {
             stride: 0,
         };
         tokenizer.with_padding(Some(padding));
-        tokenizer.with_truncation(Some(truncation));
+        tokenizer.with_truncation(Some(truncation))?;
         let add_special_tokens = config.extract::<bool>("tokenizer.add_special_tokens")?;
 
         Ok(Tokenizer {

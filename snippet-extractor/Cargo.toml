@@ -8,7 +8,7 @@ license = { workspace = true }
 
 [dependencies]
 anyhow = { workspace = true }
-deadpool = { version = "0.9.5", default-features = true, features = [ "managed", "rt_tokio_1" ] }
+deadpool = { version = "0.10.0", default-features = true, features = [ "managed", "rt_tokio_1" ] }
 derive_more = { workspace = true }
 displaydoc = { workspace = true }
 num_cpus = { workspace = true }

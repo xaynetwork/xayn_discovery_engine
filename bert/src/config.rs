@@ -98,8 +98,8 @@ impl Config<NonePooler> {
 }
 
 impl<P> Config<P> {
-    const MIN_TOKEN_SIZE: &str = "tokenizer.min_size";
-    const MAX_TOKEN_SIZE: &str = "tokenizer.max_size";
+    const MIN_TOKEN_SIZE: &'static str = "tokenizer.min_size";
+    const MAX_TOKEN_SIZE: &'static str = "tokenizer.max_size";
 
     pub(crate) fn extract<'b, V>(&self, key: &str) -> Result<V, Error>
     where

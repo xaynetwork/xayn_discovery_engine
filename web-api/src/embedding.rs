@@ -12,7 +12,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use aws_config::retry::RetryConfig;
+use aws_config::{retry::RetryConfig, BehaviorVersion};
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob};
 use secrecy::{ExposeSecret, Secret};
 use serde::{Deserialize, Serialize};
@@ -100,7 +100,7 @@ pub struct Sagemaker {
 
 impl Sagemaker {
     async fn load(&self) -> Result<Embedder, SetupError> {
-        let mut config_loader = aws_config::from_env();
+        let mut config_loader = aws_config::defaults(BehaviorVersion::latest());
 
         if let Some(region) = &self.aws_region {
             config_loader = config_loader.region(Region::new(region.clone()));

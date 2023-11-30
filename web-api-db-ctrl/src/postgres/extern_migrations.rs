@@ -66,7 +66,7 @@ impl ExternalMigrator for PgExternalMigrator {
                 ON CONFLICT DO NOTHING;",
         )
         .bind(name)
-        .execute(&mut self.tx)
+        .execute(&mut *self.tx)
         .await?;
 
         if res.rows_affected() == 0 {
@@ -77,7 +77,7 @@ impl ExternalMigrator for PgExternalMigrator {
                     FOR UPDATE;",
             )
             .bind(name)
-            .fetch_one(&mut self.tx)
+            .fetch_one(&mut *self.tx)
             .await?;
 
             return match existing {
@@ -110,7 +110,7 @@ impl ExternalMigrator for PgExternalMigrator {
         .bind(state)
         .bind(error)
         .bind(name)
-        .execute(&mut self.tx)
+        .execute(&mut *self.tx)
         .await?;
 
         result

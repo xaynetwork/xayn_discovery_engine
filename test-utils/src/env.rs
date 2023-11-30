@@ -60,7 +60,7 @@ pub fn clear_env() {
 
 static ENV_PRUNE_EXCEPTIONS: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
-        r#"(?ix)
+        "(?ix)
         (?:^PATH$)
         |(?:^LANG$)
         |(?:^PWD$)
@@ -76,7 +76,7 @@ static ENV_PRUNE_EXCEPTIONS: Lazy<Regex> = Lazy::new(|| {
         |(?:^XDG)
         |(?:^GITHUB_)
         |(?:^XAYN_TEST_)
-        "#,
+        ",
     )
     .unwrap()
 });

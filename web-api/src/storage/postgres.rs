@@ -140,7 +140,7 @@ impl Database {
                 )
                 .build()
                 .persistent(false)
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
 
@@ -189,7 +189,7 @@ impl Database {
                     embedding = EXCLUDED.embedding;",
                 )
                 .build()
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
 
@@ -217,7 +217,7 @@ impl Database {
                     .build()
                     .persistent(false)
                     .try_map(|row| QueriedDeletedDocument::from_row(&row))
-                    .fetch_all(&mut tx)
+                    .fetch_all(&mut *tx)
                     .await?,
             );
         }
@@ -252,7 +252,7 @@ impl Database {
     ) -> Result<bool, Error> {
         sqlx::query("SELECT FROM document WHERE document_id = $1;")
             .bind(id)
-            .execute(tx)
+            .execute(&mut **tx)
             .await
             .map(|response| response.rows_affected() > 0)
             .map_err(Into::into)
@@ -289,7 +289,7 @@ impl Database {
                             tags: row.try_get("tags")?,
                         })
                     })
-                    .fetch_all(&mut *tx)
+                    .fetch_all(&mut **tx)
                     .await?,
             );
         }
@@ -365,7 +365,7 @@ impl Database {
                             dev: None,
                         })
                     })
-                    .fetch_all(&mut *tx)
+                    .fetch_all(&mut **tx)
                     .await?,
             );
         }
@@ -408,7 +408,7 @@ impl Database {
                         is_candidate: row.try_get("is_candidate")?,
                     })
                 })
-                .fetch_all(&mut *tx)
+                .fetch_all(&mut **tx)
                 .await?;
 
             documents.extend(chunk);
@@ -424,7 +424,7 @@ impl Database {
         sqlx::query_as("SELECT embedding FROM snippet WHERE document_id = $1 AND sub_id = $2;")
             .bind(id.document_id())
             .bind(SqlBitCastU32::from(id.sub_id()))
-            .fetch_optional(tx)
+            .fetch_optional(&mut **tx)
             .await
             .map_err(Into::into)
     }
@@ -451,7 +451,7 @@ impl Database {
             FROM document
             WHERE is_candidate;",
         )
-        .fetch(&mut tx)
+        .fetch(&mut *tx)
         .try_for_each(|(document_id,)| {
             if ingestable.contains(&document_id) {
                 unchanged.insert(document_id);
@@ -475,7 +475,7 @@ impl Database {
                 .reset()
                 .push_tuple(ids)
                 .build()
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
 
@@ -513,7 +513,7 @@ impl Database {
                 .reset()
                 .push_tuple(ids)
                 .build_query_as::<SqlSnippet>()
-                .fetch(&mut *tx)
+                .fetch(&mut **tx)
                 .try_for_each(|snippet| {
                     snippets.entry(snippet.document_id).or_default().push((
                         u32::from(snippet.sub_id),
@@ -562,7 +562,7 @@ impl Database {
                         is_candidate: true,
                     })
                 })
-                .fetch_all(&mut *tx)
+                .fetch_all(&mut **tx)
                 .await?;
 
             needs_ingestion.extend(chunk);
@@ -592,7 +592,7 @@ impl Database {
                     .push_tuple(ids)
                     .build()
                     .try_map(|row| DocumentId::from_row(&row))
-                    .fetch_all(&mut tx)
+                    .fetch_all(&mut *tx)
                     .await?,
             );
         }
@@ -639,7 +639,7 @@ impl Database {
                     .push_tuple(ids)
                     .build()
                     .try_map(|row| DocumentId::from_row(&row))
-                    .fetch_all(&mut tx)
+                    .fetch_all(&mut *tx)
                     .await?,
             );
         }
@@ -662,7 +662,7 @@ impl Database {
                     .push(" RETURNING document_id;")
                     .build()
                     .try_map(|row| DocumentId::from_row(&row))
-                    .fetch_all(&mut tx)
+                    .fetch_all(&mut *tx)
                     .await?,
             );
         }
@@ -688,11 +688,11 @@ impl Database {
         // locks db for given user for coi update context
         sqlx::query("INSERT INTO coi_update_lock (user_id) VALUES ($1) ON CONFLICT DO NOTHING;")
             .bind(user_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
         sqlx::query("SELECT FROM coi_update_lock WHERE user_id = $1 FOR UPDATE;")
             .bind(user_id)
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await?;
         Ok(())
     }
@@ -777,7 +777,7 @@ impl Database {
                     last_view = EXCLUDED.last_view;",
                 )
                 .build()
-                .execute(&mut *tx)
+                .execute(&mut **tx)
                 .await?;
         }
 
@@ -811,7 +811,7 @@ impl Database {
                 .push(" ON CONFLICT DO NOTHING;")
                 .build()
                 .persistent(persist)
-                .execute(&mut *tx)
+                .execute(&mut **tx)
                 .await?;
         }
 
@@ -840,7 +840,7 @@ impl Database {
                 )
                 .build()
                 .persistent(false)
-                .execute(&mut *tx)
+                .execute(&mut **tx)
                 .await?;
         }
         Ok(())
@@ -852,7 +852,7 @@ impl Database {
     ) -> Result<usize, Error> {
         sqlx::query_as::<_, (i32,)>("SELECT pg_column_size($1);")
             .bind(Json(value))
-            .fetch_one(tx)
+            .fetch_one(&mut **tx)
             .await
             .map(
                 #[allow(clippy::cast_sign_loss)]
@@ -1040,7 +1040,7 @@ impl storage::DocumentProperties for Storage {
             WHERE document_id = $1;",
         )
         .bind(id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?
         .map(|properties| properties.0 .0);
 
@@ -1069,7 +1069,7 @@ impl storage::DocumentProperties for Storage {
         )
         .bind(Json(properties))
         .bind(id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?;
         let inserted = if let Some((is_candidate,)) = inserted {
             if is_candidate {
@@ -1103,7 +1103,7 @@ impl storage::DocumentProperties for Storage {
             RETURNING is_candidate;",
         )
         .bind(id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?;
         let deleted = if let Some((is_candidate,)) = deleted {
             if is_candidate {
@@ -1137,7 +1137,7 @@ impl storage::DocumentProperty for Storage {
         )
         .bind(property_id)
         .bind(document_id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?;
         let property = if let Some(property) = property {
             Some(Some(property.0 .0))
@@ -1174,7 +1174,7 @@ impl storage::DocumentProperty for Storage {
         .bind(slice::from_ref(property_id))
         .bind(Json(property))
         .bind(document_id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?;
         let inserted = if let Some((is_candidate,)) = inserted {
             if is_candidate {
@@ -1213,7 +1213,7 @@ impl storage::DocumentProperty for Storage {
         )
         .bind(property_id)
         .bind(document_id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?;
         let deleted = if let Some((is_candidate,)) = deleted {
             if is_candidate {
@@ -1254,7 +1254,7 @@ impl storage::Interaction for Storage {
             WHERE user_id = $1;",
         )
         .bind(user_id)
-        .fetch(&mut tx)
+        .fetch(&mut *tx)
         .map_ok(|(id,)| id)
         .try_collect()
         .await?;
@@ -1310,7 +1310,7 @@ impl storage::Interaction for Storage {
             .map(|tag| (tag, 0))
             .collect::<HashMap<_, _>>();
 
-        let mut interests = Database::get_user_interests(&mut tx, user_id).await?;
+        let mut interests = Database::get_user_interests(&mut *tx, user_id).await?;
         let mut updates = HashMap::new();
         for document_id in interactions {
             if let Some(document) = snippet_map.get(&document_id) {
@@ -1358,7 +1358,7 @@ impl storage::Tag for Storage {
             WHERE user_id = $1;",
         )
         .bind(user_id)
-        .fetch_all(&mut tx)
+        .fetch_all(&mut *tx)
         .await?;
 
         tx.commit().await?;
@@ -1392,7 +1392,7 @@ impl storage::Tag for Storage {
         )
         .bind(tags)
         .bind(document_id)
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?;
         let inserted = if let Some((is_candidate,)) = inserted {
             if is_candidate {
@@ -1454,7 +1454,7 @@ impl Database {
         let schema = sqlx::query_as::<_, (DocumentPropertyId, IndexedPropertyType)>(
             "SELECT name, type FROM indexed_property;",
         )
-        .fetch_all(tx)
+        .fetch_all(&mut **tx)
         .await?
         .into_iter()
         .map(|(id, r#type)| (id, IndexedPropertyDefinition { r#type }))
@@ -1475,7 +1475,7 @@ impl Database {
                 builder.push_bind(name).push_bind(def.r#type);
             })
             .build()
-            .execute(tx)
+            .execute(&mut **tx)
             .await?;
         Ok(())
     }
