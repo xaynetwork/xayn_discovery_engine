@@ -17,13 +17,53 @@ mod cli;
 use std::{ffi::OsString, fmt::Display, path::Path, process::exit};
 
 use clap::{CommandFactory, Parser};
+use derive_more::AsRef;
 use figment::{
     providers::{Env, Format, Serialized, Toml},
     Figment,
 };
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use xayn_ai_coi::CoiConfig;
 
 use self::cli::Args;
+use crate::{
+    embedding,
+    extractor,
+    ingestion::IngestionConfig,
+    logging,
+    net,
+    personalization::{PersonalizationConfig, SemanticSearchConfig},
+    storage::{self},
+    tenants,
+    SetupError,
+};
+
+#[derive(AsRef, Debug, Default, Deserialize, Serialize)]
+#[serde(default)]
+#[cfg_attr(test, serde(deny_unknown_fields))]
+pub struct WebApiConfig {
+    pub(crate) logging: logging::Config,
+    pub(crate) net: net::Config,
+    pub(crate) storage: storage::Config,
+    pub(crate) coi: CoiConfig,
+    pub(crate) embedding: embedding::Config,
+    pub(crate) text_extractor: extractor::Config,
+    pub(crate) personalization: PersonalizationConfig,
+    pub(crate) semantic_search: SemanticSearchConfig,
+    pub(crate) ingestion: IngestionConfig,
+    pub(crate) snippet_extractor: xayn_snippet_extractor::Config,
+    pub(crate) tenants: tenants::Config,
+}
+
+impl WebApiConfig {
+    pub fn validate(&self) -> Result<(), SetupError> {
+        self.ingestion.validate()?;
+        self.personalization.validate()?;
+        self.semantic_search.validate()?;
+
+        Ok(())
+    }
+}
 
 /// Loads the config with custom CLI args.
 ///

@@ -13,92 +13,12 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 pub(crate) mod preprocessor;
-mod routes;
+pub(crate) mod routes;
 
-use actix_web::web::ServiceConfig;
 use anyhow::bail;
-use async_trait::async_trait;
-use derive_more::AsRef;
-use futures_util::TryFutureExt;
 use serde::{Deserialize, Serialize};
-use xayn_snippet_extractor::pool::SnippetExtractorPool;
 
-use self::{
-    preprocessor::{preprocess, PreprocessError},
-    routes::InputData,
-};
-use crate::{
-    app::{self, Application, SetupError},
-    embedding::{self, EmbeddingKind},
-    extractor,
-    logging,
-    models::{DocumentContent, PreprocessingStep},
-    net,
-    storage::{self, elastic::IndexUpdateConfig},
-    tenants,
-    Error,
-};
-
-pub struct Ingestion;
-
-#[async_trait]
-impl Application for Ingestion {
-    const NAME: &'static str = "XAYN_INGESTION";
-
-    type Config = Config;
-    type Extension = Extension;
-
-    fn configure_service(config: &mut ServiceConfig) {
-        routes::configure_service(config);
-    }
-
-    fn configure_ops_service(config: &mut ServiceConfig) {
-        routes::configure_ops_service(config);
-    }
-
-    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
-        config.ingestion.validate()?;
-
-        let snippet_extractor = SnippetExtractorPool::new(config.as_ref())?;
-
-        Ok(Extension { snippet_extractor })
-    }
-}
-
-type AppState = app::AppState<Ingestion>;
-
-impl AppState {
-    pub(crate) async fn preprocess(
-        &self,
-        kind: EmbeddingKind,
-        original: InputData,
-        preprocessing_step: &mut PreprocessingStep,
-    ) -> Result<Vec<DocumentContent>, PreprocessError> {
-        preprocess(
-            &self.embedder,
-            || self.snippet_extractor.get().map_err(Error::from),
-            &self.extractor,
-            kind,
-            original,
-            preprocessing_step,
-        )
-        .await
-    }
-}
-
-#[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-#[serde(default)]
-#[cfg_attr(test, serde(deny_unknown_fields))]
-pub struct Config {
-    pub(crate) logging: logging::Config,
-    pub(crate) net: net::Config,
-    pub(crate) storage: storage::Config,
-    pub(crate) ingestion: IngestionConfig,
-    pub(crate) embedding: embedding::Config,
-    pub(crate) text_extractor: extractor::Config,
-    pub(crate) tenants: tenants::Config,
-    pub(crate) snippet_extractor: xayn_snippet_extractor::Config,
-}
+use crate::{app::SetupError, storage::elastic::IndexUpdateConfig};
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -127,7 +47,7 @@ impl Default for IngestionConfig {
 }
 
 impl IngestionConfig {
-    fn validate(&self) -> Result<(), SetupError> {
+    pub(crate) fn validate(&self) -> Result<(), SetupError> {
         if self.max_indexed_properties == 0 {
             bail!("invalid IngestionConfig, max_indexed_properties must be > 0 to account for publication_date");
         }
@@ -135,11 +55,6 @@ impl IngestionConfig {
 
         Ok(())
     }
-}
-
-#[derive(AsRef)]
-pub struct Extension {
-    snippet_extractor: SnippetExtractorPool,
 }
 
 #[cfg(test)]

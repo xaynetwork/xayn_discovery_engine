@@ -37,12 +37,11 @@ use super::{
         HistoryEntry,
         UnvalidatedHistoryEntry,
     },
-    AppState,
     PersonalizationConfig,
     SemanticSearchConfig,
 };
 use crate::{
-    app::TenantState,
+    app::{AppState, TenantState},
     embedding::EmbeddingKind,
     error::{
         common::{BadRequest, DocumentNotFound, ForbiddenDevOption, InvalidDocumentCount},
@@ -73,7 +72,7 @@ use crate::{
     Error,
 };
 
-pub(super) fn configure_service(config: &mut ServiceConfig) {
+pub(crate) fn configure_service(config: &mut ServiceConfig) {
     let users = web::scope("/users/{user_id}")
         .service(web::resource("interactions").route(web::patch().to(interactions)))
         .service(web::resource("recommendations").route(web::post().to(user_recommendations)))

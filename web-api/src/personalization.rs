@@ -20,66 +20,11 @@ mod stateless;
 
 use std::ops::RangeBounds;
 
-use actix_web::web::ServiceConfig;
 use anyhow::bail;
-use async_trait::async_trait;
-use derive_more::AsRef;
 use serde::{Deserialize, Serialize};
-use xayn_ai_coi::{CoiConfig, CoiSystem};
 
 pub use self::{rerank::bench_rerank, stateless::bench_derive_interests};
-use crate::{
-    app::{self, Application, SetupError},
-    embedding,
-    extractor,
-    logging,
-    net,
-    storage,
-    tenants,
-};
-
-pub struct Personalization;
-
-#[async_trait]
-impl Application for Personalization {
-    const NAME: &'static str = "XAYN_PERSONALIZATION";
-
-    type Config = Config;
-    type Extension = Extension;
-
-    fn configure_service(config: &mut ServiceConfig) {
-        routes::configure_service(config);
-    }
-
-    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError> {
-        if let Err(error) = config.coi.validate() {
-            bail!("invalid CoiConfig, {error}");
-        }
-        config.personalization.validate()?;
-        config.semantic_search.validate()?;
-
-        Ok(Extension {
-            coi: config.coi.clone().build(),
-        })
-    }
-}
-
-type AppState = app::AppState<Personalization>;
-
-#[derive(AsRef, Debug, Default, Deserialize, Serialize)]
-#[serde(default)]
-#[cfg_attr(test, serde(deny_unknown_fields))]
-pub struct Config {
-    pub(crate) logging: logging::Config,
-    pub(crate) net: net::Config,
-    pub(crate) storage: storage::Config,
-    pub(crate) coi: CoiConfig,
-    pub(crate) embedding: embedding::Config,
-    pub(crate) text_extractor: extractor::Config,
-    pub(crate) personalization: PersonalizationConfig,
-    pub(crate) semantic_search: SemanticSearchConfig,
-    pub(crate) tenants: tenants::Config,
-}
+use crate::app::SetupError;
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
@@ -129,7 +74,7 @@ impl Default for PersonalizationConfig {
 }
 
 impl PersonalizationConfig {
-    fn validate(&self) -> Result<(), SetupError> {
+    pub(crate) fn validate(&self) -> Result<(), SetupError> {
         if self.max_number_documents > self.max_number_candidates {
             // this is stricter than necessary, but ok for our use cases
             bail!("invalid PersonalizationConfig, max_number_documents must be <= max_number_candidates");
@@ -185,7 +130,7 @@ impl Default for SemanticSearchConfig {
 }
 
 impl SemanticSearchConfig {
-    fn validate(&self) -> Result<(), SetupError> {
+    pub(crate) fn validate(&self) -> Result<(), SetupError> {
         if self.max_number_documents > self.max_number_candidates {
             // this is stricter than necessary, but ok for our use cases
             bail!("invalid SemanticSearchConfig, max_number_documents must be <= max_number_candidates");
@@ -199,11 +144,6 @@ impl SemanticSearchConfig {
 
         Ok(())
     }
-}
-
-#[derive(AsRef)]
-pub struct Extension {
-    pub(crate) coi: CoiSystem,
 }
 
 #[cfg(test)]

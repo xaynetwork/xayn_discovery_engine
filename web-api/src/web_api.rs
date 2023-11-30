@@ -12,18 +12,25 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-use tracing::instrument;
-use xayn_web_api::{application_names, config, logging, start, Application, Ingestion};
+use actix_web::web::ServiceConfig;
+use async_trait::async_trait;
 
-type Config = <Ingestion as Application>::Config;
+use crate::{app::Application, config::WebApiConfig};
 
-#[tokio::main]
-#[instrument(err)]
-async fn main() -> Result<(), anyhow::Error> {
-    let config: Config = config::load(application_names!());
-    logging::initialize_global(config.as_ref())?;
-    start::<Ingestion>(config)
-        .await?
-        .wait_for_termination()
-        .await
+pub struct WebApi;
+
+#[async_trait]
+impl Application for WebApi {
+    const NAME: &'static str = "XAYN_WEB_API";
+
+    type Config = WebApiConfig;
+
+    fn configure_service(config: &mut ServiceConfig) {
+        crate::ingestion::routes::configure_service(config);
+        crate::personalization::routes::configure_service(config);
+    }
+
+    fn configure_ops_service(config: &mut ServiceConfig) {
+        crate::ingestion::routes::configure_ops_service(config);
+    }
 }

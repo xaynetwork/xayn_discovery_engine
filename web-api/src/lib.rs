@@ -48,14 +48,18 @@ pub mod rank_merge;
 mod storage;
 mod tenants;
 mod utils;
+mod web_api;
 
 pub use crate::{
     app::{start, Application, SetupError},
     error::application::{ApplicationError, Error},
-    ingestion::Ingestion,
     net::AppHandle,
-    personalization::{bench_derive_interests, bench_rerank, Personalization},
+    personalization::{bench_derive_interests, bench_rerank},
+    web_api::WebApi,
 };
+
+pub type Ingestion = WebApi;
+pub type Personalization = WebApi;
 
 /// Allow migration tests to have access to the elastic search mapping this uses.
 //FIXME: Remove once we only test migrations upward from a version with `web-api-db-ctrl`
