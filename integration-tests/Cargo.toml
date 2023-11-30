@@ -29,3 +29,15 @@ xayn-test-utils = { path = "../test-utils" }
 xayn-web-api = { path = "../web-api" }
 xayn-web-api-db-ctrl = { path = "../web-api-db-ctrl" }
 xayn-web-api-shared = { path = "../web-api-shared" }
+
+[dev-dependencies]
+base64 = { workspace = true }
+itertools = { workspace = true }
+trycmd = "0.14.16"
+url = { workspace = true }
+
+[dev-dependencies.old-xayn-web-api]
+package = "xayn-web-api"
+version = "0.1.1"
+git = "https://github.com/xaynetwork/xayn_discovery_engine.git"
+rev = "f7bdf56e265e78d34d35f67301914fcd9c9179e9"
