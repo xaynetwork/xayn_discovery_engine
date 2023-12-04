@@ -60,7 +60,7 @@ curl -X POST "$URL/documents" \
             },
             {
                 "id": "xayn_ff5604c",
-                "snippet": "If you only ingested one short document you can't really try out any of the functional, so here is another document"
+                "snippet": "If you only ingested one short document you cannot really try out any of the functional, so here is another document"
             },
             {
                 "id": "00000",
