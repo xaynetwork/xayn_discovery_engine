@@ -26,11 +26,11 @@ impl Application for WebApi {
     type Config = WebApiConfig;
 
     fn configure_service(config: &mut ServiceConfig) {
-        crate::ingestion::routes::configure_service(config);
-        crate::personalization::routes::configure_service(config);
+        crate::backoffice::routes::configure_service(config);
+        crate::frontoffice::routes::configure_service(config);
     }
 
     fn configure_ops_service(config: &mut ServiceConfig) {
-        crate::ingestion::routes::configure_ops_service(config);
+        crate::backoffice::routes::configure_ops_service(config);
     }
 }

@@ -34,7 +34,8 @@ use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 use self::property_filter::{IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate};
 use crate::{
     app::SetupError,
-    ingestion::IngestionConfig,
+    backoffice::IngestionConfig,
+    frontoffice::filter::Filter,
     models::{
         self,
         DocumentForIngestion,
@@ -50,7 +51,6 @@ use crate::{
         SnippetOrDocumentId,
         UserId,
     },
-    personalization::filter::Filter,
     tenants,
     Error,
 };

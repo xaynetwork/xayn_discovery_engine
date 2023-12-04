@@ -114,6 +114,11 @@ macro_rules! application_names {
         } else {
             format!("XAYN_{name}")
         };
-        [name, "XAYN_WEB_API".to_string()]
+        [
+            name,
+            "XAYN_WEB_API".to_string(),
+            "XAYN_PERSONALIZATION".to_string(),
+            "XAYN_INGESTION".to_string(),
+        ]
     }};
 }

@@ -32,18 +32,18 @@
 )]
 
 mod app;
+mod backoffice;
 pub mod config;
 mod embedding;
 mod error;
 pub mod extractor;
-mod ingestion;
+mod frontoffice;
 pub mod logging;
 mod middleware;
 #[cfg(test)]
 mod mind;
 mod models;
 mod net;
-mod personalization;
 pub mod rank_merge;
 mod storage;
 mod tenants;
@@ -53,13 +53,10 @@ mod web_api;
 pub use crate::{
     app::{start, Application, SetupError},
     error::application::{ApplicationError, Error},
+    frontoffice::{bench_derive_interests, bench_rerank},
     net::AppHandle,
-    personalization::{bench_derive_interests, bench_rerank},
     web_api::WebApi,
 };
-
-pub type Ingestion = WebApi;
-pub type Personalization = WebApi;
 
 /// Allow migration tests to have access to the elastic search mapping this uses.
 //FIXME: Remove once we only test migrations upward from a version with `web-api-db-ctrl`

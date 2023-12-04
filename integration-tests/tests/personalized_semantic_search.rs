@@ -19,7 +19,7 @@ use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_web_api::{Ingestion, Personalization};
+use xayn_web_api::WebApi;
 
 async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     send_assert(
@@ -93,7 +93,7 @@ macro_rules! assert_order {
 
 #[test]
 fn test_full_personalization() {
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_two_apps::<WebApi, WebApi, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
             [semantic_search]
@@ -170,7 +170,7 @@ fn test_full_personalization() {
 
 #[test]
 fn test_subtle_personalization() {
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_two_apps::<WebApi, WebApi, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
             [semantic_search]
@@ -207,7 +207,7 @@ fn test_subtle_personalization() {
 
 #[test]
 fn test_full_personalization_with_inline_history() {
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_two_apps::<WebApi, WebApi, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
             [semantic_search]

@@ -36,6 +36,8 @@ use xayn_web_api_db_ctrl::{Operation, Silo};
 use super::preprocessor::PreprocessError;
 use crate::{
     app::{AppState, TenantState},
+    backoffice,
+    backoffice::IngestionConfig,
     embedding::EmbeddingKind,
     error::common::{
         BadRequest,
@@ -49,8 +51,6 @@ use crate::{
         FileUploadNotEnabled,
         InvalidDocumentSnippet,
     },
-    ingestion,
-    ingestion::IngestionConfig,
     models::{
         self,
         DocumentId,
@@ -494,7 +494,7 @@ async fn upsert_documents(
             let id = document.id;
             let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
 
-            let result = ingestion::preprocessor::preprocess(
+            let result = backoffice::preprocessor::preprocess(
                 &state.embedder,
                 || state.snippet_extractor.get().map_err(Error::from),
                 &state.extractor,

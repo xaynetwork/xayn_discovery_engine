@@ -27,12 +27,12 @@ use xayn_ai_coi::CoiConfig;
 
 use self::cli::Args;
 use crate::{
+    backoffice::IngestionConfig,
     embedding,
     extractor,
-    ingestion::IngestionConfig,
+    frontoffice::{PersonalizationConfig, SemanticSearchConfig},
     logging,
     net,
-    personalization::{PersonalizationConfig, SemanticSearchConfig},
     storage::{self},
     tenants,
     SetupError,

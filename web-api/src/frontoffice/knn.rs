@@ -22,8 +22,8 @@ use xayn_ai_coi::{compute_coi_weights, Coi};
 
 use crate::{
     error::common::InternalError,
+    frontoffice::filter::Filter,
     models::{PersonalizedDocument, SnippetId},
-    personalization::filter::Filter,
     rank_merge::{rrf_score, DEFAULT_RRF_K},
     storage::{self, Exclusions, KnnSearchParams, SearchStrategy},
     Error,
@@ -148,7 +148,7 @@ mod tests {
     use xayn_ai_coi::CoiConfig;
 
     use super::*;
-    use crate::{personalization::PersonalizationConfig, storage::memory::Storage};
+    use crate::{frontoffice::PersonalizationConfig, storage::memory::Storage};
 
     #[tokio::test]
     async fn test_search_knn_documents_for_empty_cois() {

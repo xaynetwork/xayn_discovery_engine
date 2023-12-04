@@ -15,7 +15,7 @@
 use serde_json::{json, Value};
 use xayn_integration_tests::{test_app, TEST_EMBEDDING_SIZE, UNCHANGED_CONFIG};
 use xayn_test_utils::assert_approx_eq;
-use xayn_web_api::Ingestion;
+use xayn_web_api::WebApi;
 use xayn_web_api_shared::{
     elastic::{BulkInstruction, Error, SerdeDiscard},
     serde::json_object,
@@ -32,7 +32,7 @@ fn emb(emb: &[f32]) -> Result<Value, serde_json::Error> {
 // just to be sure that the behavior hasn't changed
 #[test]
 fn test_normalized_es_knn_scores() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |_, _, services| async move {
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |_, _, services| async move {
         let client = services
             .silo
             .elastic_client()

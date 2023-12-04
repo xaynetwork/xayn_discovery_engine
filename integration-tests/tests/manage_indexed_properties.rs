@@ -17,11 +17,11 @@ use serde_json::{json, Value};
 use toml::toml;
 use url::Url;
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
-use xayn_web_api::Ingestion;
+use xayn_web_api::WebApi;
 
 #[test]
 fn test_creating_indexed_properties() {
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         UNCHANGED_CONFIG,
         |client, ingestion_url, services| async move {
             let res = send_assert_json::<Value>(
@@ -182,7 +182,7 @@ fn test_creating_indexed_properties() {
 
 #[test]
 fn test_check_new_property_values_against_schema() {
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         Some(toml! {
             [ingestion.index_update]
             method = "background"
