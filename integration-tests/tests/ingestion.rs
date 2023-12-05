@@ -23,7 +23,6 @@ use xayn_integration_tests::{
     send_assert,
     send_assert_json,
     test_app,
-    test_two_apps,
     with_text_extractor_options,
     UNCHANGED_CONFIG,
 };
@@ -418,89 +417,85 @@ struct SemanticSearchResponse {
 
 #[test]
 fn test_reingestion_candidates() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            send_assert(
-                &client,
-                client
-                    .post(ingestion_url.join("/documents")?)
-                    .json(&json!({
-                        "documents": [
-                            { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
-                            { "id": "d2", "snippet": "snippet 2", "is_candidate": true },
-                            { "id": "d3", "snippet": "snippet 3", "is_candidate": false },
-                            { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
-                        ]
-                    }))
-                    .build()?,
-                StatusCode::CREATED,
-                false,
-            )
-            .await;
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "snippet" },
-                        "enable_hybrid_search": true
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_eq!(
-                documents
-                    .iter()
-                    .map(|document| document.id.as_str())
-                    .collect::<HashSet<_>>(),
-                ["d1", "d2"].into(),
-            );
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                        { "id": "d2", "snippet": "snippet 2", "is_candidate": true },
+                        { "id": "d3", "snippet": "snippet 3", "is_candidate": false },
+                        { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+            false,
+        )
+        .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "snippet" },
+                    "enable_hybrid_search": true
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2"].into(),
+        );
 
-            send_assert(
-                &client,
-                client
-                    .post(ingestion_url.join("/documents")?)
-                    .json(&json!({
-                        "documents": [
-                            { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
-                            { "id": "d2", "snippet": "snippet 2", "is_candidate": false },
-                            { "id": "d3", "snippet": "snippet 3", "is_candidate": true },
-                            { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
-                        ]
-                    }))
-                    .build()?,
-                StatusCode::CREATED,
-                false,
-            )
-            .await;
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "snippet" },
-                        "enable_hybrid_search": true
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_eq!(
-                documents
-                    .iter()
-                    .map(|document| document.id.as_str())
-                    .collect::<HashSet<_>>(),
-                ["d1", "d3"].into(),
-            );
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                        { "id": "d2", "snippet": "snippet 2", "is_candidate": false },
+                        { "id": "d3", "snippet": "snippet 3", "is_candidate": true },
+                        { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+            false,
+        )
+        .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "snippet" },
+                    "enable_hybrid_search": true
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d3"].into(),
+        );
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 // currently there is no endpoint to actually check the changed snippets/embeddings, but we can at

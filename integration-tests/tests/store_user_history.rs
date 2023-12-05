@@ -18,7 +18,7 @@ use reqwest::StatusCode;
 use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app};
 use xayn_web_api::WebApi;
 
 #[derive(Deserialize)]
@@ -32,17 +32,16 @@ struct PersonalizedDocumentsResponse {
 }
 
 fn store_user_history(enabled: bool) {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
+    test_app::<WebApi, _>(
         Some(toml! {
             [personalization]
             store_user_history = enabled
         }),
-        |client, ingestion, personalization, _| async move {
+        |client, url, _| async move {
             send_assert(
                 &client,
                 client
-                    .post(ingestion.join("/documents")?)
+                    .post(url.join("/documents")?)
                     .json(&json!({
                         "documents": [
                             { "id": "1", "snippet": "a" },
@@ -61,7 +60,7 @@ fn store_user_history(enabled: bool) {
             send_assert(
                 &client,
                 client
-                    .patch(personalization.join("/users/u0/interactions")?)
+                    .patch(url.join("/users/u0/interactions")?)
                     .json(&json!({ "documents": [ { "id": "2" }, { "id": "5" } ] }))
                     .build()?,
                 StatusCode::NO_CONTENT,
@@ -72,7 +71,7 @@ fn store_user_history(enabled: bool) {
             let documents = send_assert_json::<PersonalizedDocumentsResponse>(
                 &client,
                 client
-                    .post(personalization.join("/users/u0/recommendations")?)
+                    .post(url.join("/users/u0/recommendations")?)
                     .build()?,
                 StatusCode::OK,
                 false,

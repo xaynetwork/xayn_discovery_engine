@@ -19,15 +19,15 @@ use itertools::Itertools;
 use reqwest::{Client, Request, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
 use xayn_web_api::WebApi;
 use xayn_web_api_shared::serde::json_object;
 
-async fn ingest_with_dates(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
+async fn ingest_with_dates(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .post(ingestion_url.join("/documents")?)
+            .post(url.join("/documents")?)
             .json(&json!({
                 "documents": [
                     { "id": "d1", "snippet": "Computer", "properties": { "publication_date": "2023-01-12T20:20:20Z" } },
@@ -49,11 +49,11 @@ async fn ingest_with_dates(client: &Client, ingestion_url: &Url) -> Result<(), E
     Ok(())
 }
 
-async fn ingest_with_tags(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
+async fn ingest_with_tags(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .post(ingestion_url.join("/documents")?)
+            .post(url.join("/documents")?)
             .json(&json!({
                 "documents": [
                     { "id": "d1", "snippet": "Computer", "tags": ["tec"] },
@@ -75,11 +75,11 @@ async fn ingest_with_tags(client: &Client, ingestion_url: &Url) -> Result<(), Er
     Ok(())
 }
 
-async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Error> {
+async fn interact(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .patch(personalization_url.join("/users/u1/interactions")?)
+            .patch(url.join("/users/u1/interactions")?)
             .json(&json!({ "documents": [ { "id": "d2" }, { "id": "d9" } ] }))
             .build()?,
         StatusCode::NO_CONTENT,
@@ -130,7 +130,7 @@ macro_rules! assert_order {
 
 async fn personalize(
     client: &Client,
-    personalization_url: &Url,
+    url: &Url,
     published_after: Option<&str>,
     include_properties: Option<bool>,
     assert: impl Fn(&[PersonalizedDocumentData]),
@@ -144,14 +144,14 @@ async fn personalize(
 
     fn build_request(
         client: &Client,
-        personalization_url: &Url,
+        url: &Url,
         published_after: Option<&str>,
         include_properties: Option<bool>,
         endpoint: Endpoint,
     ) -> Result<Request, Error> {
         if let Endpoint::PersonalizedDocumentsGet = endpoint {
             let mut request = client
-                .get(personalization_url.join("/users/u1/personalized_documents")?)
+                .get(url.join("/users/u1/personalized_documents")?)
                 .query(&[("count", "5")]);
             if let Some(published_after) = published_after {
                 request = request.query(&[(
@@ -180,7 +180,7 @@ async fn personalize(
                 Endpoint::PersonalizedDocumentsPost => "/users/u1/personalized_documents",
                 Endpoint::Recommendations => "/users/u1/recommendations",
             };
-            client.post(personalization_url.join(route)?).json(&body)
+            client.post(url.join(route)?).json(&body)
         }
         .build()
         .map_err(Into::into)
@@ -190,7 +190,7 @@ async fn personalize(
         client,
         build_request(
             client,
-            personalization_url,
+            url,
             published_after,
             include_properties,
             Endpoint::Recommendations,
@@ -208,7 +208,7 @@ async fn personalize(
         client,
         build_request(
             client,
-            personalization_url,
+            url,
             published_after,
             include_properties,
             Endpoint::PersonalizedDocumentsPost,
@@ -226,7 +226,7 @@ async fn personalize(
         client,
         build_request(
             client,
-            personalization_url,
+            url,
             published_after,
             include_properties,
             Endpoint::PersonalizedDocumentsGet,
@@ -240,13 +240,13 @@ async fn personalize(
         RecommendationsResponse::Error(PersonalizedDocumentsError::NotEnoughInteractions),
     );
 
-    interact(client, personalization_url).await?;
+    interact(client, url).await?;
 
     let documents = send_assert_json::<RecommendationsResponse>(
         client,
         build_request(
             client,
-            personalization_url,
+            url,
             published_after,
             include_properties,
             Endpoint::Recommendations,
@@ -265,7 +265,7 @@ async fn personalize(
         client,
         build_request(
             client,
-            personalization_url,
+            url,
             published_after,
             include_properties,
             Endpoint::PersonalizedDocumentsPost,
@@ -284,7 +284,7 @@ async fn personalize(
         client,
         build_request(
             client,
-            personalization_url,
+            url,
             published_after,
             include_properties,
             Endpoint::PersonalizedDocumentsGet,
@@ -304,101 +304,79 @@ async fn personalize(
 
 #[test]
 fn test_personalization_all_dates() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_dates(&client, &ingestion_url).await?;
-            personalize(&client, &personalization_url, None, None, |documents| {
-                assert_order!(
-                    documents,
-                    ["d8", "d6", "d1", "d5"],
-                    "unexpected personalized documents: {documents:?}"
-                )
-            })
-            .await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest_with_dates(&client, &url).await?;
+        personalize(&client, &url, None, None, |documents| {
+            assert_order!(
+                documents,
+                ["d8", "d6", "d1", "d5"],
+                "unexpected personalized documents: {documents:?}"
+            )
+        })
+        .await?;
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_personalization_limited_dates() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_dates(&client, &ingestion_url).await?;
-            personalize(
-                &client,
-                &personalization_url,
-                Some("2022-01-01T00:00:00Z"),
-                None,
-                |documents| {
-                    assert_order!(
-                        documents,
-                        ["d1", "d5", "d4", "d3"],
-                        "unexpected personalized documents: {documents:?}"
-                    )
-                },
-            )
-            .await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest_with_dates(&client, &url).await?;
+        personalize(
+            &client,
+            &url,
+            Some("2022-01-01T00:00:00Z"),
+            None,
+            |documents| {
+                assert_order!(
+                    documents,
+                    ["d1", "d5", "d4", "d3"],
+                    "unexpected personalized documents: {documents:?}"
+                )
+            },
+        )
+        .await?;
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_personalization_with_tags() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_tags(&client, &ingestion_url).await?;
-            personalize(&client, &personalization_url, None, None, |documents| {
-                assert_order!(
-                    documents,
-                    ["d6", "d8", "d5", "d1"],
-                    "unexpected personalized documents: {documents:?}"
-                )
-            })
-            .await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest_with_tags(&client, &url).await?;
+        personalize(&client, &url, None, None, |documents| {
+            assert_order!(
+                documents,
+                ["d6", "d8", "d5", "d1"],
+                "unexpected personalized documents: {documents:?}"
+            )
+        })
+        .await?;
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 fn personalization_include_properties(include_properties: bool) {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_dates(&client, &ingestion_url).await?;
-            personalize(
-                &client,
-                &personalization_url,
-                None,
-                Some(include_properties),
-                |documents| {
-                    let is_empty = documents
-                        .iter()
-                        .map(|document| document.properties.is_empty())
-                        .collect_vec();
-                    if include_properties {
-                        assert_eq!(is_empty, [true, false, false, false]);
-                    } else {
-                        assert_eq!(is_empty, [true, true, true, true]);
-                    }
-                },
-            )
-            .await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest_with_dates(&client, &url).await?;
+        personalize(&client, &url, None, Some(include_properties), |documents| {
+            let is_empty = documents
+                .iter()
+                .map(|document| document.properties.is_empty())
+                .collect_vec();
+            if include_properties {
+                assert_eq!(is_empty, [true, false, false, false]);
+            } else {
+                assert_eq!(is_empty, [true, true, true, true]);
+            }
+        })
+        .await?;
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
@@ -413,21 +391,17 @@ fn test_personalization_exclude_properties() {
 
 #[test]
 fn test_personalize_no_body() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest_with_dates(&client, &ingestion_url).await?;
-            send_assert(
-                &client,
-                client
-                    .post(personalization_url.join("/users/u1/recommendations")?)
-                    .build()?,
-                StatusCode::CONFLICT,
-                false,
-            )
-            .await;
-            Ok(())
-        },
-    );
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest_with_dates(&client, &url).await?;
+        send_assert(
+            &client,
+            client
+                .post(url.join("/users/u1/recommendations")?)
+                .build()?,
+            StatusCode::CONFLICT,
+            false,
+        )
+        .await;
+        Ok(())
+    });
 }

@@ -17,14 +17,14 @@ use itertools::Itertools;
 use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
 use xayn_web_api::WebApi;
 
-async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .post(ingestion_url.join("/documents")?)
+            .post(url.join("/documents")?)
             .json(&json!({
                 "documents": [
                     { "id": "d1", "snippet": "Computer", "properties": { "publication_date": "2023-01-12T20:20:20Z" } },
@@ -46,11 +46,11 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     Ok(())
 }
 
-async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Error> {
+async fn interact(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .patch(personalization_url.join("/users/u1/interactions")?)
+            .patch(url.join("/users/u1/interactions")?)
             .json(&json!({ "documents": [ { "id": "d2" }, { "id": "d9" } ] }))
             .build()?,
         StatusCode::NO_CONTENT,
@@ -93,92 +93,80 @@ macro_rules! assert_order {
 
 #[test]
 fn test_full_personalization_with_inline_history() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _services| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _services| async move {
+        ingest(&client, &url).await?;
 
-            let RecommendationResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/recommendations")?)
-                    .json(&json!({
-                        "count": 5,
-                        "personalize": { "user": { "history": [ { "id": "d2" }, { "id": "d9" } ] } }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(
-                documents,
-                ["d8", "d6", "d1", "d5"],
-                "Unexpected fully personalized documents"
-            );
+        let RecommendationResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/recommendations")?)
+                .json(&json!({
+                    "count": 5,
+                    "personalize": { "user": { "history": [ { "id": "d2" }, { "id": "d9" } ] } }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(
+            documents,
+            ["d8", "d6", "d1", "d5"],
+            "Unexpected fully personalized documents"
+        );
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_full_personalization_with_user_id_that_does_not_exist() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _services| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _services| async move {
+        ingest(&client, &url).await?;
 
-            send_assert(
-                &client,
-                client
-                    .post(personalization_url.join("/recommendations")?)
-                    .json(&json!({
-                        "count": 5,
-                        "personalize": { "user": { "id": "u1" } }
-                    }))
-                    .build()?,
-                StatusCode::CONFLICT,
-                false,
-            )
-            .await;
+        send_assert(
+            &client,
+            client
+                .post(url.join("/recommendations")?)
+                .json(&json!({
+                    "count": 5,
+                    "personalize": { "user": { "id": "u1" } }
+                }))
+                .build()?,
+            StatusCode::CONFLICT,
+            false,
+        )
+        .await;
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_full_personalization_with_user_id_that_has_two_interactions() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _services| async move {
-            ingest(&client, &ingestion_url).await?;
-            interact(&client, &personalization_url).await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _services| async move {
+        ingest(&client, &url).await?;
+        interact(&client, &url).await?;
 
-            let RecommendationResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/recommendations")?)
-                    .json(&json!({
-                        "count": 5,
-                        "personalize": { "user": { "id": "u1" } }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(
-                documents,
-                ["d8", "d6", "d1", "d5"],
-                "Unexpected fully personalized documents"
-            );
+        let RecommendationResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/recommendations")?)
+                .json(&json!({
+                    "count": 5,
+                    "personalize": { "user": { "id": "u1" } }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(
+            documents,
+            ["d8", "d6", "d1", "d5"],
+            "Unexpected fully personalized documents"
+        );
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }

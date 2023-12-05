@@ -18,14 +18,14 @@ use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
-use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app};
 use xayn_web_api::WebApi;
 
-async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .post(ingestion_url.join("/documents")?)
+            .post(url.join("/documents")?)
             .json(&json!({
                 "documents": [
                     { "id": "d1", "snippet": "Computer", "properties": { "publication_date": "2023-01-12T20:20:20Z" } },
@@ -47,11 +47,11 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     Ok(())
 }
 
-async fn interact(client: &Client, personalization_url: &Url) -> Result<(), Error> {
+async fn interact(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .patch(personalization_url.join("/users/u1/interactions")?)
+            .patch(url.join("/users/u1/interactions")?)
             .json(&json!({ "documents": [ { "id": "d2" }, { "id": "d9" } ] }))
             .build()?,
         StatusCode::NO_CONTENT,
@@ -93,19 +93,18 @@ macro_rules! assert_order {
 
 #[test]
 fn test_full_personalization() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
+    test_app::<WebApi, _>(
         Some(toml! {
             [semantic_search]
             score_weights = [0.5, 0.5, 0.]
         }),
-        |client, ingestion_url, personalization_url, _services| async move {
-            ingest(&client, &ingestion_url).await?;
+        |client, url, _services| async move {
+            ingest(&client, &url).await?;
 
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .post(personalization_url.join("/semantic_search")?)
+                    .post(url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
@@ -122,12 +121,12 @@ fn test_full_personalization() {
                 "unexpected not enough interactions documents: {documents:?}",
             );
 
-            interact(&client, &personalization_url).await?;
+            interact(&client, &url).await?;
 
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .post(personalization_url.join("/semantic_search")?)
+                    .post(url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5
@@ -146,7 +145,7 @@ fn test_full_personalization() {
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .post(personalization_url.join("/semantic_search")?)
+                    .post(url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
@@ -170,20 +169,19 @@ fn test_full_personalization() {
 
 #[test]
 fn test_subtle_personalization() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
+    test_app::<WebApi, _>(
         Some(toml! {
             [semantic_search]
             score_weights = [0.05, 0.05, 0.9]
         }),
-        |client, ingestion_url, personalization_url, _services| async move {
-            ingest(&client, &ingestion_url).await?;
-            interact(&client, &personalization_url).await?;
+        |client, url, _services| async move {
+            ingest(&client, &url).await?;
+            interact(&client, &url).await?;
 
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .post(personalization_url.join("/semantic_search")?)
+                    .post(url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
@@ -207,19 +205,18 @@ fn test_subtle_personalization() {
 
 #[test]
 fn test_full_personalization_with_inline_history() {
-    test_two_apps::<WebApi, WebApi, _>(
-        UNCHANGED_CONFIG,
+    test_app::<WebApi, _>(
         Some(toml! {
             [semantic_search]
             score_weights = [0.5, 0.5, 0.]
         }),
-        |client, ingestion_url, personalization_url, _services| async move {
-            ingest(&client, &ingestion_url).await?;
+        |client, url, _services| async move {
+            ingest(&client, &url).await?;
 
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .post(personalization_url.join("/semantic_search")?)
+                    .post(url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,
@@ -239,7 +236,7 @@ fn test_full_personalization_with_inline_history() {
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .post(personalization_url.join("/semantic_search")?)
+                    .post(url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5
@@ -258,7 +255,7 @@ fn test_full_personalization_with_inline_history() {
             let SemanticSearchResponse { documents } = send_assert_json(
                 &client,
                 client
-                    .post(personalization_url.join("/semantic_search")?)
+                    .post(url.join("/semantic_search")?)
                     .json(&json!({
                         "document": { "id": "d1" },
                         "count": 5,

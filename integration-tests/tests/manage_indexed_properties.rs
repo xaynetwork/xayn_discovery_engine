@@ -21,41 +21,12 @@ use xayn_web_api::WebApi;
 
 #[test]
 fn test_creating_indexed_properties() {
-    test_app::<WebApi, _>(
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, services| async move {
-            let res = send_assert_json::<Value>(
-                &client,
-                client
-                    .post(ingestion_url.join("/documents/_indexed_properties")?)
-                    .json(&json!({
-                        "properties": {
-                            "p1": {
-                                "type": "boolean"
-                            },
-                            "p2": {
-                                "type": "number"
-                            },
-                            "p3": {
-                                "type": "keyword"
-                            },
-                            "p4": {
-                                "type": "keyword[]"
-                            },
-                            "p5": {
-                                "type": "date"
-                            }
-                        }
-                    }))
-                    .build()?,
-                StatusCode::ACCEPTED,
-                false,
-            )
-            .await;
-
-            assert_eq!(
-                res,
-                json!({
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, services| async move {
+        let res = send_assert_json::<Value>(
+            &client,
+            client
+                .post(url.join("/documents/_indexed_properties")?)
+                .json(&json!({
                     "properties": {
                         "p1": {
                             "type": "boolean"
@@ -71,113 +42,139 @@ fn test_creating_indexed_properties() {
                         },
                         "p5": {
                             "type": "date"
-                        },
-                        "publication_date": {
-                            "type": "date"
                         }
                     }
-                })
-            );
+                }))
+                .build()?,
+            StatusCode::ACCEPTED,
+            false,
+        )
+        .await;
 
-            let res = send_assert_json::<Value>(
-                &client,
-                client
-                    .post(ingestion_url.join("/documents/_indexed_properties")?)
-                    .json(&json!({
-                        "properties": {
-                            "p6": {
-                                "type": "keyword"
-                            }
-                        }
-                    }))
-                    .build()?,
-                StatusCode::ACCEPTED,
-                false,
-            )
-            .await;
-
-            assert_eq!(
-                res,
-                json!({
-                    "properties": {
-                        "p1": {
-                            "type": "boolean"
-                        },
-                        "p2": {
-                            "type": "number"
-                        },
-                        "p3": {
-                            "type": "keyword"
-                        },
-                        "p4": {
-                            "type": "keyword[]"
-                        },
-                        "p5": {
-                            "type": "date"
-                        },
-                        "p6": {
-                            "type": "keyword"
-                        },
-                        "publication_date": {
-                            "type": "date"
-                        }
-                    }
-                })
-            );
-
-            let res2 = send_assert_json::<Value>(
-                &client,
-                client
-                    .get(ingestion_url.join("/documents/_indexed_properties")?)
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-
-            assert_eq!(res, res2);
-
-            let es = services.silo.elastic_config();
-            let url = es.url.parse::<Url>()?.join("_mapping")?;
-            let res =
-                send_assert_json::<Value>(&client, client.get(url).build()?, StatusCode::OK, false)
-                    .await;
-            let properties_mapping = &res[services.test_id.as_str()]["mappings"]["properties"]
-                ["properties"]["properties"];
-            assert_eq!(
-                properties_mapping,
-                &json!({
-                    "publication_date": {
-                        "type": "date",
-                        "ignore_malformed": true
-                    },
+        assert_eq!(
+            res,
+            json!({
+                "properties": {
                     "p1": {
-                        "type": "boolean",
-                        "ignore_malformed": true,
+                        "type": "boolean"
                     },
                     "p2": {
-                        "type": "double",
-                        "ignore_malformed": true,
+                        "type": "number"
                     },
                     "p3": {
                         "type": "keyword"
                     },
                     "p4": {
-                        "type": "keyword"
+                        "type": "keyword[]"
                     },
                     "p5": {
-                        "type": "date",
-                        "ignore_malformed": true,
+                        "type": "date"
+                    },
+                    "publication_date": {
+                        "type": "date"
+                    }
+                }
+            })
+        );
+
+        let res = send_assert_json::<Value>(
+            &client,
+            client
+                .post(url.join("/documents/_indexed_properties")?)
+                .json(&json!({
+                    "properties": {
+                        "p6": {
+                            "type": "keyword"
+                        }
+                    }
+                }))
+                .build()?,
+            StatusCode::ACCEPTED,
+            false,
+        )
+        .await;
+
+        assert_eq!(
+            res,
+            json!({
+                "properties": {
+                    "p1": {
+                        "type": "boolean"
+                    },
+                    "p2": {
+                        "type": "number"
+                    },
+                    "p3": {
+                        "type": "keyword"
+                    },
+                    "p4": {
+                        "type": "keyword[]"
+                    },
+                    "p5": {
+                        "type": "date"
                     },
                     "p6": {
                         "type": "keyword"
+                    },
+                    "publication_date": {
+                        "type": "date"
                     }
-                })
-            );
+                }
+            })
+        );
 
-            Ok(())
-        },
-    );
+        let res2 = send_assert_json::<Value>(
+            &client,
+            client
+                .get(url.join("/documents/_indexed_properties")?)
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+
+        assert_eq!(res, res2);
+
+        let es = services.silo.elastic_config();
+        let url = es.url.parse::<Url>()?.join("_mapping")?;
+        let res =
+            send_assert_json::<Value>(&client, client.get(url).build()?, StatusCode::OK, false)
+                .await;
+        let properties_mapping =
+            &res[services.test_id.as_str()]["mappings"]["properties"]["properties"]["properties"];
+        assert_eq!(
+            properties_mapping,
+            &json!({
+                "publication_date": {
+                    "type": "date",
+                    "ignore_malformed": true
+                },
+                "p1": {
+                    "type": "boolean",
+                    "ignore_malformed": true,
+                },
+                "p2": {
+                    "type": "double",
+                    "ignore_malformed": true,
+                },
+                "p3": {
+                    "type": "keyword"
+                },
+                "p4": {
+                    "type": "keyword"
+                },
+                "p5": {
+                    "type": "date",
+                    "ignore_malformed": true,
+                },
+                "p6": {
+                    "type": "keyword"
+                }
+            })
+        );
+
+        Ok(())
+    });
 }
 
 #[test]
@@ -187,7 +184,7 @@ fn test_check_new_property_values_against_schema() {
             [ingestion.index_update]
             method = "background"
         }),
-        |client, ingestion_url, _| async move {
+        |client, url, _| async move {
             let mut count = 0;
             let mut make_id = || {
                 count += 1;
@@ -196,7 +193,7 @@ fn test_check_new_property_values_against_schema() {
             send_assert(
             &client,
             client
-                .post(ingestion_url.join("/documents")?)
+                .post(url.join("/documents")?)
                 .json(&json!({
                     "documents": [
                         { "id": make_id(), "snippet": "snippet 1", "properties": { "p2": "bad" } },
@@ -212,7 +209,7 @@ fn test_check_new_property_values_against_schema() {
             let res = send_assert_json::<Value>(
                 &client,
                 client
-                    .post(ingestion_url.join("/documents/_indexed_properties")?)
+                    .post(url.join("/documents/_indexed_properties")?)
                     .json(&json!({
                         "properties": {
                             "p1": {
@@ -267,7 +264,7 @@ fn test_check_new_property_values_against_schema() {
             send_assert(
                 &client,
                 client
-                    .post(ingestion_url.join("/documents")?)
+                    .post(url.join("/documents")?)
                     .json(&json!({
                         "documents": [
                             { "id": make_id(), "snippet": "snippet 3", "properties": {
@@ -297,7 +294,7 @@ fn test_check_new_property_values_against_schema() {
                 let res = send_assert_json::<Value>(
                     &client,
                     client
-                        .post(ingestion_url.join("/documents")?)
+                        .post(url.join("/documents")?)
                         .json(&json!({
                             "documents": [
                                 { "id": id, "snippet": "snippet 3", "properties": {
@@ -340,7 +337,7 @@ fn test_check_new_property_values_against_schema() {
                 let res = send_assert_json::<Value>(
                     &client,
                     client
-                        .put(ingestion_url.join("/documents/d1/properties")?)
+                        .put(url.join("/documents/d1/properties")?)
                         .json(&json!({
                             "properties": {
                                 property: bad_value,
@@ -375,7 +372,7 @@ fn test_check_new_property_values_against_schema() {
                 ("p4", "bad".into(), "keyword[]"),
                 ("p5", false.into(), "date"),
             ] {
-                let mut url = Url::clone(&ingestion_url);
+                let mut url = Url::clone(&url);
                 url.path_segments_mut().unwrap().extend([
                     "documents",
                     "d2",
