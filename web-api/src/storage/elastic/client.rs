@@ -13,9 +13,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use derive_more::Deref;
-use xayn_web_api_shared::{elastic, request::TenantId};
+use xayn_web_api_shared::elastic;
 
-use crate::SetupError;
+use crate::{storage::tenant_config::TenantConfig, SetupError};
 
 #[derive(Deref)]
 pub(crate) struct Client(elastic::Client);
@@ -30,7 +30,7 @@ impl Client {
 pub(crate) struct ClientBuilder(elastic::Client);
 
 impl ClientBuilder {
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Client {
-        Client(self.0.with_index(tenant_id))
+    pub(crate) fn build_for(&self, tenant_config: &TenantConfig) -> Client {
+        Client(self.0.with_index(&tenant_config.es_index_name))
     }
 }
