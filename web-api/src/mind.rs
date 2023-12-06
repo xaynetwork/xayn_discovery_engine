@@ -27,7 +27,7 @@ use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 use xayn_test_utils::error::Panic;
 
 use crate::{
-    frontoffice::routes::PersonalizeBy,
+    frontoffice::shared::PersonalizeBy,
     mind::{
         config::{GridSearchConfig, PersonaBasedConfig, SaturationConfig, StateConfig},
         data::{read, DocumentProvider, Impression, Ndcg, SpecificTopics, Users},
