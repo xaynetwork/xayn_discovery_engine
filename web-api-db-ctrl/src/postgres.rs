@@ -577,3 +577,23 @@ fn generate_tenant_lock_id(tenant_id: &TenantId) -> i64 {
         id
     }
 }
+
+pub(crate) async fn change_es_index(
+    tx: &mut Transaction<'_, Postgres>,
+    tenant_id: &TenantId,
+    es_index_name: String,
+) -> Result<(), Error> {
+    sqlx::query(
+        "UPDATE management.tenant
+        SET es_index_name = $2
+        WHERE tenant_id = $1",
+    )
+    .bind(tenant_id)
+    .bind(es_index_name)
+    .execute(&mut *tx)
+    .await?
+    .rows_affected()
+    .gt(&0)
+    .then_some(())
+    .ok_or_else(|| anyhow!("unknown tenant {tenant_id}"))
+}

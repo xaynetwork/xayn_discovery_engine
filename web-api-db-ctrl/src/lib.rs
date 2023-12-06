@@ -16,6 +16,7 @@ mod elastic;
 mod postgres;
 pub mod tenant;
 
+use anyhow::bail;
 pub use elastic::create_tenant_index as elastic_create_tenant;
 use serde::{Deserialize, Serialize};
 use sqlx::pool::PoolOptions;
@@ -123,6 +124,21 @@ impl Silo {
         Ok(deleted_tenant)
     }
 
+    pub async fn change_es_index(
+        &self,
+        tenant_id: &TenantId,
+        new_index: String,
+    ) -> Result<(), Error> {
+        if !elastic::does_index_exist(&self.elastic, &new_index).await? {
+            bail!("index the tenant is supposed to switch to doesn't exist");
+        }
+
+        let mut tx = self.postgres.begin().await?;
+        postgres::change_es_index(&mut tx, tenant_id, new_index).await?;
+        tx.commit().await?;
+        Ok(())
+    }
+
     pub async fn run_operations(
         &self,
         initialize: bool,
@@ -168,6 +184,16 @@ impl Silo {
                 .unwrap_or_else(|err| OperationResult::Error {
                     msg: err.to_string(),
                 }),
+            Operation::ChangeEsIndex {
+                tenant_id,
+                es_index_name,
+            } => self
+                .change_es_index(&tenant_id, es_index_name)
+                .await
+                .map(|()| OperationResult::Success)
+                .unwrap_or_else(|err| OperationResult::Error {
+                    msg: err.to_string(),
+                }),
         }
     }
 
@@ -191,6 +217,10 @@ impl Silo {
 #[derive(Deserialize, Debug)]
 pub enum Operation {
     ListTenants {},
+    ChangeEsIndex {
+        tenant_id: TenantId,
+        es_index_name: String,
+    },
     CreateTenant {
         tenant_id: TenantId,
         #[serde(default)]
@@ -208,5 +238,6 @@ pub enum OperationResult {
     ListTenants { tenants: Vec<Tenant> },
     CreateTenant { tenant: Tenant },
     DeleteTenant { tenant: Option<Tenant> },
+    Success,
     Error { msg: String },
 }
