@@ -169,7 +169,7 @@ async fn search(client: &Client, url: &Url) -> Result<HashSet<String>, Error> {
 
 #[test]
 fn test_changing_the_es_index_works() {
-    const TEST_INDEX: &'static str = "test_changing_the_es_index_works";
+    const TEST_INDEX: &str = "test_changing_the_es_index_works";
 
     test_two_apps::<Ingestion, Personalization, _>(
         Some(toml! {
