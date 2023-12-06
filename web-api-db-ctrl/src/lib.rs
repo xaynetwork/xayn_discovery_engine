@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::pool::PoolOptions;
 use tenant::Tenant;
 use xayn_web_api_shared::{
-    elastic::{Client as EsClient, Config as EsConfig},
+    elastic::{ClientWithoutIndex as EsClient, Config as EsConfig},
     postgres::{Client as PgClient, Config as PgConfig},
     request::TenantId,
 };

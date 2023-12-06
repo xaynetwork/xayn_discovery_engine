@@ -61,7 +61,7 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
             .run(&mut tx)
             .await?;
 
-        let es_client = elastic::Client::new(es_config.clone())?;
+        let es_client = elastic::ClientWithoutIndex::new(es_config.clone())?;
         let legacy_elastic_index_as_tenant_id =
             TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
         elastic_create_tenant(

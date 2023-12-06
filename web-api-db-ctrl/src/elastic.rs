@@ -17,7 +17,7 @@ use once_cell::sync::Lazy;
 use reqwest::Method;
 use serde_json::{json, Value};
 use tracing::{error, info, instrument};
-use xayn_web_api_shared::elastic::{Client, NotFoundAsOptionExt, SerdeDiscard};
+use xayn_web_api_shared::elastic::{Client, ClientWithoutIndex, NotFoundAsOptionExt, SerdeDiscard};
 
 use crate::{postgres::ExternalMigrator, tenant::Tenant, Error};
 
@@ -26,7 +26,7 @@ static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unw
 
 #[instrument(skip(elastic))]
 pub async fn create_tenant_index(
-    elastic: &Client,
+    elastic: &ClientWithoutIndex,
     tenant: &Tenant,
     embedding_size: usize,
 ) -> Result<(), Error> {
@@ -40,7 +40,10 @@ pub async fn create_tenant_index(
 }
 
 #[instrument(skip(elastic))]
-pub(super) async fn delete_index(elastic: &Client, index_name: &str) -> Result<(), Error> {
+pub(super) async fn delete_index(
+    elastic: &ClientWithoutIndex,
+    index_name: &str,
+) -> Result<(), Error> {
     let elastic = elastic.with_index(index_name);
     elastic
         .query_with_bytes::<SerdeDiscard>(Method::DELETE, elastic.create_url([], []), None)
@@ -51,13 +54,13 @@ pub(super) async fn delete_index(elastic: &Client, index_name: &str) -> Result<(
 
 #[instrument(skip(elastic, migrator))]
 pub(crate) async fn migrate_tenant_index(
-    elastic: &Client,
+    elastic: &ClientWithoutIndex,
     tenant: &Tenant,
     embedding_size: usize,
     migrator: &mut impl ExternalMigrator,
 ) -> Result<(), Error> {
-    let elastic = elastic.with_index(&tenant.es_index_name);
-    if let Some(existing_mapping) = get_opt_tenant_mapping(&elastic).await? {
+    let es_with_index = elastic.with_index(&tenant.es_index_name);
+    if let Some(existing_mapping) = get_opt_tenant_mapping(&es_with_index).await? {
         let base_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
         check_mapping_compatibility(&existing_mapping, &base_mapping)?;
     } else {
@@ -65,12 +68,12 @@ pub(crate) async fn migrate_tenant_index(
             {%tenant.tenant_id},
             "index for tenant doesn't exist, creating a new index"
         );
-        create_tenant_index(&elastic, tenant, embedding_size).await?;
+        create_tenant_index(elastic, tenant, embedding_size).await?;
     }
 
     migrator
         .run_migration_if_needed("migrate_parent_property", async move {
-            migrate_parent_property(&elastic).await
+            migrate_parent_property(&es_with_index).await
         })
         .await?;
 
@@ -138,7 +141,10 @@ fn check_mapping_compatibility(
 }
 
 #[instrument(skip(elastic))]
-pub(crate) async fn does_index_exist(elastic: &Client, index: &str) -> Result<bool, Error> {
+pub(crate) async fn does_index_exist(
+    elastic: &ClientWithoutIndex,
+    index: &str,
+) -> Result<bool, Error> {
     Ok(get_opt_tenant_mapping(&elastic.with_index(index))
         .await?
         .is_some())
