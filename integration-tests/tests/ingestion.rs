@@ -27,7 +27,7 @@ use xayn_integration_tests::{
     with_text_extractor_options,
     UNCHANGED_CONFIG,
 };
-use xayn_web_api::WebApi;
+use xayn_web_api::{Ingestion, Personalization};
 
 async fn ingest(client: &Client, url: &Url) -> Result<(), anyhow::Error> {
     send_assert(
@@ -72,7 +72,7 @@ struct Error {
 
 #[test]
 fn test_ingestion_created() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
@@ -103,7 +103,7 @@ fn test_ingestion_created() {
 
 #[test]
 fn test_ingestion_bad_request() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         let long_snippet = vec!["a"; 2049].join("");
         let error = send_assert_json::<Error>(
             &client,
@@ -217,7 +217,7 @@ fn test_ingestion_created_with_file() {
         .map(Into::into)
         .collect();
 
-    test_app::<WebApi, _>(
+    test_app::<Ingestion, _>(
         with_text_extractor_options(allowed_content_type, None),
         |client, url, _| async move {
             send_assert(
@@ -270,7 +270,7 @@ fn test_ingestion_created_with_file_bad_request() {
     );
 
     let txt_content = txt_content_data.clone();
-    test_app::<WebApi, _>(
+    test_app::<Ingestion, _>(
         with_text_extractor_options(vec![], None),
         |client, url, _| async move {
             send_assert(
@@ -353,7 +353,7 @@ fn test_ingestion_created_with_file_bad_request() {
     );
 
     let txt_content = txt_content_data;
-    test_app::<WebApi, _>(
+    test_app::<Ingestion, _>(
         with_text_extractor_options(vec![], Some(1)),
         |client, url, _| async move {
             send_assert(
@@ -378,7 +378,7 @@ fn test_ingestion_created_with_file_bad_request() {
 
 #[test]
 fn test_deletion() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
@@ -418,7 +418,7 @@ struct SemanticSearchResponse {
 
 #[test]
 fn test_reingestion_candidates() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -508,7 +508,7 @@ fn test_reingestion_candidates() {
 // new and changed documents have been logged and manually check the databases
 #[test]
 fn test_reingestion_snippets() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
             client
@@ -555,7 +555,7 @@ struct OrderPropertyResponse {
 
 #[test]
 fn test_ingestion_same_id() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
             client
@@ -598,7 +598,7 @@ fn test_ingestion_same_id() {
 
 #[test]
 fn test_ingestion_validation() {
-    test_app::<WebApi, _>(
+    test_app::<Ingestion, _>(
         Some(toml! {
             [ingestion]
             max_snippet_size = 10

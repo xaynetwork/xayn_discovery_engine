@@ -24,7 +24,7 @@ use xayn_integration_tests::{
     with_dev_options,
     UNCHANGED_CONFIG,
 };
-use xayn_web_api::WebApi;
+use xayn_web_api::{Ingestion, Personalization};
 
 async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     send_assert(
@@ -96,7 +96,7 @@ macro_rules! assert_order {
 
 #[test]
 fn test_semantic_search() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -141,7 +141,7 @@ fn test_semantic_search() {
 
 #[test]
 fn test_semantic_search_with_query() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -211,7 +211,7 @@ fn test_semantic_search_with_query() {
 
 #[test]
 fn test_semantic_search_with_dev_option_hybrid() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
@@ -322,7 +322,7 @@ fn test_semantic_search_with_dev_option_hybrid() {
 
 #[test]
 fn test_semantic_search_with_dev_option_candidates() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
@@ -391,7 +391,7 @@ fn test_semantic_search_with_dev_option_candidates() {
 
 #[test]
 fn test_semantic_search_include_snippet() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -434,7 +434,7 @@ fn test_semantic_search_include_snippet() {
 
 #[test]
 fn test_semantic_search_with_dev_option_raw_scores() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {

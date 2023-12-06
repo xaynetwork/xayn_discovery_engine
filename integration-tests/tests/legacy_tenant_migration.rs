@@ -35,7 +35,7 @@ use xayn_integration_tests::{
     TEST_EMBEDDING_SIZE,
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env};
-use xayn_web_api::{config, start, Application, WebApi};
+use xayn_web_api::{config, start, Application, Ingestion, Personalization};
 use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
     elastic,
@@ -181,7 +181,7 @@ fn test_full_migration() {
 
         let (pg_config, es_config) = legacy_test_setup(&test_id).await?;
         let ingestion_config = build_test_config_from_parts_and_names(
-            WebApi::NAME,
+            Ingestion::NAME,
             &pg_config,
             &es_config,
             Table::new(),
@@ -190,7 +190,7 @@ fn test_full_migration() {
         );
 
         let personalization_config = build_test_config_from_parts_and_names(
-            WebApi::NAME,
+            Personalization::NAME,
             &pg_config,
             &es_config,
             Table::new(),
@@ -308,7 +308,7 @@ fn test_full_migration() {
 
         let config = config::load_with_args([""; 0], {
             let config = build_test_config_from_parts_and_names(
-                WebApi::NAME,
+                Ingestion::NAME,
                 &pg_config,
                 &es_config,
                 Table::new(),
@@ -323,12 +323,12 @@ fn test_full_migration() {
                 &format!("inline:{config}"),
             ]
         });
-        let ingestion = start::<WebApi>(config).await?;
+        let ingestion = start::<Ingestion>(config).await?;
         info!("started new ingestion");
         let ingestion_url = ingestion.url();
         let config = config::load_with_args([""; 0], {
             let config = build_test_config_from_parts_and_names(
-                WebApi::NAME,
+                Personalization::NAME,
                 &pg_config,
                 &es_config,
                 Table::new(),
@@ -343,7 +343,7 @@ fn test_full_migration() {
                 &format!("inline:{config}"),
             ]
         });
-        let personalization = start::<WebApi>(config).await?;
+        let personalization = start::<Personalization>(config).await?;
         info!("started new personalization");
         let personalization_url = personalization.url();
 

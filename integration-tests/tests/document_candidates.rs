@@ -20,7 +20,7 @@ use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_app, UNCHANGED_CONFIG};
-use xayn_web_api::WebApi;
+use xayn_web_api::Ingestion;
 
 async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
@@ -72,7 +72,7 @@ async fn set(client: &Client, url: &Url, ids: impl IntoIterator<Item = &str>) ->
 
 #[test]
 fn test_candidates_all() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -84,7 +84,7 @@ fn test_candidates_all() {
 
 #[test]
 fn test_candidates_some() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -96,7 +96,7 @@ fn test_candidates_some() {
 
 #[test]
 fn test_candidates_none() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -108,7 +108,7 @@ fn test_candidates_none() {
 
 #[test]
 fn test_candidates_not_default() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         send_assert(
             &client,
@@ -154,7 +154,7 @@ struct ServerError {
 
 #[test]
 fn test_candidates_warning() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         ingest(&client, &url).await?;
         assert_eq!(get(&client, &url).await?.ids(), ["d1", "d2", "d3"].into());
@@ -182,7 +182,7 @@ fn test_candidates_warning() {
 
 #[test]
 fn test_candidates_reingestion() {
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         assert!(get(&client, &url).await?.ids().is_empty());
         send_assert(
             &client,
@@ -254,7 +254,7 @@ fn test_deprecated_candidates() {
         Ok(())
     }
 
-    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         deprecated_candidates(&client, &url, "/candidates").await?;
         deprecated_candidates(&client, &url, "/documents/candidates").await?;
 

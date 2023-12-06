@@ -19,7 +19,7 @@ use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_web_api::WebApi;
+use xayn_web_api::{Ingestion, Personalization};
 
 #[derive(Deserialize)]
 struct PersonalizedDocumentData {
@@ -32,7 +32,7 @@ struct PersonalizedDocumentsResponse {
 }
 
 fn store_user_history(enabled: bool) {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         Some(toml! {
             [personalization]

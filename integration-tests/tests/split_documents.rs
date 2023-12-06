@@ -29,7 +29,7 @@ use xayn_integration_tests::{
     with_dev_options,
     UNCHANGED_CONFIG,
 };
-use xayn_web_api::WebApi;
+use xayn_web_api::{Ingestion, Personalization};
 
 #[derive(Debug, Deserialize)]
 struct PersonalizedDocumentData {
@@ -193,7 +193,7 @@ async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
 
 #[test]
 fn test_split_documents_for_semantic_search() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
@@ -232,7 +232,7 @@ fn test_split_documents_for_semantic_search() {
 
 #[test]
 fn test_split_documents_with_set_candidates() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
@@ -271,7 +271,7 @@ fn test_split_documents_with_set_candidates() {
 
 #[test]
 fn test_split_documents_with_property_updates() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {
@@ -438,7 +438,7 @@ fn test_split_documents_with_property_updates() {
 
 #[test]
 fn test_split_allows_huge_snippets() {
-    test_app::<WebApi, _>(
+    test_app::<Ingestion, _>(
         Some(toml! {
             [ingestion]
             max_snippet_size = 3
@@ -493,7 +493,7 @@ fn test_split_allows_huge_snippets() {
 
 #[test]
 fn test_endpoints_which_do_not_yet_fully_support_split_do_not_fall_over() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         with_dev_options(),
         |client, ingestion_url, personalization_url, _| async move {

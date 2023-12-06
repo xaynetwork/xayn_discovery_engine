@@ -62,7 +62,7 @@ use tracing_subscriber::{
     Layer,
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env, workspace::find_workspace_dir};
-use xayn_web_api::{config, start, AppHandle, Application, WebApi};
+use xayn_web_api::{config, start, AppHandle, Application, Ingestion};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
@@ -723,7 +723,7 @@ pub fn build_test_config_from_parts_and_names(
         },
     );
 
-    if app_name == WebApi::NAME {
+    if app_name == Ingestion::NAME {
         let python_workspace = workspace.join("./snippet-extractor").display().to_string();
         let tokenizer = model_dir.join("tokenizer.json").display().to_string();
         let limit_to_two_threads = (num_cpus::get() as f32).recip() * 2.;

@@ -20,7 +20,7 @@ use reqwest::{Client, Request, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_web_api::WebApi;
+use xayn_web_api::{Ingestion, Personalization};
 use xayn_web_api_shared::serde::json_object;
 
 async fn ingest_with_dates(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
@@ -304,7 +304,7 @@ async fn personalize(
 
 #[test]
 fn test_personalization_all_dates() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -325,7 +325,7 @@ fn test_personalization_all_dates() {
 
 #[test]
 fn test_personalization_limited_dates() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -352,7 +352,7 @@ fn test_personalization_limited_dates() {
 
 #[test]
 fn test_personalization_with_tags() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -372,7 +372,7 @@ fn test_personalization_with_tags() {
 }
 
 fn personalization_include_properties(include_properties: bool) {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -413,7 +413,7 @@ fn test_personalization_exclude_properties() {
 
 #[test]
 fn test_personalize_no_body() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {

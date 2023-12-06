@@ -19,7 +19,7 @@ use serde::Deserialize;
 use serde_json::json;
 use toml::toml;
 use xayn_integration_tests::{send_assert_json, test_app};
-use xayn_web_api::WebApi;
+use xayn_web_api::Ingestion;
 use xayn_web_api_db_ctrl::{OperationResult, Tenant};
 use xayn_web_api_shared::request::TenantId;
 
@@ -30,7 +30,7 @@ struct ManagementResponse {
 
 #[test]
 fn test_tenants_can_be_created() {
-    test_app::<WebApi, _>(
+    test_app::<Ingestion, _>(
         Some(toml! {
             [tenants]
             enable_legacy_tenant = false
