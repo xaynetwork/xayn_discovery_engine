@@ -21,10 +21,7 @@ use actix_web::{
 };
 use anyhow::anyhow;
 use base64::{engine::general_purpose, Engine as _};
-use futures_util::{
-    stream::{FuturesOrdered, StreamExt},
-    TryFutureExt,
-};
+use futures_util::stream::{FuturesOrdered, StreamExt};
 use itertools::{Either, Itertools};
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -33,11 +30,9 @@ use tokio::time::Instant;
 use tracing::{debug, error, info, instrument};
 use xayn_web_api_db_ctrl::{Operation, Silo};
 
-use super::preprocessor::PreprocessError;
+use super::{preprocessor::PreprocessError, AppState};
 use crate::{
-    app::{AppState, TenantState},
-    backoffice,
-    backoffice::IngestionConfig,
+    app::TenantState,
     embedding::EmbeddingKind,
     error::common::{
         BadRequest,
@@ -51,6 +46,7 @@ use crate::{
         FileUploadNotEnabled,
         InvalidDocumentSnippet,
     },
+    ingestion::IngestionConfig,
     models::{
         self,
         DocumentId,
@@ -67,7 +63,7 @@ use crate::{
     Error,
 };
 
-pub(crate) fn configure_service(config: &mut ServiceConfig) {
+pub(super) fn configure_service(config: &mut ServiceConfig) {
     config
         .service(
             web::resource("/documents")
@@ -111,7 +107,7 @@ pub(crate) fn configure_service(config: &mut ServiceConfig) {
         );
 }
 
-pub(crate) fn configure_ops_service(config: &mut ServiceConfig) {
+pub(super) fn configure_ops_service(config: &mut ServiceConfig) {
     config.service(web::resource("/silo_management").route(web::post().to(silo_management)));
 }
 
@@ -494,17 +490,9 @@ async fn upsert_documents(
             let id = document.id;
             let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
 
-            let result = backoffice::preprocessor::preprocess(
-                &state.embedder,
-                || state.snippet_extractor.get().map_err(Error::from),
-                &state.extractor,
-                EmbeddingKind::Content,
-                document.original,
-                &mut document.preprocessing_step,
-            )
-                .await;
-
-            match result
+            match state
+                .preprocess(EmbeddingKind::Content, document.original, &mut document.preprocessing_step)
+                .await
             {
                 Ok(snippets) => Ok(models::DocumentForIngestion {
                     id,

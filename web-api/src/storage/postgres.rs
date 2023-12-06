@@ -56,7 +56,7 @@ use super::{
     TagWeights,
 };
 use crate::{
-    backoffice::IngestionConfig,
+    ingestion::IngestionConfig,
     models::{
         DocumentContent,
         DocumentDevData,

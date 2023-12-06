@@ -19,7 +19,7 @@ use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_web_api::WebApi;
+use xayn_web_api::{Ingestion, Personalization};
 
 #[derive(Serialize)]
 struct IngestedDocument {
@@ -93,7 +93,7 @@ struct BadRequest {
 
 #[test]
 fn test_filter_boolean() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -178,7 +178,7 @@ fn test_filter_boolean() {
 
 #[test]
 fn test_filter_keyword() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -263,7 +263,7 @@ fn test_filter_keyword() {
 
 #[test]
 fn test_filter_keyword_array_single() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -378,7 +378,7 @@ fn test_filter_keyword_array_single() {
 
 #[test]
 fn test_filter_keyword_array_multiple() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -509,7 +509,7 @@ fn test_filter_keyword_array_multiple() {
 
 #[test]
 fn test_filter_combine() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -677,7 +677,7 @@ fn test_filter_combine() {
 
 #[test]
 fn test_filter_number() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -783,7 +783,7 @@ fn test_filter_number() {
 
 #[test]
 fn test_filter_date() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -897,7 +897,7 @@ fn test_filter_date() {
 
 #[test]
 fn test_filter_no_value() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {
@@ -1004,7 +1004,7 @@ fn test_filter_no_value() {
 
 #[test]
 fn test_deprecated_published_after() {
-    test_two_apps::<WebApi, WebApi, _>(
+    test_two_apps::<Ingestion, Personalization, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _| async move {

@@ -17,8 +17,8 @@ use std::{borrow::Cow, cmp::Ordering, collections::HashMap};
 use serde::{Serialize, Serializer};
 
 use crate::{
-    frontoffice::filter::{self, Combine, CombineOp, Compare, CompareOp},
     models::{DocumentId, DocumentProperty, DocumentPropertyId, SnippetId},
+    personalization::filter::{self, Combine, CombineOp, Compare, CompareOp},
     storage::Exclusions,
 };
 
