@@ -23,11 +23,10 @@ use xayn_integration_tests::{
     send_assert,
     send_assert_json,
     test_app,
-    test_two_apps,
     with_text_extractor_options,
     UNCHANGED_CONFIG,
 };
-use xayn_web_api::{Ingestion, Personalization};
+use xayn_web_api::WebApi;
 
 async fn ingest(client: &Client, url: &Url) -> Result<(), anyhow::Error> {
     send_assert(
@@ -72,7 +71,7 @@ struct Error {
 
 #[test]
 fn test_ingestion_created() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
@@ -103,7 +102,7 @@ fn test_ingestion_created() {
 
 #[test]
 fn test_ingestion_bad_request() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         let long_snippet = vec!["a"; 2049].join("");
         let error = send_assert_json::<Error>(
             &client,
@@ -217,7 +216,7 @@ fn test_ingestion_created_with_file() {
         .map(Into::into)
         .collect();
 
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         with_text_extractor_options(allowed_content_type, None),
         |client, url, _| async move {
             send_assert(
@@ -270,7 +269,7 @@ fn test_ingestion_created_with_file_bad_request() {
     );
 
     let txt_content = txt_content_data.clone();
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         with_text_extractor_options(vec![], None),
         |client, url, _| async move {
             send_assert(
@@ -353,7 +352,7 @@ fn test_ingestion_created_with_file_bad_request() {
     );
 
     let txt_content = txt_content_data;
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         with_text_extractor_options(vec![], Some(1)),
         |client, url, _| async move {
             send_assert(
@@ -378,7 +377,7 @@ fn test_ingestion_created_with_file_bad_request() {
 
 #[test]
 fn test_deletion() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         ingest(&client, &url).await?;
         send_assert(
             &client,
@@ -418,89 +417,85 @@ struct SemanticSearchResponse {
 
 #[test]
 fn test_reingestion_candidates() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            send_assert(
-                &client,
-                client
-                    .post(ingestion_url.join("/documents")?)
-                    .json(&json!({
-                        "documents": [
-                            { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
-                            { "id": "d2", "snippet": "snippet 2", "is_candidate": true },
-                            { "id": "d3", "snippet": "snippet 3", "is_candidate": false },
-                            { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
-                        ]
-                    }))
-                    .build()?,
-                StatusCode::CREATED,
-                false,
-            )
-            .await;
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "snippet" },
-                        "enable_hybrid_search": true
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_eq!(
-                documents
-                    .iter()
-                    .map(|document| document.id.as_str())
-                    .collect::<HashSet<_>>(),
-                ["d1", "d2"].into(),
-            );
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                        { "id": "d2", "snippet": "snippet 2", "is_candidate": true },
+                        { "id": "d3", "snippet": "snippet 3", "is_candidate": false },
+                        { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+            false,
+        )
+        .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "snippet" },
+                    "enable_hybrid_search": true
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d2"].into(),
+        );
 
-            send_assert(
-                &client,
-                client
-                    .post(ingestion_url.join("/documents")?)
-                    .json(&json!({
-                        "documents": [
-                            { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
-                            { "id": "d2", "snippet": "snippet 2", "is_candidate": false },
-                            { "id": "d3", "snippet": "snippet 3", "is_candidate": true },
-                            { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
-                        ]
-                    }))
-                    .build()?,
-                StatusCode::CREATED,
-                false,
-            )
-            .await;
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "snippet" },
-                        "enable_hybrid_search": true
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_eq!(
-                documents
-                    .iter()
-                    .map(|document| document.id.as_str())
-                    .collect::<HashSet<_>>(),
-                ["d1", "d3"].into(),
-            );
+        send_assert(
+            &client,
+            client
+                .post(url.join("/documents")?)
+                .json(&json!({
+                    "documents": [
+                        { "id": "d1", "snippet": "snippet 1", "is_candidate": true },
+                        { "id": "d2", "snippet": "snippet 2", "is_candidate": false },
+                        { "id": "d3", "snippet": "snippet 3", "is_candidate": true },
+                        { "id": "d4", "snippet": "snippet 4", "is_candidate": false }
+                    ]
+                }))
+                .build()?,
+            StatusCode::CREATED,
+            false,
+        )
+        .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "snippet" },
+                    "enable_hybrid_search": true
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_eq!(
+            documents
+                .iter()
+                .map(|document| document.id.as_str())
+                .collect::<HashSet<_>>(),
+            ["d1", "d3"].into(),
+        );
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 // currently there is no endpoint to actually check the changed snippets/embeddings, but we can at
@@ -508,7 +503,7 @@ fn test_reingestion_candidates() {
 // new and changed documents have been logged and manually check the databases
 #[test]
 fn test_reingestion_snippets() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
             client
@@ -555,7 +550,7 @@ struct OrderPropertyResponse {
 
 #[test]
 fn test_ingestion_same_id() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
         send_assert(
             &client,
             client
@@ -598,7 +593,7 @@ fn test_ingestion_same_id() {
 
 #[test]
 fn test_ingestion_validation() {
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         Some(toml! {
             [ingestion]
             max_snippet_size = 10

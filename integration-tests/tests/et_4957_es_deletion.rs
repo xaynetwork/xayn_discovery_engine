@@ -43,15 +43,8 @@ use reqwest::{Client, StatusCode};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use url::Url;
-use xayn_integration_tests::{
-    send_assert,
-    send_assert_json,
-    test_app,
-    test_two_apps,
-    Services,
-    UNCHANGED_CONFIG,
-};
-use xayn_web_api::{Ingestion, Personalization};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app, Services, UNCHANGED_CONFIG};
+use xayn_web_api::WebApi;
 use xayn_web_api_shared::json_object;
 
 async fn get_candidates(client: &Client, url: &Url) -> Result<HashSet<String>, Error> {
@@ -216,195 +209,180 @@ fn string_set(x: impl IntoIterator<Item = impl Into<String>>) -> HashSet<String>
 
 #[test]
 fn test_deletes_them_from_elastic_search() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, services| async move {
-            ingest(&client, &ingestion_url, [("d1", "foo")]).await?;
-            set_candidates(&client, &ingestion_url, ["d1"]).await?;
-            assert_eq!(
-                get_candidates(&client, &ingestion_url).await?,
-                string_set(["d1"])
-            );
-            ingest(
-                &client,
-                &ingestion_url,
-                [
-                    ("d1", "daa"),
-                    ("d2", "foo"),
-                    ("d3", "bar"),
-                    ("d4", "dee"),
-                    ("d5", "doo"),
-                    ("d6", "doo"),
-                    ("d7", "eoo"),
-                    ("d8", "aoo"),
-                    ("d9", "uee"),
-                ],
-            )
-            .await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, services| async move {
+        ingest(&client, &url, [("d1", "foo")]).await?;
+        set_candidates(&client, &url, ["d1"]).await?;
+        assert_eq!(get_candidates(&client, &url).await?, string_set(["d1"]));
+        ingest(
+            &client,
+            &url,
+            [
+                ("d1", "daa"),
+                ("d2", "foo"),
+                ("d3", "bar"),
+                ("d4", "dee"),
+                ("d5", "doo"),
+                ("d6", "doo"),
+                ("d7", "eoo"),
+                ("d8", "aoo"),
+                ("d9", "uee"),
+            ],
+        )
+        .await?;
 
-            assert_eq!(
-                get_candidates(&client, &ingestion_url).await?,
-                string_set(["d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"])
-            );
-            delete(&client, &ingestion_url, ["d1"]).await?;
-            let properties = json!({ "foo": "bar" });
-            set_properties(&client, &ingestion_url, "d2", &properties).await?;
-            assert_eq!(
-                get_properties(&client, &ingestion_url, "d2").await?,
-                properties
-            );
-            interact(&client, &personalization_url, "u1", ["d3", "d4"]).await?;
-            interact(&client, &personalization_url, "u1", ["d3"]).await?;
-            interact(&client, &personalization_url, "u1", ["d7"]).await?;
+        assert_eq!(
+            get_candidates(&client, &url).await?,
+            string_set(["d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"])
+        );
+        delete(&client, &url, ["d1"]).await?;
+        let properties = json!({ "foo": "bar" });
+        set_properties(&client, &url, "d2", &properties).await?;
+        assert_eq!(get_properties(&client, &url, "d2").await?, properties);
+        interact(&client, &url, "u1", ["d3", "d4"]).await?;
+        interact(&client, &url, "u1", ["d3"]).await?;
+        interact(&client, &url, "u1", ["d7"]).await?;
 
-            assert!(!recommendations(&client, &personalization_url, "u1")
-                .await?
-                .is_empty());
+        assert!(!recommendations(&client, &url, "u1").await?.is_empty());
 
-            let res: Value = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "id": "d5" }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_eq!(res["documents"][0]["id"].as_str().unwrap(), "d6");
+        let res: Value = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "id": "d5" }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_eq!(res["documents"][0]["id"].as_str().unwrap(), "d6");
 
-            let res: Value = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "id": "d5" },
-                        "personalize": {
-                            "user": {
-                                "history": [
-                                    { "id": "d6" }
-                                ]
-                            }
+        let res: Value = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "id": "d5" },
+                    "personalize": {
+                        "user": {
+                            "history": [
+                                { "id": "d6" }
+                            ]
                         }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert!(!res["documents"].as_array().unwrap().is_empty());
+                    }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert!(!res["documents"].as_array().unwrap().is_empty());
 
-            let res: Value = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "uee" }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_eq!(res["documents"][0]["id"].as_str().unwrap(), "d9");
+        let res: Value = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "uee" }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_eq!(res["documents"][0]["id"].as_str().unwrap(), "d9");
 
-            set_candidates(&client, &ingestion_url, ["d5"]).await?;
-            assert_eq!(documents_from_es(&services).await?, string_set(["d5"]));
-            assert_eq!(
-                recommendations(&client, &personalization_url, "u1").await?,
-                vec!["d5".to_owned()]
-            );
+        set_candidates(&client, &url, ["d5"]).await?;
+        assert_eq!(documents_from_es(&services).await?, string_set(["d5"]));
+        assert_eq!(
+            recommendations(&client, &url, "u1").await?,
+            vec!["d5".to_owned()]
+        );
 
-            delete(
-                &client,
-                &ingestion_url,
-                ["d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"],
-            )
-            .await?;
-            assert!(documents_from_es(&services).await?.is_empty());
-            Ok(())
-        },
-    );
+        delete(
+            &client,
+            &url,
+            ["d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"],
+        )
+        .await?;
+        assert!(documents_from_es(&services).await?.is_empty());
+        Ok(())
+    });
 }
 
 #[test]
 fn test_deletes_them_from_elastic_search_2() {
-    test_app::<Ingestion, _>(
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, services| async move {
-            ingest(
-                &client,
-                &ingestion_url,
-                [("d1", "foo"), ("d2", "bar"), ("d3", "baz"), ("d4", "bat")],
-            )
-            .await?;
-            set_candidates(&client, &ingestion_url, []).await?;
-            assert!(documents_from_es(&services).await?.is_empty());
-            set_candidates(&client, &ingestion_url, ["d3", "d4"]).await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d3", "d4"])
-            );
-            set_candidates(&client, &ingestion_url, ["d1", "d4"]).await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d1", "d4"])
-            );
-            set_candidates(&client, &ingestion_url, ["d1", "d2", "d3"]).await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d1", "d2", "d3"])
-            );
-            set_candidates(&client, &ingestion_url, []).await?;
-            assert!(documents_from_es(&services).await?.is_empty());
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, services| async move {
+        ingest(
+            &client,
+            &url,
+            [("d1", "foo"), ("d2", "bar"), ("d3", "baz"), ("d4", "bat")],
+        )
+        .await?;
+        set_candidates(&client, &url, []).await?;
+        assert!(documents_from_es(&services).await?.is_empty());
+        set_candidates(&client, &url, ["d3", "d4"]).await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d3", "d4"])
+        );
+        set_candidates(&client, &url, ["d1", "d4"]).await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d1", "d4"])
+        );
+        set_candidates(&client, &url, ["d1", "d2", "d3"]).await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d1", "d2", "d3"])
+        );
+        set_candidates(&client, &url, []).await?;
+        assert!(documents_from_es(&services).await?.is_empty());
 
-            ingest(
-                &client,
-                &ingestion_url,
-                [("d1", "foo2"), ("d2", "bar2"), ("d3", "baz"), ("d4", "bat")],
-            )
-            .await?;
-            set_candidates(&client, &ingestion_url, ["d3", "d4"]).await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d3", "d4"])
-            );
-            set_candidates(&client, &ingestion_url, ["d1", "d4"]).await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d1", "d4"])
-            );
-            set_candidates(&client, &ingestion_url, ["d1", "d2", "d3"]).await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d1", "d2", "d3"])
-            );
+        ingest(
+            &client,
+            &url,
+            [("d1", "foo2"), ("d2", "bar2"), ("d3", "baz"), ("d4", "bat")],
+        )
+        .await?;
+        set_candidates(&client, &url, ["d3", "d4"]).await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d3", "d4"])
+        );
+        set_candidates(&client, &url, ["d1", "d4"]).await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d1", "d4"])
+        );
+        set_candidates(&client, &url, ["d1", "d2", "d3"]).await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d1", "d2", "d3"])
+        );
 
-            delete(&client, &ingestion_url, ["d1", "d3", "d4"]).await?;
-            assert_eq!(documents_from_es(&services).await?, string_set(["d2"]));
-            set_candidates(&client, &ingestion_url, []).await?;
-            assert!(documents_from_es(&services).await?.is_empty());
+        delete(&client, &url, ["d1", "d3", "d4"]).await?;
+        assert_eq!(documents_from_es(&services).await?, string_set(["d2"]));
+        set_candidates(&client, &url, []).await?;
+        assert!(documents_from_es(&services).await?.is_empty());
 
-            ingest(
-                &client,
-                &ingestion_url,
-                [("d1", "foo2"), ("d3", "baz"), ("d4", "bat")],
-            )
-            .await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d1", "d3", "d4"])
-            );
+        ingest(
+            &client,
+            &url,
+            [("d1", "foo2"), ("d3", "baz"), ("d4", "bat")],
+        )
+        .await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d1", "d3", "d4"])
+        );
 
-            set_candidates(&client, &ingestion_url, ["d1", "d2", "d3", "d4"]).await?;
-            assert_eq!(
-                documents_from_es(&services).await?,
-                string_set(["d1", "d2", "d3", "d4"])
-            );
-            Ok(())
-        },
-    )
+        set_candidates(&client, &url, ["d1", "d2", "d3", "d4"]).await?;
+        assert_eq!(
+            documents_from_es(&services).await?,
+            string_set(["d1", "d2", "d3", "d4"])
+        );
+        Ok(())
+    })
 }

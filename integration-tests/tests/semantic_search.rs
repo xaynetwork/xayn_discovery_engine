@@ -20,17 +20,17 @@ use serde_json::json;
 use xayn_integration_tests::{
     send_assert,
     send_assert_json,
-    test_two_apps,
+    test_app,
     with_dev_options,
     UNCHANGED_CONFIG,
 };
-use xayn_web_api::{Ingestion, Personalization};
+use xayn_web_api::WebApi;
 
-async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
+async fn ingest(client: &Client, url: &Url) -> Result<(), Error> {
     send_assert(
         client,
         client
-            .post(ingestion_url.join("/documents")?)
+            .post(url.join("/documents")?)
             .json(&json!({
                 "documents": [
                     { "id": "d1", "snippet": "this is one sentence which we have" },
@@ -96,403 +96,379 @@ macro_rules! assert_order {
 
 #[test]
 fn test_semantic_search() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest(&client, &url).await?;
 
-            send_assert(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "id": "d1" },
-                        "_dev": { "max_number_candidates": 100 }
-                    }))
-                    .build()?,
-                StatusCode::FORBIDDEN,
-                false,
-            )
-            .await;
+        send_assert(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "id": "d1" },
+                    "_dev": { "max_number_candidates": 100 }
+                }))
+                .build()?,
+            StatusCode::FORBIDDEN,
+            false,
+        )
+        .await;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({ "document": { "id": "d1" } }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(
-                documents,
-                ["d3", "d2"],
-                "unexpected documents: {documents:?}",
-            );
-            assert_eq!(documents[0].properties, None);
-            assert_eq!(documents[1].properties, Some(json!({ "dodo": 4 })));
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({ "document": { "id": "d1" } }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(
+            documents,
+            ["d3", "d2"],
+            "unexpected documents: {documents:?}",
+        );
+        assert_eq!(documents[0].properties, None);
+        assert_eq!(documents[1].properties, Some(json!({ "dodo": 4 })));
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_semantic_search_with_query() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest(&client, &url).await?;
 
-            send_assert(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({ "document": { "query": "" } }))
-                    .build()?,
-                StatusCode::BAD_REQUEST,
-                false,
-            )
-            .await;
+        send_assert(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({ "document": { "query": "" } }))
+                .build()?,
+            StatusCode::BAD_REQUEST,
+            false,
+        )
+        .await;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "include_properties": true
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(
-                documents,
-                ["d1", "d3", "d2"],
-                "unexpected documents: {documents:?}",
-            );
-            assert_eq!(documents[0].properties, None);
-            assert_eq!(documents[1].properties, None);
-            assert_eq!(documents[2].properties, Some(json!({ "dodo": 4 })));
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "include_properties": true
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(
+            documents,
+            ["d1", "d3", "d2"],
+            "unexpected documents: {documents:?}",
+        );
+        assert_eq!(documents[0].properties, None);
+        assert_eq!(documents[1].properties, None);
+        assert_eq!(documents[2].properties, Some(json!({ "dodo": 4 })));
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "include_properties": false
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(
-                documents,
-                ["d1", "d3", "d2"],
-                "unexpected documents: {documents:?}",
-            );
-            assert!(documents[0].properties.is_none());
-            assert!(documents[1].properties.is_none());
-            assert!(documents[2].properties.is_none());
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "include_properties": false
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(
+            documents,
+            ["d1", "d3", "d2"],
+            "unexpected documents: {documents:?}",
+        );
+        assert!(documents[0].properties.is_none());
+        assert!(documents[1].properties.is_none());
+        assert!(documents[2].properties.is_none());
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_semantic_search_with_dev_option_hybrid() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        with_dev_options(),
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(with_dev_options(), |client, url, _| async move {
+        ingest(&client, &url).await?;
 
-            send_assert_json::<SemanticSearchResponse>(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "_dev": { "hybrid": { "customize": {
-                            "normalize_knn": "identity",
-                            "normalize_bm25": "normalize_if_max_gt1",
-                            "merge_fn": { "sum": {} }
-                        } } }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        send_assert_json::<SemanticSearchResponse>(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "_dev": { "hybrid": { "customize": {
+                        "normalize_knn": "identity",
+                        "normalize_bm25": "normalize_if_max_gt1",
+                        "merge_fn": { "sum": {} }
+                    } } }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            send_assert_json::<SemanticSearchResponse>(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "_dev": { "hybrid": { "customize": {
-                            "normalize_knn": "normalize",
-                            "normalize_bm25": "normalize",
-                            "merge_fn": { "sum": {} }
-                        } } }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        send_assert_json::<SemanticSearchResponse>(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "_dev": { "hybrid": { "customize": {
+                        "normalize_knn": "normalize",
+                        "normalize_bm25": "normalize",
+                        "merge_fn": { "sum": {} }
+                    } } }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            send_assert_json::<SemanticSearchResponse>(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "_dev": { "hybrid": { "customize": {
-                            "normalize_knn": "identity",
-                            "normalize_bm25": "identity",
-                            "merge_fn": { "rrf": { "rank_constant": 60. } }
-                        } } }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        send_assert_json::<SemanticSearchResponse>(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "_dev": { "hybrid": { "customize": {
+                        "normalize_knn": "identity",
+                        "normalize_bm25": "identity",
+                        "merge_fn": { "rrf": { "rank_constant": 60. } }
+                    } } }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            send_assert_json::<SemanticSearchResponse>(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "_dev": { "hybrid": { "customize": {
-                            "normalize_knn": "identity",
-                            "normalize_bm25": "identity",
-                            "merge_fn": { "rrf": {} }
-                        } } }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        send_assert_json::<SemanticSearchResponse>(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "_dev": { "hybrid": { "customize": {
+                        "normalize_knn": "identity",
+                        "normalize_bm25": "identity",
+                        "merge_fn": { "rrf": {} }
+                    } } }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            send_assert_json::<SemanticSearchResponse>(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "_dev": { "hybrid": { "customize": {
-                            "normalize_knn": "identity",
-                            "normalize_bm25": "identity",
-                            "merge_fn": { "rrf": {
-                                "knn_weight": 0.8,
-                                "bm25_weight": 0.2
-                            } }
-                        } } }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        send_assert_json::<SemanticSearchResponse>(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "_dev": { "hybrid": { "customize": {
+                        "normalize_knn": "identity",
+                        "normalize_bm25": "identity",
+                        "merge_fn": { "rrf": {
+                            "knn_weight": 0.8,
+                            "bm25_weight": 0.2
+                        } }
+                    } } }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_semantic_search_with_dev_option_candidates() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        with_dev_options(),
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(with_dev_options(), |client, url, _| async move {
+        ingest(&client, &url).await?;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "count": 1,
-                        "_dev": { "max_number_candidates": 3 }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(documents, ["d1"], "unexpected documents: {documents:?}");
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "count": 1,
+                    "_dev": { "max_number_candidates": 3 }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(documents, ["d1"], "unexpected documents: {documents:?}");
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "count": 2,
-                        "_dev": { "max_number_candidates": 3 }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(
-                documents,
-                ["d1", "d3"],
-                "unexpected documents: {documents:?}",
-            );
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "count": 2,
+                    "_dev": { "max_number_candidates": 3 }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(
+            documents,
+            ["d1", "d3"],
+            "unexpected documents: {documents:?}",
+        );
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "count": 3,
-                        "_dev": { "max_number_candidates": 3 }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
-            assert_order!(
-                documents,
-                ["d1", "d3", "d2"],
-                "unexpected documents: {documents:?}",
-            );
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "count": 3,
+                    "_dev": { "max_number_candidates": 3 }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
+        assert_order!(
+            documents,
+            ["d1", "d3", "d2"],
+            "unexpected documents: {documents:?}",
+        );
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_semantic_search_include_snippet() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        UNCHANGED_CONFIG,
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |client, url, _| async move {
+        ingest(&client, &url).await?;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "count": 3,
-                        "include_snippet": true,
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "count": 3,
+                    "include_snippet": true,
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            assert_order!(
-                documents,
-                ["d1", "d3", "d2"],
-                "unexpected documents: {documents:?}",
-            );
-            assert_eq!(
-                documents[0].snippet.as_deref(),
-                Some("this is one sentence which we have")
-            );
-            assert_eq!(
-                documents[1].snippet.as_deref(),
-                Some("this is another sentence which we have")
-            );
-            assert_eq!(documents[2].snippet.as_deref(), Some("duck duck quack"));
+        assert_order!(
+            documents,
+            ["d1", "d3", "d2"],
+            "unexpected documents: {documents:?}",
+        );
+        assert_eq!(
+            documents[0].snippet.as_deref(),
+            Some("this is one sentence which we have")
+        );
+        assert_eq!(
+            documents[1].snippet.as_deref(),
+            Some("this is another sentence which we have")
+        );
+        assert_eq!(documents[2].snippet.as_deref(), Some("duck duck quack"));
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }
 
 #[test]
 fn test_semantic_search_with_dev_option_raw_scores() {
-    test_two_apps::<Ingestion, Personalization, _>(
-        UNCHANGED_CONFIG,
-        with_dev_options(),
-        |client, ingestion_url, personalization_url, _| async move {
-            ingest(&client, &ingestion_url).await?;
+    test_app::<WebApi, _>(with_dev_options(), |client, url, _| async move {
+        ingest(&client, &url).await?;
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "_dev": { "show_raw_scores": true }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "_dev": { "show_raw_scores": true }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            assert!(documents.iter().all(|document| document
-                .dev
-                .as_ref()
-                .unwrap()
-                .raw_scores
-                .as_ref()
-                .unwrap()
-                .knn
-                .is_some()));
+        assert!(documents.iter().all(|document| document
+            .dev
+            .as_ref()
+            .unwrap()
+            .raw_scores
+            .as_ref()
+            .unwrap()
+            .knn
+            .is_some()));
 
-            let SemanticSearchResponse { documents } = send_assert_json(
-                &client,
-                client
-                    .post(personalization_url.join("/semantic_search")?)
-                    .json(&json!({
-                        "document": { "query": "this is one sentence" },
-                        "enable_hybrid_search": true,
-                        "count": 100,
-                        "_dev": { "show_raw_scores": true }
-                    }))
-                    .build()?,
-                StatusCode::OK,
-                false,
-            )
-            .await;
+        let SemanticSearchResponse { documents } = send_assert_json(
+            &client,
+            client
+                .post(url.join("/semantic_search")?)
+                .json(&json!({
+                    "document": { "query": "this is one sentence" },
+                    "enable_hybrid_search": true,
+                    "count": 100,
+                    "_dev": { "show_raw_scores": true }
+                }))
+                .build()?,
+            StatusCode::OK,
+            false,
+        )
+        .await;
 
-            let documents_with_bm25 = ["d1", "d3"];
-            assert!(documents.iter().all(|document| {
-                let raw_scores = document.dev.as_ref().unwrap().raw_scores.as_ref().unwrap();
+        let documents_with_bm25 = ["d1", "d3"];
+        assert!(documents.iter().all(|document| {
+            let raw_scores = document.dev.as_ref().unwrap().raw_scores.as_ref().unwrap();
 
-                raw_scores.knn.is_some()
-                    && if documents_with_bm25.contains(&document.id.as_str()) {
-                        raw_scores.bm25.is_some()
-                    } else {
-                        true
-                    }
-            }));
+            raw_scores.knn.is_some()
+                && if documents_with_bm25.contains(&document.id.as_str()) {
+                    raw_scores.bm25.is_some()
+                } else {
+                    true
+                }
+        }));
 
-            Ok(())
-        },
-    );
+        Ok(())
+    });
 }

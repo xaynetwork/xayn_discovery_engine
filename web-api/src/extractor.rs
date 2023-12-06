@@ -29,8 +29,8 @@ use url::Url;
 use xayn_web_api_shared::{elastic::SegmentableUrl, serde::serde_duration_in_config};
 
 use crate::{
+    backoffice::preprocessor::PreprocessError,
     error::common::{FileUploadNotEnabled, InvalidBinary},
-    ingestion::preprocessor::PreprocessError,
     models::DocumentSnippet,
 };
 

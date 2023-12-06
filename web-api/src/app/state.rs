@@ -20,13 +20,16 @@ use actix_web::{
     FromRequest,
     HttpRequest,
 };
-use derive_more::{AsRef, Deref};
+use derive_more::AsRef;
 use futures_util::future::{ready, Ready};
+use xayn_ai_coi::CoiSystem;
+use xayn_snippet_extractor::pool::SnippetExtractorPool;
 use xayn_web_api_db_ctrl::Silo;
 use xayn_web_api_shared::request::TenantId;
 
 use crate::{
-    app::{Application, SetupError},
+    app::SetupError,
+    config::WebApiConfig,
     embedding::Embedder,
     error::common::InternalError,
     extractor::TextExtractor,
@@ -35,25 +38,19 @@ use crate::{
     Error,
 };
 
-#[derive(AsRef, Deref)]
-pub(crate) struct AppState<A>
-where
-    A: Application,
-{
+#[derive(AsRef)]
+pub(crate) struct AppState {
     #[as_ref(forward)]
-    pub(crate) config: A::Config,
+    pub(crate) config: WebApiConfig,
     pub(crate) embedder: Embedder,
     pub(crate) extractor: TextExtractor,
-    #[deref]
-    pub(crate) extension: A::Extension,
+    pub(crate) snippet_extractor: SnippetExtractorPool,
+    pub(crate) coi: CoiSystem,
     storage_builder: Arc<StorageBuilder>,
     silo: Arc<Silo>,
 }
 
-impl<A> AppState<A>
-where
-    A: Application,
-{
+impl AppState {
     pub(super) fn attach_to(self: Arc<Self>, service: &mut ServiceConfig) {
         service
             .app_data(self.storage_builder.clone())
@@ -61,19 +58,20 @@ where
             .app_data(Data::from(self));
     }
 
-    pub(super) async fn create(config: A::Config) -> Result<Self, SetupError> {
-        let extension = A::create_extension(&config)?;
+    pub(super) async fn create(config: WebApiConfig) -> Result<Self, SetupError> {
         // embedder config is validated during loading
         let embedder = Embedder::load(config.as_ref()).await?;
         let extractor = TextExtractor::new(config.as_ref())?;
         let (silo, legacy_tenant) =
             initialize_silo(config.as_ref(), config.as_ref(), embedder.embedding_size()).await?;
         let storage_builder = Arc::new(Storage::builder(config.as_ref(), legacy_tenant).await?);
+        let snippet_extractor = SnippetExtractorPool::new(config.as_ref())?;
         Ok(Self {
+            coi: config.coi.clone().build(),
             config,
             embedder,
             extractor,
-            extension,
+            snippet_extractor,
             storage_builder,
             silo: Arc::new(silo),
         })

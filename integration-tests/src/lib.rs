@@ -62,7 +62,7 @@ use tracing_subscriber::{
     Layer,
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env, workspace::find_workspace_dir};
-use xayn_web_api::{config, start, AppHandle, Application, Ingestion};
+use xayn_web_api::{config, start, AppHandle, Application, WebApi};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
@@ -523,51 +523,6 @@ pub fn test_app<A, F>(
     })
 }
 
-/// Like `test_app` but runs two applications in the same test context.
-pub fn test_two_apps<A1, A2, F>(
-    configure_first: Option<Table>,
-    configure_second: Option<Table>,
-    test: impl FnOnce(Arc<Client>, Arc<Url>, Arc<Url>, Services) -> F,
-) where
-    F: Future<Output = Result<(), Error>>,
-    A1: Application + 'static,
-    A2: Application + 'static,
-{
-    run_async_test(|test_id| async move {
-        let (configure_first, first_with_legacy) =
-            configure_with_enable_legacy_tenant_for_test(configure_first.unwrap_or_default());
-        let (configure_second, second_with_legacy) =
-            configure_with_enable_legacy_tenant_for_test(configure_second.unwrap_or_default());
-        assert_eq!(first_with_legacy, second_with_legacy);
-
-        let services = setup_web_dev_services(&test_id, first_with_legacy).await?;
-        let first_handle = start_test_application::<A1>(&services, configure_first).await;
-        let second_handle = start_test_application::<A2>(&services, configure_second).await;
-
-        test(
-            build_client(&services),
-            Arc::new(first_handle.url()),
-            Arc::new(second_handle.url()),
-            services.clone(),
-        )
-        .instrument(info_span!("call_test"))
-        .await?;
-        let (res1, res2) = tokio::join!(
-            first_handle
-                .stop_and_wait()
-                .instrument(info_span!("shutdown_first_server")),
-            second_handle
-                .stop_and_wait()
-                .instrument(info_span!("shutdown_second_server"))
-        );
-        res1.expect("first application to not fail during shutdown");
-        res2.expect("second application to not fail during shutdown");
-
-        services.cleanup_test().await?;
-        Ok(())
-    })
-}
-
 fn configure_with_enable_legacy_tenant_for_test(mut config: Table) -> (Table, bool) {
     let value = config
         .get("tenants")
@@ -723,7 +678,7 @@ pub fn build_test_config_from_parts_and_names(
         },
     );
 
-    if app_name == Ingestion::NAME {
+    if app_name == WebApi::NAME {
         let python_workspace = workspace.join("./snippet-extractor").display().to_string();
         let tokenizer = model_dir.join("tokenizer.json").display().to_string();
         let limit_to_two_threads = (num_cpus::get() as f32).recip() * 2.;

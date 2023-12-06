@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use xayn_ai_coi::CoiConfig;
 use xayn_test_utils::error::Panic;
 
-use crate::personalization::{routes::PersonalizeBy, PersonalizationConfig};
+use crate::frontoffice::{routes::PersonalizeBy, PersonalizationConfig};
 
 #[derive(Debug, Serialize)]
 pub(super) struct StateConfig {
