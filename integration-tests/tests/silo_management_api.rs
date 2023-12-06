@@ -21,11 +21,10 @@ use serde_json::json;
 use tokio::runtime::Runtime;
 use toml::toml;
 use url::Url;
-use xayn_integration_tests::{send_assert_json, test_app};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app};
 use xayn_web_api::WebApi;
 use xayn_web_api_db_ctrl::{elastic, tenant::Tenant, OperationResult};
 use xayn_web_api_shared::{elastic::ClientWithoutIndex, json_object, request::TenantId};
-
 
 #[derive(Deserialize)]
 struct ManagementResponse {
@@ -170,17 +169,12 @@ async fn search(client: &Client, url: &Url) -> Result<HashSet<String>, Error> {
 #[test]
 fn test_changing_the_es_index_works() {
     const TEST_INDEX: &str = "test_changing_the_es_index_works";
-
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_app::<WebApi, _>(
         Some(toml! {
             [tenants]
             enable_legacy_tenant = false
         }),
-        Some(toml! {
-            [tenants]
-            enable_legacy_tenant = false
-        }),
-        |client, url, personalization, services| async move {
+        |client, url, services| async move {
             struct CleanUp(Option<ClientWithoutIndex>);
             impl Drop for CleanUp {
                 fn drop(&mut self) {
@@ -196,10 +190,7 @@ fn test_changing_the_es_index_works() {
             let _cleanup = CleanUp(Some(services.silo.elastic_client().clone()));
 
             ingest(&client, &url, vec![("d0", "document 0")]).await?;
-            assert_eq!(
-                search(&client, &personalization).await?,
-                ["d0".to_owned()].into()
-            );
+            assert_eq!(search(&client, &url).await?, ["d0".to_owned()].into());
 
             let ManagementResponse { results } = send_assert_json(
                 &client,
@@ -256,7 +247,7 @@ fn test_changing_the_es_index_works() {
             .await;
             assert_eq!(results, vec![OperationResult::Success]);
 
-            assert_eq!(search(&client, &personalization).await?, [].into());
+            assert_eq!(search(&client, &url).await?, [].into());
 
             let ManagementResponse { results } = send_assert_json(
                 &client,
@@ -277,10 +268,7 @@ fn test_changing_the_es_index_works() {
             .await;
             assert_eq!(results, vec![OperationResult::Success]);
 
-            assert_eq!(
-                search(&client, &personalization).await?,
-                ["d0".to_owned()].into()
-            );
+            assert_eq!(search(&client, &url).await?, ["d0".to_owned()].into());
 
             Ok(())
         },
