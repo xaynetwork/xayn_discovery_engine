@@ -20,7 +20,7 @@ use serde_json::json;
 use toml::toml;
 use xayn_integration_tests::{send_assert_json, test_app};
 use xayn_web_api::WebApi;
-use xayn_web_api_db_ctrl::{OperationResult, Tenant};
+use xayn_web_api_db_ctrl::{tenant::Tenant, OperationResult};
 use xayn_web_api_shared::request::TenantId;
 
 #[derive(Deserialize)]
@@ -61,19 +61,13 @@ fn test_tenants_can_be_created() {
             assert_eq!(
                 results.next().unwrap(),
                 OperationResult::CreateTenant {
-                    tenant: Tenant {
-                        tenant_id: make_id("1")?,
-                        is_legacy_tenant: false,
-                    }
+                    tenant: Tenant::new_with_defaults(make_id("1")?, false, None),
                 }
             );
             assert_eq!(
                 results.next().unwrap(),
                 OperationResult::CreateTenant {
-                    tenant: Tenant {
-                        tenant_id: make_id("3")?,
-                        is_legacy_tenant: true,
-                    }
+                    tenant: Tenant::new_with_defaults(make_id("3")?, true, None)
                 }
             );
             assert!(matches!(
@@ -87,14 +81,8 @@ fn test_tenants_can_be_created() {
                 tenants.iter().collect::<HashSet<_>>(),
                 [
                     services.tenant.clone(),
-                    Tenant {
-                        tenant_id: make_id("1")?,
-                        is_legacy_tenant: false,
-                    },
-                    Tenant {
-                        tenant_id: make_id("3")?,
-                        is_legacy_tenant: true,
-                    }
+                    Tenant::new_with_defaults(make_id("1")?, false, None),
+                    Tenant::new_with_defaults(make_id("3")?, true, None),
                 ]
                 .iter()
                 .collect::<HashSet<_>>()
@@ -102,10 +90,7 @@ fn test_tenants_can_be_created() {
             assert_eq!(
                 results.next().unwrap(),
                 OperationResult::DeleteTenant {
-                    tenant: Some(Tenant {
-                        tenant_id: make_id("3")?,
-                        is_legacy_tenant: true,
-                    })
+                    tenant: Some(Tenant::new_with_defaults(make_id("3")?, true, None))
                 }
             );
             let OperationResult::ListTenants { tenants } = results.next().unwrap() else {
@@ -115,10 +100,7 @@ fn test_tenants_can_be_created() {
                 tenants.iter().collect::<HashSet<_>>(),
                 [
                     services.tenant.clone(),
-                    Tenant {
-                        tenant_id: make_id("1")?,
-                        is_legacy_tenant: false,
-                    },
+                    Tenant::new_with_defaults(make_id("1")?, false, None)
                 ]
                 .iter()
                 .collect()

@@ -35,7 +35,7 @@ use xayn_web_api_shared::{postgres::QuotedIdentifier, request::TenantId};
 
 pub(crate) use self::extern_migrations::ExternalMigrator;
 use self::extern_migrations::PgExternalMigrator;
-use crate::{Error, Tenant};
+use crate::{tenant::Tenant, Error};
 
 static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwrap());
 
@@ -71,15 +71,16 @@ const MIGRATION_LOCK_ID: i64 = 0;
 ///
 /// 3. Concurrently for each tenant a migration of their
 ///    schema will be run (if needed).
-#[instrument(skip_all, err)] //TODO log enable_legacy_tenant = legacy_setup.is_some
-pub(super) async fn initialize<F1, F2>(
+#[instrument(skip_all, err)]
+pub(super) async fn initialize<F1, F2, F3>(
     pool: &Pool<Postgres>,
-    legacy_setup: Option<impl FnOnce(TenantId) -> F1>,
-    migrate_tenant: impl Fn(TenantId, PgExternalMigrator) -> F2,
+    legacy_setup: Option<(impl FnOnce() -> F1, impl FnOnce(Tenant) -> F2)>,
+    migrate_tenant: impl Fn(Tenant, PgExternalMigrator) -> F3,
 ) -> Result<Option<TenantId>, Error>
 where
-    F1: Future<Output = Result<(), Error>>,
-    F2: Future<Output = Result<PgExternalMigrator, Error>>,
+    F1: Future<Output = Result<Option<String>, Error>>,
+    F2: Future<Output = Result<(), Error>>,
+    F3: Future<Output = Result<PgExternalMigrator, Error>>,
 {
     // Move out to make sure that a pool with a limit of 1 conn doesn't
     // lead to a dead lock when running tenant migrations. And that we
@@ -101,8 +102,8 @@ where
     )
     .await?;
 
-    let legacy_tenant_id = if let Some(legacy_setup) = legacy_setup {
-        Some(initialize_legacy(&mut tx, legacy_setup).await?)
+    let legacy_tenant_id = if let Some((detect_legacy_index, create_legacy_index)) = legacy_setup {
+        Some(initialize_legacy(&mut tx, detect_legacy_index, create_legacy_index).await?)
     } else {
         None
     };
@@ -128,8 +129,8 @@ where
 
     unlock_lock_id(&mut conn, MIGRATION_LOCK_ID).await?;
 
-    for (tenant_id, error) in &failures {
-        error!({ %tenant_id, %error }, "migration failed");
+    for (tenant, error) in &failures {
+        error!({ %tenant.tenant_id, %error }, "migration failed");
     }
 
     conn.close().await?;
@@ -142,15 +143,17 @@ where
     }
 }
 
-async fn initialize_legacy<F>(
+async fn initialize_legacy<F1, F2>(
     tx: &mut Transaction<'_, Postgres>,
-    legacy_setup: impl FnOnce(TenantId) -> F,
+    detect_legacy_index: impl FnOnce() -> F1,
+    create_legacy_index: impl FnOnce(Tenant) -> F2,
 ) -> Result<TenantId, Error>
 where
-    F: Future<Output = Result<(), Error>>,
+    F1: Future<Output = Result<Option<String>, Error>>,
+    F2: Future<Output = Result<(), Error>>,
 {
     let legacy_tenant_id = sqlx::query_as::<_, (TenantId,)>(
-        "SELECT tenant_id FROM tenant WHERE is_legacy_tenant FOR UPDATE;",
+        "SELECT tenant_id  FROM tenant WHERE is_legacy_tenant FOR UPDATE;",
     )
     .fetch_optional(&mut *tx)
     .await?;
@@ -158,11 +161,17 @@ where
     let legacy_tenant_id = if let Some((legacy_tenant_id,)) = legacy_tenant_id {
         legacy_tenant_id
     } else {
-        let new_id = TenantId::random_legacy_tenant_id();
-        create_tenant_role_and_schema(tx, &new_id, LegacyHint::MigrateSchema).await?;
-        legacy_setup(new_id.clone()).await?;
-        info!({tenant_id = %new_id}, "created new legacy tenant");
-        new_id
+        let tenant_id = TenantId::random_legacy_tenant_id();
+        let es_index_name = detect_legacy_index().await?;
+        let create_new_es_index = es_index_name.is_none();
+
+        let tenant = Tenant::new_with_defaults(tenant_id, true, es_index_name);
+        create_tenant_role_and_schema(tx, &tenant, true).await?;
+        if create_new_es_index {
+            create_legacy_index(tenant.clone()).await?;
+        }
+        info!({tenant_id = %tenant.tenant_id}, "created new legacy tenant");
+        tenant.tenant_id.clone()
     };
     Ok(legacy_tenant_id)
 }
@@ -171,8 +180,8 @@ where
 async fn run_all_db_migrations<F>(
     pool: &Pool<Postgres>,
     lock_db: bool,
-    migrate_tenant: impl Fn(TenantId, PgExternalMigrator) -> F,
-) -> Result<Vec<(TenantId, Error)>, Error>
+    migrate_tenant: impl Fn(Tenant, PgExternalMigrator) -> F,
+) -> Result<Vec<(Tenant, Error)>, Error>
 where
     F: Future<Output = Result<PgExternalMigrator, Error>>,
 {
@@ -183,9 +192,7 @@ where
         async move {
             let mut tx = pool.begin().await?;
             run_db_migration_for(&mut tx, &tenant.tenant_id, lock_db).await?;
-            tx = migrate_tenant(tenant.tenant_id.clone(), tx.into())
-                .await?
-                .into();
+            tx = migrate_tenant(tenant.clone(), tx.into()).await?.into();
             tx.commit().await?;
             Ok(())
         }
@@ -197,7 +204,7 @@ where
         .zip(results)
         .filter_map(|(tenant, result)| match result {
             Ok(()) => None,
-            Err(error) => Some((tenant.tenant_id, error)),
+            Err(error) => Some((tenant, error)),
         })
         .collect_vec())
 }
@@ -254,15 +261,14 @@ pub(super) async fn admin_as_mt_user_hack(pool: &Pool<Postgres>) -> Result<(), E
 
 #[instrument(skip(pool), err)]
 pub(super) async fn list_tenants(pool: &Pool<Postgres>) -> Result<Vec<Tenant>, Error> {
-    Ok(sqlx::query_as::<_, (TenantId, bool)>(
-        "SELECT tenant_id, is_legacy_tenant FROM management.tenant",
+    Ok(sqlx::query_as::<_, (TenantId, bool, Option<String>)>(
+        "SELECT tenant_id, is_legacy_tenant, es_index_name FROM management.tenant",
     )
     .fetch_all(pool)
     .await?
     .into_iter()
-    .map(|(tenant_id, is_legacy_tenant)| Tenant {
-        tenant_id,
-        is_legacy_tenant,
+    .map(|(tenant_id, is_legacy_tenant, es_index_name)| {
+        Tenant::new_with_defaults(tenant_id, is_legacy_tenant, es_index_name)
     })
     .collect())
 }
@@ -274,17 +280,16 @@ pub(super) async fn delete_tenant(
 ) -> Result<Option<Tenant>, Error> {
     let tenant = QuotedIdentifier::db_name_for_tenant_id(&tenant_id);
 
-    let deleted_tenant = sqlx::query_as::<_, (bool,)>(
+    let deleted_tenant = sqlx::query_as::<_, (bool, Option<String>)>(
         "DELETE FROM management.tenant
            WHERE tenant_id = $1
-           RETURNING is_legacy_tenant;",
+           RETURNING is_legacy_tenant, es_index_name;",
     )
     .bind(&tenant_id)
     .fetch_optional(&mut *tx)
     .await?
-    .map(|(is_legacy_tenant,)| Tenant {
-        tenant_id,
-        is_legacy_tenant,
+    .map(|(is_legacy_tenant, es_index_name)| {
+        Tenant::new_with_defaults(tenant_id, is_legacy_tenant, es_index_name)
     });
 
     if deleted_tenant.is_none() {
@@ -307,30 +312,11 @@ pub(super) async fn delete_tenant(
 #[instrument(skip(tx), err)]
 pub(super) async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
-    tenant_id: &TenantId,
-    is_legacy_tenant: bool,
+    tenant_config: &Tenant,
 ) -> Result<(), Error> {
-    let legacy_hint = if is_legacy_tenant {
-        LegacyHint::NewSchema
-    } else {
-        LegacyHint::NotLegacy
-    };
-    create_tenant_role_and_schema(tx, tenant_id, legacy_hint).await?;
-    run_db_migration_for(tx, tenant_id, true).await?;
+    create_tenant_role_and_schema(tx, tenant_config, false).await?;
+    run_db_migration_for(tx, &tenant_config.tenant_id, true).await?;
     Ok(())
-}
-
-#[derive(Clone, Copy, Debug)]
-enum LegacyHint {
-    NotLegacy,
-    MigrateSchema,
-    NewSchema,
-}
-
-impl LegacyHint {
-    fn is_legacy_tenant(self) -> bool {
-        matches!(self, LegacyHint::MigrateSchema | LegacyHint::NewSchema)
-    }
 }
 
 /// Sets up a new tenant with given id.
@@ -341,11 +327,11 @@ impl LegacyHint {
 #[instrument(skip(tx), err)]
 async fn create_tenant_role_and_schema(
     tx: &mut Transaction<'_, Postgres>,
-    tenant_id: &TenantId,
-    legacy_hint: LegacyHint,
+    tenant_config: &Tenant,
+    migrate_if_legacy: bool,
 ) -> Result<(), Error> {
     // TODO make sure legacy tenant creation through management API works
-    let tenant = QuotedIdentifier::db_name_for_tenant_id(tenant_id);
+    let tenant = QuotedIdentifier::db_name_for_tenant_id(&tenant_config.tenant_id);
 
     create_role(tx, &tenant).await?;
 
@@ -363,7 +349,7 @@ async fn create_tenant_role_and_schema(
         .try_for_each(|_| future::ready(Ok(())))
         .await?;
 
-    let query = if let LegacyHint::MigrateSchema = legacy_hint {
+    let query = if migrate_if_legacy && tenant_config.is_legacy_tenant {
         info!("moving legacy tenant from public schema to {tenant}");
         format!(
             r##"ALTER SCHEMA public RENAME TO {tenant};
@@ -432,9 +418,10 @@ async fn create_tenant_role_and_schema(
         .try_for_each(|_| future::ready(Ok(())))
         .await?;
 
-    sqlx::query("INSERT INTO management.tenant (tenant_id, is_legacy_tenant) VALUES ($1, $2);")
-        .bind(tenant_id)
-        .bind(legacy_hint.is_legacy_tenant())
+    sqlx::query("INSERT INTO management.tenant (tenant_id, is_legacy_tenant, es_index_name) VALUES ($1, $2, $3);")
+        .bind(&tenant_config.tenant_id)
+        .bind(tenant_config.is_legacy_tenant)
+        .bind(&tenant_config.es_index_name)
         .execute(tx)
         .await?;
 

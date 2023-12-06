@@ -23,20 +23,13 @@ use sqlx::{Connection, Executor, PgConnection};
 use toml::Table;
 use tracing::{info, instrument};
 use xayn_integration_tests::{
-    build_test_config_from_parts_and_names,
-    create_db,
-    db_configs_for_testing,
-    run_async_test,
-    send_assert,
-    send_assert_json,
-    start_test_service_containers,
-    TestId,
-    MANAGEMENT_DB,
+    build_test_config_from_parts_and_names, create_db, db_configs_for_testing, run_async_test,
+    send_assert, send_assert_json, start_test_service_containers, TestId, MANAGEMENT_DB,
     TEST_EMBEDDING_SIZE,
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env};
 use xayn_web_api::{config::Config, start, Application, WebApi};
-use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
+use xayn_web_api_db_ctrl::{elastic_create_tenant, tenant::Tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
@@ -72,7 +65,12 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
         let legacy_elastic_index_as_tenant_id =
             TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
         elastic_create_tenant(
-            &es_client.with_index(&legacy_elastic_index_as_tenant_id),
+            &es_client,
+            &Tenant {
+                tenant_id: legacy_elastic_index_as_tenant_id,
+                is_legacy_tenant: true,
+                es_index_name: es_config.index_name.clone(),
+            },
             TEST_EMBEDDING_SIZE,
         )
         .await?;
@@ -169,11 +167,8 @@ struct SemanticSearchResponse {
 #[test]
 fn test_full_migration() {
     use old_xayn_web_api::{
-        config as old_config,
-        start as start_old,
-        Ingestion as OldIngestion,
-        Personalization as OldPersonalization,
-        ELASTIC_MAPPING,
+        config as old_config, start as start_old, Ingestion as OldIngestion,
+        Personalization as OldPersonalization, ELASTIC_MAPPING,
     };
 
     run_async_test(|test_id| async move {

@@ -14,10 +14,12 @@
 
 mod elastic;
 mod postgres;
+pub mod tenant;
 
 pub use elastic::create_tenant_index as elastic_create_tenant;
 use serde::{Deserialize, Serialize};
 use sqlx::pool::PoolOptions;
+use tenant::Tenant;
 use xayn_web_api_shared::{
     elastic::{Client as EsClient, Config as EsConfig},
     postgres::{Client as PgClient, Config as PgConfig},
@@ -67,16 +69,27 @@ impl Silo {
 
     pub async fn initialize(&self) -> Result<Option<TenantId>, Error> {
         let opt_legacy_setup = self.enable_legacy_tenant.as_ref().map(move |legacy_info| {
-            move |tenant_id| async move {
-                let elastic = self.elastic.with_index(&tenant_id);
-                elastic::setup_legacy_tenant(elastic, &legacy_info.es_index, self.embedding_size)
-                    .await
-            }
+            (
+                move || async move {
+                    if elastic::does_index_exist(&self.elastic, &legacy_info.es_index).await? {
+                        Ok(Some(legacy_info.es_index.clone()))
+                    } else {
+                        Ok(None)
+                    }
+                },
+                move |tenant| async move {
+                    elastic::create_tenant_index(&self.elastic, &tenant, self.embedding_size).await
+                },
+            )
         });
-        let migrate_tenant = move |tenant_id, mut migrator| async move {
-            let client = self.elastic.with_index(&tenant_id);
-            elastic::migrate_tenant_index(client, &tenant_id, self.embedding_size, &mut migrator)
-                .await?;
+        let migrate_tenant = move |tenant, mut migrator| async move {
+            elastic::migrate_tenant_index(
+                &self.elastic,
+                &tenant,
+                self.embedding_size,
+                &mut migrator,
+            )
+            .await?;
             Ok(migrator)
         };
 
@@ -91,27 +104,20 @@ impl Silo {
         postgres::list_tenants(&self.postgres).await
     }
 
-    pub async fn create_tenant(
-        &self,
-        tenant_id: TenantId,
-        is_legacy_tenant: bool,
-    ) -> Result<Tenant, Error> {
+    pub async fn create_tenant(&self, tenant: &Tenant) -> Result<(), Error> {
         let mut tx = self.postgres.begin().await?;
-        postgres::create_tenant(&mut tx, &tenant_id, is_legacy_tenant).await?;
-        elastic::create_tenant_index(&self.elastic.with_index(&tenant_id), self.embedding_size)
-            .await?;
+        postgres::create_tenant(&mut tx, tenant).await?;
+        // TODO[pmk/now] handle configured es index name
+        elastic::create_tenant_index(&self.elastic, tenant, self.embedding_size).await?;
         tx.commit().await?;
-        Ok(Tenant {
-            tenant_id,
-            is_legacy_tenant,
-        })
+        Ok(())
     }
 
     pub async fn delete_tenant(&self, tenant_id: TenantId) -> Result<Option<Tenant>, Error> {
         let mut tx = self.postgres.begin().await?;
         let deleted_tenant = postgres::delete_tenant(&mut tx, tenant_id).await?;
         if let Some(tenant) = &deleted_tenant {
-            elastic::delete_tenant(&self.elastic, &tenant.tenant_id).await?;
+            elastic::delete_index(&self.elastic, &tenant.es_index_name).await?;
         }
         tx.commit().await?;
         Ok(deleted_tenant)
@@ -145,13 +151,16 @@ impl Silo {
             Operation::CreateTenant {
                 tenant_id,
                 is_legacy_tenant,
-            } => self
-                .create_tenant(tenant_id, is_legacy_tenant)
-                .await
-                .map(|tenant| OperationResult::CreateTenant { tenant })
-                .unwrap_or_else(|err| OperationResult::Error {
-                    msg: err.to_string(),
-                }),
+                es_index_name,
+            } => {
+                let tenant = Tenant::new_with_defaults(tenant_id, is_legacy_tenant, es_index_name);
+                self.create_tenant(&tenant)
+                    .await
+                    .map(|()| OperationResult::CreateTenant { tenant })
+                    .unwrap_or_else(|err| OperationResult::Error {
+                        msg: err.to_string(),
+                    })
+            }
             Operation::DeleteTenant { tenant_id } => self
                 .delete_tenant(tenant_id)
                 .await
@@ -186,6 +195,8 @@ pub enum Operation {
         tenant_id: TenantId,
         #[serde(default)]
         is_legacy_tenant: bool,
+        #[serde(default)]
+        es_index_name: Option<String>,
     },
     DeleteTenant {
         tenant_id: TenantId,
@@ -198,10 +209,4 @@ pub enum OperationResult {
     CreateTenant { tenant: Tenant },
     DeleteTenant { tenant: Option<Tenant> },
     Error { msg: String },
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub struct Tenant {
-    pub tenant_id: TenantId,
-    pub is_legacy_tenant: bool,
 }

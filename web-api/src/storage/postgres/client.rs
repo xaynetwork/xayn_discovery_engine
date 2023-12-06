@@ -27,12 +27,13 @@ use sqlx::{
     Transaction,
 };
 use tracing::{info, instrument};
+use xayn_web_api_db_ctrl::tenant::Tenant;
 use xayn_web_api_shared::{
     postgres::{Config, QuotedIdentifier},
     request::TenantId,
 };
 
-use crate::{storage::tenant_config::TenantConfig, Error, SetupError};
+use crate::{Error, SetupError};
 
 #[derive(Clone)]
 pub(crate) struct DatabaseBuilder {
@@ -45,10 +46,10 @@ impl DatabaseBuilder {
         self.pool.close().await;
     }
 
-    pub(crate) fn build_for(&self, tenant_config: &TenantConfig) -> Database {
+    pub(crate) fn build_for(&self, tenant: &Tenant) -> Database {
         Database {
             pool: self.pool.clone(),
-            tenant_db_name: QuotedIdentifier::db_name_for_tenant_id(&tenant_config.tenant_id),
+            tenant_db_name: QuotedIdentifier::db_name_for_tenant_id(&tenant.tenant_id),
         }
     }
 

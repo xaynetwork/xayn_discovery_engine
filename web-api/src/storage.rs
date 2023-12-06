@@ -17,7 +17,6 @@ pub(crate) mod elastic;
 pub(crate) mod memory;
 pub(crate) mod postgres;
 pub(crate) mod property_filter;
-pub(crate) mod tenant_config;
 mod utils;
 
 use std::collections::HashMap;
@@ -29,13 +28,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Coi;
-use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
+use xayn_web_api_db_ctrl::{tenant::Tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 
-use self::{
-    property_filter::{IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate},
-    tenant_config::TenantConfig,
-};
+use self::property_filter::{IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate};
 use crate::{
     app::SetupError,
     backoffice::IngestionConfig,
@@ -312,7 +308,7 @@ pub struct Config {
 
 pub(crate) struct Storage {
     #[allow(dead_code)]
-    tenant_config: TenantConfig,
+    tenant: Tenant,
     elastic: elastic::Client,
     postgres: postgres::Database,
 }
@@ -366,14 +362,14 @@ pub(crate) struct StorageBuilder {
 
 impl StorageBuilder {
     pub(crate) async fn build_for(&self, tenant_id: TenantId) -> Result<Storage, Error> {
-        let tenant_config = {
+        let tenant = {
             let mut connection = self.postgres.mt_user_connection().await?;
-            TenantConfig::load_from_postgres(&mut connection, tenant_id).await?
+            Tenant::load_from_postgres(&mut connection, tenant_id).await?
         };
-        let elastic = self.elastic.build_for(&tenant_config);
-        let postgres = self.postgres.build_for(&tenant_config);
+        let elastic = self.elastic.build_for(&tenant);
+        let postgres = self.postgres.build_for(&tenant);
         Ok(Storage {
-            tenant_config,
+            tenant,
             elastic,
             postgres,
         })
