@@ -40,10 +40,7 @@ pub async fn create_tenant_index(
 }
 
 #[instrument(skip(elastic))]
-pub(super) async fn delete_index(
-    elastic: &ClientWithoutIndex,
-    index_name: &str,
-) -> Result<(), Error> {
+pub async fn delete_index(elastic: &ClientWithoutIndex, index_name: &str) -> Result<(), Error> {
     let elastic = elastic.with_index(index_name);
     elastic
         .query_with_bytes::<SerdeDiscard>(Method::DELETE, elastic.create_url([], []), None)

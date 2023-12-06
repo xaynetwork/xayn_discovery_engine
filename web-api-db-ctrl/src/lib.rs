@@ -12,7 +12,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+#[cfg(feature = "expose_internal_functions_for_testing")]
+pub mod elastic;
+#[cfg(not(feature = "expose_internal_functions_for_testing"))]
 mod elastic;
+#[cfg(feature = "expose_internal_functions_for_testing")]
+pub mod postgres;
+#[cfg(not(feature = "expose_internal_functions_for_testing"))]
 mod postgres;
 pub mod tenant;
 

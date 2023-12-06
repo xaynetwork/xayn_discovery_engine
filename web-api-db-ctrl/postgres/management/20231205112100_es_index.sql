@@ -13,4 +13,4 @@
 -- along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 -- A per-tenant es index name configuration, if null the default tenant_id based index name will be used.
-ALTER TABLE tenant ADD COLUMN es_index_name TEXT NULL;
+ALTER TABLE tenant ADD COLUMN es_index_name TEXT NULL UNIQUE;

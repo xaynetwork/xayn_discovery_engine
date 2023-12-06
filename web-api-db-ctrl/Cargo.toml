@@ -6,6 +6,10 @@ rust-version = { workspace = true }
 description = "Library for setting up the DBs of the web-api, including for new tenants."
 license = "AGPL-3.0-only"
 
+[features]
+default = ["expose_internal_functions_for_testing"]
+expose_internal_functions_for_testing = []
+
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
