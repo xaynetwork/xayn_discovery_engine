@@ -74,7 +74,7 @@ fn rerank_by_tag_weight<'a>(
 /// The `score_weights` determine the ratios of the scores, it is ordered as
 /// `[interest_weight, tag_weight, elasticsearch_weight]`. The final score/ranking per document is
 /// calculated as the weighted sum of the scores.
-pub(super) fn rerank(
+pub(crate) fn rerank(
     coi_system: &CoiSystem,
     documents: &mut [PersonalizedDocument],
     interests: &[Coi],

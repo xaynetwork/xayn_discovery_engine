@@ -22,10 +22,12 @@ use xayn_test_utils::{
     error::Panic,
 };
 
+#[cfg(test)]
+use crate::frontoffice::shared::personalize_documents_by;
 use crate::{
     embedding::{self, Embedder, EmbeddingKind, Pipeline},
     frontoffice::{
-        routes::{personalize_documents_by, update_interactions, PersonalizeBy},
+        shared::{update_interactions, PersonalizeBy},
         PersonalizationConfig,
     },
     mind::{config::StateConfig, data::Document},
@@ -127,6 +129,7 @@ impl State {
         Ok(())
     }
 
+    #[cfg(test)]
     pub(super) async fn personalize(
         &self,
         user: &UserId,

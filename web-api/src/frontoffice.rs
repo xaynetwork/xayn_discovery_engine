@@ -16,6 +16,7 @@ pub(crate) mod filter;
 mod knn;
 mod rerank;
 pub(crate) mod routes;
+pub(crate) mod shared;
 mod stateless;
 
 use std::ops::RangeBounds;

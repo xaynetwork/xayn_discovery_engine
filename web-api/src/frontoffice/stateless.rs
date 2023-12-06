@@ -20,9 +20,10 @@ use serde::Deserialize;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::{Coi, CoiSystem};
 
-use super::{routes::UnvalidatedSnippetOrDocumentId, PersonalizationConfig};
+use super::PersonalizationConfig;
 use crate::{
     error::{common::HistoryTooSmall, warning::Warning},
+    frontoffice::shared::UnvalidatedSnippetOrDocumentId,
     models::{DocumentTags, SnippetForInteraction, SnippetId, SnippetOrDocumentId},
     storage::{self, TagWeights},
     Error,
