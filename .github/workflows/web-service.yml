@@ -29,7 +29,7 @@ on:
         type: string
         required: false
 
-run-name: ${{ github.ref_name }} - ${{ inputs.model_name }}_${{ inputs.model_version }}
+run-name: ${{ github.ref_name }} - ${{ inputs.model_name }}_${{ inputs.model_version }} (${{ inputs.platform }})
 
 permissions:
   contents: read
