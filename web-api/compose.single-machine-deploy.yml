@@ -37,7 +37,7 @@ services:
       retries: 5
 
   webapi:
-    image: xaynetci/xayn_discovery_web_service:ET-5231-update-image-generation-231204120506-693e23c-xaynia_v0201-arm64
+    image: xaynetci/xayn_discovery_web_service:main-231206134039-ffdef73-xaynia_v0201-amd64
     mem_limit: 1.5g
     cpus: 2
     restart: always
