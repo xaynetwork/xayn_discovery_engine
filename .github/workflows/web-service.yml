@@ -38,8 +38,7 @@ env:
   DENY_WARNINGS: false
   runtime_name: ort
   runtime_version: v1.15.1
-  frontoffice_archive: web-service-frontoffice
-  backoffice_archive: web-service-backoffice
+  web_api_archive: web-service-api
 
 jobs:
   services-build:
@@ -75,21 +74,12 @@ jobs:
           ${{ inputs.model_name }} ${{ inputs.model_version }} \
           ${{ env.runtime_name }} ${{ env.runtime_version }}
 
-      - name: Create backoffice artifact
+      - name: Create web-api artifact
         uses: ./.github/actions/release_artifact
         with:
           platform: ${{ inputs.platform }}
-          bin_name: "ingestion"
-          archive_name: ${{ env.backoffice_archive }}
-          model_full_name: ${{ inputs.model_name }}_${{ inputs.model_version }}
-          runtime_full_name: ${{ env.runtime_name }}_${{ env.runtime_version }}
-
-      - name: Create frontoffice artifact
-        uses: ./.github/actions/release_artifact
-        with:
-          platform: ${{ inputs.platform }}
-          bin_name: "personalization"
-          archive_name: ${{ env.frontoffice_archive }}
+          bin_name: "web-api"
+          archive_name: ${{ env.web_api_archive }}
           model_full_name: ${{ inputs.model_name }}_${{ inputs.model_version }}
           runtime_full_name: ${{ env.runtime_name }}_${{ env.runtime_version }}
 
@@ -120,30 +110,20 @@ jobs:
             TAG="$TAG-${{ inputs.model_name }}_${{ inputs.model_version }}"
             TAG="$TAG-${{ inputs.platform }}"
           fi
-          frontoffice_image_name="xaynetci/xayn_discovery_web_service:$TAG"
-          backoffice_image_name="xaynetci/xayn_discovery_ingestion_service:$TAG"
-          echo "frontoffice_image_name=$frontoffice_image_name" >> $GITHUB_ENV
-          echo "backoffice_image_name=$backoffice_image_name" >> $GITHUB_ENV
+          webapi_image_name="xaynetci/xayn_discovery_web_service:$TAG"
+          echo "webapi_image_name=$webapi_image_name" >> $GITHUB_ENV
 
           cat <<EOT >>${GITHUB_STEP_SUMMARY}
             # Image names
 
-            Back-office: $frontoffice_image_name
-            Front-office: $backoffice_image_name
+            WebApi: $webapi_image_name
           EOT
 
-      - name: Create backoffice docker image
+      - name: Create web API docker image
         uses: ./.github/actions/release_image
         with:
-          archive_name: ${{ env.backoffice_archive }}
-          image_name: ${{ env.backoffice_image_name }}
-          platform: ${{ inputs.platform }}
-
-      - name: Create frontoffice docker image
-        uses: ./.github/actions/release_image
-        with:
-          archive_name: ${{ env.frontoffice_archive }}
-          image_name: ${{ env.frontoffice_image_name }}
+          archive_name: ${{ env.web_api_archive }}
+          image_name: ${{ env.webapi_image_name }}
           platform: ${{ inputs.platform }}
 
       - name: Login to Docker Hub
@@ -155,5 +135,4 @@ jobs:
       - name: Push images
         run: |
           set -eux
-          docker push ${{ env.frontoffice_image_name }}
-          docker push ${{ env.backoffice_image_name }}
+          docker push ${{ env.webapi_image_name }}

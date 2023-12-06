@@ -24,6 +24,10 @@ use xayn_test_utils::{
 
 use crate::{
     embedding::{self, Embedder, EmbeddingKind, Pipeline},
+    frontoffice::{
+        routes::{personalize_documents_by, update_interactions, PersonalizeBy},
+        PersonalizationConfig,
+    },
     mind::{config::StateConfig, data::Document},
     models::{
         DocumentContent,
@@ -34,10 +38,6 @@ use crate::{
         Sha256Hash,
         SnippetOrDocumentId,
         UserId,
-    },
-    personalization::{
-        routes::{personalize_documents_by, update_interactions, PersonalizeBy},
-        PersonalizationConfig,
     },
     storage::{self, memory::Storage},
 };

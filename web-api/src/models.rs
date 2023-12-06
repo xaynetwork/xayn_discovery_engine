@@ -573,7 +573,7 @@ impl PreprocessingStep {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::personalization::SemanticSearchConfig;
+    use crate::frontoffice::SemanticSearchConfig;
 
     impl TryFrom<Value> for DocumentProperty {
         type Error = InvalidDocumentProperty;

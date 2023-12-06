@@ -16,11 +16,11 @@ use reqwest::{Client, StatusCode};
 use serde_json::json;
 use toml::toml;
 use xayn_integration_tests::{send_assert, test_app};
-use xayn_web_api::Ingestion;
+use xayn_web_api::WebApi;
 
 #[test]
 fn test_tenant_id_is_required_if_legacy_tenant_is_disabled() {
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         Some(toml! {
             [tenants]
             enable_legacy_tenant = false
@@ -49,7 +49,7 @@ fn test_tenant_id_is_required_if_legacy_tenant_is_disabled() {
 
 #[test]
 fn test_tenant_id_is_not_required_if_legacy_tenant_is_enabled() {
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         Some(toml! {
             [tenants]
             enable_legacy_tenant = true

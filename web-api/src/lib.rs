@@ -32,29 +32,30 @@
 )]
 
 mod app;
+mod backoffice;
 pub mod config;
 mod embedding;
 mod error;
 pub mod extractor;
-mod ingestion;
+mod frontoffice;
 pub mod logging;
 mod middleware;
 #[cfg(test)]
 mod mind;
 mod models;
 mod net;
-mod personalization;
 pub mod rank_merge;
 mod storage;
 mod tenants;
 mod utils;
+mod web_api;
 
 pub use crate::{
     app::{start, Application, SetupError},
     error::application::{ApplicationError, Error},
-    ingestion::Ingestion,
+    frontoffice::{bench_derive_interests, bench_rerank},
     net::AppHandle,
-    personalization::{bench_derive_interests, bench_rerank, Personalization},
+    web_api::WebApi,
 };
 
 /// Allow migration tests to have access to the elastic search mapping this uses.

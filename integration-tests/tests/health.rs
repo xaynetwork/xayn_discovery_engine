@@ -16,11 +16,11 @@ use std::time::Duration;
 
 use reqwest::{Client, StatusCode};
 use xayn_integration_tests::{send_assert, test_app, UNCHANGED_CONFIG};
-use xayn_web_api::Ingestion;
+use xayn_web_api::WebApi;
 
 #[test]
 fn test_health() {
-    test_app::<Ingestion, _>(UNCHANGED_CONFIG, |_client, url, _| async move {
+    test_app::<WebApi, _>(UNCHANGED_CONFIG, |_client, url, _| async move {
         // make sure not to use any presets from `test_app`, like e.g. the
         // X-Xayn-Tenant-Id header.
         let client = Client::builder()

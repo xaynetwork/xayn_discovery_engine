@@ -51,7 +51,7 @@ use xayn_integration_tests::{
     Services,
     UNCHANGED_CONFIG,
 };
-use xayn_web_api::{Ingestion, Personalization};
+use xayn_web_api::WebApi;
 use xayn_web_api_shared::json_object;
 
 async fn get_candidates(client: &Client, url: &Url) -> Result<HashSet<String>, Error> {
@@ -216,7 +216,7 @@ fn string_set(x: impl IntoIterator<Item = impl Into<String>>) -> HashSet<String>
 
 #[test]
 fn test_deletes_them_from_elastic_search() {
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_two_apps::<WebApi, WebApi, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, services| async move {
@@ -332,7 +332,7 @@ fn test_deletes_them_from_elastic_search() {
 
 #[test]
 fn test_deletes_them_from_elastic_search_2() {
-    test_app::<Ingestion, _>(
+    test_app::<WebApi, _>(
         UNCHANGED_CONFIG,
         |client, ingestion_url, services| async move {
             ingest(

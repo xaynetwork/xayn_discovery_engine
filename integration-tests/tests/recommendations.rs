@@ -18,7 +18,7 @@ use reqwest::{Client, StatusCode, Url};
 use serde::Deserialize;
 use serde_json::json;
 use xayn_integration_tests::{send_assert, send_assert_json, test_two_apps, UNCHANGED_CONFIG};
-use xayn_web_api::{Ingestion, Personalization};
+use xayn_web_api::WebApi;
 
 async fn ingest(client: &Client, ingestion_url: &Url) -> Result<(), Error> {
     send_assert(
@@ -93,7 +93,7 @@ macro_rules! assert_order {
 
 #[test]
 fn test_full_personalization_with_inline_history() {
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_two_apps::<WebApi, WebApi, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _services| async move {
@@ -125,7 +125,7 @@ fn test_full_personalization_with_inline_history() {
 
 #[test]
 fn test_full_personalization_with_user_id_that_does_not_exist() {
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_two_apps::<WebApi, WebApi, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _services| async move {
@@ -152,7 +152,7 @@ fn test_full_personalization_with_user_id_that_does_not_exist() {
 
 #[test]
 fn test_full_personalization_with_user_id_that_has_two_interactions() {
-    test_two_apps::<Ingestion, Personalization, _>(
+    test_two_apps::<WebApi, WebApi, _>(
         UNCHANGED_CONFIG,
         UNCHANGED_CONFIG,
         |client, ingestion_url, personalization_url, _services| async move {

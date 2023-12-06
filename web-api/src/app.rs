@@ -24,6 +24,7 @@ use tracing::{info, instrument};
 
 pub(crate) use self::state::{AppState, TenantState};
 use crate::{
+    config::WebApiConfig,
     embedding,
     extractor,
     logging,
@@ -48,7 +49,6 @@ pub trait Application: 'static {
         + Sync
         + Debug
         + 'static;
-    type Extension: Send + Sync + 'static;
 
     /// Configures the actix service(s) used by this application.
     ///
@@ -62,12 +62,6 @@ pub trait Application: 'static {
     /// application middleware and will not be reachable using anything
     /// which uses CORS.
     fn configure_ops_service(_config: &mut ServiceConfig) {}
-
-    /// Create an application specific extension to app state.
-    //Design Note: We could handle this by adding `TyFrom<&Config<..>>` bounds
-    //             to `Extension` but using this helper method is simpler
-    //             and it is also easier to add async if needed (using #[async-trait]).
-    fn create_extension(config: &Self::Config) -> Result<Self::Extension, SetupError>;
 }
 
 pub type SetupError = anyhow::Error;
@@ -76,7 +70,7 @@ pub type SetupError = anyhow::Error;
 ///
 /// The return value is the exit code which should be used.
 #[instrument(skip_all)]
-pub async fn start<A>(config: A::Config) -> Result<AppHandle, SetupError>
+pub async fn start<A>(config: WebApiConfig) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,
 {
@@ -86,7 +80,7 @@ where
     info!(pwd=?pwd);
 
     let net_config = net::Config::clone(config.as_ref());
-    let app_state = Arc::new(AppState::<A>::create(config).await?);
+    let app_state = Arc::new(AppState::create(config).await?);
     let legacy_tenant = app_state.legacy_tenant().cloned();
 
     let shutdown = Box::new({
@@ -120,6 +114,11 @@ macro_rules! application_names {
         } else {
             format!("XAYN_{name}")
         };
-        [name, "XAYN_WEB_API".to_string()]
+        [
+            name,
+            "XAYN_WEB_API".to_string(),
+            "XAYN_PERSONALIZATION".to_string(),
+            "XAYN_INGESTION".to_string(),
+        ]
     }};
 }
