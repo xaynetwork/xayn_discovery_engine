@@ -30,11 +30,14 @@ use xayn_ai_coi::CoiConfig;
 use self::cli::Args;
 use crate::{
     backoffice::IngestionConfig,
-    embedding, extractor,
+    embedding,
+    extractor,
     frontoffice::{PersonalizationConfig, SemanticSearchConfig},
-    logging, net,
+    logging,
+    net,
     storage::{self},
-    tenants, SetupError,
+    tenants,
+    SetupError,
 };
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
@@ -45,6 +48,7 @@ pub struct Config {
     pub(crate) net: net::Config,
     pub(crate) storage: storage::Config,
     pub(crate) coi: CoiConfig,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) embedding: Option<embedding::Config>,
     pub(crate) models: embedding::MultiConfig,
     pub(crate) text_extractor: extractor::Config,

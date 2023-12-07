@@ -17,7 +17,8 @@ use std::sync::Arc;
 use actix_web::{
     dev::Payload,
     web::{Data, ServiceConfig},
-    FromRequest, HttpRequest,
+    FromRequest,
+    HttpRequest,
 };
 use derive_more::AsRef;
 use futures_util::{future::BoxFuture, FutureExt};
