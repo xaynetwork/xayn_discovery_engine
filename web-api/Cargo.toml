@@ -59,6 +59,7 @@ npyz = "0.8.1"
 ouroboros = "0.17.0"
 tokio = { workspace = true, features = ["sync"] }
 toml = { workspace = true }
+trycmd = "0.14.16"
 xayn-test-utils = { path = "../test-utils" }
 
 [[bench]]
