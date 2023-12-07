@@ -69,7 +69,7 @@ impl Config {
 
     /// Loads the config with custom CLI args.
     ///
-    /// See [`load()`].
+    /// See [`Self.load()`].
     pub fn load_with_args(
         application_names: impl IntoIterator<Item = impl Display>,
         args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
