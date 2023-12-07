@@ -62,7 +62,7 @@ use tracing_subscriber::{
     Layer,
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env, workspace::find_workspace_dir};
-use xayn_web_api::{config, start, AppHandle, Application, WebApi};
+use xayn_web_api::{config::Config, start, AppHandle, Application, WebApi};
 use xayn_web_api_db_ctrl::{Silo, Tenant};
 use xayn_web_api_shared::{
     elastic,
@@ -625,7 +625,9 @@ where
         &format!("inline:{config}"),
     ];
 
-    let config = config::load_with_args([""; 0], args);
+    let config = Config::load_with_args([""; 0], args)
+        .finalize(false)
+        .unwrap();
 
     start::<A>(config)
         .instrument(error_span!("test", test_id = %services.test_id))

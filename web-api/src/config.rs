@@ -56,49 +56,66 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn validate(&self) -> Result<(), SetupError> {
-        self.ingestion.validate()?;
-        self.personalization.validate()?;
-        self.semantic_search.validate()?;
+    /// Loads the config.
+    ///
+    /// # Panic/Program Exit
+    ///
+    /// In case of `--help`, `--print-config` and failure
+    /// this functions will not return normally but terminate
+    /// the program normally instead.
+    pub fn load(application_names: impl IntoIterator<Item = impl Display>) -> UnvalidatedConfig {
+        load_with_parsed_args(application_names, Args::parse())
+    }
 
-        Ok(())
+    /// Loads the config with custom CLI args.
+    ///
+    /// See [`load()`].
+    pub fn load_with_args(
+        application_names: impl IntoIterator<Item = impl Display>,
+        args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
+    ) -> UnvalidatedConfig {
+        load_with_parsed_args(application_names, Args::parse_from(args))
     }
 }
 
-/// Loads the config with custom CLI args.
-///
-/// See [`load()`].
-pub fn load_with_args<C>(
-    application_names: impl IntoIterator<Item = impl Display>,
-    args: impl IntoIterator<Item = impl Into<OsString> + Clone>,
-) -> C
-where
-    C: Serialize + DeserializeOwned,
-{
-    load_with_parsed_args(application_names, Args::parse_from(args))
+pub struct UnvalidatedConfig {
+    config: Config,
+    print_config: bool,
 }
 
-/// Loads the config.
-///
-/// # Panic/Program Exit
-///
-/// In case of `--help`, `--print-config` and failure
-/// this functions will not return normally but terminate
-/// the program normally instead.
-pub fn load<C>(application_names: impl IntoIterator<Item = impl Display>) -> C
-where
-    C: Serialize + DeserializeOwned,
-{
-    load_with_parsed_args(application_names, Args::parse())
+impl UnvalidatedConfig {
+    pub fn logging_config(&self) -> &logging::Config {
+        self.config.as_ref()
+    }
+
+    /// Finalizes the config doing an post deserialization validation steps.
+    ///
+    /// If the `--print-config` CLI arg was used a JSON serialization of the config
+    /// will be printed to stdout. If additionally `exit_on_print` was set the program
+    /// will exit with a success status code after printing.
+    pub fn finalize(self, exit_on_print: bool) -> Result<Config, SetupError> {
+        let Self {
+            config,
+            print_config,
+        } = self;
+        config.ingestion.validate()?;
+        config.personalization.validate()?;
+        config.semantic_search.validate()?;
+
+        if print_config {
+            println!("{}", serde_json::to_string_pretty(&config)?);
+            if exit_on_print {
+                exit(0)
+            }
+        }
+        Ok(config)
+    }
 }
 
-fn load_with_parsed_args<C>(
+fn load_with_parsed_args(
     application_names: impl IntoIterator<Item = impl Display>,
     mut cli_args: Args,
-) -> C
-where
-    C: Serialize + DeserializeOwned,
-{
+) -> UnvalidatedConfig {
     let config = cli_args.config.take();
     let config = match load_config(
         application_names,
@@ -113,12 +130,10 @@ where
         }
     };
 
-    if cli_args.print_config {
-        println!("{}", serde_json::to_string_pretty(&config).unwrap());
-        exit(0);
+    UnvalidatedConfig {
+        config,
+        print_config: cli_args.print_config,
     }
-
-    config
 }
 
 /// Load the configuration into given type.

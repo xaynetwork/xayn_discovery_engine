@@ -5,7 +5,7 @@ stderr = ""
 stdout = """
 {
   "logging": {
-    "file": "[CWD]/tests/cmd/assets/foo/bar.log",
+    "file": null,
     "level": "trace",
     "install_panic_hook": true
   },
