@@ -53,7 +53,7 @@ pub(super) async fn interactions(
     state: Data<AppState>,
     user_id: Path<String>,
     Json(body): Json<UnvalidatedUserInteractionRequest>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
     let interactions = body.validate()?;

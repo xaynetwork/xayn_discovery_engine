@@ -265,11 +265,11 @@ fn no_properties(properties: &Option<DocumentProperties>) -> bool {
         .map_or(true, |properties| properties.is_empty())
 }
 
-#[instrument(skip(state, storage))]
+#[instrument(skip(state, storage, embedder))]
 pub(super) async fn semantic_search(
     state: Data<AppState>,
     Json(body): Json<UnvalidatedSemanticSearchRequest>,
-    TenantState(storage): TenantState,
+    TenantState(storage, embedder): TenantState,
 ) -> Result<impl Responder, Error> {
     // TODO: actually return non-empty warnings in the response
     let mut warnings = Vec::new();
@@ -312,7 +312,7 @@ pub(super) async fn semantic_search(
             (embedding, None)
         }
         InputDocument::Query(ref query) => {
-            let embedding = state.embedder.run(EmbeddingKind::Query, query).await?;
+            let embedding = embedder.run(EmbeddingKind::Query, query).await?;
             (embedding, Some(query))
         }
     };

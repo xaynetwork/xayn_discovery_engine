@@ -307,7 +307,6 @@ pub struct Config {
 }
 
 pub(crate) struct Storage {
-    #[allow(dead_code)]
     tenant: Tenant,
     elastic: elastic::Client,
     postgres: postgres::Database,
@@ -323,6 +322,10 @@ impl Storage {
             postgres: postgres::Database::builder(&config.postgres, legacy_tenant).await?,
         })
     }
+
+    pub(crate) fn tenant(&self) -> &Tenant {
+        &self.tenant
+    }
 }
 
 // FIXME: long term this should be run by the control plane,
@@ -331,7 +334,7 @@ impl Storage {
 pub(crate) async fn initialize_silo(
     config: &Config,
     tenant_config: &tenants::Config,
-    embedding_size: usize,
+    embedding_sizes: HashMap<String, usize>,
 ) -> Result<(Silo, Option<TenantId>), SetupError> {
     let silo = Silo::new(
         config.postgres.clone(),
@@ -341,7 +344,7 @@ pub(crate) async fn initialize_silo(
             .then(|| LegacyTenantInfo {
                 es_index: config.elastic.index_name.clone(),
             }),
-        embedding_size,
+        embedding_sizes,
     )
     .await?;
 

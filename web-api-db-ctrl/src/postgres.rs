@@ -35,7 +35,10 @@ use xayn_web_api_shared::{postgres::QuotedIdentifier, request::TenantId};
 
 pub(crate) use self::extern_migrations::ExternalMigrator;
 use self::extern_migrations::PgExternalMigrator;
-use crate::{tenant::Tenant, Error};
+use crate::{
+    tenant::{Tenant, TenantWithOptionals},
+    Error,
+};
 
 static MT_USER: Lazy<QuotedIdentifier> = Lazy::new(|| "web-api-mt".parse().unwrap());
 
@@ -165,7 +168,13 @@ where
         let es_index_name = detect_legacy_index().await?;
         let create_new_es_index = es_index_name.is_none();
 
-        let tenant = Tenant::new_with_defaults(tenant_id, true, es_index_name);
+        let tenant = TenantWithOptionals {
+            tenant_id,
+            is_legacy_tenant: true,
+            es_index_name,
+            model: None,
+        }
+        .into();
         create_tenant_role_and_schema(tx, &tenant, true).await?;
         if create_new_es_index {
             create_legacy_index(tenant.clone()).await?;
@@ -261,16 +270,24 @@ pub(super) async fn admin_as_mt_user_hack(pool: &Pool<Postgres>) -> Result<(), E
 
 #[instrument(skip(pool), err)]
 pub(super) async fn list_tenants(pool: &Pool<Postgres>) -> Result<Vec<Tenant>, Error> {
-    Ok(sqlx::query_as::<_, (TenantId, bool, Option<String>)>(
-        "SELECT tenant_id, is_legacy_tenant, es_index_name FROM management.tenant",
+    Ok(
+        sqlx::query_as::<_, (TenantId, bool, Option<String>, Option<String>)>(
+            "SELECT tenant_id, is_legacy_tenant, es_index_name, model FROM management.tenant",
+        )
+        .fetch_all(pool)
+        .await?
+        .into_iter()
+        .map(|(tenant_id, is_legacy_tenant, es_index_name, model)| {
+            TenantWithOptionals {
+                tenant_id,
+                is_legacy_tenant,
+                es_index_name,
+                model,
+            }
+            .into()
+        })
+        .collect(),
     )
-    .fetch_all(pool)
-    .await?
-    .into_iter()
-    .map(|(tenant_id, is_legacy_tenant, es_index_name)| {
-        Tenant::new_with_defaults(tenant_id, is_legacy_tenant, es_index_name)
-    })
-    .collect())
 }
 
 #[instrument(skip(tx), err)]
@@ -280,16 +297,22 @@ pub(super) async fn delete_tenant(
 ) -> Result<Option<Tenant>, Error> {
     let tenant = QuotedIdentifier::db_name_for_tenant_id(&tenant_id);
 
-    let deleted_tenant = sqlx::query_as::<_, (bool, Option<String>)>(
+    let deleted_tenant = sqlx::query_as::<_, (bool, Option<String>, Option<String>)>(
         "DELETE FROM management.tenant
            WHERE tenant_id = $1
-           RETURNING is_legacy_tenant, es_index_name;",
+           RETURNING is_legacy_tenant, es_index_name, model;",
     )
     .bind(&tenant_id)
     .fetch_optional(&mut *tx)
     .await?
-    .map(|(is_legacy_tenant, es_index_name)| {
-        Tenant::new_with_defaults(tenant_id, is_legacy_tenant, es_index_name)
+    .map(|(is_legacy_tenant, es_index_name, model)| {
+        TenantWithOptionals {
+            tenant_id,
+            is_legacy_tenant,
+            es_index_name,
+            model,
+        }
+        .into()
     });
 
     if deleted_tenant.is_none() {
