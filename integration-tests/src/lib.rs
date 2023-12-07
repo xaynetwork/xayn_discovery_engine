@@ -64,7 +64,6 @@ use tracing_subscriber::{
 use xayn_test_utils::{asset::ort_target, env::clear_env, workspace::find_workspace_dir};
 use xayn_web_api::{config::Config, start, AppHandle, Application, WebApi};
 use xayn_web_api_db_ctrl::{tenant::Tenant, Silo};
-
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},

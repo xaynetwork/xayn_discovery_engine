@@ -23,8 +23,15 @@ use sqlx::{Connection, Executor, PgConnection};
 use toml::Table;
 use tracing::{info, instrument};
 use xayn_integration_tests::{
-    build_test_config_from_parts_and_names, create_db, db_configs_for_testing, run_async_test,
-    send_assert, send_assert_json, start_test_service_containers, TestId, MANAGEMENT_DB,
+    build_test_config_from_parts_and_names,
+    create_db,
+    db_configs_for_testing,
+    run_async_test,
+    send_assert,
+    send_assert_json,
+    start_test_service_containers,
+    TestId,
+    MANAGEMENT_DB,
     TEST_EMBEDDING_SIZE,
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env};
@@ -167,8 +174,11 @@ struct SemanticSearchResponse {
 #[test]
 fn test_full_migration() {
     use old_xayn_web_api::{
-        config as old_config, start as start_old, Ingestion as OldIngestion,
-        Personalization as OldPersonalization, ELASTIC_MAPPING,
+        config as old_config,
+        start as start_old,
+        Ingestion as OldIngestion,
+        Personalization as OldPersonalization,
+        ELASTIC_MAPPING,
     };
 
     run_async_test(|test_id| async move {
