@@ -41,7 +41,7 @@ use crate::{
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
 #[serde(default)]
 #[cfg_attr(test, serde(deny_unknown_fields))]
-pub struct WebApiConfig {
+pub struct Config {
     pub(crate) logging: logging::Config,
     pub(crate) net: net::Config,
     pub(crate) storage: storage::Config,
@@ -55,7 +55,7 @@ pub struct WebApiConfig {
     pub(crate) tenants: tenants::Config,
 }
 
-impl WebApiConfig {
+impl Config {
     pub fn validate(&self) -> Result<(), SetupError> {
         self.ingestion.validate()?;
         self.personalization.validate()?;

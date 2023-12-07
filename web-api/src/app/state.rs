@@ -29,7 +29,7 @@ use xayn_web_api_shared::request::TenantId;
 
 use crate::{
     app::SetupError,
-    config::WebApiConfig,
+    config::Config,
     embedding::Embedder,
     error::common::InternalError,
     extractor::TextExtractor,
@@ -41,7 +41,7 @@ use crate::{
 #[derive(AsRef)]
 pub(crate) struct AppState {
     #[as_ref(forward)]
-    pub(crate) config: WebApiConfig,
+    pub(crate) config: Config,
     pub(crate) embedder: Embedder,
     pub(crate) extractor: TextExtractor,
     pub(crate) snippet_extractor: SnippetExtractorPool,
@@ -58,7 +58,7 @@ impl AppState {
             .app_data(Data::from(self));
     }
 
-    pub(super) async fn create(config: WebApiConfig) -> Result<Self, SetupError> {
+    pub(super) async fn create(config: Config) -> Result<Self, SetupError> {
         // embedder config is validated during loading
         let embedder = Embedder::load(config.as_ref()).await?;
         let extractor = TextExtractor::new(config.as_ref())?;
