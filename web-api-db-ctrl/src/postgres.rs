@@ -589,11 +589,14 @@ pub(crate) async fn change_es_index(
         WHERE tenant_id = $1",
     )
     .bind(tenant_id)
-    .bind(es_index_name)
+    .bind(&es_index_name)
     .execute(&mut *tx)
     .await?
     .rows_affected()
     .gt(&0)
     .then_some(())
-    .ok_or_else(|| anyhow!("unknown tenant {tenant_id}"))
+    .ok_or_else(|| anyhow!("unknown tenant {tenant_id}"))?;
+
+    info!({%tenant_id, %es_index_name}, "changed es index for tenant");
+    Ok(())
 }
