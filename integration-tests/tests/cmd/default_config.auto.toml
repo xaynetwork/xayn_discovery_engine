@@ -1,4 +1,4 @@
-bin.name = "personalization"
+bin.name = "web-api"
 args = ["--print-config"]
 status.code = 0
 stderr = ""
@@ -87,6 +87,32 @@ stdout = """
       0.5
     ],
     "max_query_size": 512
+  },
+  "ingestion": {
+    "max_document_batch_size": 100,
+    "max_indexed_properties": 11,
+    "index_update": {
+      "requests_per_second": 500,
+      "method": "background"
+    },
+    "max_snippet_size": 2048,
+    "max_properties_size": 2560,
+    "max_properties_string_size": 2048
+  },
+  "snippet_extractor": {
+    "python_workspace": "./",
+    "language": "english",
+    "tokenizers": {
+      "default": "./assets/tokenizer.json"
+    },
+    "chunk_size": 500,
+    "hard_chunk_size_limit": 520,
+    "automatically_restart_child": true,
+    "force_initialization": true,
+    "pool": {
+      "threads_per_cpu": 1.0,
+      "acquisition_timeout": "15s"
+    }
   },
   "tenants": {
     "enable_legacy_tenant": true,

@@ -1,4 +1,4 @@
-bin.name = "ingestion"
+bin.name = "web-api"
 args = ["--print-config", "--config", "inline:[logging]\nlevel=\"error\"\n[tenants]\nenable_legacy_tenant=false"]
 status.code = 0
 stderr = ""
@@ -40,16 +40,11 @@ stdout = """
       "max_pool_size": 25
     }
   },
-  "ingestion": {
-    "max_document_batch_size": 100,
-    "max_indexed_properties": 11,
-    "index_update": {
-      "requests_per_second": 500,
-      "method": "background"
-    },
-    "max_snippet_size": 2048,
-    "max_properties_size": 2560,
-    "max_properties_string_size": 2048
+  "coi": {
+    "shift_factor": 0.1,
+    "threshold": 0.67,
+    "min_cois": 1,
+    "horizon": 30
   },
   "embedding": {
     "type": "pipeline",
@@ -68,9 +63,41 @@ stdout = """
     "allowed_media_type": [],
     "timeout": "5s"
   },
-  "tenants": {
-    "enable_legacy_tenant": false,
-    "enable_dev": false
+  "personalization": {
+    "max_number_documents": 100,
+    "max_number_candidates": 100,
+    "default_number_documents": 10,
+    "max_cois_for_knn": 10,
+    "score_weights": [
+      1.0,
+      1.0,
+      0.0
+    ],
+    "store_user_history": true,
+    "max_stateless_history_size": 200,
+    "max_stateless_history_for_cois": 20
+  },
+  "semantic_search": {
+    "max_number_documents": 100,
+    "max_number_candidates": 100,
+    "default_number_documents": 10,
+    "score_weights": [
+      1.0,
+      1.0,
+      0.5
+    ],
+    "max_query_size": 512
+  },
+  "ingestion": {
+    "max_document_batch_size": 100,
+    "max_indexed_properties": 11,
+    "index_update": {
+      "requests_per_second": 500,
+      "method": "background"
+    },
+    "max_snippet_size": 2048,
+    "max_properties_size": 2560,
+    "max_properties_string_size": 2048
   },
   "snippet_extractor": {
     "python_workspace": "./",
@@ -86,6 +113,10 @@ stdout = """
       "threads_per_cpu": 1.0,
       "acquisition_timeout": "15s"
     }
+  },
+  "tenants": {
+    "enable_legacy_tenant": false,
+    "enable_dev": false
   }
 }
 """
