@@ -16,6 +16,7 @@ mod cli;
 
 use std::{ffi::OsString, fmt::Display, path::Path, process::exit};
 
+use anyhow::bail;
 use clap::{CommandFactory, Parser};
 use derive_more::AsRef;
 use figment::{
@@ -23,19 +24,17 @@ use figment::{
     Figment,
 };
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use tracing::warn;
 use xayn_ai_coi::CoiConfig;
 
 use self::cli::Args;
 use crate::{
     backoffice::IngestionConfig,
-    embedding,
-    extractor,
+    embedding, extractor,
     frontoffice::{PersonalizationConfig, SemanticSearchConfig},
-    logging,
-    net,
+    logging, net,
     storage::{self},
-    tenants,
-    SetupError,
+    tenants, SetupError,
 };
 
 #[derive(AsRef, Debug, Default, Deserialize, Serialize)]
@@ -96,12 +95,24 @@ impl UnvalidatedConfig {
     /// will exit with a success status code after printing.
     pub fn finalize(self, exit_on_print: bool) -> Result<Config, SetupError> {
         let Self {
-            config,
+            mut config,
             print_config,
         } = self;
         config.ingestion.validate()?;
         config.personalization.validate()?;
         config.semantic_search.validate()?;
+
+        if config.models.is_empty() && config.embedding.is_none() {
+            warn!("using default fallback for model config, models/embedders should be defined explicitly");
+            config.models.inject_default(embedding::Config::default())?;
+        } else if let Some(default) = config.embedding.take() {
+            warn!("moving config \"embedding\" into \"models\" using the name \"default\"");
+            config.models.inject_default(default)?;
+        }
+
+        if config.tenants.enable_legacy_tenant && !config.models.has_default_model() {
+            bail!("legacy tenants require a model/embedder with the name \"default\"");
+        }
 
         if print_config {
             println!("{}", serde_json::to_string_pretty(&config)?);

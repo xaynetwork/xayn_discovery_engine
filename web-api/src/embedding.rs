@@ -30,6 +30,24 @@ use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBu
 #[serde(transparent)]
 pub struct MultiConfig(HashMap<String, Config>);
 
+impl MultiConfig {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub(crate) fn inject_default(&mut self, config: Config) -> Result<(), SetupError> {
+        if self.0.contains_key("default") {
+            bail!("default embedder is configured twice once explicit in \"models\" and once implicit through \"embedding\"");
+        }
+        self.0.insert("default".to_owned(), config);
+        Ok(())
+    }
+
+    pub(crate) fn has_default_model(&self) -> bool {
+        self.0.contains_key("default")
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Config {
