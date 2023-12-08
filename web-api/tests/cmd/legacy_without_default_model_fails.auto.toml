@@ -3,6 +3,8 @@ args = ["--print-config", "--config", "inline:[tenants]\nenable_legacy_tenant=tr
 status.code = 1
 stderr = """
 Error: legacy tenants require a model/embedder with the name "default"
+
+...
 """
 stdout = """
 {"timestamp":"[..]","level":"ERROR","error":"legacy tenants require a model/embedder with the name /"default/"","target":"web_api"}
