@@ -335,10 +335,10 @@ pub(super) async fn delete_tenant(
 #[instrument(skip(tx), err)]
 pub(super) async fn create_tenant(
     tx: &mut Transaction<'_, Postgres>,
-    tenant_config: &Tenant,
+    tenant: &Tenant,
 ) -> Result<(), Error> {
-    create_tenant_role_and_schema(tx, tenant_config, false).await?;
-    run_db_migration_for(tx, &tenant_config.tenant_id, true).await?;
+    create_tenant_role_and_schema(tx, tenant, false).await?;
+    run_db_migration_for(tx, &tenant.tenant_id, true).await?;
     Ok(())
 }
 
@@ -441,10 +441,11 @@ async fn create_tenant_role_and_schema(
         .try_for_each(|_| future::ready(Ok(())))
         .await?;
 
-    sqlx::query("INSERT INTO management.tenant (tenant_id, is_legacy_tenant, es_index_name) VALUES ($1, $2, $3);")
+    sqlx::query("INSERT INTO management.tenant (tenant_id, is_legacy_tenant, es_index_name, model) VALUES ($1, $2, $3, $4);")
         .bind(&tenant_config.tenant_id)
         .bind(tenant_config.is_legacy_tenant)
         .bind(&tenant_config.es_index_name)
+        .bind(&tenant_config.model)
         .execute(tx)
         .await?;
 

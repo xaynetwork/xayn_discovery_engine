@@ -288,3 +288,84 @@ fn test_changing_the_es_index_works() {
         },
     )
 }
+
+#[test]
+fn test_creating_tenant_with_alternative_model() {
+    const TEST_STRING: &str = "test_creating_tenant_with_alternative_model";
+    test_app::<WebApi, _>(
+        Some(toml! {
+            [tenants]
+            enable_legacy_tenant = false
+            [models.fake_model]
+            type = "open_ai"
+            url = "https://example.invalid"
+            api_key = "no-key"
+            embedding_size = 20
+        }),
+        |client, url, _| async move {
+            let ManagementResponse { results } = send_assert_json(
+                &client,
+                client
+                    .post(url.join("/_ops/silo_management")?)
+                    .json(&json!({
+                        "operations": [
+                            { "CreateTenant": {
+                                "tenant_id": TEST_STRING,
+                                "model": "fake_model"
+                             } },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            assert_eq!(
+                results,
+                vec![OperationResult::CreateTenant {
+                    tenant: TenantWithOptionals {
+                        tenant_id: TEST_STRING.parse().unwrap(),
+                        is_legacy_tenant: false,
+                        es_index_name: None,
+                        model: Some("fake_model".to_owned())
+                    }
+                    .into()
+                }]
+            );
+
+            let ManagementResponse { results } = send_assert_json(
+                &client,
+                client
+                    .post(url.join("/_ops/silo_management")?)
+                    .json(&json!({
+                        "operations": [
+                            { "DeleteTenant": {
+                                "tenant_id": TEST_STRING,
+                             } },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            assert_eq!(
+                results,
+                vec![OperationResult::DeleteTenant {
+                    tenant: Some(
+                        TenantWithOptionals {
+                            tenant_id: TEST_STRING.parse().unwrap(),
+                            is_legacy_tenant: false,
+                            es_index_name: None,
+                            model: Some("fake_model".to_owned())
+                        }
+                        .into()
+                    )
+                }]
+            );
+            Ok(())
+        },
+    );
+}
