@@ -1,0 +1,11 @@
+bin.name = "web-api"
+args = ["--print-config", "--config", "inline:[tenants]\nenable_legacy_tenant=true\n[models.dodo]\ntype=\"pipeline\""]
+status.code = 1
+stderr = """
+Error: legacy tenants require a model/embedder with the name "default"
+
+...
+"""
+stdout = """
+{"timestamp":"[..]","level":"ERROR","error":"legacy tenants require a model/embedder with the name /"default/"","target":"web_api"}
+"""

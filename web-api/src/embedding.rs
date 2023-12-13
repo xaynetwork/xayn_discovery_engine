@@ -12,6 +12,9 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+use std::{collections::HashMap, sync::Arc};
+
+use anyhow::bail;
 use aws_config::retry::RetryConfig;
 use aws_sdk_sagemakerruntime::{config::Region, primitives::Blob};
 use secrecy::{ExposeSecret, Secret};
@@ -22,6 +25,28 @@ use xayn_ai_bert::{AvgEmbedder, Config as EmbedderConfig, Embedding1, Normalized
 use xayn_web_api_shared::serde::serialize_redacted;
 
 use crate::{app::SetupError, error::common::InternalError, utils::RelativePathBuf};
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+#[serde(transparent)]
+pub struct MultiConfig(HashMap<String, Config>);
+
+impl MultiConfig {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub(crate) fn inject_default(&mut self, config: Config) -> Result<(), SetupError> {
+        if self.0.contains_key("default") {
+            bail!("default embedder is configured twice once explicit in \"models\" and once implicit through \"embedding\"");
+        }
+        self.0.insert("default".to_owned(), config);
+        Ok(())
+    }
+
+    pub(crate) fn has_default_model(&self) -> bool {
+        self.0.contains_key("default")
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(tag = "type", rename_all = "snake_case", deny_unknown_fields)]
@@ -168,6 +193,41 @@ impl OpenAi {
                 embedding_size: self.embedding_size,
             },
         })
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct Models(Arc<HashMap<String, Arc<Embedder>>>);
+
+impl Models {
+    pub(crate) async fn load(
+        config: &MultiConfig,
+        inject_default: &Option<Config>,
+    ) -> Result<Self, SetupError> {
+        if config.0.contains_key("default") && inject_default.is_some() {
+            bail!("model \"default\" is declared twice once explicit in \"models\" and once implicit through the \"embedding\" config");
+        }
+        let mut embedders = HashMap::new();
+        if let Some(default) = inject_default.as_ref() {
+            let embedder = Embedder::load(default).await?;
+            embedders.insert("default".to_owned(), Arc::new(embedder));
+        };
+        for (name, config) in &config.0 {
+            let embedder = Embedder::load(config).await?;
+            embedders.insert(name.clone(), Arc::new(embedder));
+        }
+        Ok(Self(Arc::new(embedders)))
+    }
+
+    pub(crate) fn get(&self, name: &str) -> Option<&Arc<Embedder>> {
+        self.0.get(name)
+    }
+
+    pub(crate) fn embedding_sizes(&self) -> HashMap<String, usize> {
+        self.0
+            .iter()
+            .map(|(name, embedder)| (name.clone(), embedder.embedding_size()))
+            .collect()
     }
 }
 

@@ -22,11 +22,13 @@ pub mod postgres;
 mod postgres;
 pub mod tenant;
 
-use anyhow::bail;
+use std::collections::HashMap;
+
+use anyhow::{anyhow, bail};
 pub use elastic::create_tenant_index as elastic_create_tenant;
 use serde::{Deserialize, Serialize};
 use sqlx::pool::PoolOptions;
-use tenant::Tenant;
+use tenant::{Tenant, TenantWithOptionals};
 use xayn_web_api_shared::{
     elastic::{ClientWithoutIndex as EsClient, Config as EsConfig},
     postgres::{Client as PgClient, Config as PgConfig},
@@ -43,7 +45,7 @@ pub struct Silo {
     postgres: PgClient,
     elastic: EsClient,
     enable_legacy_tenant: Option<LegacyTenantInfo>,
-    embedding_size: usize,
+    embedding_sizes: HashMap<String, usize>,
 }
 
 #[derive(Clone, Debug)]
@@ -56,7 +58,7 @@ impl Silo {
         postgres_config: PgConfig,
         elastic_config: EsConfig,
         enable_legacy_tenant: Option<LegacyTenantInfo>,
-        embedding_size: usize,
+        embedding_sizes: HashMap<String, usize>,
     ) -> Result<Self, Error> {
         let postgres = PoolOptions::new()
             .connect_with(postgres_config.to_connection_options()?)
@@ -70,7 +72,7 @@ impl Silo {
             postgres,
             elastic,
             enable_legacy_tenant,
-            embedding_size,
+            embedding_sizes,
         })
     }
 
@@ -84,19 +86,16 @@ impl Silo {
                         Ok(None)
                     }
                 },
-                move |tenant| async move {
-                    elastic::create_tenant_index(&self.elastic, &tenant, self.embedding_size).await
+                move |tenant: Tenant| async move {
+                    let embedding_size = self.embedding_size_for(&tenant)?;
+                    elastic::create_tenant_index(&self.elastic, &tenant, embedding_size).await
                 },
             )
         });
         let migrate_tenant = move |tenant, mut migrator| async move {
-            elastic::migrate_tenant_index(
-                &self.elastic,
-                &tenant,
-                self.embedding_size,
-                &mut migrator,
-            )
-            .await?;
+            let embedding_size = self.embedding_size_for(&tenant)?;
+            elastic::migrate_tenant_index(&self.elastic, &tenant, embedding_size, &mut migrator)
+                .await?;
             Ok(migrator)
         };
 
@@ -115,7 +114,8 @@ impl Silo {
         let mut tx = self.postgres.begin().await?;
         postgres::create_tenant(&mut tx, tenant).await?;
         // TODO[pmk/now] handle configured es index name
-        elastic::create_tenant_index(&self.elastic, tenant, self.embedding_size).await?;
+        let embedding_size = self.embedding_size_for(tenant)?;
+        elastic::create_tenant_index(&self.elastic, tenant, embedding_size).await?;
         tx.commit().await?;
         Ok(())
     }
@@ -170,12 +170,8 @@ impl Silo {
                 .unwrap_or_else(|err| OperationResult::Error {
                     msg: err.to_string(),
                 }),
-            Operation::CreateTenant {
-                tenant_id,
-                is_legacy_tenant,
-                es_index_name,
-            } => {
-                let tenant = Tenant::new_with_defaults(tenant_id, is_legacy_tenant, es_index_name);
+            Operation::CreateTenant(tenant_with_optionals) => {
+                let tenant = tenant_with_optionals.into();
                 self.create_tenant(&tenant)
                     .await
                     .map(|()| OperationResult::CreateTenant { tenant })
@@ -218,6 +214,19 @@ impl Silo {
     pub fn elastic_client(&self) -> &EsClient {
         &self.elastic
     }
+
+    pub fn embedding_size_for(&self, tenant: &Tenant) -> Result<usize, Error> {
+        self.embedding_sizes
+            .get(&tenant.model)
+            .copied()
+            .ok_or_else(|| {
+                anyhow!(
+                    "unknown model ({}) for tenant {}",
+                    tenant.model,
+                    tenant.tenant_id
+                )
+            })
+    }
 }
 
 #[derive(Deserialize, Debug)]
@@ -227,13 +236,7 @@ pub enum Operation {
         tenant_id: TenantId,
         es_index_name: String,
     },
-    CreateTenant {
-        tenant_id: TenantId,
-        #[serde(default)]
-        is_legacy_tenant: bool,
-        #[serde(default)]
-        es_index_name: Option<String>,
-    },
+    CreateTenant(TenantWithOptionals),
     DeleteTenant {
         tenant_id: TenantId,
     },

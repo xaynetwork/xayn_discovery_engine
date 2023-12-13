@@ -46,14 +46,16 @@ stdout = """
     "min_cois": 1,
     "horizon": 30
   },
-  "embedding": {
-    "type": "pipeline",
-    "directory": "assets",
-    "runtime": "assets",
-    "token_size": 250,
-    "prefix": {
-      "query": "",
-      "snippet": ""
+  "models": {
+    "default": {
+      "type": "pipeline",
+      "directory": "assets",
+      "runtime": "assets",
+      "token_size": 250,
+      "prefix": {
+        "query": "",
+        "snippet": ""
+      }
     }
   },
   "text_extractor": {

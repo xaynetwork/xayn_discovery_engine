@@ -190,7 +190,7 @@ impl UnvalidatedPersonalizedDocumentsRequest {
 pub(super) async fn recommendations(
     state: Data<AppState>,
     Json(body): Json<UnvalidatedRecommendationRequest>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     // TODO: actually return non-empty warnings in the response
     let mut warnings = Vec::new();
@@ -287,7 +287,7 @@ pub(super) async fn user_recommendations(
     user_id: Path<String>,
     body: Option<Json<UnvalidatedPersonalizedDocumentsRequest>>,
     Query(params): Query<UnvalidatedPersonalizedDocumentsQuery>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let user_id = user_id.into_inner().try_into()?;
     let request: RecommendationRequest = if let Some(Json(body)) = body {

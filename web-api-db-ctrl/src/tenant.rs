@@ -20,30 +20,45 @@ use xayn_web_api_shared::request::TenantId;
 //Hint: Silo API stability: This is currently directly serialized and returned from the /silo_management API.
 //      If we do any braking changes wrt. serialization format we need to create a serde proxy struct.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[serde(from = "TenantSerdeProxy")]
+#[serde(from = "TenantWithOptionals")]
 pub struct Tenant {
     pub tenant_id: TenantId,
     pub is_legacy_tenant: bool,
     pub es_index_name: String,
+    pub model: String,
 }
 
+/// A helper struct which allows specifying `None` for all fields which have default values.
+///
+/// It's also used as more stable API for `Deserializing` tenants.
 #[derive(Clone, Debug, Deserialize)]
-struct TenantSerdeProxy {
-    tenant_id: TenantId,
-    is_legacy_tenant: bool,
+pub struct TenantWithOptionals {
+    pub tenant_id: TenantId,
     #[serde(default)]
-    es_index_name: Option<String>,
+    pub is_legacy_tenant: bool,
+    #[serde(default)]
+    pub es_index_name: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
 }
 
-impl From<TenantSerdeProxy> for Tenant {
+impl From<TenantWithOptionals> for Tenant {
     fn from(
-        TenantSerdeProxy {
+        TenantWithOptionals {
             tenant_id,
             is_legacy_tenant,
             es_index_name,
-        }: TenantSerdeProxy,
+            model,
+        }: TenantWithOptionals,
     ) -> Self {
-        Self::new_with_defaults(tenant_id, is_legacy_tenant, es_index_name)
+        let es_index_name = es_index_name.unwrap_or_else(|| tenant_id.to_string());
+        let model = model.unwrap_or_else(|| "default".to_string());
+        Self {
+            tenant_id,
+            is_legacy_tenant,
+            es_index_name,
+            model,
+        }
     }
 }
 
@@ -52,33 +67,23 @@ impl Tenant {
         connection: &mut PgConnection,
         tenant_id: TenantId,
     ) -> Result<Tenant, Error> {
-        let (is_legacy_tenant, es_index_name) = sqlx::query_as::<_, (bool, Option<String>)>(
-            "SELECT is_legacy_tenant, es_index_name
-            FROM management.tenant
-            WHERE tenant_id = $1;",
-        )
-        .bind(&tenant_id)
-        .fetch_optional(connection)
-        .await?
-        .ok_or_else(|| anyhow!("unknown tenant: {tenant_id}"))?;
+        let (is_legacy_tenant, es_index_name, model) =
+            sqlx::query_as::<_, (bool, Option<String>, Option<String>)>(
+                "SELECT is_legacy_tenant, es_index_name, model
+                FROM management.tenant
+                WHERE tenant_id = $1;",
+            )
+            .bind(&tenant_id)
+            .fetch_optional(connection)
+            .await?
+            .ok_or_else(|| anyhow!("unknown tenant: {tenant_id}"))?;
 
-        Ok(Tenant::new_with_defaults(
+        Ok(TenantWithOptionals {
             tenant_id,
             is_legacy_tenant,
             es_index_name,
-        ))
-    }
-
-    pub fn new_with_defaults(
-        tenant_id: TenantId,
-        is_legacy_tenant: bool,
-        es_index_name: Option<String>,
-    ) -> Self {
-        let es_index_name = es_index_name.unwrap_or_else(|| tenant_id.to_string());
-        Self {
-            tenant_id,
-            is_legacy_tenant,
-            es_index_name,
+            model,
         }
+        .into())
     }
 }

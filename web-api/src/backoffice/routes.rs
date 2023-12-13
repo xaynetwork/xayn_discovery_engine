@@ -352,7 +352,7 @@ struct IngestionRequestBody {
 async fn upsert_documents(
     state: Data<AppState>,
     Json(body): Json<IngestionRequestBody>,
-    TenantState(storage): TenantState,
+    TenantState(storage, embedder): TenantState,
 ) -> Result<impl Responder, Error> {
     if body.documents.is_empty() {
         return Ok(HttpResponse::NoContent());
@@ -488,14 +488,17 @@ async fn upsert_documents(
     let start = Instant::now();
     let state = &state;
     let new_documents_len = new_documents.len();
+
     let (new_documents, mut failed_documents, invalid_documents) = new_documents
         .into_iter()
-        .map(|(mut document, new_is_candidate)| async move {
+        .map(|(mut document, new_is_candidate)| {
+        let embedder = embedder.clone();
+        async move {
             let id = document.id;
             let original_sha256 = Sha256Hash::calculate(document.original.as_bytes());
 
             let result = backoffice::preprocessor::preprocess(
-                &state.embedder,
+                &embedder,
                 || state.snippet_extractor.get().map_err(Error::from),
                 &state.extractor,
                 EmbeddingKind::Content,
@@ -519,7 +522,7 @@ async fn upsert_documents(
                     Err((id, error))
                 }
             }
-        })
+        }})
         .collect::<FuturesOrdered<_>>()
         .fold(
             (Vec::with_capacity(new_documents_len), Vec::new(), invalid_documents),
@@ -585,7 +588,7 @@ async fn delete_document(id: Path<String>, state: TenantState) -> Result<impl Re
 
 async fn delete_documents(
     Json(documents): Json<BatchDeleteRequest>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let documents = documents
         .documents
@@ -616,7 +619,7 @@ struct DocumentCandidatesResponse {
 }
 
 async fn get_document_candidates(
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let documents = storage::DocumentCandidate::get(&storage).await?;
 
@@ -637,7 +640,7 @@ struct DocumentCandidatesRequest {
 
 async fn set_document_candidates(
     Json(body): Json<DocumentCandidatesRequest>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let documents = body
         .documents
@@ -664,7 +667,7 @@ struct DocumentPropertiesResponse {
 #[instrument(skip(storage))]
 pub(crate) async fn get_document_properties(
     document_id: Path<String>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
     let properties = storage::DocumentProperties::get(&storage, &document_id)
@@ -685,7 +688,7 @@ async fn put_document_properties(
     state: Data<AppState>,
     document_id: Path<String>,
     Json(properties): Json<DocumentPropertiesRequest>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
     let properties = validate_document_properties(
@@ -705,7 +708,7 @@ async fn put_document_properties(
 #[instrument(skip(storage))]
 async fn delete_document_properties(
     document_id: Path<String>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let document_id = document_id.into_inner().try_into()?;
     storage::DocumentProperties::delete(&storage, &document_id)
@@ -723,7 +726,7 @@ struct DocumentPropertyResponse {
 #[instrument(skip(storage))]
 async fn get_document_property(
     ids: Path<(String, String)>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
@@ -747,7 +750,7 @@ async fn put_document_property(
     state: Data<AppState>,
     ids: Path<(String, String)>,
     Json(body): Json<DocumentPropertyRequest>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
@@ -783,7 +786,7 @@ async fn put_document_property(
 #[instrument(skip(storage))]
 async fn delete_document_property(
     ids: Path<(String, String)>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     let (document_id, property_id) = ids.into_inner();
     let document_id = document_id.try_into()?;
@@ -800,7 +803,7 @@ async fn delete_document_property(
 async fn create_indexed_properties(
     state: Data<AppState>,
     Json(update): Json<IndexedPropertiesSchemaUpdate>,
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     storage::IndexedProperties::extend_schema(&storage, update, &state.config.ingestion)
         .await
@@ -809,7 +812,7 @@ async fn create_indexed_properties(
 
 #[instrument(skip(storage))]
 async fn get_indexed_properties_schema(
-    TenantState(storage): TenantState,
+    TenantState(storage, _): TenantState,
 ) -> Result<impl Responder, Error> {
     storage::IndexedProperties::load_schema(&storage)
         .await

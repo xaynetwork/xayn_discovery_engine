@@ -63,7 +63,10 @@ use tracing_subscriber::{
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env, workspace::find_workspace_dir};
 use xayn_web_api::{config::Config, start, AppHandle, Application, WebApi};
-use xayn_web_api_db_ctrl::{tenant::Tenant, Silo};
+use xayn_web_api_db_ctrl::{
+    tenant::{Tenant, TenantWithOptionals},
+    Silo,
+};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
@@ -817,11 +820,13 @@ async fn setup_web_dev_services(
     clear_env();
     start_test_service_containers();
 
-    let tenant = Tenant::new_with_defaults(
-        TenantId::try_parse_ascii(test_id.as_ref())?,
-        enable_legacy_tenant,
-        None,
-    );
+    let tenant = TenantWithOptionals {
+        tenant_id: TenantId::try_parse_ascii(test_id.as_ref())?,
+        is_legacy_tenant: enable_legacy_tenant,
+        es_index_name: None,
+        model: None,
+    }
+    .into();
 
     let (pg_config, es_config) = db_configs_for_testing(test_id);
 
@@ -833,7 +838,7 @@ async fn setup_web_dev_services(
         // we create the legacy tenant using the silo API,
         // there are separate tests for the testing the migration
         None,
-        TEST_EMBEDDING_SIZE,
+        [("default".to_owned(), TEST_EMBEDDING_SIZE)].into(),
     )
     .await?;
     silo.admin_as_mt_user_hack().await?;

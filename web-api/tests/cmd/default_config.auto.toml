@@ -3,6 +3,7 @@ args = ["--print-config"]
 status.code = 0
 stderr = ""
 stdout = """
+{"timestamp":"[..]","level":"WARN","message":"using default fallback for model config, models/embedders should be defined explicitly","target":"xayn_web_api::config"}
 {
   "logging": {
     "file": null,
@@ -46,14 +47,16 @@ stdout = """
     "min_cois": 1,
     "horizon": 30
   },
-  "embedding": {
-    "type": "pipeline",
-    "directory": "assets",
-    "runtime": "assets",
-    "token_size": 250,
-    "prefix": {
-      "query": "",
-      "snippet": ""
+  "models": {
+    "default": {
+      "type": "pipeline",
+      "directory": "assets",
+      "runtime": "assets",
+      "token_size": 250,
+      "prefix": {
+        "query": "",
+        "snippet": ""
+      }
     }
   },
   "text_extractor": {

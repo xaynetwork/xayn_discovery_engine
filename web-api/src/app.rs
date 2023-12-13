@@ -25,7 +25,6 @@ use tracing::{info, instrument};
 pub(crate) use self::state::{AppState, TenantState};
 use crate::{
     config::Config,
-    embedding,
     extractor,
     logging,
     net::{self, AppHandle},
@@ -41,7 +40,6 @@ pub trait Application: 'static {
         + AsRef<net::Config>
         + AsRef<storage::Config>
         + AsRef<tenants::Config>
-        + AsRef<embedding::Config>
         + AsRef<extractor::Config>
         + DeserializeOwned
         + Serialize

@@ -21,10 +21,14 @@ use serde_json::json;
 use tokio::runtime::Runtime;
 use toml::toml;
 use url::Url;
-use xayn_integration_tests::{send_assert, send_assert_json, test_app};
+use xayn_integration_tests::{send_assert, send_assert_json, test_app, TEST_EMBEDDING_SIZE};
 use xayn_web_api::WebApi;
-use xayn_web_api_db_ctrl::{elastic, tenant::Tenant, OperationResult};
-use xayn_web_api_shared::{elastic::ClientWithoutIndex, json_object, request::TenantId};
+use xayn_web_api_db_ctrl::{elastic, tenant::TenantWithOptionals, OperationResult};
+use xayn_web_api_shared::{
+    elastic::ClientWithoutIndex,
+    json_object,
+    request::{InvalidTenantId, TenantId},
+};
 
 #[derive(Deserialize)]
 struct ManagementResponse {
@@ -41,6 +45,17 @@ fn test_tenants_can_be_created() {
         |client, url, services| async move {
             let test_id = &services.test_id;
             let make_id = |suffix| format!("{test_id}_{suffix}").parse::<TenantId>();
+            let test_tenant = |suffix, is_legacy_tenant| {
+                Result::<_, InvalidTenantId>::Ok(
+                    TenantWithOptionals {
+                        tenant_id: make_id(suffix)?,
+                        is_legacy_tenant,
+                        es_index_name: None,
+                        model: None,
+                    }
+                    .into(),
+                )
+            };
             let ManagementResponse { results } = send_assert_json(
                 &client,
                 client.post(url.join("/_ops/silo_management")?).json(&json!({
@@ -64,13 +79,13 @@ fn test_tenants_can_be_created() {
             assert_eq!(
                 results.next().unwrap(),
                 OperationResult::CreateTenant {
-                    tenant: Tenant::new_with_defaults(make_id("1")?, false, None),
+                    tenant: test_tenant("1", false)?,
                 }
             );
             assert_eq!(
                 results.next().unwrap(),
                 OperationResult::CreateTenant {
-                    tenant: Tenant::new_with_defaults(make_id("3")?, true, None)
+                    tenant: test_tenant("3", true)?,
                 }
             );
             assert!(matches!(
@@ -84,8 +99,8 @@ fn test_tenants_can_be_created() {
                 tenants.iter().collect::<HashSet<_>>(),
                 [
                     services.tenant.clone(),
-                    Tenant::new_with_defaults(make_id("1")?, false, None),
-                    Tenant::new_with_defaults(make_id("3")?, true, None),
+                    test_tenant("1", false)?,
+                    test_tenant("3", true)?,
                 ]
                 .iter()
                 .collect::<HashSet<_>>()
@@ -93,7 +108,7 @@ fn test_tenants_can_be_created() {
             assert_eq!(
                 results.next().unwrap(),
                 OperationResult::DeleteTenant {
-                    tenant: Some(Tenant::new_with_defaults(make_id("3")?, true, None))
+                    tenant: Some(test_tenant("3", true)?)
                 }
             );
             let OperationResult::ListTenants { tenants } = results.next().unwrap() else {
@@ -101,12 +116,9 @@ fn test_tenants_can_be_created() {
             };
             assert_eq!(
                 tenants.iter().collect::<HashSet<_>>(),
-                [
-                    services.tenant.clone(),
-                    Tenant::new_with_defaults(make_id("1")?, false, None)
-                ]
-                .iter()
-                .collect()
+                [services.tenant.clone(), test_tenant("1", false)?,]
+                    .iter()
+                    .collect()
             );
             assert_eq!(
                 results.next().unwrap(),
@@ -219,12 +231,14 @@ fn test_changing_the_es_index_works() {
 
             elastic::create_tenant_index(
                 services.silo.elastic_client(),
-                &Tenant {
+                &TenantWithOptionals {
                     tenant_id: services.tenant.tenant_id.clone(),
                     is_legacy_tenant: false,
-                    es_index_name: TEST_INDEX.to_owned(),
-                },
-                384,
+                    es_index_name: Some(TEST_INDEX.to_owned()),
+                    model: None,
+                }
+                .into(),
+                TEST_EMBEDDING_SIZE,
             )
             .await?;
 
@@ -273,4 +287,85 @@ fn test_changing_the_es_index_works() {
             Ok(())
         },
     )
+}
+
+#[test]
+fn test_creating_tenant_with_alternative_model() {
+    const TEST_STRING: &str = "test_creating_tenant_with_alternative_model";
+    test_app::<WebApi, _>(
+        Some(toml! {
+            [tenants]
+            enable_legacy_tenant = false
+            [models.fake_model]
+            type = "open_ai"
+            url = "https://example.invalid"
+            api_key = "no-key"
+            embedding_size = 20
+        }),
+        |client, url, _| async move {
+            let ManagementResponse { results } = send_assert_json(
+                &client,
+                client
+                    .post(url.join("/_ops/silo_management")?)
+                    .json(&json!({
+                        "operations": [
+                            { "CreateTenant": {
+                                "tenant_id": TEST_STRING,
+                                "model": "fake_model"
+                             } },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            assert_eq!(
+                results,
+                vec![OperationResult::CreateTenant {
+                    tenant: TenantWithOptionals {
+                        tenant_id: TEST_STRING.parse().unwrap(),
+                        is_legacy_tenant: false,
+                        es_index_name: None,
+                        model: Some("fake_model".to_owned())
+                    }
+                    .into()
+                }]
+            );
+
+            let ManagementResponse { results } = send_assert_json(
+                &client,
+                client
+                    .post(url.join("/_ops/silo_management")?)
+                    .json(&json!({
+                        "operations": [
+                            { "DeleteTenant": {
+                                "tenant_id": TEST_STRING,
+                             } },
+                        ]
+                    }))
+                    .build()?,
+                StatusCode::OK,
+                false,
+            )
+            .await;
+
+            assert_eq!(
+                results,
+                vec![OperationResult::DeleteTenant {
+                    tenant: Some(
+                        TenantWithOptionals {
+                            tenant_id: TEST_STRING.parse().unwrap(),
+                            is_legacy_tenant: false,
+                            es_index_name: None,
+                            model: Some("fake_model".to_owned())
+                        }
+                        .into()
+                    )
+                }]
+            );
+            Ok(())
+        },
+    );
 }
