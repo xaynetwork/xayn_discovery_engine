@@ -13,16 +13,15 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 use tracing::instrument;
-use xayn_web_api::{application_names, config, logging, start, Application, WebApi};
+use xayn_web_api::{application_names, logging, start, Application, WebApi};
 
 type Config = <WebApi as Application>::Config;
 
 #[tokio::main]
 #[instrument(err)]
 async fn main() -> Result<(), anyhow::Error> {
-    let config: Config = config::load(application_names!());
-    logging::initialize_global(config.as_ref())?;
-    config.validate()?;
-
+    let config = Config::load(application_names!());
+    logging::initialize_global(config.logging_config())?;
+    let config = config.finalize(true)?;
     start::<WebApi>(config).await?.wait_for_termination().await
 }

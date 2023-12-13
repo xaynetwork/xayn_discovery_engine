@@ -12,6 +12,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+//HINT: This test can't be in integration-tests/tests as then we can't be sure it will run against the right binary.
+
 use std::{env, ffi::OsStr, sync::Mutex};
 
 use trycmd::TestCases;

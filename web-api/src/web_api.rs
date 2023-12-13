@@ -15,7 +15,7 @@
 use actix_web::web::ServiceConfig;
 use async_trait::async_trait;
 
-use crate::{app::Application, config::WebApiConfig};
+use crate::{app::Application, config::Config};
 
 pub struct WebApi;
 
@@ -23,7 +23,7 @@ pub struct WebApi;
 impl Application for WebApi {
     const NAME: &'static str = "XAYN_WEB_API";
 
-    type Config = WebApiConfig;
+    type Config = Config;
 
     fn configure_service(config: &mut ServiceConfig) {
         crate::backoffice::routes::configure_service(config);

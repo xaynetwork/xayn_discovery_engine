@@ -24,7 +24,7 @@ use tracing::{info, instrument};
 
 pub(crate) use self::state::{AppState, TenantState};
 use crate::{
-    config::WebApiConfig,
+    config::Config,
     embedding,
     extractor,
     logging,
@@ -70,7 +70,7 @@ pub type SetupError = anyhow::Error;
 ///
 /// The return value is the exit code which should be used.
 #[instrument(skip_all)]
-pub async fn start<A>(config: WebApiConfig) -> Result<AppHandle, SetupError>
+pub async fn start<A>(config: Config) -> Result<AppHandle, SetupError>
 where
     A: Application + 'static,
 {
