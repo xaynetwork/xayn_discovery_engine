@@ -36,7 +36,7 @@ use xayn_integration_tests::{
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env};
 use xayn_web_api::{config::Config, start, Application, WebApi};
-use xayn_web_api_db_ctrl::{elastic_create_tenant, LegacyTenantInfo, Silo};
+use xayn_web_api_db_ctrl::{elastic_create_tenant, tenant::Tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
@@ -68,11 +68,16 @@ fn test_if_the_initializations_work_correctly_for_legacy_tenants() {
             .run(&mut tx)
             .await?;
 
-        let es_client = elastic::Client::new(es_config.clone())?;
+        let es_client = elastic::ClientWithoutIndex::new(es_config.clone())?;
         let legacy_elastic_index_as_tenant_id =
             TenantId::try_parse_ascii(es_config.index_name.as_bytes())?;
         elastic_create_tenant(
-            &es_client.with_index(&legacy_elastic_index_as_tenant_id),
+            &es_client,
+            &Tenant {
+                tenant_id: legacy_elastic_index_as_tenant_id,
+                is_legacy_tenant: true,
+                es_index_name: es_config.index_name.clone(),
+            },
             TEST_EMBEDDING_SIZE,
         )
         .await?;

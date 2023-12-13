@@ -63,7 +63,7 @@ use tracing_subscriber::{
 };
 use xayn_test_utils::{asset::ort_target, env::clear_env, workspace::find_workspace_dir};
 use xayn_web_api::{config::Config, start, AppHandle, Application, WebApi};
-use xayn_web_api_db_ctrl::{Silo, Tenant};
+use xayn_web_api_db_ctrl::{tenant::Tenant, Silo};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
@@ -817,7 +817,11 @@ async fn setup_web_dev_services(
     clear_env();
     start_test_service_containers();
 
-    let tenant_id = TenantId::try_parse_ascii(test_id.as_ref())?;
+    let tenant = Tenant::new_with_defaults(
+        TenantId::try_parse_ascii(test_id.as_ref())?,
+        enable_legacy_tenant,
+        None,
+    );
 
     let (pg_config, es_config) = db_configs_for_testing(test_id);
 
@@ -834,9 +838,7 @@ async fn setup_web_dev_services(
     .await?;
     silo.admin_as_mt_user_hack().await?;
     silo.initialize().await?;
-    let tenant = silo
-        .create_tenant(tenant_id.clone(), enable_legacy_tenant)
-        .await?;
+    silo.create_tenant(&tenant).await?;
 
     Ok(Services {
         test_id: test_id.to_owned(),

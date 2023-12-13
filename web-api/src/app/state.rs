@@ -21,7 +21,7 @@ use actix_web::{
     HttpRequest,
 };
 use derive_more::AsRef;
-use futures_util::future::{ready, Ready};
+use futures_util::{future::BoxFuture, FutureExt};
 use xayn_ai_coi::CoiSystem;
 use xayn_snippet_extractor::pool::SnippetExtractorPool;
 use xayn_web_api_db_ctrl::Silo;
@@ -94,20 +94,24 @@ pub(crate) struct TenantState(pub(crate) Storage);
 impl FromRequest for TenantState {
     type Error = Error;
 
-    type Future = Ready<Result<Self, Self::Error>>;
+    type Future = BoxFuture<'static, Result<TenantState, Error>>;
 
     fn from_request(request: &HttpRequest, _payload: &mut Payload) -> Self::Future {
-        ready(extract_tenant_state(request))
-    }
-}
+        let result = RequestContext::try_extract_from_request(request, |ctx| {
+            let builder = request.app_data::<Arc<StorageBuilder>>()?.clone();
+            let tenant_id = ctx.tenant_id.clone();
+            Some((builder, tenant_id))
+        });
 
-fn extract_tenant_state(request: &HttpRequest) -> Result<TenantState, Error> {
-    RequestContext::try_extract_from_request(request, |ctx| {
-        let storage = request
-            .app_data::<Arc<StorageBuilder>>()
-            .ok_or_else(|| InternalError::from_message("Arc<StorageBuilder> missing"))?
-            .build_for(&ctx.tenant_id);
-        Ok(TenantState(storage))
-    })
-    .map_err(InternalError::from_std)?
+        async move {
+            match result {
+                Ok(Some((builder, tenant_id))) => {
+                    Ok(TenantState(builder.build_for(tenant_id).await?))
+                }
+                Ok(None) => Err(InternalError::from_message("Arc<StorageBuilder> missing").into()),
+                Err(error) => Err(InternalError::from_std(error).into()),
+            }
+        }
+        .boxed()
+    }
 }

@@ -99,6 +99,20 @@ impl Auth {
     }
 }
 
+/// A sanity check [`Client`] wrapper which indicates that the inner client doesn't necessary have the correct index set.
+#[derive(Clone, Debug, From)]
+pub struct ClientWithoutIndex(pub Client);
+
+impl ClientWithoutIndex {
+    pub fn new(config: Config) -> Result<Self, anyhow::Error> {
+        Ok(Self(Client::new(config)?))
+    }
+
+    pub fn with_index(&self, index: impl AsRef<str>) -> Client {
+        self.0.with_index(index)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Client {
     auth: Arc<Auth>,

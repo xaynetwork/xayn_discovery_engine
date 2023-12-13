@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use xayn_ai_bert::NormalizedEmbedding;
 use xayn_ai_coi::Coi;
-use xayn_web_api_db_ctrl::{LegacyTenantInfo, Silo};
+use xayn_web_api_db_ctrl::{tenant::Tenant, LegacyTenantInfo, Silo};
 use xayn_web_api_shared::{postgres as postgres_shared, request::TenantId};
 
 use self::property_filter::{IndexedPropertiesSchema, IndexedPropertiesSchemaUpdate};
@@ -307,6 +307,8 @@ pub struct Config {
 }
 
 pub(crate) struct Storage {
+    #[allow(dead_code)]
+    tenant: Tenant,
     elastic: elastic::Client,
     postgres: postgres::Database,
 }
@@ -359,11 +361,18 @@ pub(crate) struct StorageBuilder {
 }
 
 impl StorageBuilder {
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Storage {
-        Storage {
-            elastic: self.elastic.build_for(tenant_id),
-            postgres: self.postgres.build_for(tenant_id),
-        }
+    pub(crate) async fn build_for(&self, tenant_id: TenantId) -> Result<Storage, Error> {
+        let tenant = {
+            let mut connection = self.postgres.mt_user_connection().await?;
+            Tenant::load_from_postgres(&mut connection, tenant_id).await?
+        };
+        let elastic = self.elastic.build_for(&tenant);
+        let postgres = self.postgres.build_for(&tenant);
+        Ok(Storage {
+            tenant,
+            elastic,
+            postgres,
+        })
     }
 
     pub(crate) async fn close(&self) {

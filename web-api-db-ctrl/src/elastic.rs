@@ -17,18 +17,20 @@ use once_cell::sync::Lazy;
 use reqwest::Method;
 use serde_json::{json, Value};
 use tracing::{error, info, instrument};
-use xayn_web_api_shared::{
-    elastic::{Client, NotFoundAsOptionExt, SerdeDiscard},
-    request::TenantId,
-};
+use xayn_web_api_shared::elastic::{Client, ClientWithoutIndex, NotFoundAsOptionExt, SerdeDiscard};
 
-use crate::{postgres::ExternalMigrator, Error};
+use crate::{postgres::ExternalMigrator, tenant::Tenant, Error};
 
 static MAPPING_STR: &str = include_str!("../elasticsearch/mapping.json");
 static MAPPING: Lazy<Value> = Lazy::new(|| serde_json::from_str(MAPPING_STR).unwrap());
 
 #[instrument(skip(elastic))]
-pub async fn create_tenant_index(elastic: &Client, embedding_size: usize) -> Result<(), Error> {
+pub async fn create_tenant_index(
+    elastic: &ClientWithoutIndex,
+    tenant: &Tenant,
+    embedding_size: usize,
+) -> Result<(), Error> {
+    let elastic = elastic.with_index(&tenant.es_index_name);
     let mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
     elastic
         .query_with_json::<_, SerdeDiscard>(Method::PUT, elastic.create_url([], []), Some(&mapping))
@@ -38,50 +40,37 @@ pub async fn create_tenant_index(elastic: &Client, embedding_size: usize) -> Res
 }
 
 #[instrument(skip(elastic))]
-pub(super) async fn delete_tenant(elastic: &Client, tenant_id: &TenantId) -> Result<(), Error> {
-    let elastic = elastic.with_index(tenant_id);
+pub async fn delete_index(elastic: &ClientWithoutIndex, index_name: &str) -> Result<(), Error> {
+    let elastic = elastic.with_index(index_name);
     elastic
         .query_with_bytes::<SerdeDiscard>(Method::DELETE, elastic.create_url([], []), None)
         .await?;
-    info!({%tenant_id}, "deleted ES index");
-    Ok(())
-}
-
-#[instrument(skip(elastic))]
-pub(crate) async fn setup_legacy_tenant(
-    elastic: Client,
-    default_index: &str,
-    embedding_size: usize,
-) -> Result<(), Error> {
-    if does_tenant_index_exist(&elastic.with_index(default_index)).await? {
-        create_alias_index_to(&elastic, default_index).await?;
-    } else {
-        create_tenant_index(&elastic, embedding_size).await?;
-    }
+    info!({%index_name}, "deleted ES index");
     Ok(())
 }
 
 #[instrument(skip(elastic, migrator))]
 pub(crate) async fn migrate_tenant_index(
-    elastic: Client,
-    tenant_id: &TenantId,
+    elastic: &ClientWithoutIndex,
+    tenant: &Tenant,
     embedding_size: usize,
     migrator: &mut impl ExternalMigrator,
 ) -> Result<(), Error> {
-    if let Some(existing_mapping) = get_opt_tenant_mapping(&elastic).await? {
+    let es_with_index = elastic.with_index(&tenant.es_index_name);
+    if let Some(existing_mapping) = get_opt_tenant_mapping(&es_with_index).await? {
         let base_mapping = mapping_with_embedding_size(&MAPPING, embedding_size)?;
         check_mapping_compatibility(&existing_mapping, &base_mapping)?;
     } else {
         error!(
-            {%tenant_id},
+            {%tenant.tenant_id},
             "index for tenant doesn't exist, creating a new index"
         );
-        create_tenant_index(&elastic, embedding_size).await?;
+        create_tenant_index(elastic, tenant, embedding_size).await?;
     }
 
     migrator
         .run_migration_if_needed("migrate_parent_property", async move {
-            migrate_parent_property(&elastic).await
+            migrate_parent_property(&es_with_index).await
         })
         .await?;
 
@@ -149,8 +138,13 @@ fn check_mapping_compatibility(
 }
 
 #[instrument(skip(elastic))]
-async fn does_tenant_index_exist(elastic: &Client) -> Result<bool, Error> {
-    Ok(get_opt_tenant_mapping(elastic).await?.is_some())
+pub(crate) async fn does_index_exist(
+    elastic: &ClientWithoutIndex,
+    index: &str,
+) -> Result<bool, Error> {
+    Ok(get_opt_tenant_mapping(&elastic.with_index(index))
+        .await?
+        .is_some())
 }
 
 #[instrument(skip(elastic))]
@@ -166,28 +160,6 @@ async fn get_opt_tenant_mapping(elastic: &Client) -> Result<Option<Value>, Error
         }
         Some(unexpected) => bail!("unexpected index/_mapping response: {unexpected}"),
     }
-}
-
-#[instrument(skip(elastic))]
-async fn create_alias_index_to(elastic: &Client, original_index: &str) -> Result<(), Error> {
-    let alias_index = elastic.get_index().to_owned();
-    let elastic = elastic.with_index("_aliases");
-    elastic
-        .query_with_json::<_, SerdeDiscard>(
-            Method::POST,
-            elastic.create_url([], []),
-            Some(&json!({
-                "actions": [{
-                    "add": {
-                        "index": original_index,
-                        "alias": alias_index,
-                    }
-                }]
-            })),
-        )
-        .await?;
-    info!({%alias_index, %original_index}, "created ES alias");
-    Ok(())
 }
 
 fn mapping_with_embedding_size(mapping: &Value, embedding_size: usize) -> Result<Value, Error> {

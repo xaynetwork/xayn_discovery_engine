@@ -27,12 +27,13 @@ use sqlx::{
     Transaction,
 };
 use tracing::{info, instrument};
+use xayn_web_api_db_ctrl::tenant::Tenant;
 use xayn_web_api_shared::{
     postgres::{Config, QuotedIdentifier},
     request::TenantId,
 };
 
-use crate::SetupError;
+use crate::{Error, SetupError};
 
 #[derive(Clone)]
 pub(crate) struct DatabaseBuilder {
@@ -45,15 +46,23 @@ impl DatabaseBuilder {
         self.pool.close().await;
     }
 
-    pub(crate) fn build_for(&self, tenant_id: &TenantId) -> Database {
+    pub(crate) fn build_for(&self, tenant: &Tenant) -> Database {
         Database {
             pool: self.pool.clone(),
-            tenant_db_name: QuotedIdentifier::db_name_for_tenant_id(tenant_id),
+            tenant_db_name: QuotedIdentifier::db_name_for_tenant_id(&tenant.tenant_id),
         }
     }
 
     pub(crate) fn legacy_tenant(&self) -> Option<&TenantId> {
         self.legacy_tenant.as_ref()
+    }
+
+    /// Get a db connection for the `MT_USER`.
+    ///
+    /// This connection should be able to read the `management.tenant` table but might not
+    /// see other tables/schemas without changing its role first.
+    pub(crate) async fn mt_user_connection(&self) -> Result<PoolConnection<Postgres>, Error> {
+        self.pool.acquire().await.map_err(Into::into)
     }
 }
 
