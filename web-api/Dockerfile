@@ -10,12 +10,10 @@ RUN --mount=type=bind,target=. cargo chef prepare --recipe-path ../recipe.json
 FROM chef AS builder
 COPY --from=planner /app/recipe.json recipe.json
 # Build dependencies - this is the caching Docker layer!
-RUN cargo chef cook --release --target-dir ../target --recipe-path recipe.json --bin ingestion && \
-    cargo chef cook --release --target-dir ../target --recipe-path recipe.json --bin personalization
+RUN cargo chef cook --release --target-dir ../target --recipe-path recipe.json --bin web-api
 # Build application
 COPY . .
-RUN cargo build --release --target-dir ../target --bin ingestion && \
-    cargo build --release --target-dir ../target --bin personalization
+RUN cargo build --release --target-dir ../target --bin web-api
 
 FROM debian:12.2-slim AS runtime
 WORKDIR /app
@@ -46,11 +44,7 @@ RUN --mount=type=bind,target=project set -eux; \
     esac; \
     cp -r project/assets/"$ORT_DIR"/linux_"$ORT_ARCH"/lib/* assets/lib
 
-FROM runtime AS ingestion
-COPY --from=builder /app/target/release/ingestion server.bin
-ENTRYPOINT ["/app/server.bin"]
-
-FROM runtime AS personalization
-COPY --from=builder /app/target/release/personalization server.bin
+FROM runtime AS service
+COPY --from=builder /app/target/release/web-api server.bin
 ENTRYPOINT ["/app/server.bin"]
 

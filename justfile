@@ -186,15 +186,13 @@ web-dev-down:
 build-service-image crate_path bin model_dir="" ort_dir="":
     #!/usr/bin/env -S bash -eux -o pipefail
     docker build -f "{{crate_path}}/Dockerfile" \
-      --target {{bin}} \
       --build-arg MODEL_DIR="{{model_dir}}" \
       --build-arg ORT_DIR="{{ort_dir}}" \
       -t "xayn-{{crate_path}}-{{bin}}" {{justfile_directory()}}
 
 compose-all-build model="xaynia_v0201" ort="ort_v1.15.1":
     #!/usr/bin/env -S bash -eux -o pipefail
-    {{just_executable()}} build-service-image web-api personalization "assets/{{model}}" "assets/{{ort}}"
-    {{just_executable()}} build-service-image web-api ingestion "assets/{{model}}" "assets/{{ort}}"
+    {{just_executable()}} build-service-image web-api web-api "assets/{{model}}" "assets/{{ort}}"
 
 compose-all-up *args:
     #!/usr/bin/env -S bash -eux -o pipefail
