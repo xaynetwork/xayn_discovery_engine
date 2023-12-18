@@ -15,7 +15,7 @@
 use anyhow::Error;
 use chrono::{DateTime, TimeZone, Utc};
 use sqlx::{Connection, PgConnection};
-use tracing::{instrument};
+use tracing::instrument;
 use xayn_integration_tests::{
     create_db,
     db_configs_for_testing,
@@ -25,13 +25,13 @@ use xayn_integration_tests::{
     MANAGEMENT_DB,
     TEST_EMBEDDING_SIZE,
 };
+use xayn_test_utils::env::clear_env;
 use xayn_web_api_db_ctrl::{
     elastic_create_tenant,
     tenant::TenantWithOptionals,
     LegacyTenantInfo,
     Silo,
 };
-use xayn_test_utils::{env::clear_env};
 use xayn_web_api_shared::{
     elastic,
     postgres::{self, QuotedIdentifier},
