@@ -1,0 +1,13 @@
+**/*
+!rust-toolchain.toml
+!Cargo.*
+!coi
+!bert
+!integration-tests
+!web-api
+!web-api-shared
+!web-api-db-ctrl
+!snippet-extractor
+!summarizer
+!test-utils
+!assets

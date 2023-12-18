@@ -183,34 +183,16 @@ web-dev-down:
     #!/usr/bin/env -S bash -eu -o pipefail
     docker-compose -p web-dev -f "./web-api/compose.db.yml" down
 
-build-service-image crate_path bin asset_dir="":
+build-service-image crate_path bin model_dir="" ort_dir="":
     #!/usr/bin/env -S bash -eux -o pipefail
-    out="$(mktemp -d -t xayn.web-api.compose.XXXX)"
-    echo "Building in: $out"
-    cargo install \
-        --path "{{crate_path}}" \
-        --bin "{{bin}}" \
-        --debug \
-        --root "$out" \
-        --locked
-    # rename binary to the name the Dockerfile expects
-    mv "$out/bin/{{bin}}" "$out/server.bin"
-    rmdir "$out/bin"
-    if [ -n "{{asset_dir}}" ]; then
-        cp -R "{{asset_dir}}" "$out/assets"
-    fi
+    docker build -f "{{crate_path}}/Dockerfile" \
+      --build-arg MODEL_DIR="{{model_dir}}" \
+      --build-arg ORT_DIR="{{ort_dir}}" \
+      -t "xayn-{{crate_path}}-{{bin}}" {{justfile_directory()}}
 
-    cp "snippet-extractor/Pipfile" "$out/Pipfile"
-    cp "snippet-extractor/Pipfile.lock" "$out/Pipfile.lock"
-    cp -r "snippet-extractor/python_src/" "$out/python_src"
-
-    docker build -f "{{crate_path}}/Dockerfile" -t "xayn-{{crate_path}}-{{bin}}" "$out"
-    rm -rf "$out"
-
-compose-all-build model="xaynia_v0201":
+compose-all-build model="xaynia_v0201" ort="ort_v1.15.1":
     #!/usr/bin/env -S bash -eux -o pipefail
-    {{just_executable()}} build-service-image web-api personalization "assets/{{model}}"
-    {{just_executable()}} build-service-image web-api ingestion "assets/{{model}}"
+    {{just_executable()}} build-service-image web-api web-api "assets/{{model}}" "assets/{{ort}}"
 
 compose-all-up *args:
     #!/usr/bin/env -S bash -eux -o pipefail
