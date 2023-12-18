@@ -42,7 +42,7 @@ RUN --mount=type=bind,target=project set -eux; \
         amd64) ORT_ARCH="x64" ;;\
         arm64) ORT_ARCH="aarch64" ;;\
     esac; \
-    cp -r project/assets/"$ORT_DIR"/linux_"$ORT_ARCH"/lib/* assets/lib
+    cp -r project/"$ORT_DIR"/linux_"$ORT_ARCH"/lib/* assets/lib
 
 FROM runtime AS service
 COPY --from=builder /app/target/release/web-api server.bin
