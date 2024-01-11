@@ -221,7 +221,7 @@ impl Client {
         }
 
         let response = self.bulk_request(snippets).await?;
-        Ok(response.failed_documents("index", false, "created").into())
+        Ok(response.failed_documents(false, "created").into())
     }
 
     pub(super) async fn delete_by_parents(
