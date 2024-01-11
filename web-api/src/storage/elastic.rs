@@ -23,7 +23,7 @@ use itertools::Itertools;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tracing::info;
+use tracing::{info, warn};
 use xayn_ai_bert::NormalizedEmbedding;
 pub(crate) use xayn_web_api_shared::elastic::{BulkInstruction, Config};
 use xayn_web_api_shared::{
@@ -201,7 +201,7 @@ impl Client {
                         #[allow(clippy::cast_possible_truncation)]
                         let id = SnippetId::new(document.id.clone(), idx as _);
                         let header =
-                            serde_json::to_value(BulkInstruction::Create { id: id.to_es_id() });
+                            serde_json::to_value(BulkInstruction::Index { id: id.to_es_id() });
                         let data = serde_json::to_value(Document {
                             snippet,
                             properties: &document.properties,
@@ -221,7 +221,7 @@ impl Client {
         }
 
         let response = self.bulk_request(snippets).await?;
-        Ok(response.failed_documents("index", false).into())
+        Ok(response.failed_documents("index", false, "created").into())
     }
 
     pub(super) async fn delete_by_parents(
@@ -229,7 +229,10 @@ impl Client {
         parents: impl SerializeDocumentIds,
     ) -> Result<(), Error> {
         // https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-delete-by-query.html
-        let url = self.create_url(["_delete_by_query"], [("refresh", None)]);
+        let url = self.create_url(
+            ["_delete_by_query"],
+            [("refresh", None), ("conflicts", Some("proceed"))],
+        );
         let body = json!({
             "query": {
                 "terms": {
@@ -237,8 +240,16 @@ impl Client {
                 }
             }
         });
-        self.query_with_json::<_, SerdeDiscard>(Method::POST, url, Some(body))
-            .await?;
+
+        let result: Value = self.query_with_json(Method::POST, url, Some(body)).await?;
+
+        if !result
+            .get("failures")
+            .and_then(Value::as_array)
+            .map_or(true, Vec::is_empty)
+        {
+            warn!(response=%result, "ignored deletion failures when deleting by parent");
+        }
         Ok(())
     }
 

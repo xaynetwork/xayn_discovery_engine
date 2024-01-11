@@ -42,7 +42,7 @@ use serde::{
 };
 use serde_json::{json, Value};
 use thiserror::Error;
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::{
     net::{ExponentialJitterRetryPolicy, ExponentialJitterRetryPolicyConfig},
@@ -241,6 +241,8 @@ pub struct BulkItemResponse<I> {
     pub id: I,
     pub status: u16,
     #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
     pub error: Value,
 }
 
@@ -261,7 +263,12 @@ pub struct BulkResponse<I> {
 }
 
 impl<I> BulkResponse<I> {
-    pub fn failed_documents(self, operation: &'static str, allow_not_found: bool) -> Vec<I>
+    pub fn failed_documents(
+        self,
+        operation: &'static str,
+        allow_not_found: bool,
+        expected_result: &str,
+    ) -> Vec<I>
     where
         I: Display + Debug,
     {
@@ -271,6 +278,7 @@ impl<I> BulkResponse<I> {
                 .into_iter()
                 .filter_map(|mut response| {
                     if let Some(response) = response.remove(operation) {
+                        let result = response.result.as_deref().unwrap_or("none");
                         if !response.is_success_status(allow_not_found) {
                             error!(
                                 document_id=%response.id,
@@ -278,6 +286,12 @@ impl<I> BulkResponse<I> {
                                 "Elastic failed to {operation} document.",
                             );
                             return Some(response.id);
+                        } else if result != expected_result {
+                            warn!(
+                                expected=%expected_result,
+                                got=%result,
+                                "Mismatch in expected result for bulk operation"
+                            )
                         }
                     } else {
                         error!("Bulk {operation} request contains non {operation} responses: {response:?}");
