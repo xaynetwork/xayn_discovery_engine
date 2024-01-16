@@ -263,7 +263,7 @@ pub struct BulkResponse<I> {
 }
 
 impl<I> BulkResponse<I> {
-    pub fn failed_documents(self, allow_not_found: bool, expected_result: &str) -> Vec<I>
+    pub fn failed_documents(self, allow_not_found: bool, expected_result: &'static str) -> Vec<I>
     where
         I: Display + Debug,
     {
@@ -281,7 +281,6 @@ impl<I> BulkResponse<I> {
                             //FIXME get id from zipping with query inputs, through also this should never happen so maybe don't bother
                             return None;
                         };
-                        let result = response.result.as_deref().unwrap_or("none");
                         if !response.is_success_status(allow_not_found) {
                             error!(
                                 document_id=%response.id,
@@ -290,11 +289,12 @@ impl<I> BulkResponse<I> {
                             );
                             return Some(response.id);
                         }
+                        let result = response.result.as_deref().unwrap_or("none");
                         if result != expected_result {
                             warn!(
                                 expected=%expected_result,
                                 got=%result,
-                                "Mismatch in expected kind of result for bulk operation"
+                                "Mismatch in expected kind of result for bulk operation",
                             );
                         }
                         None

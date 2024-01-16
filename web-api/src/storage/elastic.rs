@@ -241,8 +241,9 @@ impl Client {
             }
         });
 
-        let result: Value = self.query_with_json(Method::POST, url, Some(body)).await?;
-
+        let result = self
+            .query_with_json::<_, Value>(Method::POST, url, Some(body))
+            .await?;
         if !result
             .get("failures")
             .and_then(Value::as_array)
@@ -250,6 +251,7 @@ impl Client {
         {
             warn!(response=%result, "ignored deletion failures when deleting by parent");
         }
+
         Ok(())
     }
 
