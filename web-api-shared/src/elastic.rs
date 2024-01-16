@@ -42,7 +42,7 @@ use serde::{
 };
 use serde_json::{json, Value};
 use thiserror::Error;
-use tracing::error;
+use tracing::{error, warn};
 
 use crate::{
     net::{ExponentialJitterRetryPolicy, ExponentialJitterRetryPolicyConfig},
@@ -241,6 +241,8 @@ pub struct BulkItemResponse<I> {
     pub id: I,
     pub status: u16,
     #[serde(default)]
+    pub result: Option<String>,
+    #[serde(default)]
     pub error: Value,
 }
 
@@ -261,31 +263,45 @@ pub struct BulkResponse<I> {
 }
 
 impl<I> BulkResponse<I> {
-    pub fn failed_documents(self, operation: &'static str, allow_not_found: bool) -> Vec<I>
+    pub fn failed_documents(self, allow_not_found: bool, expected_result: &'static str) -> Vec<I>
     where
         I: Display + Debug,
     {
-        self.errors.then(|| {
-            self
-                .items
-                .into_iter()
-                .filter_map(|mut response| {
-                    if let Some(response) = response.remove(operation) {
+        self.errors
+            .then(|| {
+                self.items
+                    .into_iter()
+                    .filter_map(|response| {
+                        if response.len() != 1 {
+                            warn!(response=?response, "unexpected bulk response item");
+                        }
+                        // There was a bug with ES returning the wrong action (index for create),
+                        // as we do check `result` we use that to find unexpected results.
+                        let Some((action, response)) = response.into_iter().next() else {
+                            //FIXME get id from zipping with query inputs, through also this should never happen so maybe don't bother
+                            return None;
+                        };
                         if !response.is_success_status(allow_not_found) {
                             error!(
                                 document_id=%response.id,
                                 error=%response.error,
-                                "Elastic failed to {operation} document.",
+                                "Elastic failed to {action} document.",
                             );
                             return Some(response.id);
                         }
-                    } else {
-                        error!("Bulk {operation} request contains non {operation} responses: {response:?}");
-                    }
-                    None
-                })
-                .collect()
-        }).unwrap_or_default()
+                        let result = response.result.as_deref().unwrap_or("none");
+                        if result != expected_result {
+                            warn!(
+                                expected=%expected_result,
+                                got=%result,
+                                "Mismatch in expected kind of result for bulk operation",
+                            );
+                        }
+                        None
+                    })
+                    .collect()
+            })
+            .unwrap_or_default()
     }
 }
 
