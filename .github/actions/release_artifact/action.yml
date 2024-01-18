@@ -58,7 +58,7 @@ runs:
         BIN_PATH="${GITHUB_WORKSPACE}/target/${{ env.build_target }}/release/${{ inputs.bin_name }}"
         MODEL_PATH="${GITHUB_WORKSPACE}/assets/${{ inputs.model_full_name }}"
         RUNTIME_PATH="${GITHUB_WORKSPACE}/assets/${{ inputs.runtime_full_name }}/${{ env.runtime_target }}"
-        DOCKERFILE_PATH="${GITHUB_WORKSPACE}/web-api/Dockerfile"
+        DOCKERFILE_PATH="${GITHUB_WORKSPACE}/web-api/Dockerfile.release"
         ARCHIVE_NAME="${{ inputs.archive_name }}"
         PYTHON_WORKSPACE="${GITHUB_WORKSPACE}/snippet-extractor/"
 
